@@ -1,0 +1,9 @@
+# Variante « derrière un nginx hôte » : Caddy sert le front et l'API en HTTP sur 127.0.0.1:8080,
+# nginx termine le TLS pour le domaine. Utilisation :
+#   docker compose -f docker-compose.yml -f docker-compose.nginx.yml up -d --build
+services:
+  caddy:
+    environment:
+      SITE_DOMAIN: ":80"
+    ports: !override
+      - "127.0.0.1:${CADDY_PORT:-8080}:80"

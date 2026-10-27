@@ -1,3 +1,10 @@
+{
+	# Les en-têtes X-Forwarded-* d'un proxy en amont (nginx hôte, réseau Docker) sont dignes de confiance.
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
 {$SITE_DOMAIN} {
 	encode zstd gzip
 

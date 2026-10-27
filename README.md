@@ -78,3 +78,29 @@ docker compose up -d --build
 
 Caddy obtient le certificat HTTPS tout seul (le domaine doit pointer sur le VPS, ports 80 et 443 ouverts).
 Mises à jour : `git pull && docker compose up -d --build`. Sauvegardes : `deploy/backup.sh` dans la crontab.
+
+### Derrière un nginx déjà présent sur le VPS
+
+Si nginx occupe déjà les ports 80 et 443, Caddy reste dans Compose mais écoute en HTTP sur `127.0.0.1:8080`
+et nginx termine le TLS :
+
+```sh
+cd /opt/wow-forever/deploy
+cp .env.example .env && $EDITOR .env           # SITE_DOMAIN n'est pas utilisé dans ce mode
+docker compose -f docker-compose.yml -f docker-compose.nginx.yml up -d --build
+sudo cp nginx/wow.koj.dev.conf /etc/nginx/sites-available/wow.koj.dev   # adapter le domaine
+sudo ln -s /etc/nginx/sites-available/wow.koj.dev /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d wow.koj.dev
+```
+
+Dans `.env`, mettre `SITE_URL`, `DJANGO_ALLOWED_HOSTS` et `DJANGO_CSRF_TRUSTED_ORIGINS` sur le domaine public en
+`https`. Pour les mises à jour, garder les deux fichiers `-f` dans la commande.
+
+### Première mise en ligne
+
+1. `docker compose … exec web python manage.py import_gamedata` (objets, talents, recettes ; ~2 min).
+2. Ajouter `https://<domaine>/api/auth/discord/callback/` dans les Redirects de l'application Discord.
+3. Se connecter avec Discord : le premier GM est promu, puis Guilde › Paramètres pour vérifier la configuration.
+   Les réglages Discord saisis en local se transfèrent avec
+   `python manage.py dumpdata guild.guildsettings > guild.json` puis `loaddata` dans le conteneur.
