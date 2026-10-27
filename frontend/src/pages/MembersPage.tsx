@@ -69,7 +69,7 @@ export function MembersPage() {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="border-b border-border text-left text-xs uppercase text-muted">
+            <thead className="border-b border-border text-left text-xs text-muted">
               <tr>
                 <th className="px-4 py-3">Membre</th>
                 <th className="px-4 py-3">Discord</th>

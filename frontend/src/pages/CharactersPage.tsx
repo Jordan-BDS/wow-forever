@@ -57,7 +57,7 @@ function CharacterCard({
   return (
     <Link
       to={`/personnages/${character.id}`}
-      className="group flex min-h-40 flex-col rounded-lg border border-border bg-surface p-4 text-text shadow-lg transition hover:border-gold/60 hover:text-text"
+      className="group flex min-h-40 flex-col rounded-lg border border-border bg-surface p-4 text-text transition hover:border-gold/60 hover:text-text"
       style={{ borderTopColor: playerClass?.color, borderTopWidth: 3 }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -73,7 +73,7 @@ function CharacterCard({
         <div className="flex flex-col items-end gap-1">
           <LevelBadge level={character.level ?? 1} />
           {character.is_main && (
-            <span className="rounded border border-gold/50 px-1.5 text-[10px] uppercase text-gold">main</span>
+            <span className="rounded border border-gold/50 px-1.5 text-[10px] text-gold">main</span>
           )}
         </div>
       </div>

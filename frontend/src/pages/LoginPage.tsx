@@ -1,6 +1,6 @@
 import { Navigate, useSearchParams } from "react-router";
 import { discordLoginUrl, useMe } from "@/auth/useMe";
-import { Card } from "@/components/ui";
+import { Emblem } from "@/components/Emblem";
 import { LOGIN_ERRORS } from "@/lib/roles";
 
 export function LoginPage() {
@@ -11,28 +11,28 @@ export function LoginPage() {
   if (me.data) return <Navigate to="/" replace />;
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-sm space-y-6 text-center">
-        <div>
-          <h1 className="font-display text-3xl text-gold">WoW Forever</h1>
-          <p className="mt-1 text-sm text-muted">La plateforme de la guilde</p>
-        </div>
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
+      <div className="banner w-full max-w-md rounded-md border border-gold-dark/50 px-8 pt-10 pb-8 text-center">
+        <Emblem className="mx-auto size-24" />
+        <h1 className="mt-5 font-display text-4xl text-gold">WoW Forever</h1>
+        <div className="rule-gold mx-auto mt-3 w-40" />
+        <p className="mt-3 text-sm text-muted">Pour l'Alliance. La plateforme de la guilde.</p>
         {errorCode && (
-          <p className="rounded-md border border-danger/50 bg-danger/10 p-3 text-sm text-danger">
+          <p className="mt-6 rounded-sm border border-danger/50 bg-danger/10 p-3 text-sm text-danger">
             {LOGIN_ERRORS[errorCode] ?? "Connexion impossible."}
           </p>
         )}
         <a
           href={discordLoginUrl}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#5865F2] px-4 py-2.5 font-medium text-white hover:bg-[#4752c4] hover:text-white"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-sm border border-gold-dark bg-gold px-4 py-3 font-medium text-bg transition-colors hover:border-gold-light hover:bg-gold-light hover:text-bg"
         >
           <DiscordLogo />
-          Se connecter avec Discord
+          Entrer avec Discord
         </a>
-        <p className="text-xs text-muted">
+        <p className="mt-4 text-xs text-muted">
           Réservé aux membres du Discord de la guilde ayant le rôle « Membre ».
         </p>
-      </Card>
+      </div>
     </div>
   );
 }

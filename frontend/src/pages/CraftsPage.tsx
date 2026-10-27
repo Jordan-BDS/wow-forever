@@ -84,7 +84,7 @@ export function CraftsPage() {
       )}
 
       <section className="mb-6">
-        <h2 className="mb-2 text-sm uppercase text-muted">Qui sait crafter ?</h2>
+        <h2 className="mb-2 text-sm text-muted">Qui sait crafter ?</h2>
         <Card className="space-y-3">
           <Input
             value={query}
@@ -142,7 +142,7 @@ export function CraftsPage() {
 
       <section>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <h2 className="text-sm uppercase text-muted">Demandes</h2>
+          <h2 className="text-sm text-muted">Demandes</h2>
           <div className="ml-auto flex rounded-md border border-border text-xs">
             {SCOPES.map((s) => (
               <button
