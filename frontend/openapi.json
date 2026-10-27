@@ -1,0 +1,2522 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "WoW Forever — API de guilde",
+        "version": "0.1.0",
+        "description": "API privée de la plateforme de guilde."
+    },
+    "paths": {
+        "/api/auth/logout/": {
+            "post": {
+                "operationId": "auth_logout_create",
+                "tags": [
+                    "auth"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/auth/me/": {
+            "get": {
+                "operationId": "auth_me_retrieve",
+                "description": "Profil de l'utilisateur connecté. Le GET pose aussi le cookie CSRF.",
+                "tags": [
+                    "auth"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "auth_me_partial_update",
+                "description": "Profil de l'utilisateur connecté. Le GET pose aussi le cookie CSRF.",
+                "tags": [
+                    "auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMeUpdateRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMeUpdateRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMeUpdateRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/auth/me/availability/": {
+            "get": {
+                "operationId": "auth_me_availability_list",
+                "description": "Mes créneaux de disponibilité. Le PUT remplace la liste entière.",
+                "tags": [
+                    "auth"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AvailabilitySlot"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "auth_me_availability_update",
+                "description": "Mes créneaux de disponibilité. Le PUT remplace la liste entière.",
+                "tags": [
+                    "auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/AvailabilitySlotRequest"
+                                }
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/AvailabilitySlotRequest"
+                                }
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/AvailabilitySlotRequest"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AvailabilitySlot"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/availability/": {
+            "get": {
+                "operationId": "availability_list",
+                "description": "Créneaux de tous les membres actifs, pour la vue agrégée.",
+                "tags": [
+                    "availability"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/GuildAvailability"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/characters/": {
+            "get": {
+                "operationId": "characters_list",
+                "description": "Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier.",
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Character"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "characters_create",
+                "description": "Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier.",
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CharacterRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CharacterRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CharacterRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Character"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/characters/{id}/": {
+            "get": {
+                "operationId": "characters_retrieve",
+                "description": "Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) personnage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Character"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "characters_update",
+                "description": "Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) personnage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CharacterRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CharacterRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CharacterRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Character"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "characters_partial_update",
+                "description": "Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) personnage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCharacterRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCharacterRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCharacterRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Character"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "characters_destroy",
+                "description": "Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) personnage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/characters/{id}/set-main/": {
+            "post": {
+                "operationId": "characters_set_main_create",
+                "description": "Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) personnage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Character"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/gamedata/": {
+            "get": {
+                "operationId": "gamedata_retrieve",
+                "description": "Toutes les données de référence en un appel (petit volume, mis en cache côté front).",
+                "tags": [
+                    "gamedata"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GameData"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/guild/": {
+            "get": {
+                "operationId": "guild_retrieve",
+                "description": "Paramètres de la guilde : lecture pour tous les membres, modification par le GM.",
+                "tags": [
+                    "guild"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GuildSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "guild_partial_update",
+                "description": "Paramètres de la guilde : lecture pour tous les membres, modification par le GM.",
+                "tags": [
+                    "guild"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedGuildSettingsRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedGuildSettingsRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedGuildSettingsRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GuildSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/members/": {
+            "get": {
+                "operationId": "members_list",
+                "description": "Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM).",
+                "tags": [
+                    "members"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Member"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/members/{id}/": {
+            "get": {
+                "operationId": "members_retrieve",
+                "description": "Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) membre.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "members"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/members/{id}/deactivate/": {
+            "post": {
+                "operationId": "members_deactivate_create",
+                "description": "Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) membre.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "members"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/members/{id}/reactivate/": {
+            "post": {
+                "operationId": "members_reactivate_create",
+                "description": "Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) membre.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "members"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/members/{id}/role/": {
+            "post": {
+                "operationId": "members_role_create",
+                "description": "Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) membre.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "members"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetRoleRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetRoleRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetRoleRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/polls/": {
+            "get": {
+                "operationId": "polls_list",
+                "description": "Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM.",
+                "tags": [
+                    "polls"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Poll"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "polls_create",
+                "description": "Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM.",
+                "tags": [
+                    "polls"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PollRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PollRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PollRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Poll"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/polls/{id}/": {
+            "get": {
+                "operationId": "polls_retrieve",
+                "description": "Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) sondage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "polls"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Poll"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "polls_update",
+                "description": "Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) sondage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "polls"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PollRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PollRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PollRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Poll"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "polls_partial_update",
+                "description": "Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) sondage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "polls"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedPollRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedPollRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedPollRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Poll"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "polls_destroy",
+                "description": "Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) sondage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "polls"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/polls/{id}/propose/": {
+            "post": {
+                "operationId": "polls_propose_create",
+                "description": "Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) sondage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "polls"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProposalCreateRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProposalCreateRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProposalCreateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Proposal"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/polls/{id}/validate/": {
+            "post": {
+                "operationId": "polls_validate_create",
+                "description": "Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) sondage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "polls"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ValidateRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ValidateRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ValidateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Poll"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/proposals/{id}/": {
+            "delete": {
+                "operationId": "proposals_destroy",
+                "description": "Retrait d'une proposition et votes.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) proposition.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "proposals"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/proposals/{id}/unvote/": {
+            "post": {
+                "operationId": "proposals_unvote_create",
+                "description": "Retrait d'une proposition et votes.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) proposition.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "proposals"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Proposal"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/proposals/{id}/vote/": {
+            "post": {
+                "operationId": "proposals_vote_create",
+                "description": "Retrait d'une proposition et votes.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) proposition.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "proposals"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Proposal"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "AvailabilitySlot": {
+                "type": "object",
+                "properties": {
+                    "weekday": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekdayEnum"
+                            }
+                        ],
+                        "title": "Jour",
+                        "minimum": 0,
+                        "maximum": 9223372036854775807
+                    },
+                    "start_hour": {
+                        "type": "integer",
+                        "maximum": 23,
+                        "minimum": 0,
+                        "title": "Heure de début"
+                    },
+                    "end_hour": {
+                        "type": "integer",
+                        "maximum": 24,
+                        "minimum": 1,
+                        "title": "Heure de fin",
+                        "description": "Exclue, 24 = minuit"
+                    }
+                },
+                "required": [
+                    "end_hour",
+                    "start_hour",
+                    "weekday"
+                ]
+            },
+            "AvailabilitySlotRequest": {
+                "type": "object",
+                "properties": {
+                    "weekday": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekdayEnum"
+                            }
+                        ],
+                        "title": "Jour",
+                        "minimum": 0,
+                        "maximum": 9223372036854775807
+                    },
+                    "start_hour": {
+                        "type": "integer",
+                        "maximum": 23,
+                        "minimum": 0,
+                        "title": "Heure de début"
+                    },
+                    "end_hour": {
+                        "type": "integer",
+                        "maximum": 24,
+                        "minimum": 1,
+                        "title": "Heure de fin",
+                        "description": "Exclue, 24 = minuit"
+                    }
+                },
+                "required": [
+                    "end_hour",
+                    "start_hour",
+                    "weekday"
+                ]
+            },
+            "BlankEnum": {
+                "enum": [
+                    ""
+                ]
+            },
+            "Character": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Owner"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Nom",
+                        "maxLength": 24,
+                        "minLength": 2
+                    },
+                    "player_class": {
+                        "type": "string"
+                    },
+                    "race": {
+                        "type": "string"
+                    },
+                    "level": {
+                        "type": "integer",
+                        "maximum": 60,
+                        "minimum": 1,
+                        "title": "Niveau"
+                    },
+                    "main_role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MainRoleEnum"
+                            }
+                        ],
+                        "title": "Rôle principal"
+                    },
+                    "off_role": {
+                        "title": "Rôle secondaire",
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/OffRoleEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            }
+                        ]
+                    },
+                    "specialization": {
+                        "type": "string",
+                        "description": "Préfixé par la classe, ex. druid-restoration",
+                        "nullable": true
+                    },
+                    "is_main": {
+                        "type": "boolean",
+                        "title": "Main"
+                    },
+                    "note": {
+                        "type": "string"
+                    },
+                    "professions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CharacterProfession"
+                        }
+                    },
+                    "source": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SourceEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "external_id": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Identifiant externe"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "external_id",
+                    "id",
+                    "main_role",
+                    "name",
+                    "owner",
+                    "player_class",
+                    "race",
+                    "source",
+                    "updated_at"
+                ]
+            },
+            "CharacterProfession": {
+                "type": "object",
+                "properties": {
+                    "profession": {
+                        "type": "string"
+                    },
+                    "skill": {
+                        "type": "integer",
+                        "maximum": 300,
+                        "minimum": 1,
+                        "title": "Compétence"
+                    },
+                    "specialization": {
+                        "type": "string",
+                        "description": "Préfixé par le métier, ex. engineering-gnomish",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "profession"
+                ]
+            },
+            "CharacterProfessionRequest": {
+                "type": "object",
+                "properties": {
+                    "profession": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "skill": {
+                        "type": "integer",
+                        "maximum": 300,
+                        "minimum": 1,
+                        "title": "Compétence"
+                    },
+                    "specialization": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Préfixé par le métier, ex. engineering-gnomish",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "profession"
+                ]
+            },
+            "CharacterRequest": {
+                "type": "object",
+                "properties": {
+                    "owner_id": {
+                        "type": "integer",
+                        "writeOnly": true,
+                        "description": "Officiers seulement : créer le perso pour un autre membre."
+                    },
+                    "name": {
+                        "type": "string",
+                        "minLength": 2,
+                        "title": "Nom",
+                        "maxLength": 24
+                    },
+                    "player_class": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "race": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "level": {
+                        "type": "integer",
+                        "maximum": 60,
+                        "minimum": 1,
+                        "title": "Niveau"
+                    },
+                    "main_role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MainRoleEnum"
+                            }
+                        ],
+                        "title": "Rôle principal"
+                    },
+                    "off_role": {
+                        "title": "Rôle secondaire",
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/OffRoleEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            }
+                        ]
+                    },
+                    "specialization": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Préfixé par la classe, ex. druid-restoration",
+                        "nullable": true
+                    },
+                    "is_main": {
+                        "type": "boolean",
+                        "title": "Main"
+                    },
+                    "note": {
+                        "type": "string"
+                    },
+                    "professions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CharacterProfessionRequest"
+                        }
+                    }
+                },
+                "required": [
+                    "main_role",
+                    "name",
+                    "player_class",
+                    "race"
+                ]
+            },
+            "DeactivationReasonEnum": {
+                "enum": [
+                    "discord",
+                    "manual"
+                ],
+                "type": "string",
+                "description": "* `discord` - Rôle Discord perdu ou départ du serveur\n* `manual` - Désactivé par un officier"
+            },
+            "FactionEnum": {
+                "enum": [
+                    "alliance",
+                    "horde"
+                ],
+                "type": "string",
+                "description": "* `alliance` - Alliance\n* `horde` - Horde"
+            },
+            "FormatRuleEnum": {
+                "enum": [
+                    "free",
+                    "guild_name"
+                ],
+                "type": "string",
+                "description": "* `free` - Libre\n* `guild_name` - Nom de guilde WoW"
+            },
+            "GameData": {
+                "type": "object",
+                "properties": {
+                    "classes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PlayerClass"
+                        }
+                    },
+                    "races": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Race"
+                        }
+                    },
+                    "professions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Profession"
+                        }
+                    }
+                },
+                "required": [
+                    "classes",
+                    "professions",
+                    "races"
+                ]
+            },
+            "GuildAvailability": {
+                "type": "object",
+                "properties": {
+                    "user": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "weekday": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekdayEnum"
+                            }
+                        ],
+                        "title": "Jour",
+                        "minimum": 0,
+                        "maximum": 9223372036854775807
+                    },
+                    "start_hour": {
+                        "type": "integer",
+                        "maximum": 23,
+                        "minimum": 0,
+                        "title": "Heure de début"
+                    },
+                    "end_hour": {
+                        "type": "integer",
+                        "maximum": 24,
+                        "minimum": 1,
+                        "title": "Heure de fin",
+                        "description": "Exclue, 24 = minuit"
+                    }
+                },
+                "required": [
+                    "display_name",
+                    "end_hour",
+                    "start_hour",
+                    "user",
+                    "weekday"
+                ]
+            },
+            "GuildSettings": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Nom de la guilde",
+                        "maxLength": 24
+                    },
+                    "faction": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/FactionEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            }
+                        ]
+                    },
+                    "realm": {
+                        "type": "string",
+                        "title": "Royaume",
+                        "maxLength": 64
+                    },
+                    "discord_channel_id": {
+                        "type": "string",
+                        "title": "Salon Discord des annonces",
+                        "description": "Utilisé par le bot (lot 3).",
+                        "maxLength": 32
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "updated_at"
+                ]
+            },
+            "KindEnum": {
+                "enum": [
+                    "primary",
+                    "secondary"
+                ],
+                "type": "string",
+                "description": "* `primary` - Principal\n* `secondary` - Secondaire"
+            },
+            "MainRoleEnum": {
+                "enum": [
+                    "tank",
+                    "heal",
+                    "dps"
+                ],
+                "type": "string",
+                "description": "* `tank` - Tank\n* `heal` - Heal\n* `dps` - DPS"
+            },
+            "Member": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "discord_id": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "ID Discord"
+                    },
+                    "discord_username": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Pseudo Discord"
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Nom affiché"
+                    },
+                    "avatar_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "bio": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "site_role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SiteRoleEnum"
+                            }
+                        ],
+                        "readOnly": true,
+                        "title": "Rôle sur le site"
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "title": "Actif"
+                    },
+                    "deactivation_reason": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeactivationReasonEnum"
+                            }
+                        ],
+                        "readOnly": true,
+                        "title": "Motif de désactivation"
+                    },
+                    "date_joined": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Première connexion"
+                    },
+                    "last_login": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true,
+                        "title": "Dernière connexion"
+                    }
+                },
+                "required": [
+                    "avatar_url",
+                    "bio",
+                    "date_joined",
+                    "deactivation_reason",
+                    "discord_id",
+                    "discord_username",
+                    "display_name",
+                    "id",
+                    "is_active",
+                    "last_login",
+                    "site_role"
+                ]
+            },
+            "OffRoleEnum": {
+                "enum": [
+                    "tank",
+                    "heal",
+                    "dps"
+                ],
+                "type": "string",
+                "description": "* `tank` - Tank\n* `heal` - Heal\n* `dps` - DPS"
+            },
+            "Owner": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Nom affiché"
+                    },
+                    "avatar_url": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "avatar_url",
+                    "display_name",
+                    "id"
+                ]
+            },
+            "PatchedCharacterRequest": {
+                "type": "object",
+                "properties": {
+                    "owner_id": {
+                        "type": "integer",
+                        "writeOnly": true,
+                        "description": "Officiers seulement : créer le perso pour un autre membre."
+                    },
+                    "name": {
+                        "type": "string",
+                        "minLength": 2,
+                        "title": "Nom",
+                        "maxLength": 24
+                    },
+                    "player_class": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "race": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "level": {
+                        "type": "integer",
+                        "maximum": 60,
+                        "minimum": 1,
+                        "title": "Niveau"
+                    },
+                    "main_role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MainRoleEnum"
+                            }
+                        ],
+                        "title": "Rôle principal"
+                    },
+                    "off_role": {
+                        "title": "Rôle secondaire",
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/OffRoleEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            }
+                        ]
+                    },
+                    "specialization": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Préfixé par la classe, ex. druid-restoration",
+                        "nullable": true
+                    },
+                    "is_main": {
+                        "type": "boolean",
+                        "title": "Main"
+                    },
+                    "note": {
+                        "type": "string"
+                    },
+                    "professions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CharacterProfessionRequest"
+                        }
+                    }
+                }
+            },
+            "PatchedGuildSettingsRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Nom de la guilde",
+                        "maxLength": 24
+                    },
+                    "faction": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/FactionEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            }
+                        ]
+                    },
+                    "realm": {
+                        "type": "string",
+                        "title": "Royaume",
+                        "maxLength": 64
+                    },
+                    "discord_channel_id": {
+                        "type": "string",
+                        "title": "Salon Discord des annonces",
+                        "description": "Utilisé par le bot (lot 3).",
+                        "maxLength": 32
+                    }
+                }
+            },
+            "PatchedMeUpdateRequest": {
+                "type": "object",
+                "properties": {
+                    "display_name": {
+                        "type": "string",
+                        "minLength": 2,
+                        "title": "Nom affiché",
+                        "maxLength": 64
+                    },
+                    "bio": {
+                        "type": "string"
+                    }
+                }
+            },
+            "PatchedPollRequest": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Titre",
+                        "maxLength": 120
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "proposals_end": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Fin des propositions"
+                    },
+                    "votes_end": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Fin des votes"
+                    },
+                    "max_proposals_per_user": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64",
+                        "title": "Propositions max par personne"
+                    },
+                    "max_votes_per_user": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Votes max par personne",
+                        "description": "Vide = illimité"
+                    },
+                    "format_rule": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FormatRuleEnum"
+                            }
+                        ],
+                        "title": "Règle de format"
+                    },
+                    "sets_guild_name": {
+                        "type": "boolean",
+                        "title": "Définit le nom de guilde"
+                    }
+                }
+            },
+            "PlayerClass": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Nom",
+                        "maxLength": 32
+                    },
+                    "color": {
+                        "type": "string",
+                        "title": "Couleur officielle",
+                        "description": "Hexadécimal, ex. #C69B6D",
+                        "maxLength": 7
+                    },
+                    "roles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "specializations": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Specialization"
+                        }
+                    }
+                },
+                "required": [
+                    "color",
+                    "id",
+                    "name",
+                    "roles",
+                    "slug",
+                    "specializations"
+                ]
+            },
+            "Poll": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "title": "Titre",
+                        "maxLength": 120
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "proposals_end": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Fin des propositions"
+                    },
+                    "votes_end": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Fin des votes"
+                    },
+                    "max_proposals_per_user": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64",
+                        "title": "Propositions max par personne"
+                    },
+                    "max_votes_per_user": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Votes max par personne",
+                        "description": "Vide = illimité"
+                    },
+                    "format_rule": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FormatRuleEnum"
+                            }
+                        ],
+                        "title": "Règle de format"
+                    },
+                    "sets_guild_name": {
+                        "type": "boolean",
+                        "title": "Définit le nom de guilde"
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "validated_proposal": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "validation_note": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Justification de la validation"
+                    },
+                    "validated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "validated_by": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Owner"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "created_by": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Owner"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "proposals": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Proposal"
+                        },
+                        "readOnly": true
+                    },
+                    "my_proposal_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "my_vote_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "created_by",
+                    "id",
+                    "my_proposal_count",
+                    "my_vote_count",
+                    "proposals",
+                    "proposals_end",
+                    "status",
+                    "title",
+                    "validated_at",
+                    "validated_by",
+                    "validated_proposal",
+                    "validation_note",
+                    "votes_end"
+                ]
+            },
+            "PollRequest": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Titre",
+                        "maxLength": 120
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "proposals_end": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Fin des propositions"
+                    },
+                    "votes_end": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Fin des votes"
+                    },
+                    "max_proposals_per_user": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64",
+                        "title": "Propositions max par personne"
+                    },
+                    "max_votes_per_user": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Votes max par personne",
+                        "description": "Vide = illimité"
+                    },
+                    "format_rule": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FormatRuleEnum"
+                            }
+                        ],
+                        "title": "Règle de format"
+                    },
+                    "sets_guild_name": {
+                        "type": "boolean",
+                        "title": "Définit le nom de guilde"
+                    }
+                },
+                "required": [
+                    "proposals_end",
+                    "title",
+                    "votes_end"
+                ]
+            },
+            "Profession": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Nom",
+                        "maxLength": 32
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KindEnum"
+                            }
+                        ],
+                        "title": "Type"
+                    },
+                    "specializations": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProfessionSpecialization"
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "kind",
+                    "name",
+                    "slug",
+                    "specializations"
+                ]
+            },
+            "ProfessionSpecialization": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Préfixé par le métier, ex. engineering-gnomish",
+                        "maxLength": 50,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Nom",
+                        "maxLength": 48
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "slug"
+                ]
+            },
+            "Proposal": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "poll": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "author": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Owner"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "text": {
+                        "type": "string",
+                        "title": "Proposition",
+                        "maxLength": 120
+                    },
+                    "note": {
+                        "type": "string",
+                        "maxLength": 240
+                    },
+                    "vote_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "voters": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Voter"
+                        },
+                        "readOnly": true
+                    },
+                    "has_voted": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "author",
+                    "created_at",
+                    "has_voted",
+                    "id",
+                    "poll",
+                    "text",
+                    "vote_count",
+                    "voters"
+                ]
+            },
+            "ProposalCreateRequest": {
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Proposition",
+                        "maxLength": 120
+                    },
+                    "note": {
+                        "type": "string",
+                        "maxLength": 240
+                    }
+                },
+                "required": [
+                    "text"
+                ]
+            },
+            "Race": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Nom",
+                        "maxLength": 32
+                    },
+                    "faction": {
+                        "description": "Vide = les deux factions\n\n* `alliance` - Alliance\n* `horde` - Horde",
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/FactionEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            }
+                        ]
+                    },
+                    "classes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "classes",
+                    "id",
+                    "name",
+                    "slug"
+                ]
+            },
+            "SetRoleRequest": {
+                "type": "object",
+                "properties": {
+                    "site_role": {
+                        "$ref": "#/components/schemas/SiteRoleEnum"
+                    }
+                },
+                "required": [
+                    "site_role"
+                ]
+            },
+            "SiteRoleEnum": {
+                "enum": [
+                    "member",
+                    "officer",
+                    "gm"
+                ],
+                "type": "string",
+                "description": "* `member` - Membre\n* `officer` - Officier\n* `gm` - GM"
+            },
+            "SourceEnum": {
+                "enum": [
+                    "manual",
+                    "blizzard"
+                ],
+                "type": "string",
+                "description": "* `manual` - Saisie manuelle\n* `blizzard` - API Blizzard"
+            },
+            "Specialization": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Préfixé par la classe, ex. druid-restoration",
+                        "maxLength": 50,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Nom",
+                        "maxLength": 32
+                    },
+                    "roles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "roles",
+                    "slug"
+                ]
+            },
+            "StatusEnum": {
+                "enum": [
+                    "proposals",
+                    "votes",
+                    "closed",
+                    "validated"
+                ],
+                "type": "string",
+                "description": "* `proposals` - proposals\n* `votes` - votes\n* `closed` - closed\n* `validated` - validated"
+            },
+            "ValidateRequest": {
+                "type": "object",
+                "properties": {
+                    "proposal": {
+                        "type": "integer"
+                    },
+                    "note": {
+                        "type": "string",
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "proposal"
+                ]
+            },
+            "Voter": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "display_name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "display_name",
+                    "id"
+                ]
+            },
+            "WeekdayEnum": {
+                "enum": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "type": "integer",
+                "description": "* `0` - Lundi\n* `1` - Mardi\n* `2` - Mercredi\n* `3` - Jeudi\n* `4` - Vendredi\n* `5` - Samedi\n* `6` - Dimanche"
+            }
+        },
+        "securitySchemes": {
+            "cookieAuth": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "sessionid"
+            }
+        }
+    }
+}

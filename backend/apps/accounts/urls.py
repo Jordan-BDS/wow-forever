@@ -1,0 +1,12 @@
+from django.urls import path
+from rest_framework.routers import DefaultRouter
+
+from .views import GuildAvailabilityView, MemberViewSet
+
+router = DefaultRouter()
+router.register("members", MemberViewSet, basename="member")
+
+urlpatterns = [
+    path("availability/", GuildAvailabilityView.as_view(), name="guild-availability"),
+    *router.urls,
+]
