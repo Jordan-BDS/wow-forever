@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0d12;
+  --color-surface: #141822;
+  --color-surface-2: #1c2230;
+  --color-border: #2a3142;
+  --color-text: #e8e2d2;
+  --color-muted: #9a9484;
+  --color-gold: #d4af5a;
+  --color-gold-dark: #a7832f;
+  --color-danger: #d05a4e;
+  --color-success: #5fa868;
+  --color-alliance: #3f7fd9;
+  --color-horde: #c1352d;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cinzel", Georgia, serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-bg text-text antialiased;
+  background-image: radial-gradient(ellipse at top, rgba(212, 175, 90, 0.08), transparent 60%);
+  min-height: 100vh;
+}
+
+a {
+  @apply text-gold hover:text-gold-dark;
+}

@@ -587,7 +587,7 @@ scrute les événements à venir. Découplage simple : si le bot est arrêté, r
 | Build | **Vite** + **React** + **TypeScript** |
 | Routage | **React Router** |
 | Données serveur | **TanStack Query** ; client et types **générés depuis le schéma OpenAPI** (openapi-typescript) |
-| UI | **Tailwind CSS** + **shadcn/ui**, thème sombre aux couleurs WoW, couleurs de classe officielles |
+| UI | **Tailwind CSS** v4, thème sombre aux couleurs WoW, couleurs de classe officielles ; composants maison légers au lot 0, **shadcn/ui** ajouté à la demande quand les besoins grossissent (formulaires, dialogues, calendrier) |
 | Responsive | **Mobile d'abord** : roster, agenda, inscription et métiers doivent être confortables sur téléphone ; la fenêtre d'équipement et le calculateur de talents peuvent être pensés pour l'écran large |
 | Formulaires | react-hook-form + zod |
 | Calendrier | Composant calendrier à choisir à l'implémentation (ex. FullCalendar ou vue maison) ; vue liste privilégiée sur mobile |
@@ -619,8 +619,8 @@ wow-forever/
 ### Qualité
 
 - Backend : **pytest-django**, **ruff** (lint + format).
-- Frontend : **Vitest**, **ESLint**, **Prettier**, `tsc --noEmit`.
-- **CI GitHub Actions** : lint + tests back et front sur chaque push / PR.
+- Frontend : **Vitest**, **oxlint** (linter livré avec le gabarit Vite, remplace ESLint), **Prettier**, `tsc -b`.
+- **CI GitHub Actions** : lint, vérification des migrations, tests back et front, build du front sur chaque push / PR.
 
 ### Points ouverts
 

@@ -1,0 +1,580 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "WoW Forever — API de guilde",
+        "version": "0.1.0",
+        "description": "API privée de la plateforme de guilde."
+    },
+    "paths": {
+        "/api/auth/logout/": {
+            "post": {
+                "operationId": "auth_logout_create",
+                "tags": [
+                    "auth"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/auth/me/": {
+            "get": {
+                "operationId": "auth_me_retrieve",
+                "description": "Profil de l'utilisateur connecté. Le GET pose aussi le cookie CSRF.",
+                "tags": [
+                    "auth"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "auth_me_partial_update",
+                "description": "Profil de l'utilisateur connecté. Le GET pose aussi le cookie CSRF.",
+                "tags": [
+                    "auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMeUpdateRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMeUpdateRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMeUpdateRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/guild/": {
+            "get": {
+                "operationId": "guild_retrieve",
+                "description": "Paramètres de la guilde : lecture pour tous les membres, modification par le GM.",
+                "tags": [
+                    "guild"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GuildSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "guild_partial_update",
+                "description": "Paramètres de la guilde : lecture pour tous les membres, modification par le GM.",
+                "tags": [
+                    "guild"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedGuildSettingsRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedGuildSettingsRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedGuildSettingsRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GuildSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/members/": {
+            "get": {
+                "operationId": "members_list",
+                "description": "Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM).",
+                "tags": [
+                    "members"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Member"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/members/{id}/": {
+            "get": {
+                "operationId": "members_retrieve",
+                "description": "Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) membre.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "members"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/members/{id}/deactivate/": {
+            "post": {
+                "operationId": "members_deactivate_create",
+                "description": "Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) membre.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "members"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/members/{id}/reactivate/": {
+            "post": {
+                "operationId": "members_reactivate_create",
+                "description": "Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) membre.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "members"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/members/{id}/role/": {
+            "post": {
+                "operationId": "members_role_create",
+                "description": "Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) membre.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "members"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetRoleRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetRoleRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetRoleRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Member"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "BlankEnum": {
+                "enum": [
+                    ""
+                ]
+            },
+            "DeactivationReasonEnum": {
+                "enum": [
+                    "discord",
+                    "manual"
+                ],
+                "type": "string",
+                "description": "* `discord` - Rôle Discord perdu ou départ du serveur\n* `manual` - Désactivé par un officier"
+            },
+            "FactionEnum": {
+                "enum": [
+                    "alliance",
+                    "horde"
+                ],
+                "type": "string",
+                "description": "* `alliance` - Alliance\n* `horde` - Horde"
+            },
+            "GuildSettings": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Nom de la guilde",
+                        "maxLength": 24
+                    },
+                    "faction": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/FactionEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            }
+                        ]
+                    },
+                    "realm": {
+                        "type": "string",
+                        "title": "Royaume",
+                        "maxLength": 64
+                    },
+                    "discord_channel_id": {
+                        "type": "string",
+                        "title": "Salon Discord des annonces",
+                        "description": "Utilisé par le bot (lot 3).",
+                        "maxLength": 32
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "updated_at"
+                ]
+            },
+            "Member": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "discord_id": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "ID Discord"
+                    },
+                    "discord_username": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Pseudo Discord"
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Nom affiché"
+                    },
+                    "avatar_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "bio": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "site_role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SiteRoleEnum"
+                            }
+                        ],
+                        "readOnly": true,
+                        "title": "Rôle sur le site"
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "title": "Actif"
+                    },
+                    "deactivation_reason": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeactivationReasonEnum"
+                            }
+                        ],
+                        "readOnly": true,
+                        "title": "Motif de désactivation"
+                    },
+                    "date_joined": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Première connexion"
+                    },
+                    "last_login": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true,
+                        "title": "Dernière connexion"
+                    }
+                },
+                "required": [
+                    "avatar_url",
+                    "bio",
+                    "date_joined",
+                    "deactivation_reason",
+                    "discord_id",
+                    "discord_username",
+                    "display_name",
+                    "id",
+                    "is_active",
+                    "last_login",
+                    "site_role"
+                ]
+            },
+            "PatchedGuildSettingsRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Nom de la guilde",
+                        "maxLength": 24
+                    },
+                    "faction": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/FactionEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            }
+                        ]
+                    },
+                    "realm": {
+                        "type": "string",
+                        "title": "Royaume",
+                        "maxLength": 64
+                    },
+                    "discord_channel_id": {
+                        "type": "string",
+                        "title": "Salon Discord des annonces",
+                        "description": "Utilisé par le bot (lot 3).",
+                        "maxLength": 32
+                    }
+                }
+            },
+            "PatchedMeUpdateRequest": {
+                "type": "object",
+                "properties": {
+                    "display_name": {
+                        "type": "string",
+                        "minLength": 2,
+                        "title": "Nom affiché",
+                        "maxLength": 64
+                    },
+                    "bio": {
+                        "type": "string"
+                    }
+                }
+            },
+            "SetRoleRequest": {
+                "type": "object",
+                "properties": {
+                    "site_role": {
+                        "$ref": "#/components/schemas/SiteRoleEnum"
+                    }
+                },
+                "required": [
+                    "site_role"
+                ]
+            },
+            "SiteRoleEnum": {
+                "enum": [
+                    "member",
+                    "officer",
+                    "gm"
+                ],
+                "type": "string",
+                "description": "* `member` - Membre\n* `officer` - Officier\n* `gm` - GM"
+            }
+        },
+        "securitySchemes": {
+            "cookieAuth": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "sessionid"
+            }
+        }
+    }
+}
