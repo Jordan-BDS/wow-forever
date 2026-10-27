@@ -56,7 +56,7 @@ class KnownRecipesView(APIView):
 
     @extend_schema(request=None, responses=KnownRecipesSerializer)
     def post(self, request: Request, pk: int) -> Response:
-        """Coche toutes les recettes accessibles au niveau de compétence de chaque métier (à élaguer ensuite)."""
+        """Coche toutes les recettes accessibles au niveau de compétence de chaque métier."""
         character = self._character(request, pk, write=True)
         added = 0
         with transaction.atomic():
