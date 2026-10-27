@@ -91,6 +91,184 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/characters/{character_pk}/equipment-sets/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/). */
+        get: operations["characters_equipment_sets_list"];
+        put?: never;
+        /** @description Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/). */
+        post: operations["characters_equipment_sets_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_pk}/equipment-sets/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/). */
+        get: operations["characters_equipment_sets_retrieve"];
+        /** @description Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/). */
+        put: operations["characters_equipment_sets_update"];
+        post?: never;
+        /** @description Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/). */
+        delete: operations["characters_equipment_sets_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/). */
+        patch: operations["characters_equipment_sets_partial_update"];
+        trace?: never;
+    };
+    "/api/characters/{character_pk}/equipment-sets/{id}/duplicate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/). */
+        post: operations["characters_equipment_sets_duplicate_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_pk}/equipment-sets/{id}/set-primary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/). */
+        post: operations["characters_equipment_sets_set_primary_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_pk}/equipment-sets/{id}/slots/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/). */
+        put: operations["characters_equipment_sets_slots_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_pk}/equipment-sets/{id}/stats/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/). */
+        get: operations["characters_equipment_sets_stats_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_pk}/equipment-sets/preview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Stats d'une liste d'emplacements sans rien enregistrer. */
+        post: operations["characters_equipment_sets_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_pk}/talent-builds/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Builds de talents d'un personnage (/api/characters/{id}/talent-builds/). */
+        get: operations["characters_talent_builds_list"];
+        put?: never;
+        /** @description Builds de talents d'un personnage (/api/characters/{id}/talent-builds/). */
+        post: operations["characters_talent_builds_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_pk}/talent-builds/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Builds de talents d'un personnage (/api/characters/{id}/talent-builds/). */
+        get: operations["characters_talent_builds_retrieve"];
+        /** @description Builds de talents d'un personnage (/api/characters/{id}/talent-builds/). */
+        put: operations["characters_talent_builds_update"];
+        post?: never;
+        /** @description Builds de talents d'un personnage (/api/characters/{id}/talent-builds/). */
+        delete: operations["characters_talent_builds_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Builds de talents d'un personnage (/api/characters/{id}/talent-builds/). */
+        patch: operations["characters_talent_builds_partial_update"];
+        trace?: never;
+    };
+    "/api/characters/{character_pk}/talent-builds/{id}/activate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Builds de talents d'un personnage (/api/characters/{id}/talent-builds/). */
+        post: operations["characters_talent_builds_activate_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/characters/{id}/": {
         parameters: {
             query?: never;
@@ -744,6 +922,54 @@ export interface components {
             /** Format: int64 */
             required_skill_rank?: number;
         };
+        EnchantmentRequest: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /** Format: int64 */
+            spell_id?: number;
+            icon?: string;
+            stats?: unknown;
+            /**
+             * Format: int64
+             * @description Masque d'InventoryType autorisés (0 = inconnu)
+             */
+            slot_mask?: number;
+            /**
+             * Format: int64
+             * @description Classe d'objet requise (2 arme, 4 armure), -1 = toutes
+             */
+            equipped_class?: number;
+            /**
+             * Format: int64
+             * @description Masque de sous-classes autorisées (0 = toutes)
+             */
+            equipped_subclass_mask?: number;
+            /** Format: int64 */
+            required_skill?: number;
+            /** Format: int64 */
+            required_skill_rank?: number;
+        };
+        EquipmentSet: {
+            readonly id: number;
+            readonly character: number;
+            /** Nom */
+            name: string;
+            /**
+             * Set principal
+             * @default false
+             */
+            readonly is_primary: boolean;
+            readonly slots: components["schemas"]["SlotRead"][];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        EquipmentSetRequest: {
+            /** Nom */
+            name: string;
+        };
         Event: {
             readonly id: number;
             /** Titre */
@@ -1034,6 +1260,39 @@ export interface components {
              */
             is_forever?: boolean;
         };
+        ItemRequest: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            name_en?: string;
+            /** Format: int64 */
+            quality?: number;
+            /** Format: int64 */
+            item_level?: number;
+            /** Format: int64 */
+            required_level?: number;
+            /** Format: int64 */
+            inventory_type?: number;
+            /** Format: int64 */
+            class_id?: number;
+            /** Format: int64 */
+            subclass_id?: number;
+            /**
+             * Format: int64
+             * @description Masque de classes, -1 = toutes
+             */
+            allowable_class?: number;
+            is_unique?: boolean;
+            /** Format: int64 */
+            item_set?: number | null;
+            icon?: string;
+            description?: string;
+            /**
+             * Géré à la main
+             * @description Ajout ou correction manuelle, jamais écrasé par l'import.
+             */
+            is_forever?: boolean;
+        };
         ItemSet: {
             /** Format: int64 */
             id: number;
@@ -1097,6 +1356,10 @@ export interface components {
             is_main?: boolean;
             note?: string;
             professions?: components["schemas"]["CharacterProfessionRequest"][];
+        };
+        PatchedEquipmentSetRequest: {
+            /** Nom */
+            name?: string;
         };
         PatchedEventRequest: {
             /** Titre */
@@ -1210,6 +1473,11 @@ export interface components {
             /** Commentaire */
             comment?: string;
             placement?: components["schemas"]["PlacementEnum"];
+        };
+        PatchedTalentBuildRequest: {
+            /** Nom */
+            name?: string;
+            points?: number[];
         };
         /**
          * @description * `unplaced` - Non placé
@@ -1469,6 +1737,49 @@ export interface components {
          */
         SiteRoleEnum: "member" | "officer" | "gm";
         /**
+         * @description * `head` - head
+         *     * `neck` - neck
+         *     * `shoulder` - shoulder
+         *     * `shirt` - shirt
+         *     * `chest` - chest
+         *     * `waist` - waist
+         *     * `legs` - legs
+         *     * `feet` - feet
+         *     * `wrist` - wrist
+         *     * `hands` - hands
+         *     * `finger1` - finger1
+         *     * `finger2` - finger2
+         *     * `trinket1` - trinket1
+         *     * `trinket2` - trinket2
+         *     * `back` - back
+         *     * `tabard` - tabard
+         *     * `main_hand` - main_hand
+         *     * `off_hand` - off_hand
+         *     * `ranged` - ranged
+         * @enum {string}
+         */
+        SlotEnum: "head" | "neck" | "shoulder" | "shirt" | "chest" | "waist" | "legs" | "feet" | "wrist" | "hands" | "finger1" | "finger2" | "trinket1" | "trinket2" | "back" | "tabard" | "main_hand" | "off_hand" | "ranged";
+        SlotRead: {
+            slot: string;
+            readonly item: components["schemas"]["Item"];
+            readonly enchantment: components["schemas"]["Enchantment"];
+            readonly projected: boolean;
+        };
+        SlotReadRequest: {
+            slot: string;
+        };
+        SlotRequest: {
+            slot: components["schemas"]["SlotEnum"];
+            /** Format: int64 */
+            item?: number | null;
+            /** Format: int64 */
+            enchantment?: number | null;
+        };
+        /** @description PUT : remplace tous les emplacements du set (ceux absents sont vidés). */
+        SlotsUpdateRequest: {
+            slots: components["schemas"]["SlotRequest"][];
+        };
+        /**
          * @description * `manual` - Saisie manuelle
          *     * `blizzard` - API Blizzard
          * @enum {string}
@@ -1481,6 +1792,23 @@ export interface components {
             /** Nom */
             name: string;
             roles: string[];
+        };
+        Stats: {
+            totals: {
+                [key: string]: number;
+            };
+            breakdown: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
+            active_set_bonuses: {
+                [key: string]: unknown;
+            }[];
+            inactive_set_bonuses: {
+                [key: string]: unknown;
+            }[];
+            projected_slots: string[];
         };
         /**
          * @description * `present` - Présent
@@ -1513,6 +1841,31 @@ export interface components {
             prerequisite?: number | null;
             /** Format: int64 */
             prerequisite_rank?: number;
+        };
+        TalentBuild: {
+            readonly id: number;
+            readonly character: number;
+            /** Nom */
+            name: string;
+            /**
+             * Build actif
+             * @default false
+             */
+            readonly is_active: boolean;
+            points?: number[];
+            readonly acquired: number;
+            readonly tree_points: {
+                [key: string]: number;
+            };
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        TalentBuildRequest: {
+            /** Nom */
+            name: string;
+            points?: number[];
         };
         TalentTree: {
             /** Format: int64 */
@@ -1716,6 +2069,443 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Character"];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentSet"][];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipmentSetRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["EquipmentSetRequest"];
+                "multipart/form-data": components["schemas"]["EquipmentSetRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentSet"];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentSet"];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipmentSetRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["EquipmentSetRequest"];
+                "multipart/form-data": components["schemas"]["EquipmentSetRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentSet"];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    characters_equipment_sets_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedEquipmentSetRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedEquipmentSetRequest"];
+                "multipart/form-data": components["schemas"]["PatchedEquipmentSetRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentSet"];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_duplicate_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentSet"];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_set_primary_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentSet"];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_slots_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlotsUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SlotsUpdateRequest"];
+                "multipart/form-data": components["schemas"]["SlotsUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentSet"];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_stats_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Stats"];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_preview_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlotsUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SlotsUpdateRequest"];
+                "multipart/form-data": components["schemas"]["SlotsUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Stats"];
+                };
+            };
+        };
+    };
+    characters_talent_builds_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentBuild"][];
+                };
+            };
+        };
+    };
+    characters_talent_builds_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TalentBuildRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TalentBuildRequest"];
+                "multipart/form-data": components["schemas"]["TalentBuildRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentBuild"];
+                };
+            };
+        };
+    };
+    characters_talent_builds_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentBuild"];
+                };
+            };
+        };
+    };
+    characters_talent_builds_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TalentBuildRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TalentBuildRequest"];
+                "multipart/form-data": components["schemas"]["TalentBuildRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentBuild"];
+                };
+            };
+        };
+    };
+    characters_talent_builds_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    characters_talent_builds_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedTalentBuildRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedTalentBuildRequest"];
+                "multipart/form-data": components["schemas"]["PatchedTalentBuildRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentBuild"];
+                };
+            };
+        };
+    };
+    characters_talent_builds_activate_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentBuild"];
                 };
             };
         };

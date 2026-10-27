@@ -280,6 +280,892 @@
                 }
             }
         },
+        "/api/characters/{character_pk}/equipment-sets/": {
+            "get": {
+                "operationId": "characters_equipment_sets_list",
+                "description": "Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EquipmentSet"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "characters_equipment_sets_create",
+                "description": "Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EquipmentSetRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EquipmentSetRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EquipmentSetRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EquipmentSet"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/characters/{character_pk}/equipment-sets/{id}/": {
+            "get": {
+                "operationId": "characters_equipment_sets_retrieve",
+                "description": "Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EquipmentSet"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "characters_equipment_sets_update",
+                "description": "Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EquipmentSetRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EquipmentSetRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EquipmentSetRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EquipmentSet"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "characters_equipment_sets_partial_update",
+                "description": "Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEquipmentSetRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEquipmentSetRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEquipmentSetRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EquipmentSet"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "characters_equipment_sets_destroy",
+                "description": "Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/characters/{character_pk}/equipment-sets/{id}/duplicate/": {
+            "post": {
+                "operationId": "characters_equipment_sets_duplicate_create",
+                "description": "Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EquipmentSet"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/characters/{character_pk}/equipment-sets/{id}/set-primary/": {
+            "post": {
+                "operationId": "characters_equipment_sets_set_primary_create",
+                "description": "Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EquipmentSet"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/characters/{character_pk}/equipment-sets/{id}/slots/": {
+            "put": {
+                "operationId": "characters_equipment_sets_slots_update",
+                "description": "Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SlotsUpdateRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SlotsUpdateRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SlotsUpdateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EquipmentSet"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/characters/{character_pk}/equipment-sets/{id}/stats/": {
+            "get": {
+                "operationId": "characters_equipment_sets_stats_retrieve",
+                "description": "Sets d'équipement d'un personnage (/api/characters/{id}/equipment-sets/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Stats"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/characters/{character_pk}/equipment-sets/preview/": {
+            "post": {
+                "operationId": "characters_equipment_sets_preview_create",
+                "description": "Stats d'une liste d'emplacements sans rien enregistrer.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SlotsUpdateRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SlotsUpdateRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SlotsUpdateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Stats"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/characters/{character_pk}/talent-builds/": {
+            "get": {
+                "operationId": "characters_talent_builds_list",
+                "description": "Builds de talents d'un personnage (/api/characters/{id}/talent-builds/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/TalentBuild"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "characters_talent_builds_create",
+                "description": "Builds de talents d'un personnage (/api/characters/{id}/talent-builds/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TalentBuildRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TalentBuildRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TalentBuildRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TalentBuild"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/characters/{character_pk}/talent-builds/{id}/": {
+            "get": {
+                "operationId": "characters_talent_builds_retrieve",
+                "description": "Builds de talents d'un personnage (/api/characters/{id}/talent-builds/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TalentBuild"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "characters_talent_builds_update",
+                "description": "Builds de talents d'un personnage (/api/characters/{id}/talent-builds/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TalentBuildRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TalentBuildRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TalentBuildRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TalentBuild"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "characters_talent_builds_partial_update",
+                "description": "Builds de talents d'un personnage (/api/characters/{id}/talent-builds/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedTalentBuildRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedTalentBuildRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedTalentBuildRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TalentBuild"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "characters_talent_builds_destroy",
+                "description": "Builds de talents d'un personnage (/api/characters/{id}/talent-builds/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/characters/{character_pk}/talent-builds/{id}/activate/": {
+            "post": {
+                "operationId": "characters_talent_builds_activate_create",
+                "description": "Builds de talents d'un personnage (/api/characters/{id}/talent-builds/).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TalentBuild"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/characters/{id}/": {
             "get": {
                 "operationId": "characters_retrieve",
@@ -2595,6 +3481,135 @@
                     "name"
                 ]
             },
+            "EnchantmentRequest": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                    },
+                    "spell_id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 80
+                    },
+                    "stats": {},
+                    "slot_mask": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "description": "Masque d'InventoryType autorisés (0 = inconnu)"
+                    },
+                    "equipped_class": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "description": "Classe d'objet requise (2 arme, 4 armure), -1 = toutes"
+                    },
+                    "equipped_subclass_mask": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "description": "Masque de sous-classes autorisées (0 = toutes)"
+                    },
+                    "required_skill": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "required_skill_rank": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
+                ]
+            },
+            "EquipmentSet": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "character": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Nom",
+                        "maxLength": 40,
+                        "minLength": 1
+                    },
+                    "is_primary": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "default": false,
+                        "title": "Set principal"
+                    },
+                    "slots": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SlotRead"
+                        },
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "character",
+                    "created_at",
+                    "id",
+                    "is_primary",
+                    "name",
+                    "slots",
+                    "updated_at"
+                ]
+            },
+            "EquipmentSetRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Nom",
+                        "maxLength": 40
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
             "Event": {
                 "type": "object",
                 "properties": {
@@ -3326,6 +4341,96 @@
                     "stats"
                 ]
             },
+            "ItemRequest": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                    },
+                    "name_en": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "quality": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "item_level": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "required_level": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "inventory_type": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "class_id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "subclass_id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "allowable_class": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "description": "Masque de classes, -1 = toutes"
+                    },
+                    "is_unique": {
+                        "type": "boolean"
+                    },
+                    "item_set": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 80
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "is_forever": {
+                        "type": "boolean",
+                        "title": "Géré à la main",
+                        "description": "Ajout ou correction manuelle, jamais écrasé par l'import."
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
+                ]
+            },
             "ItemSet": {
                 "type": "object",
                 "properties": {
@@ -3539,6 +4644,17 @@
                         "items": {
                             "$ref": "#/components/schemas/CharacterProfessionRequest"
                         }
+                    }
+                }
+            },
+            "PatchedEquipmentSetRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Nom",
+                        "maxLength": 40
                     }
                 }
             },
@@ -3772,6 +4888,23 @@
                     },
                     "placement": {
                         "$ref": "#/components/schemas/PlacementEnum"
+                    }
+                }
+            },
+            "PatchedTalentBuildRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Nom",
+                        "maxLength": 40
+                    },
+                    "points": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -4543,6 +5676,119 @@
                 "type": "string",
                 "description": "* `member` - Membre\n* `officer` - Officier\n* `gm` - GM"
             },
+            "SlotEnum": {
+                "enum": [
+                    "head",
+                    "neck",
+                    "shoulder",
+                    "shirt",
+                    "chest",
+                    "waist",
+                    "legs",
+                    "feet",
+                    "wrist",
+                    "hands",
+                    "finger1",
+                    "finger2",
+                    "trinket1",
+                    "trinket2",
+                    "back",
+                    "tabard",
+                    "main_hand",
+                    "off_hand",
+                    "ranged"
+                ],
+                "type": "string",
+                "description": "* `head` - head\n* `neck` - neck\n* `shoulder` - shoulder\n* `shirt` - shirt\n* `chest` - chest\n* `waist` - waist\n* `legs` - legs\n* `feet` - feet\n* `wrist` - wrist\n* `hands` - hands\n* `finger1` - finger1\n* `finger2` - finger2\n* `trinket1` - trinket1\n* `trinket2` - trinket2\n* `back` - back\n* `tabard` - tabard\n* `main_hand` - main_hand\n* `off_hand` - off_hand\n* `ranged` - ranged"
+            },
+            "SlotRead": {
+                "type": "object",
+                "properties": {
+                    "slot": {
+                        "type": "string",
+                        "maxLength": 16
+                    },
+                    "item": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Item"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "enchantment": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Enchantment"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "projected": {
+                        "type": "boolean",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "enchantment",
+                    "item",
+                    "projected",
+                    "slot"
+                ]
+            },
+            "SlotReadRequest": {
+                "type": "object",
+                "properties": {
+                    "slot": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 16
+                    }
+                },
+                "required": [
+                    "slot"
+                ]
+            },
+            "SlotRequest": {
+                "type": "object",
+                "properties": {
+                    "slot": {
+                        "$ref": "#/components/schemas/SlotEnum"
+                    },
+                    "item": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true
+                    },
+                    "enchantment": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "slot"
+                ]
+            },
+            "SlotsUpdateRequest": {
+                "type": "object",
+                "description": "PUT : remplace tous les emplacements du set (ceux absents sont vidés).",
+                "properties": {
+                    "slots": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SlotRequest"
+                        }
+                    }
+                },
+                "required": [
+                    "slots"
+                ]
+            },
             "SourceEnum": {
                 "enum": [
                     "manual",
@@ -4581,6 +5827,53 @@
                     "name",
                     "roles",
                     "slug"
+                ]
+            },
+            "Stats": {
+                "type": "object",
+                "properties": {
+                    "totals": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer"
+                        }
+                    },
+                    "breakdown": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    "active_set_bonuses": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    },
+                    "inactive_set_bonuses": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    },
+                    "projected_slots": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "active_set_bonuses",
+                    "breakdown",
+                    "inactive_set_bonuses",
+                    "projected_slots",
+                    "totals"
                 ]
             },
             "Status643Enum": {
@@ -4668,6 +5961,88 @@
                     "name",
                     "rank_spells",
                     "row"
+                ]
+            },
+            "TalentBuild": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "character": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Nom",
+                        "maxLength": 40,
+                        "minLength": 1
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "default": false,
+                        "title": "Build actif"
+                    },
+                    "points": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "acquired": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "tree_points": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer"
+                        },
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "acquired",
+                    "character",
+                    "created_at",
+                    "id",
+                    "is_active",
+                    "name",
+                    "tree_points",
+                    "updated_at"
+                ]
+            },
+            "TalentBuildRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Nom",
+                        "maxLength": 40
+                    },
+                    "points": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "required": [
+                    "name"
                 ]
             },
             "TalentTree": {

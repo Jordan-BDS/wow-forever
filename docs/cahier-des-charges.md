@@ -234,7 +234,8 @@ plats explicites portés par les objets (puissance d'attaque, puissance des sort
 - **Exclus** : éléments projetés, effets conditionnels ou aléatoires (procs), qui sont seulement décrits.
 
 Ce périmètre couvre l'usage réel (comparer deux sets, vérifier un seuil de résistance) sans dépendre des formules
-du jeu.
+du jeu. Les bonus de set sont listés (actifs / inactifs selon le nombre de pièces) avec leur détail sur Wowhead ;
+leurs stats ne sont pas encore additionnées.
 
 ### Hors MVP
 
