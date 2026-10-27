@@ -1,0 +1,155 @@
+DisplayName_lang,AlternateVerb_lang,Description_lang,HordeDisplayName_lang,NeutralDisplayName,ID,CategoryID,SpellIconFileID,CanLink,ParentSkillLineID,ParentTierIndex,Flags,SpellBookSpellID,ExpansionNameSharedStringID,HordeExpansionNameSharedStringID
+Givre,,,,,6,7,135846,0,0,0,1040,0,0,0
+Feu,,,,,8,7,135810,0,0,0,1040,0,0,0
+Armes,,,,,26,7,132292,0,0,0,1040,0,0,0
+Combat,,,,,38,7,132090,0,0,0,1040,0,0,0
+Finesse,,,,,39,7,132320,0,0,0,1040,0,0,0
+Poisons,,"Une meilleure aptitude à l’art des poisons vous permet de fabriquer des décoctions plus puissantes. Procurez-vous des composants auprès des vendeurs de poisons et des marchands douteux, puis transformez-les en poisons mortels qui feront pourrir, fléchir et",,,40,9,136242,0,0,0,128,0,0,0
+Epées,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,43,6,136235,0,0,0,128,0,0,0
+Haches,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,44,6,136235,0,0,0,128,0,0,0
+Arcs,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,45,6,136235,0,0,0,128,0,0,0
+Armes à feu,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,46,6,136235,0,0,0,128,0,0,0
+Maîtrise des bêtes,,,,,50,7,132164,0,0,0,1040,0,0,0
+Survie,,,,,51,7,132215,0,0,0,1040,0,0,0
+Masse,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,54,6,136235,0,0,0,128,0,0,0
+Epées à deux mains,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,55,6,136235,0,0,0,128,0,0,0
+Sacré,,,,,56,7,135920,0,0,0,1040,0,0,0
+Magie de l'ombre,,,,,78,7,136207,0,0,0,1040,0,0,0
+Défense,,Une plus haute défense vous rend plus difficile à toucher et donne moins de chance aux monstres d'infliger de gros dégâts.,,,95,6,136235,0,0,0,128,0,0,0
+Langue : commun,,,,,98,10,136235,0,0,0,128,0,0,0
+Raciale nain,,,,,101,9,136235,0,0,0,146,0,0,0
+Langue : orc,,,,,109,10,136235,0,0,0,128,0,0,0
+Langue : nain,,,,,111,10,136235,0,0,0,128,0,0,0
+Langue : darnassien,,,,,113,10,136235,0,0,0,128,0,0,0
+Langue : taurahe,,,,,115,10,136235,0,0,0,128,0,0,0
+Ambidextrie,,,,,118,6,136235,0,0,0,146,0,0,0
+Raciale tauren,,,,,124,9,136235,0,0,0,146,0,0,0
+Raciale orc,,,,,125,9,136235,0,0,0,146,0,0,0
+Raciale elfe de la nuit,,,,,126,9,136235,0,0,0,146,0,0,0
+Secourisme,,"Une compétence plus élevée en secourisme  vous permet d'apprendre à mieux soigner. Il est possible d'augmenter cette compétence grâce à des professeurs, aux monstres que vous tuez ou en récompense de quêtes.",,,129,9,135966,1,0,0,128,0,0,0
+Combat farouche,,,,,134,7,132276,0,0,0,1040,0,0,0
+Bâtons,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,136,6,136235,0,0,0,128,0,0,0
+Langue : thalassien,,,,,137,10,136235,0,0,0,128,0,0,0
+Langue : draconique,,,,,138,10,136235,0,0,0,128,0,0,0
+Langue : démoniaque,,,,,139,10,136235,0,0,0,128,0,0,0
+Langue : titan,,,,,140,10,136235,0,0,0,128,0,0,0
+Langue : langue ancienne,,,,,141,10,136235,0,0,0,128,0,0,0
+Survie,,,,,142,9,136235,0,0,0,0,0,0,0
+Equitation,,,,,148,9,136235,0,0,0,144,0,0,0
+Monte de loup,,,,,149,9,136235,0,0,0,144,0,0,0
+Monte de tigre,,,,,150,9,136235,0,0,0,144,0,0,0
+Monte de bélier,,,,,152,9,136235,0,0,0,144,0,0,0
+Natation,,,,,155,9,136235,0,0,0,0,0,0,0
+Masses à deux mains,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,160,6,136235,0,0,0,128,0,0,0
+Mains nues,,Une compétence plus élevée augmente vos chances de toucher.,,,162,6,136235,0,0,0,128,0,0,0
+Précision,,,,,163,7,132222,0,0,0,1040,0,0,0
+Forge,,Un plus haut score dans la compétence forge vous permet d’apprendre des recettes plus difficiles. Les plans pour forgerons se trouvent dans le monde entier auprès de maîtres aussi bien qu’en recompense de quêtes ou qu’en butin de monstres.,,,164,11,136241,1,0,0,128,0,0,0
+Travail du cuir,,"Une compétence plus élevée dans le travail du cuir vous permet d'apprendre des patrons plus difficiles. Ces patrons peuvent être trouvés auprès de maîtres un peu partout dans le monde, sur des monstres ou en récompense de quêtes.",,,165,11,136247,1,0,0,128,0,0,0
+Alchimie,,Un plus haut score dans la compétence alchimie vous permet d’apprendre des recettes plus difficiles en alchimie. Les recettes d'alchimie se trouvent dans le monde entier auprès de maîtres aussi bien qu’en recompense de quêtes ou qu’en butin de monstres.,,,171,11,136240,1,0,0,128,0,0,0
+Haches à deux mains,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,172,6,136235,0,0,0,128,0,0,0
+Dagues,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,173,6,136235,0,0,0,128,0,0,0
+Armes de jet,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,176,6,136235,0,0,0,128,0,0,0
+Herboristerie,,"Une compétence plus élevée en Herboristerie vous permet de récolter des herbes plus difficiles. Si vous ne pouvez pas récolter une herbe donnée, augmentez votre score en récoltant des herbes plus accessibles dans des zones de niveau inférieur.",,,182,11,136246,0,0,0,128,0,0,0
+GENERIC (DND),,,,,183,12,136235,0,0,0,146,0,0,0
+Vindicte,,,,,184,7,135873,0,0,0,1040,0,0,0
+Cuisine,,Un plus haut score dans la compétence cuisine vous permet d’apprendre des recettes plus difficiles. Les recettes de cuisine se trouvent dans le monde entier auprès de maîtres aussi bien qu’en recompense de quêtes ou qu’en butin de monstres.,,,185,9,133971,1,0,0,128,0,0,0
+Minage,,"Une compétence plus élevée en minage vous permet de récolter des minerais plus difficiles. Si vous ne pouvez pas récolter un minerai donné, augmentez votre score en récoltant des minerais plus accessibles dans des zones de niveau inférieur.",,,186,11,136248,0,0,0,128,0,0,0
+Familier - diablotin,,,,,188,7,136235,0,0,0,0,0,0,0
+Familier – Chasseur corrompu,,,,,189,7,136235,0,0,0,0,0,0,0
+Couture,,Un plus haut score dans la compétence couture vous permet d’apprendre des patrons plus difficiles. Les patrons de couture se trouvent dans le monde entier auprès de maîtres aussi bien qu’en recompense de quêtes ou qu’en butin de monstres.,,,197,11,136249,1,0,0,128,0,0,0
+Ingénierie,,Un plus haut score dans la compétence ingénierie vous permet d’apprendre des schémas plus difficiles. Les schémas pour ingénieurs se trouvent dans le monde entier auprès de maîtres aussi bien qu’en recompense de quêtes ou qu’en butin de monstres.,,,202,11,136243,1,0,0,128,0,0,0
+Familier - araignée,,,,,203,7,136235,0,0,0,0,0,0,0
+Familier - Marcheur du Vide,,,,,204,7,136235,0,0,0,0,0,0,0
+Familier - Succube,,,,,205,7,136235,0,0,0,0,0,0,0
+Familier - Infernal,,,,,206,7,136235,0,0,0,0,0,0,0
+Familier - garde funeste,,,,,207,7,136235,0,0,0,0,0,0,0
+Familier - loup,,,,,208,7,136235,0,0,0,0,0,0,0
+Familier - félin,,,,,209,7,136235,0,0,0,0,0,0,0
+Familier - ours,,,,,210,7,136235,0,0,0,0,0,0,0
+Familier - sanglier,,,,,211,7,136235,0,0,0,0,0,0,0
+Familier - crocilisque,,,,,212,7,136235,0,0,0,0,0,0,0
+Familier - charognard,,,,,213,7,136235,0,0,0,0,0,0,0
+Familier - crabe,,,,,214,7,136235,0,0,0,0,0,0,0
+Familier - gorille,,,,,215,7,136235,0,0,0,0,0,0,0
+Familier - raptor,,,,,217,7,136235,0,0,0,0,0,0,0
+Familier - haut-trotteur,,,,,218,7,136235,0,0,0,0,0,0,0
+Racial - morts-vivants,,,,,220,9,136235,0,0,0,146,0,0,0
+Arbalètes,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,226,6,136235,0,0,0,128,0,0,0
+Baguettes,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,228,6,136235,0,0,0,128,0,0,0
+Armes d'hast,,Une compétence d’arme plus élévée augmente vos chances de toucher.,,,229,6,136235,0,0,0,128,0,0,0
+Familier - scorpide,,,,,236,7,136235,0,0,0,0,0,0,0
+Arcane,,,,,237,7,135932,0,0,0,1040,0,0,0
+Familier - tortue,,,,,251,7,136235,0,0,0,0,0,0,0
+Assassinat,,,,,253,7,132292,0,0,0,1040,0,0,0
+Fureur,,,,,256,7,132347,0,0,0,1040,0,0,0
+Protection,,,,,257,7,132341,0,0,0,1040,0,0,0
+Dressage des bêtes,,,,,261,7,136235,0,0,0,146,0,0,0
+Protection,,,,,267,7,135893,0,0,0,1040,0,0,0
+Familier - générique,,,,,270,7,136235,0,0,0,0,0,0,0
+Armure en plaques,,Permet de porter des armures de plaques.,,,293,8,136235,0,0,0,128,0,0,0
+Langue : gnome,,,,,313,10,136235,0,0,0,128,0,0,0
+Langue : troll,,,,,315,10,136235,0,0,0,128,0,0,0
+Enchantement,,"Une compétence plus élevée en enchantement vous permet d'apprendre des formules plus puissantes.  Ces formules peuvent être trouvées auprès de maîtres un peu partout dans le monde, sur des monstres ou en récompense de quêtes.",,,333,11,136244,1,0,0,128,0,0,0
+Démonologie,,,,,354,7,136172,0,0,0,1040,0,0,0
+Affliction,,,,,355,7,136145,0,0,0,1040,0,0,0
+Pêche,,"Un plus haut score dans la compétence pêche augmente vos chances d'attraper des poissons dans le monde. Si vous n'arrivez pas à pêcher dans une zone spécifique, allez dans des zones de plus bas niveau ou utilisez des appâts.",,,356,9,136245,0,0,0,128,0,0,0
+Amélioration,,,,,373,7,136051,0,0,0,1040,0,0,0
+Restauration,,,,,374,7,136052,0,0,0,1040,0,0,0
+Combat élémentaire,,,,,375,7,136048,0,0,0,1040,0,0,0
+Dépeçage,,"Une compétence en dépeçage plus élevée vous permet de récolter les peaux de monstres plus puissants. Une fois que votre compétence dépasse 100, vous pouvez la diviser par 5 pour connaître le niveau maximum des monstres que vous pouvez dépecer.",,,393,11,134366,0,0,0,128,0,0,0
+Mailles,,Permet de porter des armures de mailles.,,,413,8,136235,0,0,0,128,0,0,0
+Cuir,,Permet de porter des armures en cuir.,,,414,8,136235,0,0,0,128,0,0,0
+Tissu,,Permet de porter des armures en tissu.,,,415,8,136235,0,0,0,128,0,0,0
+Bouclier,,Permet d’utiliser des boucliers.,,,433,8,136235,0,0,0,128,0,0,0
+Armes de pugilat,,Permet l'utilisation des armes de pugilat. Les chances de toucher sont déterminées par la compétence Mains nues.,,,473,6,136235,0,0,0,130,0,0,0
+Monte de raptor,,,,,533,9,136235,0,0,0,144,0,0,0
+Pilotage de mécanotrotteur,,,,,553,9,136235,0,0,0,144,0,0,0
+Monte de cheval squelette,,,,,554,9,136235,0,0,0,144,0,0,0
+Restauration,,,,,573,7,136041,0,0,0,1040,0,0,0
+Equilibre,,,,,574,7,136096,0,0,0,1040,0,0,0
+Destruction,,,,,593,7,136186,0,0,0,1040,0,0,0
+Sacré,,,,,594,7,135920,0,0,0,1040,0,0,0
+Discipline,,,,,613,7,135987,0,0,0,1040,0,0,0
+Crochetage,,,,,633,9,136058,0,0,0,128,0,0,0
+Familier - chauve-souris,,,,,653,7,136235,0,0,0,0,0,0,0
+Familier - hyène,,,,,654,7,136235,0,0,0,0,0,0,0
+Familier - oiseau de proie,,,,,655,7,136235,0,0,0,0,0,0,0
+Familier - serpent des vents,,,,,656,7,136235,0,0,0,0,0,0,0
+Langue : bas-parler,,,,,673,10,136235,0,0,0,128,0,0,0
+Monte de kodo,,,,,713,9,135997,0,0,0,144,0,0,0
+Racial - troll,,,,,733,9,0,0,0,0,146,0,0,0
+Racial - gnome,,,,,753,9,0,0,0,0,146,0,0,0
+Racial - humain,,,,,754,9,0,0,0,0,146,0,0,0
+Familier - Evénement - Télécommande,,,,,758,0,0,0,0,0,0,0,0,0
+Monte,,Un plus haut score dans la compétence monte vous permet de chevaucher plus vite et sur le dos de créatures plus exotiques.,,,762,9,132164,0,0,0,144,0,0,0
+Montures,,Vos montures,,,777,7,132167,0,0,0,2,0,0,0
+Compagnons,,Vos compagnons,,,778,7,0,0,0,0,2,0,0,0
+Tous - Spécialisations,,Les sorts gérant une combinaison de spécialisation se trouvent ici.,,,934,12,0,0,0,0,2,0,0,0
+Gravure,,Une compétence de gravure plus élevée vous permet d’apprendre des runes de plus haut niveau et de les appliquer à vos armures et à vos armes. Les runes sont cachées un peu partout dans le monde.,,,2851,7,136235,0,0,0,146,0,0,0
+Runes,,,,,2853,7,134419,0,0,0,18,0,0,0
+Méditation,,,,,2885,7,135944,0,0,0,130,0,0,0
+Familier – gangregarde,,,,,2887,7,0,0,0,0,0,0,0,0
+Familier – Chien du Magma,,,,,2897,7,136235,0,0,0,0,0,0,0
+Diablotin explorateur,,,,,2898,7,237559,0,0,0,130,0,0,0
+Victoire astrale parfaite,,,,,2904,12,0,0,0,0,0,0,0,0
+Test Profession [DNT],,"Un niveau de compétence plus élevé vous permet d’apprendre des recettes plus difficiles. Vous trouverez de nouvelles recettes auprès des spécialistes à travers le monde, mais aussi en effectuant des quêtes ou en les récupérant sur les monstres.",,,2933,11,134400,1,0,0,4224,0,0,0
+Test Profession [DNT],,"Un niveau de compétence plus élevé vous permet d’apprendre des recettes plus difficiles. Vous trouverez de nouvelles recettes auprès des spécialistes à travers le monde, mais aussi en effectuant des quêtes ou en les récupérant sur les monstres.",,,2934,11,134400,0,2933,4,0,0,1159,0
+Alchimie,,Un plus haut score dans la compétence alchimie vous permet d’apprendre des recettes plus difficiles. Les recettes d’alchimie se trouvent dans le monde entier auprès de maîtres aussi bien qu’en récompense de quêtes ou qu’en butin de monstres.,,,2937,11,136240,0,171,4,0,0,1160,0
+Forge,,Un plus haut score dans la compétence forge vous permet d’apprendre des plans plus difficiles. Les plans pour forgerons se trouvent dans le monde entier auprès de maîtres aussi bien qu’en récompense de quêtes ou qu’en butin de monstres.,,,2938,11,136241,0,164,4,0,0,1161,0
+Cuisine,,Un plus haut score dans la compétence cuisine vous permet d’apprendre des recettes plus difficiles. Les recettes de cuisine se trouvent dans le monde entier auprès de maîtres aussi bien qu’en récompense de quêtes ou qu’en butin de monstres.,,,2939,9,133971,0,185,4,0,0,1162,0
+Enchantement,,"Un plus haut score dans la compétence enchantement vous permet d’apprendre des formules plus puissantes. Ces formules peuvent être trouvées auprès de maîtres un peu partout dans le monde, sur des monstres ou en récompense de quêtes.",,,2940,11,136244,0,333,4,0,0,1163,0
+Ingénierie,,Un plus haut score dans la compétence ingénierie vous permet d’apprendre des schémas plus difficiles. Les schémas pour ingénieurs se trouvent dans le monde entier auprès de maîtres aussi bien qu’en récompense de quêtes ou qu’en butin de monstres.,,,2941,11,136243,0,202,4,0,0,1164,0
+Secourisme,,"Un plus haut score dans la compétence secourisme vous permet d’apprendre à mieux soigner. Il est possible d’augmenter cette compétence grâce à des professeurs, aux monstres que vous tuez ou en récompense de quêtes.",,,2942,9,135966,0,129,4,0,0,1165,0
+Pêche,,"Un plus haut score dans la compétence pêche augmente vos chances d’attraper des poissons dans le monde. Si vous n’arrivez pas à pêcher dans une zone spécifique, allez dans des zones de plus bas niveau ou utilisez des appâts.",,,2943,9,136245,0,356,4,0,0,1166,0
+Herboristerie,,"Un plus haut score dans la compétence herboristerie vous permet de récolter des herbes plus difficiles. Si vous ne pouvez pas récolter une herbe donnée, augmentez votre score en récoltant des herbes plus accessibles dans des zones de niveau inférieur.",,,2944,11,136246,0,182,4,0,0,1167,0
+Travail du cuir,,"Un plus haut score dans la compétence travail du cuir vous permet d’apprendre des patrons plus difficiles. Ces patrons peuvent être trouvés auprès de maîtres un peu partout dans le monde, sur des monstres ou en récompense de quêtes.",,,2945,11,136247,0,165,4,0,0,1168,0
+Minage,,"Un plus haut score dans la compétence minage vous permet de récolter des minerais plus difficiles. Si vous ne pouvez pas récolter un minerai donné, augmentez votre score en récoltant des minerais plus accessibles dans des zones de niveau inférieur.",,,2946,11,136248,0,186,4,0,0,1169,0
+Dépeçage,,"Un plus haut score dans la compétence dépeçage vous permet de dépecer des monstres de plus haut niveau un peu partout dans le monde. Une fois que votre compétence dépasse 100, vous pouvez la diviser par 5 pour déterminer le niveau maximal des monstres que ",,,2947,11,134366,0,393,4,0,0,1170,0
+Couture,,Un plus haut score dans la compétence couture vous permet d’apprendre des patrons plus difficiles. Les patrons de couture se trouvent dans le monde entier auprès de maîtres aussi bien qu’en récompense de quêtes ou qu’en butin de monstres.,,,2948,11,136249,0,197,4,0,0,1171,0
+Raciale éolide,,,,,2980,9,136235,0,0,0,146,0,0,0
+Poisons,,"Une meilleure aptitude à l’art des poisons vous permet de fabriquer des décoctions plus puissantes. Procurez-vous des composants auprès des vendeurs de poisons et des marchands douteux, puis transformez-les en poisons mortels qui feront pourrir, fléchir et",,,2988,9,132273,0,40,1,0,0,1214,0
+Monte de trotteur des trombes,,,,,3011,9,136235,0,0,0,144,0,0,0
+Compréhension,,Une meilleure compétence de compréhension vous permet de déchiffrer des parchemins magiques de puissance supérieure. Vous trouverez des parchemins aux quatre coins du monde. Ces parchemins sont à utilisation unique et vous confèrent divers effets bénéfique,,,3012,9,135933,0,0,0,128,0,0,0
+Combat farouche,,,,,3014,6,132276,0,0,0,128,0,0,0
+Familier - chauve-souris,,,,,3015,7,136235,0,0,0,0,0,0,0
+Familier - renard,,,,,3016,7,136235,0,0,0,0,0,0,0

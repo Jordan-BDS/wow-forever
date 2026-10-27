@@ -25,3 +25,4 @@ frontend/coverage/
 .DS_Store
 *.swp
 .gstack/
+backend/data/

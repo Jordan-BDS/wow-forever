@@ -9,6 +9,7 @@ import { CharacterFormPage } from "./pages/CharacterFormPage";
 import { CharacterPage } from "./pages/CharacterPage";
 import { GuildPage } from "./pages/GuildPage";
 import { HomePage } from "./pages/HomePage";
+import { ItemsPage } from "./pages/ItemsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MemberPage } from "./pages/MemberPage";
 import { MembersPage } from "./pages/MembersPage";
@@ -17,6 +18,7 @@ import { PollsPage } from "./pages/PollsPage";
 import { ProfessionsPage } from "./pages/ProfessionsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RosterPage } from "./pages/RosterPage";
+import { TalentsPage } from "./pages/TalentsPage";
 
 export const router = createBrowserRouter([
   { path: "/login", Component: LoginPage },
@@ -37,6 +39,8 @@ export const router = createBrowserRouter([
           { path: "personnages/:id", Component: CharacterPage },
           { path: "personnages/:id/modifier", Component: CharacterFormPage },
           { path: "metiers", Component: ProfessionsPage },
+          { path: "objets", Component: ItemsPage },
+          { path: "talents", Component: TalentsPage },
           { path: "disponibilites", Component: AvailabilityPage },
           { path: "sondages", Component: PollsPage },
           { path: "sondages/:id", Component: PollPage },

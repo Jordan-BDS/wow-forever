@@ -9,6 +9,8 @@ const links = [
   { to: "/agenda", label: "Agenda" },
   { to: "/roster", label: "Roster" },
   { to: "/metiers", label: "Métiers" },
+  { to: "/objets", label: "Objets" },
+  { to: "/talents", label: "Talents" },
   { to: "/disponibilites", label: "Dispos" },
   { to: "/sondages", label: "Sondages" },
   { to: "/membres", label: "Membres" },

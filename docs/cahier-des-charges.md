@@ -280,11 +280,14 @@ Hors index : sorts et techniques, stats de base par race/classe/niveau (cf. éta
 
 ### Alimentation
 
-1. **Import depuis les données client** via des commandes Django **rejouables et idempotentes** ; **icônes**
-   téléchargées et servies par notre propre serveur. Source visée : **le client WoW Forever lui-même** dès que ses
-   tables sont exportables (type wago.tools). Les données **Classic Era** ne servent que de **bouche-trou** avant.
+1. **Import depuis les données client** via la commande Django `import_gamedata`, **rejouable et idempotente**,
+   qui télécharge les tables DB2 exportées par **wago.tools** (produit `wowf`, le client WoW Forever, disponible
+   depuis le 27 octobre 2026 ; `wow_classic_era` en secours). Les stats des objets sont décodées depuis les
+   « pourcentages de budget » du client et la table RandPropPoints. Les **icônes** sont servies par le CDN
+   Wowhead à partir de leur nom (pas de stockage local pour l'instant).
 2. **Couche de surcharge** : ajouts et corrections manuels (GM, via l'admin) pour ce que l'import ne couvre pas
-   encore. Ces surcharges **survivent aux réimports**.
+   encore. Une ligne cochée « gérée à la main » **survit aux réimports**. Le niveau requis d'une recette est
+   **estimé** depuis ses paliers jaune/gris (le client ne stocke pas l'orange) et se corrige de la même façon.
 3. Plus tard : synchronisation via l'API Blizzard si elle couvre WoW Forever.
 
 ### Consultation

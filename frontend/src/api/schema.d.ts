@@ -128,6 +128,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/enchantments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Enchantements, filtrables par emplacement (`slot`) via le masque d'InventoryType. */
+        get: operations["enchantments_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events/": {
         parameters: {
             query?: never;
@@ -285,6 +302,39 @@ export interface paths {
         head?: never;
         /** @description Paramètres de la guilde : lecture pour tous les membres, modification par le GM. */
         patch: operations["guild_partial_update"];
+        trace?: never;
+    };
+    "/api/items/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Recherche d'objets : `q` (nom FR ou EN), `slot` (emplacements séparés par des virgules). */
+        get: operations["items_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/items/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["items_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/members/": {
@@ -495,6 +545,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/recipes/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Recettes : `profession` (slug), `q` (nom de recette ou d'objet produit). */
+        get: operations["recipes_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/signups/{id}/": {
         parameters: {
             query?: never;
@@ -512,6 +579,23 @@ export interface paths {
         head?: never;
         /** @description Gestion d'une inscription par l'organisateur ou un officier (placement, statut, retrait). */
         patch: operations["signups_partial_update"];
+        trace?: never;
+    };
+    "/api/talents/{slug}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Les trois arbres de talents d'une classe (par slug). */
+        get: operations["talents_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }
@@ -603,6 +687,10 @@ export interface components {
             note?: string;
             professions?: components["schemas"]["CharacterProfessionRequest"][];
         };
+        ClassTalents: {
+            player_class: string;
+            trees: components["schemas"]["TalentTree"][];
+        };
         /**
          * @description * `discord` - Rôle Discord perdu ou départ du serveur
          *     * `manual` - Désactivé par un officier
@@ -627,6 +715,35 @@ export interface components {
          * @enum {string}
          */
         EffectiveStatusEnum: "planned" | "cancelled" | "done";
+        Enchantment: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /** Format: int64 */
+            spell_id?: number;
+            icon?: string;
+            readonly icon_url: string;
+            stats?: unknown;
+            /**
+             * Format: int64
+             * @description Masque d'InventoryType autorisés (0 = inconnu)
+             */
+            slot_mask?: number;
+            /**
+             * Format: int64
+             * @description Classe d'objet requise (2 arme, 4 armure), -1 = toutes
+             */
+            equipped_class?: number;
+            /**
+             * Format: int64
+             * @description Masque de sous-classes autorisées (0 = toutes)
+             */
+            equipped_subclass_mask?: number;
+            /** Format: int64 */
+            required_skill?: number;
+            /** Format: int64 */
+            required_skill_rank?: number;
+        };
         Event: {
             readonly id: number;
             /** Titre */
@@ -758,6 +875,9 @@ export interface components {
             races: components["schemas"]["Race"][];
             professions: components["schemas"]["Profession"][];
             instances: components["schemas"]["Instance"][];
+            readonly import_run: {
+                [key: string]: unknown;
+            } | null;
         };
         GuildAvailability: {
             readonly user: number;
@@ -839,6 +959,89 @@ export interface components {
          * @enum {string}
          */
         InstanceKindEnum: "dungeon" | "raid" | "battleground";
+        Item: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            name_en?: string;
+            /** Format: int64 */
+            quality?: number;
+            /** Format: int64 */
+            item_level?: number;
+            /** Format: int64 */
+            required_level?: number;
+            /** Format: int64 */
+            inventory_type?: number;
+            readonly slot: string;
+            /** Format: int64 */
+            class_id?: number;
+            /** Format: int64 */
+            subclass_id?: number;
+            /**
+             * Format: int64
+             * @description Masque de classes, -1 = toutes
+             */
+            allowable_class?: number;
+            is_unique?: boolean;
+            /** Format: int64 */
+            item_set?: number | null;
+            icon?: string;
+            readonly icon_url: string;
+            readonly stats: {
+                [key: string]: number;
+            };
+            description?: string;
+            /**
+             * Géré à la main
+             * @description Ajout ou correction manuelle, jamais écrasé par l'import.
+             */
+            is_forever?: boolean;
+        };
+        ItemDetail: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            name_en?: string;
+            /** Format: int64 */
+            quality?: number;
+            /** Format: int64 */
+            item_level?: number;
+            /** Format: int64 */
+            required_level?: number;
+            /** Format: int64 */
+            inventory_type?: number;
+            readonly slot: string;
+            /** Format: int64 */
+            class_id?: number;
+            /** Format: int64 */
+            subclass_id?: number;
+            /**
+             * Format: int64
+             * @description Masque de classes, -1 = toutes
+             */
+            allowable_class?: number;
+            is_unique?: boolean;
+            readonly item_set: components["schemas"]["ItemSet"];
+            icon?: string;
+            readonly icon_url: string;
+            readonly stats: {
+                [key: string]: number;
+            };
+            description?: string;
+            /**
+             * Géré à la main
+             * @description Ajout ou correction manuelle, jamais écrasé par l'import.
+             */
+            is_forever?: boolean;
+        };
+        ItemSet: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /** @description [{threshold, spell_id, description}] */
+            bonuses?: unknown;
+            readonly item_ids: number[];
+        };
         Member: {
             readonly id: number;
             /** ID Discord */
@@ -1164,6 +1367,39 @@ export interface components {
             faction?: components["schemas"]["FactionEnum"] | components["schemas"]["BlankEnum"];
             readonly classes: string[];
         };
+        Recipe: {
+            /**
+             * Format: int64
+             * @description ID du sort de fabrication
+             */
+            id: number;
+            readonly profession: string;
+            name: string;
+            icon?: string;
+            readonly icon_url: string;
+            /**
+             * Format: int64
+             * @description Estimé depuis les paliers jaune/gris du client, corrigeable à la main.
+             */
+            min_skill?: number;
+            /** Format: int64 */
+            skill_yellow?: number;
+            /** Format: int64 */
+            skill_grey?: number;
+            readonly product: components["schemas"]["Item"];
+            /** Format: int64 */
+            quantity?: number;
+            /** @description [{item_id, name, count}] */
+            reagents?: unknown;
+            /** Format: int64 */
+            acquire_method?: number;
+            readonly source: string;
+            /**
+             * Géré à la main
+             * @description Ajout ou correction manuelle, jamais écrasé par l'import.
+             */
+            is_forever?: boolean;
+        };
         RoleCount: {
             tank: number;
             heal: number;
@@ -1261,6 +1497,32 @@ export interface components {
          * @enum {string}
          */
         StatusA6aEnum: "planned" | "cancelled" | "done";
+        Talent: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            icon?: string;
+            readonly icon_url: string;
+            /** Format: int64 */
+            row: number;
+            /** Format: int64 */
+            column: number;
+            readonly rank_spells: number[];
+            readonly max_rank: number;
+            /** Format: int64 */
+            prerequisite?: number | null;
+            /** Format: int64 */
+            prerequisite_rank?: number;
+        };
+        TalentTree: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            background?: string;
+            /** Format: int64 */
+            order?: number;
+            readonly talents: components["schemas"]["Talent"][];
+        };
         ValidateRequest: {
             proposal: number;
             note?: string;
@@ -1575,6 +1837,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Character"];
+                };
+            };
+        };
+    };
+    enchantments_list: {
+        parameters: {
+            query?: {
+                q?: string;
+                slot?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Enchantment"][];
                 };
             };
         };
@@ -1970,6 +2254,53 @@ export interface operations {
             };
         };
     };
+    items_list: {
+        parameters: {
+            query?: {
+                /** @description Seulement les objets équipables. */
+                equippable?: boolean;
+                /** @description Début ou fragment du nom (français ou anglais). */
+                q?: string;
+                /** @description Emplacements acceptés, ex. head ou finger,trinket. */
+                slot?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Item"][];
+                };
+            };
+        };
+    };
+    items_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDetail"];
+                };
+            };
+        };
+    };
     members_list: {
         parameters: {
             query?: never;
@@ -2347,6 +2678,28 @@ export interface operations {
             };
         };
     };
+    recipes_list: {
+        parameters: {
+            query?: {
+                profession?: string;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recipe"][];
+                };
+            };
+        };
+    };
     signups_update: {
         parameters: {
             query?: never;
@@ -2420,6 +2773,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Signup"];
+                };
+            };
+        };
+    };
+    talents_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassTalents"];
                 };
             };
         };

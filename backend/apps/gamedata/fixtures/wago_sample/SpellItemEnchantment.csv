@@ -1,0 +1,3 @@
+ID,Name_lang,HordeName_lang,Duration,Charges,Effect_0,Effect_1,Effect_2,EffectPointsMin_0,EffectPointsMin_1,EffectPointsMin_2,EffectArg_0,EffectArg_1,EffectArg_2,Flags,EffectScalingPoints_0,EffectScalingPoints_1,EffectScalingPoints_2,ScalingClass,ScalingClassRestricted,Condition_ID,RequiredSkillID,RequiredSkillRank,MinLevel,MaxLevel,IconFileDataID,ItemLevelMin,ItemLevelMax,TransmogUseConditionID,TransmogCost,ItemSquishEraID,ItemVisual,ItemLevel
+1900,Croisé,,0,0,1,3,0,0,0,0,20007,458112,0,0,0,0,0,0,0,0,0,0,0,0,135913,0,0,0,0,0,103,1
+2505,Sorts de soins +55,,0,0,3,0,0,0,0,0,22748,0,0,0,0,0,0,0,0,0,0,0,0,0,135913,0,0,0,0,0,103,1

@@ -45,6 +45,10 @@ l'URL de retour OAuth à déclarer côté Discord est donc `http://localhost:800
 | backend | `uv run python manage.py createsuperuser` | accès à `/admin/` (demande un ID Discord) |
 | backend | `uv run python manage.py seed_gamedata` | recharge les données de référence sans toucher aux ajouts manuels |
 | backend | `uv run python manage.py runbot` | lance le bot Discord (outbox, rappels, commandes slash, révocation) |
+| backend | `uv run python manage.py import_gamedata` | télécharge les tables du client WoW Forever (wago.tools) et importe objets, sets, enchantements, talents, recettes (~2 min, rejouable) |
+
+En production : `docker compose exec web python manage.py import_gamedata` après la première mise en ligne, puis
+à chaque patch du jeu. Les ajouts manuels faits dans l'admin (lignes « gérées à la main ») sont conservés.
 | frontend | `npm test` / `npm run lint` / `npm run format` | tests, lint, format |
 | frontend | `npm run gen:api` | régénère `openapi.json` et `src/api/schema.d.ts` depuis le backend |
 
