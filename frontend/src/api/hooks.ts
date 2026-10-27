@@ -7,6 +7,9 @@ export const KEYS = {
   members: ["members"] as const,
   polls: ["polls"] as const,
   poll: (id: number) => ["polls", id] as const,
+  events: ["events"] as const,
+  eventsWindow: (from: string, to: string) => ["events", "window", from, to] as const,
+  event: (id: number) => ["events", id] as const,
   guildAvailability: ["availability", "guild"] as const,
   myAvailability: ["availability", "me"] as const,
 };
@@ -41,6 +44,21 @@ export function usePoll(id: number) {
   return useQuery({
     queryKey: KEYS.poll(id),
     queryFn: () => unwrap(api.GET("/api/polls/{id}/", { params: { path: { id } } })),
+  });
+}
+
+/** Événements à venir (depuis hier) ou dans une fenêtre donnée. */
+export function useEvents(window?: { from: string; to: string }) {
+  return useQuery({
+    queryKey: window ? KEYS.eventsWindow(window.from, window.to) : KEYS.events,
+    queryFn: () => unwrap(api.GET("/api/events/", { params: { query: window } })),
+  });
+}
+
+export function useEvent(id: number) {
+  return useQuery({
+    queryKey: KEYS.event(id),
+    queryFn: () => unwrap(api.GET("/api/events/{id}/", { params: { path: { id } } })),
   });
 }
 

@@ -3,7 +3,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import PlayerClass, Profession, Race
+from .models import Instance, PlayerClass, Profession, Race
 from .serializers import GameDataSerializer
 
 
@@ -16,5 +16,6 @@ class GameDataView(APIView):
             "classes": PlayerClass.objects.prefetch_related("specializations"),
             "races": Race.objects.prefetch_related("classes"),
             "professions": Profession.objects.prefetch_related("specializations"),
+            "instances": Instance.objects.all(),
         }
         return Response(GameDataSerializer(data).data)

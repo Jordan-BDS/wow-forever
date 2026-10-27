@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     "apps.gamedata",
     "apps.characters",
     "apps.polls",
+    "apps.events",
 ]
 
 MIDDLEWARE = [

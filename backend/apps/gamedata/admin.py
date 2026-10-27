@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import PlayerClass, Profession, ProfessionSpecialization, Race, Specialization
+from .models import Instance, PlayerClass, Profession, ProfessionSpecialization, Race, Specialization
+
+
+@admin.register(Instance)
+class InstanceAdmin(admin.ModelAdmin):
+    list_display = ["name", "kind", "size", "min_level", "recommended_level", "is_forever"]
+    list_filter = ["kind", "is_forever"]
+    search_fields = ["name"]
 
 
 class SpecializationInline(admin.TabularInline):

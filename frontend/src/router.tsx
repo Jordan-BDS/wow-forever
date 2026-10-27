@@ -1,7 +1,10 @@
 import { createBrowserRouter } from "react-router";
 import { RequireAuth } from "./auth/RequireAuth";
 import { Layout } from "./components/Layout";
+import { AgendaPage } from "./pages/AgendaPage";
 import { AvailabilityPage } from "./pages/AvailabilityPage";
+import { EventFormPage } from "./pages/EventFormPage";
+import { EventPage } from "./pages/EventPage";
 import { CharacterFormPage } from "./pages/CharacterFormPage";
 import { CharacterPage } from "./pages/CharacterPage";
 import { GuildPage } from "./pages/GuildPage";
@@ -25,6 +28,10 @@ export const router = createBrowserRouter([
         Component: Layout,
         children: [
           { index: true, Component: HomePage },
+          { path: "agenda", Component: AgendaPage },
+          { path: "agenda/nouveau", Component: EventFormPage },
+          { path: "agenda/:id", Component: EventPage },
+          { path: "agenda/:id/modifier", Component: EventFormPage },
           { path: "roster", Component: RosterPage },
           { path: "personnages/nouveau", Component: CharacterFormPage },
           { path: "personnages/:id", Component: CharacterPage },

@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/", include("apps.gamedata.urls")),
     path("api/", include("apps.characters.urls")),
     path("api/", include("apps.polls.urls")),
+    path("api/", include("apps.events.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]

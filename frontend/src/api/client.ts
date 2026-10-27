@@ -20,6 +20,16 @@ export type Poll = components["schemas"]["Poll"];
 export type PollRequest = components["schemas"]["PollRequest"];
 export type PollStatus = Poll["status"];
 export type Proposal = components["schemas"]["Proposal"];
+export type Instance = components["schemas"]["Instance"];
+export type InstanceKind = Instance["kind"];
+export type GuildEvent = components["schemas"]["Event"];
+export type EventRequest = components["schemas"]["EventRequest"];
+export type EventKind = GuildEvent["kind"];
+export type EventStatus = GuildEvent["effective_status"];
+export type Signup = components["schemas"]["Signup"];
+export type SignupStatus = Signup["status"];
+export type Placement = Signup["placement"];
+export type SignupWriteRequest = components["schemas"]["SignupWriteRequest"];
 
 function readCookie(name: string): string | undefined {
   return document.cookie

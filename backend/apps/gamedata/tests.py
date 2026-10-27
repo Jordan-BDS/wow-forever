@@ -1,7 +1,7 @@
 import pytest
 
 from apps.gamedata.models import PlayerClass, Race, Specialization
-from apps.gamedata.seed import seed
+from apps.gamedata.seed import seed  # noqa: E402
 
 pytestmark = pytest.mark.django_db
 
@@ -44,3 +44,20 @@ def test_gamedata_endpoint(as_user, member):
     tauren = next(r for r in response.data["races"] if r["slug"] == "tauren")
     assert set(tauren["classes"]) == {"warrior", "hunter", "shaman", "druid"}
     assert len(response.data["professions"]) == 12
+
+
+def test_instances_are_seeded_with_default_needs(as_user, member):
+    seed()
+    response = as_user(member).get("/api/gamedata/")
+    instances = response.data["instances"]
+    assert len(instances) == 30
+    mc = next(i for i in instances if i["slug"] == "molten-core")
+    assert (mc["kind"], mc["size"], mc["default_tanks"], mc["default_heals"], mc["default_dps"]) == (
+        "raid",
+        40,
+        4,
+        10,
+        26,
+    )
+    wsg = next(i for i in instances if i["slug"] == "warsong-gulch")
+    assert wsg["default_tanks"] is None
