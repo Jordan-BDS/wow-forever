@@ -133,7 +133,7 @@ pas des champs par personnage. La liste des races proposées est filtrée selon 
 | Pseudo et avatar Discord | Discord (mis à jour à chaque connexion) | Lecture seule |
 | Nom affiché | Joueur | Par défaut = pseudo Discord |
 | Bio | Joueur | Texte libre, optionnel |
-| Disponibilités | Joueur | Créneaux hebdomadaires récurrents (jour + heure début/fin), fuseau Europe/Paris |
+| Disponibilités | Joueur | Créneaux hebdomadaires récurrents (jour + heure début/fin, à l'heure pleine), fuseau Europe/Paris ; saisie par grille cliquable jour × heure |
 | Rôle sur le site | GM/Officiers | GM / Officier / Membre (cf. étape 2) |
 
 Une vue « disponibilités de la guilde » agrège les créneaux de tout le monde pour aider à choisir les horaires d'événements.
@@ -161,7 +161,7 @@ Un joueur peut avoir **plusieurs personnages**, dont **exactement un « main »*
 Stockées en base, administrables par le GM, pré-remplies au lancement :
 
 - **Classes** (avec couleur officielle de classe pour l'affichage)
-- **Races** (avec faction) — y compris **Skyborn**
+- **Races** (avec faction, ou « les deux » tant que celle de Skyborn n'est pas confirmée) — y compris **Skyborn**
 - **Compatibilités race ↔ classe** (ex. Skyborn : guerrier, chasseur, voleur, druide, chaman, mage)
 - **Spécialisations** par classe, avec les rôles possibles
 - **Métiers** (cf. étape 6)

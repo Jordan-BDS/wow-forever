@@ -38,6 +38,113 @@ export interface paths {
         patch: operations["auth_me_partial_update"];
         trace?: never;
     };
+    "/api/auth/me/availability/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mes créneaux de disponibilité. Le PUT remplace la liste entière. */
+        get: operations["auth_me_availability_list"];
+        /** @description Mes créneaux de disponibilité. Le PUT remplace la liste entière. */
+        put: operations["auth_me_availability_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/availability/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Créneaux de tous les membres actifs, pour la vue agrégée. */
+        get: operations["availability_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier. */
+        get: operations["characters_list"];
+        put?: never;
+        /** @description Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier. */
+        post: operations["characters_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier. */
+        get: operations["characters_retrieve"];
+        /** @description Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier. */
+        put: operations["characters_update"];
+        post?: never;
+        /** @description Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier. */
+        delete: operations["characters_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier. */
+        patch: operations["characters_partial_update"];
+        trace?: never;
+    };
+    "/api/characters/{id}/set-main/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier. */
+        post: operations["characters_set_main_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gamedata/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Toutes les données de référence en un appel (petit volume, mis en cache côté front). */
+        get: operations["gamedata_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/guild/": {
         parameters: {
             query?: never;
@@ -141,12 +248,218 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/polls/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM. */
+        get: operations["polls_list"];
+        put?: never;
+        /** @description Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM. */
+        post: operations["polls_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/polls/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM. */
+        get: operations["polls_retrieve"];
+        /** @description Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM. */
+        put: operations["polls_update"];
+        post?: never;
+        /** @description Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM. */
+        delete: operations["polls_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM. */
+        patch: operations["polls_partial_update"];
+        trace?: never;
+    };
+    "/api/polls/{id}/propose/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM. */
+        post: operations["polls_propose_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/polls/{id}/validate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Sondages à propositions : lecture pour tous, réglages par les officiers, validation par le GM. */
+        post: operations["polls_validate_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposals/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Retrait d'une proposition et votes. */
+        delete: operations["proposals_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposals/{id}/unvote/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Retrait d'une proposition et votes. */
+        post: operations["proposals_unvote_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposals/{id}/vote/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Retrait d'une proposition et votes. */
+        post: operations["proposals_vote_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AvailabilitySlot: {
+            /** Jour */
+            weekday: components["schemas"]["WeekdayEnum"];
+            /** Heure de début */
+            start_hour: number;
+            /**
+             * Heure de fin
+             * @description Exclue, 24 = minuit
+             */
+            end_hour: number;
+        };
+        AvailabilitySlotRequest: {
+            /** Jour */
+            weekday: components["schemas"]["WeekdayEnum"];
+            /** Heure de début */
+            start_hour: number;
+            /**
+             * Heure de fin
+             * @description Exclue, 24 = minuit
+             */
+            end_hour: number;
+        };
         /** @enum {unknown} */
         BlankEnum: "";
+        Character: {
+            readonly id: number;
+            readonly owner: components["schemas"]["Owner"];
+            /** Nom */
+            name: string;
+            player_class: string;
+            race: string;
+            /** Niveau */
+            level?: number;
+            /** Rôle principal */
+            main_role: components["schemas"]["MainRoleEnum"];
+            /** Rôle secondaire */
+            off_role?: components["schemas"]["OffRoleEnum"] | components["schemas"]["BlankEnum"];
+            /** @description Préfixé par la classe, ex. druid-restoration */
+            specialization?: string | null;
+            /** Main */
+            is_main?: boolean;
+            note?: string;
+            professions?: components["schemas"]["CharacterProfession"][];
+            readonly source: components["schemas"]["SourceEnum"];
+            /** Identifiant externe */
+            readonly external_id: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        CharacterProfession: {
+            profession: string;
+            /** Compétence */
+            skill?: number;
+            /** @description Préfixé par le métier, ex. engineering-gnomish */
+            specialization?: string | null;
+        };
+        CharacterProfessionRequest: {
+            profession: string;
+            /** Compétence */
+            skill?: number;
+            /** @description Préfixé par le métier, ex. engineering-gnomish */
+            specialization?: string | null;
+        };
+        CharacterRequest: {
+            /** @description Officiers seulement : créer le perso pour un autre membre. */
+            owner_id?: number;
+            /** Nom */
+            name: string;
+            player_class: string;
+            race: string;
+            /** Niveau */
+            level?: number;
+            /** Rôle principal */
+            main_role: components["schemas"]["MainRoleEnum"];
+            /** Rôle secondaire */
+            off_role?: components["schemas"]["OffRoleEnum"] | components["schemas"]["BlankEnum"];
+            /** @description Préfixé par la classe, ex. druid-restoration */
+            specialization?: string | null;
+            /** Main */
+            is_main?: boolean;
+            note?: string;
+            professions?: components["schemas"]["CharacterProfessionRequest"][];
+        };
         /**
          * @description * `discord` - Rôle Discord perdu ou départ du serveur
          *     * `manual` - Désactivé par un officier
@@ -159,6 +472,30 @@ export interface components {
          * @enum {string}
          */
         FactionEnum: "alliance" | "horde";
+        /**
+         * @description * `free` - Libre
+         *     * `guild_name` - Nom de guilde WoW
+         * @enum {string}
+         */
+        FormatRuleEnum: "free" | "guild_name";
+        GameData: {
+            classes: components["schemas"]["PlayerClass"][];
+            races: components["schemas"]["Race"][];
+            professions: components["schemas"]["Profession"][];
+        };
+        GuildAvailability: {
+            readonly user: number;
+            readonly display_name: string;
+            /** Jour */
+            weekday: components["schemas"]["WeekdayEnum"];
+            /** Heure de début */
+            start_hour: number;
+            /**
+             * Heure de fin
+             * @description Exclue, 24 = minuit
+             */
+            end_hour: number;
+        };
         GuildSettings: {
             /** Nom de la guilde */
             name?: string;
@@ -173,6 +510,19 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        /**
+         * @description * `primary` - Principal
+         *     * `secondary` - Secondaire
+         * @enum {string}
+         */
+        KindEnum: "primary" | "secondary";
+        /**
+         * @description * `tank` - Tank
+         *     * `heal` - Heal
+         *     * `dps` - DPS
+         * @enum {string}
+         */
+        MainRoleEnum: "tank" | "heal" | "dps";
         Member: {
             readonly id: number;
             /** ID Discord */
@@ -200,6 +550,39 @@ export interface components {
              */
             readonly last_login: string | null;
         };
+        /**
+         * @description * `tank` - Tank
+         *     * `heal` - Heal
+         *     * `dps` - DPS
+         * @enum {string}
+         */
+        OffRoleEnum: "tank" | "heal" | "dps";
+        Owner: {
+            readonly id: number;
+            /** Nom affiché */
+            readonly display_name: string;
+            readonly avatar_url: string;
+        };
+        PatchedCharacterRequest: {
+            /** @description Officiers seulement : créer le perso pour un autre membre. */
+            owner_id?: number;
+            /** Nom */
+            name?: string;
+            player_class?: string;
+            race?: string;
+            /** Niveau */
+            level?: number;
+            /** Rôle principal */
+            main_role?: components["schemas"]["MainRoleEnum"];
+            /** Rôle secondaire */
+            off_role?: components["schemas"]["OffRoleEnum"] | components["schemas"]["BlankEnum"];
+            /** @description Préfixé par la classe, ex. druid-restoration */
+            specialization?: string | null;
+            /** Main */
+            is_main?: boolean;
+            note?: string;
+            professions?: components["schemas"]["CharacterProfessionRequest"][];
+        };
         PatchedGuildSettingsRequest: {
             /** Nom de la guilde */
             name?: string;
@@ -217,6 +600,171 @@ export interface components {
             display_name?: string;
             bio?: string;
         };
+        PatchedPollRequest: {
+            /** Titre */
+            title?: string;
+            description?: string;
+            /**
+             * Fin des propositions
+             * Format: date-time
+             */
+            proposals_end?: string;
+            /**
+             * Fin des votes
+             * Format: date-time
+             */
+            votes_end?: string;
+            /**
+             * Propositions max par personne
+             * Format: int64
+             */
+            max_proposals_per_user?: number;
+            /**
+             * Votes max par personne
+             * Format: int64
+             * @description Vide = illimité
+             */
+            max_votes_per_user?: number | null;
+            /** Règle de format */
+            format_rule?: components["schemas"]["FormatRuleEnum"];
+            /** Définit le nom de guilde */
+            sets_guild_name?: boolean;
+        };
+        PlayerClass: {
+            readonly id: number;
+            slug: string;
+            /** Nom */
+            name: string;
+            /**
+             * Couleur officielle
+             * @description Hexadécimal, ex. #C69B6D
+             */
+            color: string;
+            roles: string[];
+            specializations: components["schemas"]["Specialization"][];
+        };
+        Poll: {
+            readonly id: number;
+            /** Titre */
+            title: string;
+            description?: string;
+            /**
+             * Fin des propositions
+             * Format: date-time
+             */
+            proposals_end: string;
+            /**
+             * Fin des votes
+             * Format: date-time
+             */
+            votes_end: string;
+            /**
+             * Propositions max par personne
+             * Format: int64
+             */
+            max_proposals_per_user?: number;
+            /**
+             * Votes max par personne
+             * Format: int64
+             * @description Vide = illimité
+             */
+            max_votes_per_user?: number | null;
+            /** Règle de format */
+            format_rule?: components["schemas"]["FormatRuleEnum"];
+            /** Définit le nom de guilde */
+            sets_guild_name?: boolean;
+            readonly status: components["schemas"]["StatusEnum"];
+            readonly validated_proposal: number | null;
+            /** Justification de la validation */
+            readonly validation_note: string;
+            /** Format: date-time */
+            readonly validated_at: string | null;
+            readonly validated_by: components["schemas"]["Owner"];
+            readonly created_by: components["schemas"]["Owner"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly proposals: components["schemas"]["Proposal"][];
+            readonly my_proposal_count: number;
+            readonly my_vote_count: number;
+        };
+        PollRequest: {
+            /** Titre */
+            title: string;
+            description?: string;
+            /**
+             * Fin des propositions
+             * Format: date-time
+             */
+            proposals_end: string;
+            /**
+             * Fin des votes
+             * Format: date-time
+             */
+            votes_end: string;
+            /**
+             * Propositions max par personne
+             * Format: int64
+             */
+            max_proposals_per_user?: number;
+            /**
+             * Votes max par personne
+             * Format: int64
+             * @description Vide = illimité
+             */
+            max_votes_per_user?: number | null;
+            /** Règle de format */
+            format_rule?: components["schemas"]["FormatRuleEnum"];
+            /** Définit le nom de guilde */
+            sets_guild_name?: boolean;
+        };
+        Profession: {
+            readonly id: number;
+            slug: string;
+            /** Nom */
+            name: string;
+            /** Type */
+            kind: components["schemas"]["KindEnum"];
+            specializations: components["schemas"]["ProfessionSpecialization"][];
+        };
+        ProfessionSpecialization: {
+            readonly id: number;
+            /** @description Préfixé par le métier, ex. engineering-gnomish */
+            slug: string;
+            /** Nom */
+            name: string;
+        };
+        Proposal: {
+            readonly id: number;
+            readonly poll: number;
+            readonly author: components["schemas"]["Owner"];
+            /** Proposition */
+            text: string;
+            note?: string;
+            readonly vote_count: number;
+            readonly voters: components["schemas"]["Voter"][];
+            readonly has_voted: boolean;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        ProposalCreateRequest: {
+            /** Proposition */
+            text: string;
+            note?: string;
+        };
+        Race: {
+            readonly id: number;
+            slug: string;
+            /** Nom */
+            name: string;
+            /**
+             * @description Vide = les deux factions
+             *
+             *     * `alliance` - Alliance
+             *     * `horde` - Horde
+             */
+            faction?: components["schemas"]["FactionEnum"] | components["schemas"]["BlankEnum"];
+            readonly classes: string[];
+        };
         SetRoleRequest: {
             site_role: components["schemas"]["SiteRoleEnum"];
         };
@@ -227,6 +775,47 @@ export interface components {
          * @enum {string}
          */
         SiteRoleEnum: "member" | "officer" | "gm";
+        /**
+         * @description * `manual` - Saisie manuelle
+         *     * `blizzard` - API Blizzard
+         * @enum {string}
+         */
+        SourceEnum: "manual" | "blizzard";
+        Specialization: {
+            readonly id: number;
+            /** @description Préfixé par la classe, ex. druid-restoration */
+            slug: string;
+            /** Nom */
+            name: string;
+            roles: string[];
+        };
+        /**
+         * @description * `proposals` - proposals
+         *     * `votes` - votes
+         *     * `closed` - closed
+         *     * `validated` - validated
+         * @enum {string}
+         */
+        StatusEnum: "proposals" | "votes" | "closed" | "validated";
+        ValidateRequest: {
+            proposal: number;
+            note?: string;
+        };
+        Voter: {
+            id: number;
+            display_name: string;
+        };
+        /**
+         * @description * `0` - Lundi
+         *     * `1` - Mardi
+         *     * `2` - Mercredi
+         *     * `3` - Jeudi
+         *     * `4` - Vendredi
+         *     * `5` - Samedi
+         *     * `6` - Dimanche
+         * @enum {integer}
+         */
+        WeekdayEnum: 0 | 1 | 2 | 3 | 4 | 5 | 6;
     };
     responses: never;
     parameters: never;
@@ -294,6 +883,253 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Member"];
+                };
+            };
+        };
+    };
+    auth_me_availability_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilitySlot"][];
+                };
+            };
+        };
+    };
+    auth_me_availability_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvailabilitySlotRequest"][];
+                "application/x-www-form-urlencoded": components["schemas"]["AvailabilitySlotRequest"][];
+                "multipart/form-data": components["schemas"]["AvailabilitySlotRequest"][];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilitySlot"][];
+                };
+            };
+        };
+    };
+    availability_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuildAvailability"][];
+                };
+            };
+        };
+    };
+    characters_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Character"][];
+                };
+            };
+        };
+    };
+    characters_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CharacterRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CharacterRequest"];
+                "multipart/form-data": components["schemas"]["CharacterRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Character"];
+                };
+            };
+        };
+    };
+    characters_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) personnage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Character"];
+                };
+            };
+        };
+    };
+    characters_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) personnage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CharacterRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CharacterRequest"];
+                "multipart/form-data": components["schemas"]["CharacterRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Character"];
+                };
+            };
+        };
+    };
+    characters_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) personnage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    characters_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) personnage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedCharacterRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCharacterRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCharacterRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Character"];
+                };
+            };
+        };
+    };
+    characters_set_main_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) personnage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Character"];
+                };
+            };
+        };
+    };
+    gamedata_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameData"];
                 };
             };
         };
@@ -451,6 +1287,270 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Member"];
+                };
+            };
+        };
+    };
+    polls_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Poll"][];
+                };
+            };
+        };
+    };
+    polls_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PollRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PollRequest"];
+                "multipart/form-data": components["schemas"]["PollRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Poll"];
+                };
+            };
+        };
+    };
+    polls_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) sondage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Poll"];
+                };
+            };
+        };
+    };
+    polls_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) sondage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PollRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PollRequest"];
+                "multipart/form-data": components["schemas"]["PollRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Poll"];
+                };
+            };
+        };
+    };
+    polls_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) sondage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    polls_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) sondage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedPollRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedPollRequest"];
+                "multipart/form-data": components["schemas"]["PatchedPollRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Poll"];
+                };
+            };
+        };
+    };
+    polls_propose_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) sondage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProposalCreateRequest"];
+                "multipart/form-data": components["schemas"]["ProposalCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"];
+                };
+            };
+        };
+    };
+    polls_validate_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) sondage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ValidateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ValidateRequest"];
+                "multipart/form-data": components["schemas"]["ValidateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Poll"];
+                };
+            };
+        };
+    };
+    proposals_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) proposition. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    proposals_unvote_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) proposition. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"];
+                };
+            };
+        };
+    };
+    proposals_vote_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) proposition. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"];
                 };
             };
         };

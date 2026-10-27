@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from drf_spectacular.utils import extend_schema
@@ -9,9 +10,45 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
-from .models import DeactivationReason, User
+from .models import Availability, DeactivationReason, User
 from .permissions import IsGM, IsOfficerOrAbove
-from .serializers import MemberSerializer, MeUpdateSerializer, SetRoleSerializer
+from .serializers import (
+    AvailabilitySlotSerializer,
+    GuildAvailabilitySerializer,
+    MemberSerializer,
+    MeUpdateSerializer,
+    SetRoleSerializer,
+)
+
+
+class MyAvailabilityView(APIView):
+    """Mes créneaux de disponibilité. Le PUT remplace la liste entière."""
+
+    @extend_schema(responses=AvailabilitySlotSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        return Response(AvailabilitySlotSerializer(request.user.availabilities.all(), many=True).data)
+
+    @extend_schema(
+        request=AvailabilitySlotSerializer(many=True), responses=AvailabilitySlotSerializer(many=True)
+    )
+    def put(self, request: Request) -> Response:
+        serializer = AvailabilitySlotSerializer(data=request.data, many=True)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            request.user.availabilities.all().delete()
+            Availability.objects.bulk_create(
+                [Availability(user=request.user, **slot) for slot in serializer.validated_data]
+            )
+        return Response(AvailabilitySlotSerializer(request.user.availabilities.all(), many=True).data)
+
+
+class GuildAvailabilityView(APIView):
+    """Créneaux de tous les membres actifs, pour la vue agrégée."""
+
+    @extend_schema(responses=GuildAvailabilitySerializer(many=True))
+    def get(self, request: Request) -> Response:
+        slots = Availability.objects.filter(user__is_active=True).select_related("user")
+        return Response(GuildAvailabilitySerializer(slots, many=True).data)
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")

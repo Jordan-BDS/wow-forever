@@ -24,6 +24,7 @@ cp ../deploy/.env.example .env      # puis remplir la partie Discord, mettre DJA
 export $(grep -v '^#' .env | xargs)  # ou utiliser direnv
 export DATABASE_URL=postgres://wow:wow@localhost:5432/wow
 uv run python manage.py migrate
+uv run python manage.py seed_gamedata # classes, races, spés, métiers (rejouable)
 uv run python manage.py runserver     # http://localhost:8000
 
 # 3. Frontend (dans un autre terminal)
@@ -42,10 +43,14 @@ l'URL de retour OAuth à déclarer côté Discord est donc `http://localhost:800
 | backend | `uv run pytest` | tests |
 | backend | `uv run ruff check . && uv run ruff format .` | lint + format |
 | backend | `uv run python manage.py createsuperuser` | accès à `/admin/` (demande un ID Discord) |
+| backend | `uv run python manage.py seed_gamedata` | recharge les données de référence sans toucher aux ajouts manuels |
 | frontend | `npm test` / `npm run lint` / `npm run format` | tests, lint, format |
 | frontend | `npm run gen:api` | régénère `openapi.json` et `src/api/schema.d.ts` depuis le backend |
 
 L'API est documentée sur `http://localhost:8000/api/docs/` (Swagger).
+
+Sans application Discord, on peut tester en créant un superutilisateur puis en se connectant sur
+`/admin/login/` : la session est reconnue par le site.
 
 ## Application Discord
 

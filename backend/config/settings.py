@@ -79,6 +79,9 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "apps.accounts",
     "apps.guild",
+    "apps.gamedata",
+    "apps.characters",
+    "apps.polls",
 ]
 
 MIDDLEWARE = [

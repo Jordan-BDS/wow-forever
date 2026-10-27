@@ -1,23 +1,89 @@
 import { Link } from "react-router";
 import { useGuild } from "@/api/guild";
+import { useCharacters, useGameData, usePolls } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { Card, PageTitle } from "@/components/ui";
+import { ClassDot, ClassName, LevelBadge } from "@/components/game";
+import { Button, Card, PageTitle } from "@/components/ui";
+import { findClass, formatRemaining } from "@/lib/game";
 import { FACTION_LABELS } from "@/lib/roles";
+import { PollCard } from "./PollsPage";
 
 export function HomePage() {
   const me = useCurrentUser();
   const guild = useGuild();
+  const polls = usePolls();
+  const characters = useCharacters();
+  const gamedata = useGameData();
+
+  const openPolls = (polls.data ?? []).filter((p) => p.status === "proposals" || p.status === "votes");
+  const toVote = openPolls.filter((p) => p.my_vote_count === 0);
+  const mine = (characters.data ?? []).filter((c) => c.owner.id === me.id);
 
   return (
     <>
       <PageTitle>Bienvenue, {me.display_name}</PageTitle>
+
+      {toVote.length > 0 && (
+        <section className="mb-6 space-y-3">
+          {toVote.map((poll) => (
+            <Card key={poll.id} className="flex flex-wrap items-center justify-between gap-3 border-gold/50">
+              <div>
+                <p className="text-xs uppercase text-gold">Sondage en cours</p>
+                <p className="font-display text-lg">{poll.title}</p>
+                <p className="text-xs text-muted">
+                  Tu n'as pas encore voté · fin{" "}
+                  {formatRemaining(poll.status === "proposals" ? poll.proposals_end : poll.votes_end)}
+                </p>
+              </div>
+              <Link to={`/sondages/${poll.id}`}>
+                <Button>Participer</Button>
+              </Link>
+            </Card>
+          ))}
+        </section>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-lg">Mes personnages</h2>
+            <Link to="/personnages/nouveau" className="text-sm">
+              + Ajouter
+            </Link>
+          </div>
+          {mine.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">
+              Tu n'as pas encore de personnage. <Link to="/personnages/nouveau">Crée le premier</Link> pour
+              apparaître dans le roster.
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-2 text-sm">
+              {mine.map((c) => {
+                const playerClass = findClass(gamedata.data, c.player_class);
+                return (
+                  <li key={c.id} className="flex items-center justify-between">
+                    <Link
+                      to={`/personnages/${c.id}`}
+                      className="flex items-center gap-2 text-text hover:text-gold"
+                    >
+                      <ClassDot playerClass={playerClass} />
+                      <ClassName playerClass={playerClass}>{c.name}</ClassName>
+                      {c.is_main && <span className="text-xs text-muted">main</span>}
+                    </Link>
+                    <LevelBadge level={c.level ?? 1} />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+
         <Card>
           <h2 className="font-display text-lg">La guilde</h2>
           {guild.data ? (
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               <dt className="text-muted">Nom</dt>
-              <dd>{guild.data.name || <em className="text-muted">à décider</em>}</dd>
+              <dd>{guild.data.name || <em className="text-muted">à décider par sondage</em>}</dd>
               <dt className="text-muted">Faction</dt>
               <dd>{FACTION_LABELS[guild.data.faction ?? ""]}</dd>
               <dt className="text-muted">Royaume</dt>
@@ -26,19 +92,23 @@ export function HomePage() {
           ) : (
             <p className="mt-3 text-sm text-muted">Chargement…</p>
           )}
-          <p className="mt-4 text-sm">
-            <Link to="/guilde">Voir les paramètres</Link>
-          </p>
+          <div className="mt-4 flex flex-wrap gap-3 text-sm">
+            <Link to="/roster">Roster</Link>
+            <Link to="/metiers">Métiers</Link>
+            <Link to="/disponibilites">Disponibilités</Link>
+          </div>
         </Card>
-        <Card>
-          <h2 className="font-display text-lg">Prochaines étapes</h2>
-          <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-muted">
-            <li>Roster et personnages</li>
-            <li>Métiers de la guilde</li>
-            <li>Sondage pour le nom de la guilde</li>
-            <li>Agenda des sorties</li>
-          </ul>
-        </Card>
+
+        {openPolls.length > 0 && (
+          <section className="md:col-span-2">
+            <h2 className="mb-2 text-sm uppercase text-muted">Sondages en cours</h2>
+            <div className="space-y-3">
+              {openPolls.map((p) => (
+                <PollCard key={p.id} poll={p} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </>
   );

@@ -1,10 +1,19 @@
 import { createBrowserRouter } from "react-router";
 import { RequireAuth } from "./auth/RequireAuth";
 import { Layout } from "./components/Layout";
+import { AvailabilityPage } from "./pages/AvailabilityPage";
+import { CharacterFormPage } from "./pages/CharacterFormPage";
+import { CharacterPage } from "./pages/CharacterPage";
 import { GuildPage } from "./pages/GuildPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
+import { MemberPage } from "./pages/MemberPage";
 import { MembersPage } from "./pages/MembersPage";
+import { PollPage } from "./pages/PollPage";
+import { PollsPage } from "./pages/PollsPage";
+import { ProfessionsPage } from "./pages/ProfessionsPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { RosterPage } from "./pages/RosterPage";
 
 export const router = createBrowserRouter([
   { path: "/login", Component: LoginPage },
@@ -16,7 +25,17 @@ export const router = createBrowserRouter([
         Component: Layout,
         children: [
           { index: true, Component: HomePage },
+          { path: "roster", Component: RosterPage },
+          { path: "personnages/nouveau", Component: CharacterFormPage },
+          { path: "personnages/:id", Component: CharacterPage },
+          { path: "personnages/:id/modifier", Component: CharacterFormPage },
+          { path: "metiers", Component: ProfessionsPage },
+          { path: "disponibilites", Component: AvailabilityPage },
+          { path: "sondages", Component: PollsPage },
+          { path: "sondages/:id", Component: PollPage },
           { path: "membres", Component: MembersPage },
+          { path: "membres/:id", Component: MemberPage },
+          { path: "profil", Component: ProfilePage },
           { path: "guilde", Component: GuildPage },
         ],
       },

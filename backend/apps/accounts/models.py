@@ -97,3 +97,35 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def outranks(self, other: "User") -> bool:
         return self.role_rank > other.role_rank
+
+
+class Weekday(models.IntegerChoices):
+    MONDAY = 0, "Lundi"
+    TUESDAY = 1, "Mardi"
+    WEDNESDAY = 2, "Mercredi"
+    THURSDAY = 3, "Jeudi"
+    FRIDAY = 4, "Vendredi"
+    SATURDAY = 5, "Samedi"
+    SUNDAY = 6, "Dimanche"
+
+
+class Availability(models.Model):
+    """Créneau hebdomadaire récurrent (heures pleines, fuseau Europe/Paris)."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="availabilities")
+    weekday = models.PositiveSmallIntegerField("Jour", choices=Weekday.choices)
+    start_hour = models.PositiveSmallIntegerField("Heure de début")
+    end_hour = models.PositiveSmallIntegerField("Heure de fin", help_text="Exclue, 24 = minuit")
+
+    class Meta:
+        verbose_name = "disponibilité"
+        ordering = ["weekday", "start_hour"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(start_hour__lt=models.F("end_hour"), end_hour__lte=24),
+                name="availability_valid_range",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_weekday_display()} {self.start_hour}h–{self.end_hour}h"
