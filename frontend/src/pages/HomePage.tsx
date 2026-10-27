@@ -3,6 +3,7 @@ import { useGuild } from "@/api/guild";
 import { useCharacters, useEvents, useGameData, usePolls } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { EventRow } from "@/components/EventBits";
+import { GuildValues } from "@/components/GuildValues";
 import { ClassDot, ClassName, LevelBadge } from "@/components/game";
 import { Button, Card, PageTitle } from "@/components/ui";
 import { findClass, formatRemaining } from "@/lib/game";
@@ -26,6 +27,8 @@ export function HomePage() {
   return (
     <>
       <PageTitle>Bienvenue, {me.display_name}</PageTitle>
+
+      {guild.data?.values && <GuildValues text={guild.data.values} author={guild.data.name || undefined} />}
 
       {toVote.length > 0 && (
         <section className="mb-6 space-y-3">

@@ -12,7 +12,7 @@ from apps.accounts.permissions import IsGM
 from .config import discord_config
 from .models import GuildSettings
 
-PUBLIC_FIELDS = ["name", "faction", "realm", "updated_at"]
+PUBLIC_FIELDS = ["name", "faction", "realm", "values", "updated_at"]
 
 
 class GuildSettingsSerializer(serializers.ModelSerializer):
@@ -62,6 +62,8 @@ class GuildSettingsSerializer(serializers.ModelSerializer):
         return data
 
     def validate(self, attrs):
+        if "values" in attrs:
+            attrs["values"] = attrs["values"].replace("\r\n", "\n").strip()
         for field in ("discord_client_secret", "discord_bot_token"):
             if field in attrs and attrs[field] == "":
                 attrs.pop(field)  # champ laissé vide = on garde la valeur actuelle

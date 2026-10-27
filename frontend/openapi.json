@@ -4787,6 +4787,12 @@
                         "title": "Royaume",
                         "maxLength": 64
                     },
+                    "values": {
+                        "type": "string",
+                        "title": "Valeurs de la guilde",
+                        "description": "Affichées en citation sur l'accueil. Une ligne vide sépare les paragraphes.",
+                        "maxLength": 600
+                    },
                     "updated_at": {
                         "type": "string",
                         "format": "date-time",
@@ -5620,6 +5626,12 @@
                         "type": "string",
                         "title": "Royaume",
                         "maxLength": 64
+                    },
+                    "values": {
+                        "type": "string",
+                        "title": "Valeurs de la guilde",
+                        "description": "Affichées en citation sur l'accueil. Une ligne vide sépare les paragraphes.",
+                        "maxLength": 600
                     },
                     "discord_channel_id": {
                         "type": "string",
