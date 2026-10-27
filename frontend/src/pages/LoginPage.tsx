@@ -1,6 +1,7 @@
 import { Navigate, useSearchParams } from "react-router";
 import { discordLoginUrl, useMe } from "@/auth/useMe";
 import { Emblem } from "@/components/Emblem";
+import { Footer } from "@/components/Footer";
 import { LOGIN_ERRORS } from "@/lib/roles";
 
 export function LoginPage() {
@@ -11,28 +12,31 @@ export function LoginPage() {
   if (me.data) return <Navigate to="/" replace />;
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <div className="banner w-full max-w-md rounded-md border border-gold-dark/50 px-8 pt-10 pb-8 text-center">
-        <Emblem className="mx-auto size-24" />
-        <h1 className="mt-5 font-display text-4xl text-gold">WoW Forever</h1>
-        <div className="rule-gold mx-auto mt-3 w-40" />
-        <p className="mt-3 text-sm text-muted">Par des zouaves, pour des zouaves.</p>
-        {errorCode && (
-          <p className="mt-6 rounded-sm border border-danger/50 bg-danger/10 p-3 text-sm text-danger">
-            {LOGIN_ERRORS[errorCode] ?? "Connexion impossible."}
+    <div className="flex min-h-screen flex-col">
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
+        <div className="banner w-full max-w-md rounded-md border border-gold-dark/50 px-8 pt-10 pb-8 text-center">
+          <Emblem className="mx-auto size-24" />
+          <h1 className="mt-5 font-display text-4xl text-gold">WoW Forever</h1>
+          <div className="rule-gold mx-auto mt-3 w-40" />
+          <p className="mt-3 text-sm text-muted">Par des zouaves, pour des zouaves.</p>
+          {errorCode && (
+            <p className="mt-6 rounded-sm border border-danger/50 bg-danger/10 p-3 text-sm text-danger">
+              {LOGIN_ERRORS[errorCode] ?? "Connexion impossible."}
+            </p>
+          )}
+          <a
+            href={discordLoginUrl}
+            className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-sm border border-gold-dark bg-gold px-4 py-3 font-medium text-bg transition-colors hover:border-gold-light hover:bg-gold-light hover:text-bg"
+          >
+            <DiscordLogo />
+            Entrer avec Discord
+          </a>
+          <p className="mt-4 text-xs text-muted">
+            Réservé aux membres du Discord de la guilde ayant le rôle « Membre ».
           </p>
-        )}
-        <a
-          href={discordLoginUrl}
-          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-sm border border-gold-dark bg-gold px-4 py-3 font-medium text-bg transition-colors hover:border-gold-light hover:bg-gold-light hover:text-bg"
-        >
-          <DiscordLogo />
-          Entrer avec Discord
-        </a>
-        <p className="mt-4 text-xs text-muted">
-          Réservé aux membres du Discord de la guilde ayant le rôle « Membre ».
-        </p>
+        </div>
       </div>
+      <Footer />
     </div>
   );
 }
