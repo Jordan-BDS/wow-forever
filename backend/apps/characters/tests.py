@@ -145,7 +145,14 @@ class TestCreate:
         settings.faction = "alliance"
         settings.save()
         assert create(as_user(member)).status_code == 400
-        ok = create(as_user(member), race="skyborn")  # jouable des deux côtés
+        ok = create(
+            as_user(member),
+            race="skyborn-alliance",
+            player_class="druid",
+            main_role="heal",
+            off_role="",
+            specialization=None,
+        )
         assert ok.status_code == 201, ok.data
 
     def test_level_bounds(self, as_user, member):
