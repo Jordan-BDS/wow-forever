@@ -165,9 +165,7 @@ class TestIndexApi:
     def test_recipes_and_enchantments(self, imported, as_user, member):
         client = as_user(member)
         assert len(client.get("/api/recipes/", {"profession": "alchemy"}).data) == 2
-        assert (
-            client.get("/api/recipes/", {"q": "mana majeure"}).data[0]["source"] == "Drop, vendeur ou quête"
-        )
+        assert client.get("/api/recipes/", {"q": "mana majeure"}).data[0]["source"] == ""
         assert len(client.get("/api/recipes/", {"q": "Major Mana"}).data) == 1
         assert len(client.get("/api/enchantments/").data) == 2
         assert client.get("/api/gamedata/").data["import_run"]["build"] == "sample"

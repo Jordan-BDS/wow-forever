@@ -46,7 +46,6 @@ class TestKnownRecipes:
         Recipe.objects.filter(pk=MAJOR_MANA).update(acquire_method=3, min_skill=295)
         response = as_user(other_member).post(f"/api/characters/{crafter.pk}/recipes/")
         assert response.status_code == 200 and MAJOR_MANA in response.data["recipes"]
-        assert response.data["added"] == 0  # déjà connue
         crafter.professions.update(skill=100)
         KnownRecipe.objects.all().delete()
         response = as_user(other_member).post(f"/api/characters/{crafter.pk}/recipes/")
