@@ -34,10 +34,33 @@
     font-size: 17px;
     line-height: 1.5;
     min-height: 100vh;
-    background-image:
-      radial-gradient(ellipse 70% 40% at 50% -10%, rgba(43, 91, 176, 0.35), transparent 70%),
-      repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 14px);
-    background-attachment: fixed;
+  }
+
+  /*
+    Fond : Hurlevent au couchant (public/bg.jpg) sous un voile bleu nuit, plus dense vers le bas
+    où s'étalent les listes. Pseudo-élément fixe plutôt que background-attachment: fixed,
+    que iOS ignore. Le ciel reste visible derrière la bannière, qui est translucide.
+  */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(11, 20, 36, 0.7) 0%,
+        rgba(11, 20, 36, 0.84) 40%,
+        rgba(11, 20, 36, 0.93) 100%
+      ),
+      url("/bg.jpg") center 30% / cover no-repeat var(--color-bg);
+  }
+
+  @media (prefers-reduced-data: reduce) {
+    body::before {
+      display: none;
+    }
   }
 
   h1,
@@ -79,7 +102,9 @@
 
 /* Bannière d'en-tête : tissu plus sombre, double filet d'or en bas. */
 .banner {
-  background: linear-gradient(180deg, #0d1a30, #0b1424);
+  background: linear-gradient(180deg, rgba(13, 26, 48, 0.82), rgba(11, 20, 36, 0.78));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   position: relative;
 }
 .banner::after {
