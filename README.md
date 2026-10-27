@@ -21,8 +21,7 @@ docker compose -f deploy/compose.dev.yml up -d
 # 2. Backend
 cd backend
 cp ../deploy/.env.example .env      # puis remplir la partie Discord, mettre DJANGO_DEBUG=true
-export $(grep -v '^#' .env | xargs)  # ou utiliser direnv
-export DATABASE_URL=postgres://wow:wow@localhost:5432/wow
+# Django lit backend/.env tout seul ; pour PostgreSQL ajouter DATABASE_URL=postgres://wow:wow@localhost:5432/wow
 uv run python manage.py migrate
 uv run python manage.py seed_gamedata # classes, races, spés, métiers (rejouable)
 uv run python manage.py runserver     # http://localhost:8000
