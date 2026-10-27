@@ -14,7 +14,7 @@ export function SectionLayout() {
     <>
       {tabs.length > 0 && (
         <nav
-          className="-mt-3 mb-6 flex gap-1 overflow-x-auto border-b border-border text-sm"
+          className="nav-scroll -mt-3 mb-6 flex gap-1 overflow-x-auto border-b border-border text-sm"
           aria-label={section?.label}
         >
           {tabs.map((tab) => (
@@ -23,8 +23,10 @@ export function SectionLayout() {
               to={tab.to}
               className={({ isActive }) =>
                 clsx(
-                  "-mb-px whitespace-nowrap border-b-2 px-3 py-2 transition-colors",
-                  isActive ? "border-gold text-text" : "border-transparent text-muted hover:text-text",
+                  "whitespace-nowrap px-3 py-2 transition-colors",
+                  isActive
+                    ? "text-text shadow-[inset_0_-2px_0_var(--color-gold)]"
+                    : "text-muted hover:text-text",
                 )
               }
             >

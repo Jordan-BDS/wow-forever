@@ -53,7 +53,7 @@ export function Layout() {
               Déconnexion
             </Button>
           </div>
-          <nav className="-mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-4 text-sm sm:mx-0 sm:w-auto sm:basis-full sm:px-0">
+          <nav className="nav-scroll -mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-4 text-sm sm:mx-0 sm:w-auto sm:basis-full sm:px-0">
             {SECTIONS.map((section) => {
               const active = isSectionActive(section, pathname);
               return (
@@ -61,8 +61,10 @@ export function Layout() {
                   key={section.to}
                   to={section.to}
                   className={clsx(
-                    "whitespace-nowrap border-b-2 px-3 py-2 transition-colors",
-                    active ? "border-gold text-gold" : "border-transparent text-muted hover:text-text",
+                    "whitespace-nowrap px-3 py-2 transition-colors",
+                    active
+                      ? "text-gold shadow-[inset_0_-2px_0_var(--color-gold)]"
+                      : "text-muted hover:text-text",
                   )}
                 >
                   {section.label}
