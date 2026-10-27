@@ -76,8 +76,8 @@ export function HomePage() {
         <Card>
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg">Mes personnages</h2>
-            <Link to="/personnages/nouveau" className="text-sm">
-              + Ajouter
+            <Link to="/personnages" className="text-sm">
+              Tout voir
             </Link>
           </div>
           {mine.length === 0 ? (
