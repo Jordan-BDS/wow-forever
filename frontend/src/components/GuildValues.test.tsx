@@ -7,10 +7,10 @@ describe("GuildValues", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("splits paragraphs on blank lines and shows the guild name", () => {
-    render(<GuildValues text={"Entraide.\n\nBonne humeur."} author="Les Zouaves" />);
-    expect(screen.getByText("Entraide.")).toBeInTheDocument();
-    expect(screen.getByText("Bonne humeur.")).toBeInTheDocument();
+  it("splits stanzas on blank lines, keeps verses, and shows the guild name", () => {
+    render(<GuildValues text={"Entraide,\nbonne humeur.\n\nMon panache."} author="Les Zouaves" />);
+    const stanzas = screen.getAllByRole("paragraph");
+    expect(stanzas.map((p) => p.textContent)).toEqual(["Entraide,\nbonne humeur.", "Mon panache."]);
     expect(screen.getByText("Les Zouaves")).toBeInTheDocument();
   });
 });
