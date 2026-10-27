@@ -183,7 +183,10 @@ function RequestCard({ craft, highlighted }: { craft: CraftRequest; highlighted:
   const [error, setError] = useState<string | null>(null);
   const mine = (characters.data ?? []).filter((c) => c.owner.id === me.id);
   const eligible = mine.filter((c) => craft.recipe.crafters.some((k) => k.character_id === c.id));
-  const [characterId, setCharacterId] = useState<number>(eligible[0]?.id ?? 0);
+  // Les personnages arrivent après le premier rendu : on retombe sur le premier éligible
+  // tant que l'utilisateur n'a pas choisi explicitement.
+  const [chosenId, setCharacterId] = useState<number | null>(null);
+  const characterId = eligible.find((c) => c.id === chosenId)?.id ?? eligible[0]?.id ?? null;
   const isRequester = craft.requester.id === me.id;
   const isCrafter = craft.crafter?.owner.id === me.id;
   const officer = isOfficerOrAbove(me.site_role);
@@ -193,6 +196,7 @@ function RequestCard({ craft, highlighted }: { craft: CraftRequest; highlighted:
       const base = { params: { path: { id: craft.id } } };
       let error: unknown;
       if (kind === "take") {
+        if (characterId === null) throw { detail: "Aucun de tes personnages ne connaît cette recette." };
         ({ error } = await api.POST("/api/craft-requests/{id}/take/", {
           ...base,
           body: { character: characterId },
@@ -282,7 +286,7 @@ function RequestCard({ craft, highlighted }: { craft: CraftRequest; highlighted:
         {canTake && (
           <>
             {eligible.length > 1 && (
-              <Select value={characterId} onChange={(e) => setCharacterId(Number(e.target.value))}>
+              <Select value={characterId ?? ""} onChange={(e) => setCharacterId(Number(e.target.value))}>
                 {eligible.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
