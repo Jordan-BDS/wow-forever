@@ -227,6 +227,28 @@ class TestTalentBuilds:
             assert client.post(url, {"name": "x", "points": [arms.id]}, format="json").status_code == 400
         assert client.post(url, {"name": "x", "points": [999999]}, format="json").status_code == 400
 
+    def test_class_change_resets_builds_and_specialization(self, as_user, member, mage):
+        client = as_user(member)
+        url = f"/api/characters/{mage.pk}/talent-builds/"
+        client.post(url, {"name": "Feu", "points": self.mage_points()}, format="json")
+        mage.refresh_from_db()
+        assert mage.specialization and mage.specialization.slug == "mage-fire"
+        response = client.patch(
+            f"/api/characters/{mage.pk}/",
+            {
+                "player_class": "warrior",
+                "race": "human",
+                "main_role": "tank",
+                "off_role": "",
+                "specialization": None,
+            },
+            format="json",
+        )
+        assert response.status_code == 200, response.data
+        assert client.get(url).data[0]["points"] == []
+        mage.refresh_from_db()
+        assert mage.specialization is None
+
     def test_too_many_points(self, as_user, member, mage):
         response = as_user(member).post(
             f"/api/characters/{mage.pk}/talent-builds/", {"name": "x", "points": [1] * 52}, format="json"

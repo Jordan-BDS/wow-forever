@@ -169,8 +169,19 @@ class CharacterSerializer(serializers.ModelSerializer):
         professions = validated_data.pop("professions", None)
         is_main = validated_data.pop("is_main", None)
         validated_data.pop("owner", None)  # on ne transfère pas un perso
+        class_changed = (
+            "player_class" in validated_data and validated_data["player_class"] != instance.player_class
+        )
         for field, value in validated_data.items():
             setattr(instance, field, value)
+        if class_changed:
+            # Les talents de l'ancienne classe n'ont plus de sens ; l'équipement reste, marqué non portable.
+            instance.talent_builds.update(points=[])
+            if (
+                instance.specialization
+                and instance.specialization.player_class_id != instance.player_class_id
+            ):
+                instance.specialization = None
         instance.save()
         if professions is not None:
             self._save_professions(instance, professions)

@@ -39,9 +39,12 @@ export function TalentPanel({ character, builds, canEdit }: Props) {
   // Resynchronise l'état local quand le build sélectionné change (ajustement d'état pendant le rendu).
   const syncKey = `${selected?.id}:${selected?.updated_at}`;
   const [syncedKey, setSyncedKey] = useState(syncKey);
+  // Les points qui ne sont pas des talents de la classe (ancien build d'une autre classe) sont ignorés.
+  const knownIds = useMemo(() => new Set(trees.flatMap((t) => t.talents.map((x) => x.id))), [trees]);
+  const cleanPoints = (list: number[]) => (knownIds.size ? list.filter((id) => knownIds.has(id)) : list);
   if (syncKey !== syncedKey) {
     setSyncedKey(syncKey);
-    setPoints(selected?.points ?? []);
+    setPoints(cleanPoints(selected?.points ?? []));
     setError(null);
   }
   useWowheadTooltips([trees, selected?.id]);
@@ -62,7 +65,10 @@ export function TalentPanel({ character, builds, canEdit }: Props) {
       setError(null);
       return refresh();
     },
-    onError: (e) => setError(errorMessage(e)),
+    onError: (e) => {
+      setError(errorMessage(e));
+      setPoints(cleanPoints(selected?.points ?? [])); // le clic refusé est annulé
+    },
   });
 
   const create = useMutation({
@@ -107,11 +113,12 @@ export function TalentPanel({ character, builds, canEdit }: Props) {
   });
 
   const update = (next: number[]) => {
-    setPoints(next);
-    save.mutate(next);
+    const cleaned = cleanPoints(next); // les arbres peuvent arriver après la synchronisation initiale
+    setPoints(cleaned);
+    save.mutate(cleaned);
   };
 
-  const build = countsFromOrder(points);
+  const build = countsFromOrder(cleanPoints(points));
   const acquiredCount = Math.min(points.length, acquiredAtLevel(character.level ?? 1));
   const acquired = countsFromOrder(points.slice(0, acquiredCount));
   const dominant = dominantTree(trees, acquired);
