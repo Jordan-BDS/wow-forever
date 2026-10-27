@@ -71,3 +71,22 @@ def test_explains_missing_members_intent():
     )
     with pytest.raises(Exception, match="Server Members"):
         call_command("discord_setup_roles")
+
+
+@respx.mock
+def test_hierarchy_error_is_explained_and_ids_are_saved_first():
+    respx.get(f"{API}/guilds/{GUILD}/roles").mock(
+        return_value=httpx.Response(200, json=[{"id": "50", "name": "Membre"}])
+    )
+    respx.post(f"{API}/guilds/{GUILD}/roles").mock(
+        return_value=httpx.Response(200, json={"id": "60", "name": "Officier"})
+    )
+    respx.get(f"{API}/guilds/{GUILD}/members").mock(
+        return_value=httpx.Response(200, json=[{"user": {"id": "u1", "username": "koj"}, "roles": []}])
+    )
+    respx.put(f"{API}/guilds/{GUILD}/members/u1/roles/50").mock(
+        return_value=httpx.Response(403, json={"message": "Missing Permissions", "code": 50013})
+    )
+    with pytest.raises(Exception, match="au-dessus du rôle"):
+        call_command("discord_setup_roles")
+    assert GuildSettings.load().discord_allowed_role_ids == "50,60"

@@ -66,6 +66,11 @@ class DiscordClient:
 
     def add_role(self, guild_id: str, user_id: str, role_id: str) -> None:
         response = self.request("PUT", f"/guilds/{guild_id}/members/{user_id}/roles/{role_id}")
+        if response.status_code == 403:
+            raise CommandError(
+                "Discord refuse l'attribution (Missing Permissions) : dans Paramètres du serveur › Rôles, "
+                "glisse le rôle du bot au-dessus du rôle « Membre », puis relance la commande."
+            )
         self._check(response, f"attribution du rôle à {user_id}")
 
     @staticmethod
@@ -121,6 +126,16 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Rôle « {name} » créé (ID {role['id']})."))
             ids[name] = role["id"]
 
+        if not options["no_save"] and not dry and ids:
+            stored = GuildSettings.load()
+            allowed = {r for r in stored.discord_allowed_role_ids.split(",") if r} | set(ids.values())
+            stored.discord_allowed_role_ids = ",".join(sorted(allowed))
+            if not stored.discord_guild_id:
+                stored.discord_guild_id = config.guild_id
+            stored.save()
+            self.stdout.write(
+                self.style.SUCCESS(f"Rôles autorisés enregistrés : {stored.discord_allowed_role_ids}")
+            )
         member_role_id = ids.get(options["member_name"])
         if not options["no_assign"]:
             members = client.members(config.guild_id)
@@ -135,14 +150,4 @@ class Command(BaseCommand):
                     client.add_role(config.guild_id, member["user"]["id"], member_role_id)
                     self.stdout.write(f"  Membre → {label}")
 
-        if not options["no_save"] and not dry and ids:
-            stored = GuildSettings.load()
-            allowed = {r for r in stored.discord_allowed_role_ids.split(",") if r} | set(ids.values())
-            stored.discord_allowed_role_ids = ",".join(sorted(allowed))
-            if not stored.discord_guild_id:
-                stored.discord_guild_id = config.guild_id
-            stored.save()
-            self.stdout.write(
-                self.style.SUCCESS(f"Rôles autorisés enregistrés : {stored.discord_allowed_role_ids}")
-            )
         self.stdout.write("Terminé.")
