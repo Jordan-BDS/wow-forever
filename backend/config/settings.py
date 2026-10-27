@@ -137,6 +137,10 @@ DISCORD_API_BASE = "https://discord.com/api/v10"
 SITE_URL = env("SITE_URL", "http://localhost:8000" if DEBUG else None).rstrip("/")
 FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173" if DEBUG else SITE_URL).rstrip("/")
 
+# En dev, le front (serveur Vite) est une autre origine que Django : on la déclare de confiance pour le CSRF.
+if DEBUG and FRONTEND_URL not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
+
 # --- API --------------------------------------------------------------------
 
 REST_FRAMEWORK = {

@@ -5,6 +5,10 @@ import { defineConfig } from "vitest/config";
 
 const backend = process.env.VITE_BACKEND_URL ?? "http://localhost:8000";
 
+// changeOrigin: false conserve l'en-tête Host du navigateur (localhost:3001), sinon Django
+// rejette les POST car l'Origin ne correspond plus à l'hôte (contrôle CSRF).
+const proxy = { target: backend, changeOrigin: false };
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -13,9 +17,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": backend,
-      "/admin": backend,
-      "/static": backend,
+      "/api": proxy,
+      "/admin": proxy,
+      "/static": proxy,
     },
   },
   test: {
