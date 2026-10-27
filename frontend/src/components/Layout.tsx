@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useGuild } from "@/api/guild";
 import { useCurrentUser } from "@/auth/useCurrentUser";
@@ -14,6 +15,9 @@ export function Layout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const title = guild.data?.name || "WoW Forever";
+  useEffect(() => {
+    document.title = guild.data?.name ? `${guild.data.name} — WoW Forever` : "WoW Forever — Guilde";
+  }, [guild.data?.name]);
   const subtitle = guild.data?.name
     ? [
         "Guilde",
