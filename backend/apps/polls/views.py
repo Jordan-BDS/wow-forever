@@ -9,6 +9,7 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import IsGM, IsOfficerOrAbove
 from apps.guild.models import GuildSettings
+from apps.notifications import services as notify
 
 from .models import Poll, PollStatus, Proposal, Vote, normalize
 from .serializers import PollSerializer, ProposalCreateSerializer, ProposalSerializer, ValidateSerializer
@@ -28,7 +29,8 @@ class PollViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        poll = serializer.save(created_by=self.request.user)
+        notify.poll_opened(poll)
 
     def perform_update(self, serializer):
         if serializer.instance.status == PollStatus.VALIDATED:
@@ -98,6 +100,7 @@ class PollViewSet(viewsets.ModelViewSet):
                 settings = GuildSettings.load()
                 settings.name = proposal.text[:24]
                 settings.save()
+            notify.poll_validated(poll)
         return Response(self.get_serializer(poll).data)
 
 

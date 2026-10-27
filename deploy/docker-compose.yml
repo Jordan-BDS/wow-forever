@@ -29,6 +29,20 @@ services:
     expose:
       - "8000"
 
+  bot:
+    build: ../backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-wow}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-wow}
+    # Pas de migrations ici : le service web s'en charge au démarrage.
+    entrypoint: ["python", "manage.py", "runbot"]
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started
+
   caddy:
     build:
       context: ..

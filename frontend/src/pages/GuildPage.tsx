@@ -6,7 +6,7 @@ import { useCurrentUser } from "@/auth/useCurrentUser";
 import { Button, Card, Field, Input, PageTitle, Select, Spinner } from "@/components/ui";
 import { FACTION_LABELS } from "@/lib/roles";
 
-type Form = Pick<GuildSettings, "name" | "faction" | "realm">;
+type Form = Pick<GuildSettings, "name" | "faction" | "realm" | "discord_channel_id" | "reminder_minutes">;
 
 export function GuildPage() {
   const me = useCurrentUser();
@@ -14,17 +14,17 @@ export function GuildPage() {
 
   return (
     <>
-      <PageTitle>Guilde</PageTitle>
-      <Card className="max-w-lg">
-        {!guild.data ? (
-          <Spinner />
-        ) : me.site_role === "gm" ? (
-          // `key` réinitialise le formulaire quand les données serveur changent.
-          <GuildForm key={guild.data.updated_at} initial={guild.data} />
-        ) : (
+      <PageTitle>Paramètres de la guilde</PageTitle>
+      {!guild.data ? (
+        <Spinner />
+      ) : me.site_role === "gm" ? (
+        // `key` réinitialise le formulaire quand les données serveur changent.
+        <GuildForm key={guild.data.updated_at} initial={guild.data} />
+      ) : (
+        <Card className="max-w-lg">
           <GuildSummary settings={guild.data} />
-        )}
-      </Card>
+        </Card>
+      )}
     </>
   );
 }
@@ -51,6 +51,8 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
     name: initial.name ?? "",
     faction: initial.faction ?? "",
     realm: initial.realm ?? "",
+    discord_channel_id: initial.discord_channel_id ?? "",
+    reminder_minutes: initial.reminder_minutes ?? 60,
   });
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
@@ -67,43 +69,75 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
     onError: (e) => setMessage({ kind: "error", text: errorMessage(e) }),
   });
 
+  const update = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
+
   return (
     <form
-      className="space-y-4"
+      className="grid gap-4 lg:grid-cols-2"
       onSubmit={(e) => {
         e.preventDefault();
         save.mutate(form);
       }}
     >
-      <Field label="Nom de la guilde">
-        <Input
-          value={form.name ?? ""}
-          maxLength={24}
-          placeholder="À décider par sondage"
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-      </Field>
-      <Field label="Faction">
-        <Select
-          className="w-full"
-          value={form.faction ?? ""}
-          onChange={(e) => setForm({ ...form, faction: e.target.value as Faction })}
-        >
-          {(Object.keys(FACTION_LABELS) as Faction[]).map((faction) => (
-            <option key={faction} value={faction}>
-              {FACTION_LABELS[faction]}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="Royaume">
-        <Input
-          value={form.realm ?? ""}
-          maxLength={64}
-          onChange={(e) => setForm({ ...form, realm: e.target.value })}
-        />
-      </Field>
-      <div className="flex items-center gap-3">
+      <Card className="space-y-4">
+        <h2 className="font-display text-lg">Jeu</h2>
+        <Field label="Nom de la guilde">
+          <Input
+            value={form.name ?? ""}
+            maxLength={24}
+            placeholder="À décider par sondage"
+            onChange={(e) => update({ name: e.target.value })}
+          />
+        </Field>
+        <Field label="Faction">
+          <Select
+            className="w-full"
+            value={form.faction ?? ""}
+            onChange={(e) => update({ faction: e.target.value as Faction })}
+          >
+            {(Object.keys(FACTION_LABELS) as Faction[]).map((faction) => (
+              <option key={faction} value={faction}>
+                {FACTION_LABELS[faction]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Royaume">
+          <Input
+            value={form.realm ?? ""}
+            maxLength={64}
+            onChange={(e) => update({ realm: e.target.value })}
+          />
+        </Field>
+      </Card>
+
+      <Card className="space-y-4">
+        <h2 className="font-display text-lg">Bot Discord</h2>
+        <Field label="ID du salon des annonces">
+          <Input
+            value={form.discord_channel_id ?? ""}
+            maxLength={32}
+            inputMode="numeric"
+            placeholder="Clic droit sur le salon → Copier l'identifiant"
+            onChange={(e) => update({ discord_channel_id: e.target.value.trim() })}
+          />
+        </Field>
+        <Field label="Rappel avant un événement (minutes, 0 = aucun)">
+          <Input
+            type="number"
+            min={0}
+            max={1440}
+            value={form.reminder_minutes ?? 60}
+            onChange={(e) => update({ reminder_minutes: Number(e.target.value) })}
+          />
+        </Field>
+        <p className="text-xs text-muted">
+          Le bot publie dans ce salon les nouveaux événements, les annulations, les compositions, les rappels
+          et les sondages. Sans salon configuré, les annonces sont ignorées.
+        </p>
+      </Card>
+
+      <div className="flex items-center gap-3 lg:col-span-2">
         <Button type="submit" disabled={save.isPending}>
           Enregistrer
         </Button>

@@ -59,6 +59,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     is_staff = models.BooleanField("Accès à l'admin Django", default=False)
     date_joined = models.DateTimeField("Première connexion", default=timezone.now)
+    dm_enabled = models.BooleanField("Accepte les messages privés du bot", default=True)
+    dm_muted_kinds = models.JSONField(
+        "Types de MP coupés", default=list, blank=True, help_text='Parmi "placement", "reminder", "craft".'
+    )
 
     objects = UserManager()
 

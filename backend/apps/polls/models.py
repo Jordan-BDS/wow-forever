@@ -50,6 +50,8 @@ class Poll(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="polls_created"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    proposals_reminder_sent = models.BooleanField(default=False, editable=False)
+    votes_reminder_sent = models.BooleanField(default=False, editable=False)
 
     class Meta:
         verbose_name = "sondage"

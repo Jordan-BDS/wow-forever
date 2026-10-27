@@ -45,6 +45,16 @@ function EventDetail({ event }: { event: GuildEvent }) {
   const canManage = event.organizer.id === me.id || isOfficerOrAbove(me.site_role);
   const refresh = () => invalidate(KEYS.event(event.id), KEYS.events);
 
+  const [announced, setAnnounced] = useState(false);
+  const announce = useMutation({
+    mutationFn: async () => {
+      const { error } = await api.POST("/api/events/{id}/announce/", { params: { path: { id: event.id } } });
+      if (error) throw error;
+    },
+    onSuccess: () => setAnnounced(true),
+    onError: (e) => setError(errorMessage(e)),
+  });
+
   const toggleCancel = useMutation({
     mutationFn: async () => {
       const path =
@@ -90,6 +100,13 @@ function EventDetail({ event }: { event: GuildEvent }) {
                   onClick={() => toggleCancel.mutate()}
                 >
                   {event.effective_status === "cancelled" ? "Rétablir" : "Annuler"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={announce.isPending || announced}
+                  onClick={() => announce.mutate()}
+                >
+                  {announced ? "Composition publiée" : "Publier sur Discord"}
                 </Button>
               </>
             )}

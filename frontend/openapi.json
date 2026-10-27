@@ -756,6 +756,43 @@
                 }
             }
         },
+        "/api/events/{id}/announce/": {
+            "post": {
+                "operationId": "events_announce_create",
+                "description": "Publie la composition actuelle dans le salon Discord de la guilde.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) événement.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Event"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/events/{id}/cancel/": {
             "post": {
                 "operationId": "events_cancel_create",
@@ -2226,6 +2263,15 @@
                 "type": "string",
                 "description": "* `discord` - Rôle Discord perdu ou départ du serveur\n* `manual` - Désactivé par un officier"
             },
+            "DmMutedKindsEnum": {
+                "enum": [
+                    "placement",
+                    "reminder",
+                    "craft"
+                ],
+                "type": "string",
+                "description": "* `placement` - placement\n* `reminder` - reminder\n* `craft` - craft"
+            },
             "DuplicateRequest": {
                 "type": "object",
                 "properties": {
@@ -2642,8 +2688,16 @@
                     "discord_channel_id": {
                         "type": "string",
                         "title": "Salon Discord des annonces",
-                        "description": "Utilisé par le bot (lot 3).",
+                        "description": "Le bot y publie les annonces.",
                         "maxLength": 32
+                    },
+                    "reminder_minutes": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "title": "Rappel avant un événement (minutes)",
+                        "description": "0 = pas de rappel."
                     },
                     "updated_at": {
                         "type": "string",
@@ -2812,6 +2866,18 @@
                         "readOnly": true,
                         "nullable": true,
                         "title": "Dernière connexion"
+                    },
+                    "dm_enabled": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "title": "Accepte les messages privés du bot"
+                    },
+                    "dm_muted_kinds": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "readOnly": true
                     }
                 },
                 "required": [
@@ -2822,6 +2888,8 @@
                     "discord_id",
                     "discord_username",
                     "display_name",
+                    "dm_enabled",
+                    "dm_muted_kinds",
                     "id",
                     "is_active",
                     "last_login",
@@ -3033,8 +3101,16 @@
                     "discord_channel_id": {
                         "type": "string",
                         "title": "Salon Discord des annonces",
-                        "description": "Utilisé par le bot (lot 3).",
+                        "description": "Le bot y publie les annonces.",
                         "maxLength": 32
+                    },
+                    "reminder_minutes": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "title": "Rappel avant un événement (minutes)",
+                        "description": "0 = pas de rappel."
                     }
                 }
             },
@@ -3049,6 +3125,16 @@
                     },
                     "bio": {
                         "type": "string"
+                    },
+                    "dm_enabled": {
+                        "type": "boolean",
+                        "title": "Accepte les messages privés du bot"
+                    },
+                    "dm_muted_kinds": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DmMutedKindsEnum"
+                        }
                     }
                 }
             },

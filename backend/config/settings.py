@@ -83,6 +83,8 @@ INSTALLED_APPS = [
     "apps.characters",
     "apps.polls",
     "apps.events",
+    "apps.notifications",
+    "apps.discordbot",
 ]
 
 MIDDLEWARE = [

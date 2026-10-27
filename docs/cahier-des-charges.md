@@ -443,7 +443,8 @@ Un **bot Discord** dédié à la guilde.
 
 **Messages dans un salon de la guilde** (salon configurable) :
 - Nouvel événement créé (titre, date, lien vers la fiche).
-- Composition validée / modifiée.
+- Composition publiée par l'organisateur (bouton « Publier sur Discord » sur la fiche, pour éviter un message à
+  chaque placement).
 - Rappel avant un événement (délai configurable, ex. 1 h avant).
 - Événement annulé ou modifié (date/heure).
 - Nouvelle demande de craft.
@@ -458,9 +459,14 @@ Un **bot Discord** dédié à la guilde.
 **Commandes slash** :
 - `/events` — prochains événements.
 - `/inscription <événement>` — s'inscrire (perso, rôle, statut).
-- `/craft <recette ou objet>` — qui sait crafter quoi.
+- `/craft <recette ou objet>` — qui sait crafter quoi (livrée avec le lot 6).
 
-**Préférences** : chaque joueur peut désactiver les MP (globalement ou par type) depuis son profil.
+**Préférences** : chaque joueur peut désactiver les MP (globalement ou par type : placement, rappels, crafts)
+depuis son profil.
+
+**Réglages** (GM, page Paramètres) : ID du salon des annonces, délai de rappel avant un événement (défaut 60 min).
+Les rappels de sondage partent 24 h avant chaque échéance. Une notification en échec est retentée trois fois puis
+marquée en erreur, visible dans l'admin.
 
 ### Sondages à propositions (MVP, lot 1)
 

@@ -13,7 +13,7 @@ from .models import GuildSettings
 class GuildSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = GuildSettings
-        fields = ["name", "faction", "realm", "discord_channel_id", "updated_at"]
+        fields = ["name", "faction", "realm", "discord_channel_id", "reminder_minutes", "updated_at"]
         read_only_fields = ["updated_at"]
 
 

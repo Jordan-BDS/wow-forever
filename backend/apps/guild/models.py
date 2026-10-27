@@ -15,7 +15,10 @@ class GuildSettings(models.Model):
     faction = models.CharField("Faction", max_length=16, choices=Faction.choices, blank=True)
     realm = models.CharField("Royaume", max_length=64, blank=True)
     discord_channel_id = models.CharField(
-        "Salon Discord des annonces", max_length=32, blank=True, help_text="Utilisé par le bot (lot 3)."
+        "Salon Discord des annonces", max_length=32, blank=True, help_text="Le bot y publie les annonces."
+    )
+    reminder_minutes = models.PositiveSmallIntegerField(
+        "Rappel avant un événement (minutes)", default=60, help_text="0 = pas de rappel."
     )
     updated_at = models.DateTimeField(auto_now=True)
 

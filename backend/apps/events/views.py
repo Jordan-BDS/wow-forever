@@ -10,8 +10,10 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.accounts.models import User
+from apps.notifications import services as notify
 
-from .models import Event, EventStatus, Placement, Signup
+from . import services
+from .models import Event, EventStatus, Signup
 from .serializers import (
     DuplicateSerializer,
     EventSerializer,
@@ -19,6 +21,8 @@ from .serializers import (
     SignupSerializer,
     SignupWriteSerializer,
 )
+
+__all__ = ["EventViewSet", "SignupViewSet", "SignupWriteSerializer"]
 
 EVENT_QUERYSET = Event.objects.select_related("organizer", "instance").prefetch_related(
     "signups__user", "signups__character__player_class"
@@ -68,12 +72,16 @@ class EventViewSet(viewsets.ModelViewSet):
         organizer = serializer.validated_data.get("organizer", self.request.user)
         if organizer != self.request.user and not self.request.user.is_officer_or_above:
             raise PermissionDenied("Seul un officier peut désigner un autre organisateur.")
-        serializer.save(organizer=organizer, created_by=self.request.user)
+        event = serializer.save(organizer=organizer, created_by=self.request.user)
+        notify.event_created(event)
 
     def perform_update(self, serializer):
         if "organizer" in serializer.validated_data and not self.request.user.is_officer_or_above:
             raise PermissionDenied("Seul un officier peut changer l'organisateur.")
-        serializer.save()
+        previous_start = serializer.instance.starts_at
+        event = serializer.save()
+        if event.starts_at != previous_start and event.effective_status == EventStatus.PLANNED:
+            notify.event_rescheduled(event, previous_start)
 
     # --- actions sur l'événement ---------------------------------------------
 
@@ -81,8 +89,18 @@ class EventViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def cancel(self, request: Request, pk=None) -> Response:
         event: Event = self.get_object()
-        event.status = EventStatus.CANCELLED
-        event.save(update_fields=["status", "updated_at"])
+        if event.status != EventStatus.CANCELLED:
+            event.status = EventStatus.CANCELLED
+            event.save(update_fields=["status", "updated_at"])
+            notify.event_cancelled(event)
+        return Response(self.get_serializer(event).data)
+
+    @extend_schema(request=None, responses=EventSerializer)
+    @action(detail=True, methods=["post"])
+    def announce(self, request: Request, pk=None) -> Response:
+        """Publie la composition actuelle dans le salon Discord de la guilde."""
+        event: Event = self.get_object()
+        notify.composition_announced(event)
         return Response(self.get_serializer(event).data)
 
     @extend_schema(request=None, responses=EventSerializer)
@@ -143,13 +161,7 @@ class EventViewSet(viewsets.ModelViewSet):
             deleted, _ = Signup.objects.filter(event=event, user=target).delete()
             return Response(status=status.HTTP_204_NO_CONTENT if deleted else status.HTTP_404_NOT_FOUND)
 
-        serializer = SignupWriteSerializer(
-            data=request.data, context={"event": event, "target_user": target, "request": request}
-        )
-        serializer.is_valid(raise_exception=True)
-        signup, created = Signup.objects.update_or_create(
-            event=event, user=target, defaults=serializer.validated_data
-        )
+        signup, created = services.upsert_signup(event, target, request.data)
         signup = Signup.objects.select_related("user", "character__player_class").get(pk=signup.pk)
         return Response(
             SignupSerializer(signup).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
@@ -181,7 +193,10 @@ class SignupViewSet(mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.
         self._check(serializer.instance)
         if serializer.instance.event.effective_status != EventStatus.PLANNED:
             raise PermissionDenied("L'événement n'est plus planifié.")
-        serializer.save()
+        previous_placement = serializer.instance.placement
+        signup = serializer.save()
+        if signup.placement != previous_placement:
+            notify.placement_changed(signup)
 
     def perform_destroy(self, instance: Signup):
         self._check(instance)
@@ -197,6 +212,3 @@ class SignupViewSet(mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.
     @extend_schema(responses=SignupSerializer)
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
-
-
-__all__ = ["EventViewSet", "SignupViewSet", "Placement"]

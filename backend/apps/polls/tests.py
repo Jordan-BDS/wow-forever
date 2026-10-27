@@ -249,3 +249,26 @@ def test_poll_status_timeline(officer):
 def test_user_fixture_display_names_are_distinct(member, other_member):
     assert User.objects.count() == 2
     assert member.display_name != other_member.display_name
+
+
+def test_poll_lifecycle_enqueues_channel_notifications(as_user, officer, gm, member, other_member):
+    from apps.notifications.models import Notification
+
+    response = as_user(officer).post(
+        "/api/polls/",
+        {
+            "title": "Nom",
+            "proposals_end": (NOW + timedelta(days=1)).isoformat(),
+            "votes_end": (NOW + timedelta(days=2)).isoformat(),
+            "sets_guild_name": True,
+        },
+        format="json",
+    )
+    assert Notification.objects.get().kind == "poll_opened"
+    poll = Poll.objects.get(pk=response.data["id"])
+    proposal = Proposal.objects.create(poll=poll, author=member, text="Les Potes")
+    poll.proposals_end, poll.votes_end = NOW - timedelta(days=2), NOW - timedelta(hours=1)
+    poll.save()
+    as_user(gm).post(f"/api/polls/{poll.pk}/validate/", {"proposal": proposal.pk}, format="json")
+    validated = Notification.objects.get(kind="poll_validated")
+    assert "Les Potes" in validated.text and "nouveau nom" in validated.text
