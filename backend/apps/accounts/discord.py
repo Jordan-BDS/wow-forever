@@ -5,6 +5,8 @@ from urllib.parse import urlencode
 import httpx
 from django.conf import settings
 
+from apps.guild.config import discord_config
+
 OAUTH_SCOPES = "identify"
 TIMEOUT = 10.0
 
@@ -19,7 +21,7 @@ def redirect_uri() -> str:
 
 def authorize_url(state: str) -> str:
     params = {
-        "client_id": settings.DISCORD_CLIENT_ID,
+        "client_id": discord_config().client_id,
         "response_type": "code",
         "redirect_uri": redirect_uri(),
         "scope": OAUTH_SCOPES,
@@ -41,7 +43,8 @@ def exchange_code(code: str) -> dict:
         "code": code,
         "redirect_uri": redirect_uri(),
     }
-    auth = (settings.DISCORD_CLIENT_ID, settings.DISCORD_CLIENT_SECRET)
+    config = discord_config()
+    auth = (config.client_id, config.client_secret)
     try:
         response = httpx.post(
             f"{settings.DISCORD_API_BASE}/oauth2/token", data=data, auth=auth, timeout=TIMEOUT
@@ -65,10 +68,11 @@ def fetch_me(access_token: str) -> dict:
 
 def fetch_guild_member(user_id: str) -> dict | None:
     """Profil de membre sur le serveur de la guilde, ou None s'il n'en fait pas partie."""
+    config = discord_config()
     try:
         response = httpx.get(
-            f"{settings.DISCORD_API_BASE}/guilds/{settings.DISCORD_GUILD_ID}/members/{user_id}",
-            headers={"Authorization": f"Bot {settings.DISCORD_BOT_TOKEN}"},
+            f"{settings.DISCORD_API_BASE}/guilds/{config.guild_id}/members/{user_id}",
+            headers={"Authorization": f"Bot {config.bot_token}"},
             timeout=TIMEOUT,
         )
     except httpx.HTTPError as exc:

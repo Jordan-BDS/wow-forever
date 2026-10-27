@@ -69,7 +69,9 @@ def announcement_channel_id() -> int | None:
 
 
 def has_allowed_role(role_ids: list[str]) -> bool:
-    return bool(set(settings.DISCORD_ALLOWED_ROLE_IDS) & set(role_ids))
+    from apps.guild.config import discord_config
+
+    return bool(set(discord_config().allowed_role_ids) & set(role_ids))
 
 
 def revoke_access(discord_id: str, reason: str) -> bool:

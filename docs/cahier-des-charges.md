@@ -67,8 +67,11 @@ chacun a son compte, on sait qui joue quoi, qui a quels métiers, et on organise
    dès le lot 0, mais seul son token est utilisé (pas de connexion à la gateway avant le lot 3).
 3. Refus si : pas membre du serveur (réponse 404), ou aucun des rôles autorisés dans sa liste. Message explicite
    (« Tu dois avoir le rôle Membre sur le Discord de la guilde »).
-4. Les rôles autorisés sont configurés par **ID de rôle** (pas par nom, qui peut être renommé), en variable
-   d'environnement, sous forme de liste (ex. Membre, Officier, GM si ce sont des rôles Discord distincts).
+4. Les rôles autorisés sont configurés par **ID de rôle** (pas par nom, qui peut être renommé), sous forme de
+   liste (ex. Membre, Officier, GM si ce sont des rôles Discord distincts). Toute la configuration Discord
+   (application, token du bot, serveur, rôles autorisés, premier GM) se saisit par le GM dans **Guilde › Paramètres**,
+   avec un bouton qui vérifie le serveur et liste ses rôles ; les variables d'environnement ne servent que de secours
+   au premier démarrage, avant qu'un GM puisse se connecter.
 
 **Révocation en continu (via le bot, lot 3) :**
 - Le bot écoute les événements Discord « membre mis à jour » (perte du rôle) et « membre parti / banni » : le compte

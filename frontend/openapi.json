@@ -2493,7 +2493,7 @@
         "/api/guild/": {
             "get": {
                 "operationId": "guild_retrieve",
-                "description": "Paramètres de la guilde : lecture pour tous les membres, modification par le GM.",
+                "description": "Nom, faction et royaume pour tous les membres ; réglages complets et modification pour le GM.",
                 "tags": [
                     "guild"
                 ],
@@ -2517,7 +2517,7 @@
             },
             "patch": {
                 "operationId": "guild_partial_update",
-                "description": "Paramètres de la guilde : lecture pour tous les membres, modification par le GM.",
+                "description": "Nom, faction et royaume pour tous les membres ; réglages complets et modification pour le GM.",
                 "tags": [
                     "guild"
                 ],
@@ -2551,6 +2551,32 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/GuildSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/guild/discord-check/": {
+            "post": {
+                "operationId": "guild_discord_check_create",
+                "description": "Vérifie, avec le token du bot, que le serveur est joignable et liste ses rôles.",
+                "tags": [
+                    "guild"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DiscordCheck"
                                 }
                             }
                         },
@@ -4089,6 +4115,51 @@
                 "type": "string",
                 "description": "* `discord` - Rôle Discord perdu ou départ du serveur\n* `manual` - Désactivé par un officier"
             },
+            "DiscordCheck": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "detail": {
+                        "type": "string"
+                    },
+                    "guild_name": {
+                        "type": "string"
+                    },
+                    "roles": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DiscordRole"
+                        }
+                    }
+                },
+                "required": [
+                    "detail",
+                    "guild_name",
+                    "ok",
+                    "roles"
+                ]
+            },
+            "DiscordRole": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "allowed": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "allowed",
+                    "id",
+                    "name"
+                ]
+            },
             "DmMutedKindsEnum": {
                 "enum": [
                     "placement",
@@ -4694,6 +4765,7 @@
             },
             "GuildSettings": {
                 "type": "object",
+                "description": "Réglages complets, réservés au GM. Les secrets ne sont jamais renvoyés, seulement « défini ou non ».",
                 "properties": {
                     "name": {
                         "type": "string",
@@ -4715,6 +4787,11 @@
                         "title": "Royaume",
                         "maxLength": 64
                     },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
                     "discord_channel_id": {
                         "type": "string",
                         "title": "Salon Discord des annonces",
@@ -4729,13 +4806,44 @@
                         "title": "Rappel avant un événement (minutes)",
                         "description": "0 = pas de rappel."
                     },
-                    "updated_at": {
+                    "discord_client_id": {
                         "type": "string",
-                        "format": "date-time",
+                        "title": "Client ID de l'application Discord",
+                        "maxLength": 32
+                    },
+                    "discord_client_secret_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "discord_bot_token_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "discord_guild_id": {
+                        "type": "string",
+                        "title": "ID du serveur Discord",
+                        "maxLength": 32
+                    },
+                    "discord_allowed_role_ids": {
+                        "type": "string",
+                        "title": "IDs des rôles autorisés",
+                        "description": "Séparés par des virgules.",
+                        "maxLength": 255
+                    },
+                    "discord_first_gm_id": {
+                        "type": "string",
+                        "title": "ID Discord du premier GM",
+                        "maxLength": 32
+                    },
+                    "discord_login_ready": {
+                        "type": "boolean",
                         "readOnly": true
                     }
                 },
                 "required": [
+                    "discord_bot_token_set",
+                    "discord_client_secret_set",
+                    "discord_login_ready",
                     "updated_at"
                 ]
             },
@@ -5491,6 +5599,7 @@
             },
             "PatchedGuildSettingsRequest": {
                 "type": "object",
+                "description": "Réglages complets, réservés au GM. Les secrets ne sont jamais renvoyés, seulement « défini ou non ».",
                 "properties": {
                     "name": {
                         "type": "string",
@@ -5525,6 +5634,35 @@
                         "format": "int64",
                         "title": "Rappel avant un événement (minutes)",
                         "description": "0 = pas de rappel."
+                    },
+                    "discord_client_id": {
+                        "type": "string",
+                        "title": "Client ID de l'application Discord",
+                        "maxLength": 32
+                    },
+                    "discord_client_secret": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "discord_bot_token": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "discord_guild_id": {
+                        "type": "string",
+                        "title": "ID du serveur Discord",
+                        "maxLength": 32
+                    },
+                    "discord_allowed_role_ids": {
+                        "type": "string",
+                        "title": "IDs des rôles autorisés",
+                        "description": "Séparés par des virgules.",
+                        "maxLength": 255
+                    },
+                    "discord_first_gm_id": {
+                        "type": "string",
+                        "title": "ID Discord du premier GM",
+                        "maxLength": 32
                     }
                 }
             },
