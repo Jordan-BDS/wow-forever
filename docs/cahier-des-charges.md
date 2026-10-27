@@ -164,8 +164,8 @@ Un joueur peut avoir **plusieurs personnages**, dont **exactement un « main »*
 Stockées en base, administrables par le GM, pré-remplies au lancement :
 
 - **Classes** (avec couleur officielle de classe pour l'affichage)
-- **Races** (avec faction, ou « les deux » tant que celle de Skyborn n'est pas confirmée) — y compris **Skyborn**
-- **Compatibilités race ↔ classe** (ex. Skyborn : guerrier, chasseur, voleur, druide, chaman, mage)
+- **Races** (avec faction) — y compris les deux **Éolides** (Skyborn), une par faction d'après le client Forever
+- **Compatibilités race ↔ classe**, tirées de la table CharBaseInfo du client Forever (ex. Mort-vivant paladin, Nain chaman)
 - **Spécialisations** par classe, avec les rôles possibles
 - **Métiers** (cf. étape 6)
 

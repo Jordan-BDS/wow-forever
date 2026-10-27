@@ -23,7 +23,18 @@ def test_seed_is_idempotent():
     counts = (PlayerClass.objects.count(), Specialization.objects.count(), Race.objects.count())
     seed()
     assert (PlayerClass.objects.count(), Specialization.objects.count(), Race.objects.count()) == counts
-    assert counts == (9, 27, 9)
+    assert counts == (9, 27, 10)
+
+
+def test_legacy_skyborn_slug_is_renamed_keeping_rows():
+    seed()
+    Race.objects.filter(slug="skyborn-alliance").update(slug="skyborn")
+    seed()
+    assert (
+        Race.objects.filter(slug="skyborn-alliance").exists()
+        and not Race.objects.filter(slug="skyborn").exists()
+    )
+    assert Race.objects.count() == 10
 
 
 def test_class_roles_derive_from_specializations():
@@ -35,9 +46,13 @@ def test_class_roles_derive_from_specializations():
 
 def test_race_faction_availability():
     seed()
-    skyborn = Race.objects.get(slug="skyborn")
+    skyborn = Race.objects.get(slug="skyborn-alliance")
     orc = Race.objects.get(slug="orc")
-    assert skyborn.available_for("alliance") and skyborn.available_for("horde")
+    assert skyborn.available_for("alliance") and not skyborn.available_for("horde")
+    assert set(Race.objects.get(slug="skyborn-horde").classes.values_list("slug", flat=True)) == {
+        "warrior", "hunter", "rogue", "shaman", "druid"
+    }  # fmt: skip
+    assert Race.objects.get(slug="undead").classes.filter(slug="paladin").exists()  # nouveauté Forever
     assert orc.available_for("horde") and not orc.available_for("alliance")
     assert orc.available_for("")  # faction de guilde pas encore choisie
 

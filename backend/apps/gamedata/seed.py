@@ -64,17 +64,22 @@ SPECIALIZATIONS = {
 }
 
 RACES = [
-    # slug, nom, faction ("" = les deux), classes
-    ("human", "Humain", "alliance", ["warrior", "paladin", "rogue", "priest", "mage", "warlock"]),
-    ("dwarf", "Nain", "alliance", ["warrior", "paladin", "hunter", "rogue", "priest"]),
+    # slug, nom, faction, classes — d'après la table CharBaseInfo du client WoW Forever (build 1.60.1)
+    ("human", "Humain", "alliance", ["warrior", "paladin", "hunter", "rogue", "priest", "mage", "warlock"]),
+    ("dwarf", "Nain", "alliance", ["warrior", "paladin", "hunter", "rogue", "priest", "shaman"]),
     ("night-elf", "Elfe de la nuit", "alliance", ["warrior", "hunter", "rogue", "priest", "druid"]),
-    ("gnome", "Gnome", "alliance", ["warrior", "rogue", "mage", "warlock"]),
-    ("orc", "Orc", "horde", ["warrior", "hunter", "rogue", "shaman", "warlock"]),
-    ("undead", "Mort-vivant", "horde", ["warrior", "rogue", "priest", "mage", "warlock"]),
+    ("gnome", "Gnome", "alliance", ["warrior", "rogue", "priest", "mage", "warlock"]),
+    (
+        "skyborn-alliance",
+        "Éolide de l'Ordre suprême",
+        "alliance",
+        ["warrior", "hunter", "rogue", "mage", "druid"],
+    ),
+    ("orc", "Orc", "horde", ["warrior", "hunter", "rogue", "shaman", "mage", "warlock"]),
+    ("undead", "Mort-vivant", "horde", ["warrior", "paladin", "rogue", "priest", "mage", "warlock"]),
     ("tauren", "Tauren", "horde", ["warrior", "hunter", "shaman", "druid"]),
-    ("troll", "Troll", "horde", ["warrior", "hunter", "rogue", "priest", "shaman", "mage"]),
-    # WoW Forever : faction et classes à confirmer à la sortie (cf. cahier des charges, section 3).
-    ("skyborn", "Éolide", "", ["warrior", "hunter", "rogue", "druid", "shaman", "mage"]),
+    ("troll", "Troll", "horde", ["warrior", "hunter", "rogue", "priest", "shaman", "mage", "warlock"]),
+    ("skyborn-horde", "Éolide sculpte-vents", "horde", ["warrior", "hunter", "rogue", "shaman", "druid"]),
 ]
 
 PROFESSIONS = [
@@ -154,6 +159,8 @@ DEFAULT_NEEDS = {
 
 
 def seed() -> None:
+    # L'ancienne race unique « skyborn » devient la variante Alliance : les persos existants la gardent.
+    Race.objects.filter(slug="skyborn").update(slug="skyborn-alliance")
     classes: dict[str, PlayerClass] = {}
     for order, (slug, name, color) in enumerate(CLASSES):
         classes[slug], _ = PlayerClass.objects.update_or_create(
