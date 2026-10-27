@@ -91,7 +91,7 @@ docker compose -f docker-compose.yml -f docker-compose.nginx.yml up -d --build
 sudo cp nginx/wow.koj.dev.conf /etc/nginx/sites-available/wow.koj.dev   # adapter le domaine
 sudo ln -s /etc/nginx/sites-available/wow.koj.dev /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d wow.koj.dev
+sudo certbot --nginx -d wow.koj.dev --redirect   # ajoute le bloc HTTPS au fichier
 ```
 
 Dans `.env`, mettre `SITE_URL`, `DJANGO_ALLOWED_HOSTS` et `DJANGO_CSRF_TRUSTED_ORIGINS` sur le domaine public en
