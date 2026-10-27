@@ -51,7 +51,7 @@ export function RosterPage() {
       </PageTitle>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
-        <Card className="p-0">
+        <Card className="overflow-x-auto p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-border p-3 text-sm">
             <Select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} aria-label="Classe">
               <option value="">Toutes les classes</option>

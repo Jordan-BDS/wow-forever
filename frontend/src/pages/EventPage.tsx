@@ -445,7 +445,7 @@ function CompositionBoard({
 
   return (
     <Card>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="font-display text-lg">Composition</h2>
         <span className="text-xs text-muted">
           {canManage ? "Place les candidats en confirmé ou sur le banc." : "Validée par l'organisateur."}

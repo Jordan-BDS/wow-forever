@@ -29,7 +29,7 @@ export function ProfessionsPage() {
   return (
     <>
       <PageTitle>Métiers de la guilde</PageTitle>
-      <Card className="p-0">
+      <Card className="overflow-x-auto p-0">
         <div className="flex flex-wrap items-center gap-3 border-b border-border p-3 text-sm">
           <Select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Métier">
             <option value="">Tous les métiers</option>
