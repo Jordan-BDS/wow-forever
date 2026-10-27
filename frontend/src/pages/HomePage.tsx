@@ -1,7 +1,8 @@
 import { Link } from "react-router";
 import { useGuild } from "@/api/guild";
-import { useCharacters, useGameData, usePolls } from "@/api/hooks";
+import { useCharacters, useEvents, useGameData, usePolls } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
+import { EventRow } from "@/components/EventBits";
 import { ClassDot, ClassName, LevelBadge } from "@/components/game";
 import { Button, Card, PageTitle } from "@/components/ui";
 import { findClass, formatRemaining } from "@/lib/game";
@@ -12,11 +13,14 @@ export function HomePage() {
   const me = useCurrentUser();
   const guild = useGuild();
   const polls = usePolls();
+  const events = useEvents();
   const characters = useCharacters();
   const gamedata = useGameData();
 
   const openPolls = (polls.data ?? []).filter((p) => p.status === "proposals" || p.status === "votes");
   const toVote = openPolls.filter((p) => p.my_vote_count === 0);
+  const upcoming = (events.data ?? []).filter((e) => e.effective_status === "planned").slice(0, 5);
+  const pending = upcoming.filter((e) => !e.my_signup && e.signups_open);
   const mine = (characters.data ?? []).filter((c) => c.owner.id === me.id);
 
   return (
@@ -44,6 +48,31 @@ export function HomePage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
+        <section className="md:col-span-2">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm uppercase text-muted">
+              Prochains événements
+              {pending.length > 0 && (
+                <span className="ml-2 text-gold">· {pending.length} sans réponse de ta part</span>
+              )}
+            </h2>
+            <Link to="/agenda" className="text-sm">
+              Tout l'agenda
+            </Link>
+          </div>
+          {upcoming.length === 0 ? (
+            <Card className="text-sm text-muted">
+              Rien de prévu pour l'instant. <Link to="/agenda/nouveau">Propose une sortie</Link> !
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {upcoming.map((event) => (
+                <EventRow key={event.id} event={event} />
+              ))}
+            </div>
+          )}
+        </section>
+
         <Card>
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg">Mes personnages</h2>

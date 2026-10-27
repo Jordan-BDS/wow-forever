@@ -491,6 +491,536 @@
                 }
             }
         },
+        "/api/events/": {
+            "get": {
+                "operationId": "events_list",
+                "description": "Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "from",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Début de la fenêtre (ISO 8601)."
+                    },
+                    {
+                        "in": "query",
+                        "name": "to",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Fin de la fenêtre (ISO 8601)."
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Event"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "events_create",
+                "description": "Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère.",
+                "tags": [
+                    "events"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Event"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/events/{id}/": {
+            "get": {
+                "operationId": "events_retrieve",
+                "description": "Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) événement.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Event"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "events_update",
+                "description": "Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) événement.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Event"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "events_partial_update",
+                "description": "Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) événement.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEventRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEventRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEventRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Event"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "events_destroy",
+                "description": "Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) événement.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/events/{id}/cancel/": {
+            "post": {
+                "operationId": "events_cancel_create",
+                "description": "Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) événement.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Event"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/events/{id}/duplicate/": {
+            "post": {
+                "operationId": "events_duplicate_create",
+                "description": "Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) événement.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DuplicateRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DuplicateRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DuplicateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Event"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/events/{id}/restore/": {
+            "post": {
+                "operationId": "events_restore_create",
+                "description": "Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) événement.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Event"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/events/{id}/signup/": {
+            "post": {
+                "operationId": "events_signup_create",
+                "description": "POST : s'inscrire ou modifier son inscription. DELETE : se désinscrire.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) événement.",
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "user",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Officiers / organisateur : inscrire un autre joueur."
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SignupWriteRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SignupWriteRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SignupWriteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Signup"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Signup"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "events_signup_destroy",
+                "description": "POST : s'inscrire ou modifier son inscription. DELETE : se désinscrire.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) événement.",
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "user",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Officiers / organisateur : inscrire un autre joueur."
+                    }
+                ],
+                "tags": [
+                    "events"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Signup"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Signup"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
         "/api/gamedata/": {
             "get": {
                 "operationId": "gamedata_retrieve",
@@ -1247,6 +1777,145 @@
                     }
                 }
             }
+        },
+        "/api/signups/{id}/": {
+            "put": {
+                "operationId": "signups_update",
+                "description": "Gestion d'une inscription par l'organisateur ou un officier (placement, statut, retrait).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) inscription.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "signups"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SignupManageRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SignupManageRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SignupManageRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Signup"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "signups_partial_update",
+                "description": "Gestion d'une inscription par l'organisateur ou un officier (placement, statut, retrait).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) inscription.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "signups"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSignupManageRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSignupManageRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSignupManageRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Signup"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "signups_destroy",
+                "description": "Gestion d'une inscription par l'organisateur ou un officier (placement, statut, retrait).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) inscription.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "signups"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -1358,7 +2027,7 @@
                     "main_role": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/MainRoleEnum"
+                                "$ref": "#/components/schemas/RoleEnum"
                             }
                         ],
                         "title": "Rôle principal"
@@ -1367,7 +2036,7 @@
                         "title": "Rôle secondaire",
                         "oneOf": [
                             {
-                                "$ref": "#/components/schemas/OffRoleEnum"
+                                "$ref": "#/components/schemas/RoleEnum"
                             },
                             {
                                 "$ref": "#/components/schemas/BlankEnum"
@@ -1506,7 +2175,7 @@
                     "main_role": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/MainRoleEnum"
+                                "$ref": "#/components/schemas/RoleEnum"
                             }
                         ],
                         "title": "Rôle principal"
@@ -1515,7 +2184,7 @@
                         "title": "Rôle secondaire",
                         "oneOf": [
                             {
-                                "$ref": "#/components/schemas/OffRoleEnum"
+                                "$ref": "#/components/schemas/RoleEnum"
                             },
                             {
                                 "$ref": "#/components/schemas/BlankEnum"
@@ -1557,6 +2226,302 @@
                 "type": "string",
                 "description": "* `discord` - Rôle Discord perdu ou départ du serveur\n* `manual` - Désactivé par un officier"
             },
+            "DuplicateRequest": {
+                "type": "object",
+                "properties": {
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "starts_at"
+                ]
+            },
+            "EffectiveStatusEnum": {
+                "enum": [
+                    "planned",
+                    "cancelled",
+                    "done"
+                ],
+                "type": "string",
+                "description": "* `planned` - Planifié\n* `cancelled` - Annulé\n* `done` - Terminé"
+            },
+            "Event": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "title": "Titre",
+                        "maxLength": 120
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EventKindEnum"
+                            }
+                        ],
+                        "title": "Type"
+                    },
+                    "instance": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Début"
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "title": "Fin"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "organizer": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Owner"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "max_size": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Taille max"
+                    },
+                    "need_tanks": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Tanks souhaités"
+                    },
+                    "need_heals": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Heals souhaités"
+                    },
+                    "need_dps": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "DPS souhaités"
+                    },
+                    "min_level": {
+                        "type": "integer",
+                        "maximum": 60,
+                        "minimum": 1,
+                        "nullable": true,
+                        "title": "Niveau minimum"
+                    },
+                    "signup_deadline": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "title": "Clôture des inscriptions"
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StatusA6aEnum"
+                            }
+                        ],
+                        "readOnly": true,
+                        "title": "Statut"
+                    },
+                    "effective_status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EffectiveStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "signups_open": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "signups": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Signup"
+                        },
+                        "readOnly": true
+                    },
+                    "confirmed": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/RoleCount"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "candidates": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/RoleCount"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "my_signup": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Signup"
+                            }
+                        ],
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "candidates",
+                    "confirmed",
+                    "created_at",
+                    "effective_status",
+                    "id",
+                    "kind",
+                    "my_signup",
+                    "organizer",
+                    "signups",
+                    "signups_open",
+                    "starts_at",
+                    "status",
+                    "title",
+                    "updated_at"
+                ]
+            },
+            "EventKindEnum": {
+                "enum": [
+                    "raid",
+                    "dungeon",
+                    "pvp",
+                    "social"
+                ],
+                "type": "string",
+                "description": "* `raid` - Raid\n* `dungeon` - Donjon\n* `pvp` - PvP\n* `social` - Social / autre"
+            },
+            "EventRequest": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Titre",
+                        "maxLength": 120
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EventKindEnum"
+                            }
+                        ],
+                        "title": "Type"
+                    },
+                    "instance": {
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Début"
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "title": "Fin"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "organizer_id": {
+                        "type": "integer",
+                        "writeOnly": true,
+                        "description": "Officiers seulement : désigner un autre organisateur."
+                    },
+                    "max_size": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Taille max"
+                    },
+                    "need_tanks": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Tanks souhaités"
+                    },
+                    "need_heals": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Heals souhaités"
+                    },
+                    "need_dps": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "DPS souhaités"
+                    },
+                    "min_level": {
+                        "type": "integer",
+                        "maximum": 60,
+                        "minimum": 1,
+                        "nullable": true,
+                        "title": "Niveau minimum"
+                    },
+                    "signup_deadline": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "title": "Clôture des inscriptions"
+                    }
+                },
+                "required": [
+                    "kind",
+                    "starts_at",
+                    "title"
+                ]
+            },
             "FactionEnum": {
                 "enum": [
                     "alliance",
@@ -1593,10 +2558,17 @@
                         "items": {
                             "$ref": "#/components/schemas/Profession"
                         }
+                    },
+                    "instances": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Instance"
+                        }
                     }
                 },
                 "required": [
                     "classes",
+                    "instances",
                     "professions",
                     "races"
                 ]
@@ -1683,22 +2655,97 @@
                     "updated_at"
                 ]
             },
-            "KindEnum": {
-                "enum": [
-                    "primary",
-                    "secondary"
-                ],
-                "type": "string",
-                "description": "* `primary` - Principal\n* `secondary` - Secondaire"
+            "Instance": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Nom",
+                        "maxLength": 64
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/InstanceKindEnum"
+                            }
+                        ],
+                        "title": "Type"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "title": "Taille du groupe"
+                    },
+                    "min_level": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "title": "Niveau minimum"
+                    },
+                    "recommended_level": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "title": "Niveau recommandé"
+                    },
+                    "default_tanks": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Tanks par défaut"
+                    },
+                    "default_heals": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Heals par défaut"
+                    },
+                    "default_dps": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "DPS par défaut"
+                    },
+                    "is_forever": {
+                        "type": "boolean",
+                        "title": "Spécifique WoW Forever"
+                    }
+                },
+                "required": [
+                    "id",
+                    "kind",
+                    "name",
+                    "size",
+                    "slug"
+                ]
             },
-            "MainRoleEnum": {
+            "InstanceKindEnum": {
                 "enum": [
-                    "tank",
-                    "heal",
-                    "dps"
+                    "dungeon",
+                    "raid",
+                    "battleground"
                 ],
                 "type": "string",
-                "description": "* `tank` - Tank\n* `heal` - Heal\n* `dps` - DPS"
+                "description": "* `dungeon` - Donjon\n* `raid` - Raid\n* `battleground` - Champ de bataille"
             },
             "Member": {
                 "type": "object",
@@ -1781,15 +2828,6 @@
                     "site_role"
                 ]
             },
-            "OffRoleEnum": {
-                "enum": [
-                    "tank",
-                    "heal",
-                    "dps"
-                ],
-                "type": "string",
-                "description": "* `tank` - Tank\n* `heal` - Heal\n* `dps` - DPS"
-            },
             "Owner": {
                 "type": "object",
                 "properties": {
@@ -1844,7 +2882,7 @@
                     "main_role": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/MainRoleEnum"
+                                "$ref": "#/components/schemas/RoleEnum"
                             }
                         ],
                         "title": "Rôle principal"
@@ -1853,7 +2891,7 @@
                         "title": "Rôle secondaire",
                         "oneOf": [
                             {
-                                "$ref": "#/components/schemas/OffRoleEnum"
+                                "$ref": "#/components/schemas/RoleEnum"
                             },
                             {
                                 "$ref": "#/components/schemas/BlankEnum"
@@ -1878,6 +2916,94 @@
                         "items": {
                             "$ref": "#/components/schemas/CharacterProfessionRequest"
                         }
+                    }
+                }
+            },
+            "PatchedEventRequest": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Titre",
+                        "maxLength": 120
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EventKindEnum"
+                            }
+                        ],
+                        "title": "Type"
+                    },
+                    "instance": {
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Début"
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "title": "Fin"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "organizer_id": {
+                        "type": "integer",
+                        "writeOnly": true,
+                        "description": "Officiers seulement : désigner un autre organisateur."
+                    },
+                    "max_size": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Taille max"
+                    },
+                    "need_tanks": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Tanks souhaités"
+                    },
+                    "need_heals": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "Heals souhaités"
+                    },
+                    "need_dps": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true,
+                        "title": "DPS souhaités"
+                    },
+                    "min_level": {
+                        "type": "integer",
+                        "maximum": 60,
+                        "minimum": 1,
+                        "nullable": true,
+                        "title": "Niveau minimum"
+                    },
+                    "signup_deadline": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "title": "Clôture des inscriptions"
                     }
                 }
             },
@@ -1977,6 +3103,45 @@
                         "title": "Définit le nom de guilde"
                     }
                 }
+            },
+            "PatchedSignupManageRequest": {
+                "type": "object",
+                "description": "Modification par l'organisateur : placement, et au besoin statut / rôle / commentaire.",
+                "properties": {
+                    "role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/RoleEnum"
+                            }
+                        ],
+                        "title": "Rôle"
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Status643Enum"
+                            }
+                        ],
+                        "title": "Statut"
+                    },
+                    "comment": {
+                        "type": "string",
+                        "title": "Commentaire",
+                        "maxLength": 240
+                    },
+                    "placement": {
+                        "$ref": "#/components/schemas/PlacementEnum"
+                    }
+                }
+            },
+            "PlacementEnum": {
+                "enum": [
+                    "unplaced",
+                    "confirmed",
+                    "bench"
+                ],
+                "type": "string",
+                "description": "* `unplaced` - Non placé\n* `confirmed` - Confirmé\n* `bench` - Banc"
             },
             "PlayerClass": {
                 "type": "object",
@@ -2079,7 +3244,7 @@
                     "status": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/StatusEnum"
+                                "$ref": "#/components/schemas/PollStatusEnum"
                             }
                         ],
                         "readOnly": true
@@ -2211,6 +3376,16 @@
                     "votes_end"
                 ]
             },
+            "PollStatusEnum": {
+                "enum": [
+                    "proposals",
+                    "votes",
+                    "closed",
+                    "validated"
+                ],
+                "type": "string",
+                "description": "* `proposals` - proposals\n* `votes` - votes\n* `closed` - closed\n* `validated` - validated"
+            },
             "Profession": {
                 "type": "object",
                 "properties": {
@@ -2231,7 +3406,7 @@
                     "kind": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/KindEnum"
+                                "$ref": "#/components/schemas/ProfessionKindEnum"
                             }
                         ],
                         "title": "Type"
@@ -2250,6 +3425,14 @@
                     "slug",
                     "specializations"
                 ]
+            },
+            "ProfessionKindEnum": {
+                "enum": [
+                    "primary",
+                    "secondary"
+                ],
+                "type": "string",
+                "description": "* `primary` - Principal\n* `secondary` - Secondaire"
             },
             "ProfessionSpecialization": {
                 "type": "object",
@@ -2397,6 +3580,34 @@
                     "slug"
                 ]
             },
+            "RoleCount": {
+                "type": "object",
+                "properties": {
+                    "tank": {
+                        "type": "integer"
+                    },
+                    "heal": {
+                        "type": "integer"
+                    },
+                    "dps": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "dps",
+                    "heal",
+                    "tank"
+                ]
+            },
+            "RoleEnum": {
+                "enum": [
+                    "tank",
+                    "heal",
+                    "dps"
+                ],
+                "type": "string",
+                "description": "* `tank` - Tank\n* `heal` - Heal\n* `dps` - DPS"
+            },
             "SetRoleRequest": {
                 "type": "object",
                 "properties": {
@@ -2406,6 +3617,193 @@
                 },
                 "required": [
                     "site_role"
+                ]
+            },
+            "Signup": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "event": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "user": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Owner"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "character": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SignupCharacter"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/RoleEnum"
+                            }
+                        ],
+                        "readOnly": true,
+                        "title": "Rôle"
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Status643Enum"
+                            }
+                        ],
+                        "readOnly": true,
+                        "title": "Statut"
+                    },
+                    "comment": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Commentaire"
+                    },
+                    "placement": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PlacementEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "character",
+                    "comment",
+                    "event",
+                    "id",
+                    "placement",
+                    "role",
+                    "status",
+                    "updated_at",
+                    "user"
+                ]
+            },
+            "SignupCharacter": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Nom"
+                    },
+                    "player_class": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "level": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "title": "Niveau"
+                    },
+                    "main_role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/RoleEnum"
+                            }
+                        ],
+                        "readOnly": true,
+                        "title": "Rôle principal"
+                    },
+                    "off_role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/RoleEnum"
+                            }
+                        ],
+                        "readOnly": true,
+                        "title": "Rôle secondaire"
+                    }
+                },
+                "required": [
+                    "id",
+                    "level",
+                    "main_role",
+                    "name",
+                    "off_role",
+                    "player_class"
+                ]
+            },
+            "SignupManageRequest": {
+                "type": "object",
+                "description": "Modification par l'organisateur : placement, et au besoin statut / rôle / commentaire.",
+                "properties": {
+                    "role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/RoleEnum"
+                            }
+                        ],
+                        "title": "Rôle"
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Status643Enum"
+                            }
+                        ],
+                        "title": "Statut"
+                    },
+                    "comment": {
+                        "type": "string",
+                        "title": "Commentaire",
+                        "maxLength": 240
+                    },
+                    "placement": {
+                        "$ref": "#/components/schemas/PlacementEnum"
+                    }
+                },
+                "required": [
+                    "role"
+                ]
+            },
+            "SignupWriteRequest": {
+                "type": "object",
+                "description": "Inscription (création ou mise à jour) : personnage, rôle, statut, commentaire.",
+                "properties": {
+                    "character": {
+                        "type": "integer"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/RoleEnum"
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Status643Enum"
+                            }
+                        ],
+                        "default": "present"
+                    },
+                    "comment": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 240
+                    }
+                },
+                "required": [
+                    "character",
+                    "role"
                 ]
             },
             "SiteRoleEnum": {
@@ -2457,15 +3855,24 @@
                     "slug"
                 ]
             },
-            "StatusEnum": {
+            "Status643Enum": {
                 "enum": [
-                    "proposals",
-                    "votes",
-                    "closed",
-                    "validated"
+                    "present",
+                    "maybe",
+                    "late",
+                    "absent"
                 ],
                 "type": "string",
-                "description": "* `proposals` - proposals\n* `votes` - votes\n* `closed` - closed\n* `validated` - validated"
+                "description": "* `present` - Présent\n* `maybe` - Peut-être\n* `late` - En retard\n* `absent` - Absent"
+            },
+            "StatusA6aEnum": {
+                "enum": [
+                    "planned",
+                    "cancelled",
+                    "done"
+                ],
+                "type": "string",
+                "description": "* `planned` - Planifié\n* `cancelled` - Annulé\n* `done` - Terminé"
             },
             "ValidateRequest": {
                 "type": "object",

@@ -68,6 +68,35 @@ class Specialization(models.Model):
         return f"{self.player_class.name} {self.name}"
 
 
+class InstanceKind(models.TextChoices):
+    DUNGEON = "dungeon", "Donjon"
+    RAID = "raid", "Raid"
+    BATTLEGROUND = "battleground", "Champ de bataille"
+
+
+class Instance(models.Model):
+    """Donjon, raid ou champ de bataille, pour cibler un événement."""
+
+    slug = models.SlugField(unique=True)
+    name = models.CharField("Nom", max_length=64)
+    kind = models.CharField("Type", max_length=16, choices=InstanceKind.choices)
+    size = models.PositiveSmallIntegerField("Taille du groupe")
+    min_level = models.PositiveSmallIntegerField("Niveau minimum", default=1)
+    recommended_level = models.PositiveSmallIntegerField("Niveau recommandé", default=60)
+    default_tanks = models.PositiveSmallIntegerField("Tanks par défaut", null=True, blank=True)
+    default_heals = models.PositiveSmallIntegerField("Heals par défaut", null=True, blank=True)
+    default_dps = models.PositiveSmallIntegerField("DPS par défaut", null=True, blank=True)
+    is_forever = models.BooleanField("Spécifique WoW Forever", default=False)
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "instance"
+        ordering = ["kind", "order", "recommended_level", "name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class ProfessionKind(models.TextChoices):
     PRIMARY = "primary", "Principal"
     SECONDARY = "secondary", "Secondaire"

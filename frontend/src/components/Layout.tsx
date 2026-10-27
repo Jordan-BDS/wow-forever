@@ -6,6 +6,7 @@ import { Button, RoleBadge } from "./ui";
 
 const links = [
   { to: "/", label: "Accueil" },
+  { to: "/agenda", label: "Agenda" },
   { to: "/roster", label: "Roster" },
   { to: "/metiers", label: "Métiers" },
   { to: "/disponibilites", label: "Dispos" },

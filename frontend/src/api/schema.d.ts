@@ -128,6 +128,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/events/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère. */
+        get: operations["events_list"];
+        put?: never;
+        /** @description Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère. */
+        post: operations["events_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère. */
+        get: operations["events_retrieve"];
+        /** @description Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère. */
+        put: operations["events_update"];
+        post?: never;
+        /** @description Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère. */
+        delete: operations["events_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère. */
+        patch: operations["events_partial_update"];
+        trace?: never;
+    };
+    "/api/events/{id}/cancel/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère. */
+        post: operations["events_cancel_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{id}/duplicate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère. */
+        post: operations["events_duplicate_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{id}/restore/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Événements de l'agenda. Tout membre peut en créer ; l'organisateur ou un officier les gère. */
+        post: operations["events_restore_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{id}/signup/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description POST : s'inscrire ou modifier son inscription. DELETE : se désinscrire. */
+        post: operations["events_signup_create"];
+        /** @description POST : s'inscrire ou modifier son inscription. DELETE : se désinscrire. */
+        delete: operations["events_signup_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gamedata/": {
         parameters: {
             query?: never;
@@ -371,6 +478,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/signups/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Gestion d'une inscription par l'organisateur ou un officier (placement, statut, retrait). */
+        put: operations["signups_update"];
+        post?: never;
+        /** @description Gestion d'une inscription par l'organisateur ou un officier (placement, statut, retrait). */
+        delete: operations["signups_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Gestion d'une inscription par l'organisateur ou un officier (placement, statut, retrait). */
+        patch: operations["signups_partial_update"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -409,9 +535,9 @@ export interface components {
             /** Niveau */
             level?: number;
             /** Rôle principal */
-            main_role: components["schemas"]["MainRoleEnum"];
+            main_role: components["schemas"]["RoleEnum"];
             /** Rôle secondaire */
-            off_role?: components["schemas"]["OffRoleEnum"] | components["schemas"]["BlankEnum"];
+            off_role?: components["schemas"]["RoleEnum"] | components["schemas"]["BlankEnum"];
             /** @description Préfixé par la classe, ex. druid-restoration */
             specialization?: string | null;
             /** Main */
@@ -450,9 +576,9 @@ export interface components {
             /** Niveau */
             level?: number;
             /** Rôle principal */
-            main_role: components["schemas"]["MainRoleEnum"];
+            main_role: components["schemas"]["RoleEnum"];
             /** Rôle secondaire */
-            off_role?: components["schemas"]["OffRoleEnum"] | components["schemas"]["BlankEnum"];
+            off_role?: components["schemas"]["RoleEnum"] | components["schemas"]["BlankEnum"];
             /** @description Préfixé par la classe, ex. druid-restoration */
             specialization?: string | null;
             /** Main */
@@ -466,6 +592,131 @@ export interface components {
          * @enum {string}
          */
         DeactivationReasonEnum: "discord" | "manual";
+        DuplicateRequest: {
+            /** Format: date-time */
+            starts_at: string;
+        };
+        /**
+         * @description * `planned` - Planifié
+         *     * `cancelled` - Annulé
+         *     * `done` - Terminé
+         * @enum {string}
+         */
+        EffectiveStatusEnum: "planned" | "cancelled" | "done";
+        Event: {
+            readonly id: number;
+            /** Titre */
+            title: string;
+            /** Type */
+            kind: components["schemas"]["EventKindEnum"];
+            instance?: string | null;
+            /**
+             * Début
+             * Format: date-time
+             */
+            starts_at: string;
+            /**
+             * Fin
+             * Format: date-time
+             */
+            ends_at?: string | null;
+            description?: string;
+            readonly organizer: components["schemas"]["Owner"];
+            /**
+             * Taille max
+             * Format: int64
+             */
+            max_size?: number | null;
+            /**
+             * Tanks souhaités
+             * Format: int64
+             */
+            need_tanks?: number | null;
+            /**
+             * Heals souhaités
+             * Format: int64
+             */
+            need_heals?: number | null;
+            /**
+             * DPS souhaités
+             * Format: int64
+             */
+            need_dps?: number | null;
+            /** Niveau minimum */
+            min_level?: number | null;
+            /**
+             * Clôture des inscriptions
+             * Format: date-time
+             */
+            signup_deadline?: string | null;
+            /** Statut */
+            readonly status: components["schemas"]["StatusA6aEnum"];
+            readonly effective_status: components["schemas"]["EffectiveStatusEnum"];
+            readonly signups_open: boolean;
+            readonly signups: components["schemas"]["Signup"][];
+            readonly confirmed: components["schemas"]["RoleCount"];
+            readonly candidates: components["schemas"]["RoleCount"];
+            readonly my_signup: components["schemas"]["Signup"] | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        /**
+         * @description * `raid` - Raid
+         *     * `dungeon` - Donjon
+         *     * `pvp` - PvP
+         *     * `social` - Social / autre
+         * @enum {string}
+         */
+        EventKindEnum: "raid" | "dungeon" | "pvp" | "social";
+        EventRequest: {
+            /** Titre */
+            title: string;
+            /** Type */
+            kind: components["schemas"]["EventKindEnum"];
+            instance?: string | null;
+            /**
+             * Début
+             * Format: date-time
+             */
+            starts_at: string;
+            /**
+             * Fin
+             * Format: date-time
+             */
+            ends_at?: string | null;
+            description?: string;
+            /** @description Officiers seulement : désigner un autre organisateur. */
+            organizer_id?: number;
+            /**
+             * Taille max
+             * Format: int64
+             */
+            max_size?: number | null;
+            /**
+             * Tanks souhaités
+             * Format: int64
+             */
+            need_tanks?: number | null;
+            /**
+             * Heals souhaités
+             * Format: int64
+             */
+            need_heals?: number | null;
+            /**
+             * DPS souhaités
+             * Format: int64
+             */
+            need_dps?: number | null;
+            /** Niveau minimum */
+            min_level?: number | null;
+            /**
+             * Clôture des inscriptions
+             * Format: date-time
+             */
+            signup_deadline?: string | null;
+        };
         /**
          * @description * `alliance` - Alliance
          *     * `horde` - Horde
@@ -482,6 +733,7 @@ export interface components {
             classes: components["schemas"]["PlayerClass"][];
             races: components["schemas"]["Race"][];
             professions: components["schemas"]["Profession"][];
+            instances: components["schemas"]["Instance"][];
         };
         GuildAvailability: {
             readonly user: number;
@@ -510,19 +762,53 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        Instance: {
+            readonly id: number;
+            slug: string;
+            /** Nom */
+            name: string;
+            /** Type */
+            kind: components["schemas"]["InstanceKindEnum"];
+            /**
+             * Taille du groupe
+             * Format: int64
+             */
+            size: number;
+            /**
+             * Niveau minimum
+             * Format: int64
+             */
+            min_level?: number;
+            /**
+             * Niveau recommandé
+             * Format: int64
+             */
+            recommended_level?: number;
+            /**
+             * Tanks par défaut
+             * Format: int64
+             */
+            default_tanks?: number | null;
+            /**
+             * Heals par défaut
+             * Format: int64
+             */
+            default_heals?: number | null;
+            /**
+             * DPS par défaut
+             * Format: int64
+             */
+            default_dps?: number | null;
+            /** Spécifique WoW Forever */
+            is_forever?: boolean;
+        };
         /**
-         * @description * `primary` - Principal
-         *     * `secondary` - Secondaire
+         * @description * `dungeon` - Donjon
+         *     * `raid` - Raid
+         *     * `battleground` - Champ de bataille
          * @enum {string}
          */
-        KindEnum: "primary" | "secondary";
-        /**
-         * @description * `tank` - Tank
-         *     * `heal` - Heal
-         *     * `dps` - DPS
-         * @enum {string}
-         */
-        MainRoleEnum: "tank" | "heal" | "dps";
+        InstanceKindEnum: "dungeon" | "raid" | "battleground";
         Member: {
             readonly id: number;
             /** ID Discord */
@@ -550,13 +836,6 @@ export interface components {
              */
             readonly last_login: string | null;
         };
-        /**
-         * @description * `tank` - Tank
-         *     * `heal` - Heal
-         *     * `dps` - DPS
-         * @enum {string}
-         */
-        OffRoleEnum: "tank" | "heal" | "dps";
         Owner: {
             readonly id: number;
             /** Nom affiché */
@@ -573,15 +852,62 @@ export interface components {
             /** Niveau */
             level?: number;
             /** Rôle principal */
-            main_role?: components["schemas"]["MainRoleEnum"];
+            main_role?: components["schemas"]["RoleEnum"];
             /** Rôle secondaire */
-            off_role?: components["schemas"]["OffRoleEnum"] | components["schemas"]["BlankEnum"];
+            off_role?: components["schemas"]["RoleEnum"] | components["schemas"]["BlankEnum"];
             /** @description Préfixé par la classe, ex. druid-restoration */
             specialization?: string | null;
             /** Main */
             is_main?: boolean;
             note?: string;
             professions?: components["schemas"]["CharacterProfessionRequest"][];
+        };
+        PatchedEventRequest: {
+            /** Titre */
+            title?: string;
+            /** Type */
+            kind?: components["schemas"]["EventKindEnum"];
+            instance?: string | null;
+            /**
+             * Début
+             * Format: date-time
+             */
+            starts_at?: string;
+            /**
+             * Fin
+             * Format: date-time
+             */
+            ends_at?: string | null;
+            description?: string;
+            /** @description Officiers seulement : désigner un autre organisateur. */
+            organizer_id?: number;
+            /**
+             * Taille max
+             * Format: int64
+             */
+            max_size?: number | null;
+            /**
+             * Tanks souhaités
+             * Format: int64
+             */
+            need_tanks?: number | null;
+            /**
+             * Heals souhaités
+             * Format: int64
+             */
+            need_heals?: number | null;
+            /**
+             * DPS souhaités
+             * Format: int64
+             */
+            need_dps?: number | null;
+            /** Niveau minimum */
+            min_level?: number | null;
+            /**
+             * Clôture des inscriptions
+             * Format: date-time
+             */
+            signup_deadline?: string | null;
         };
         PatchedGuildSettingsRequest: {
             /** Nom de la guilde */
@@ -630,6 +956,23 @@ export interface components {
             /** Définit le nom de guilde */
             sets_guild_name?: boolean;
         };
+        /** @description Modification par l'organisateur : placement, et au besoin statut / rôle / commentaire. */
+        PatchedSignupManageRequest: {
+            /** Rôle */
+            role?: components["schemas"]["RoleEnum"];
+            /** Statut */
+            status?: components["schemas"]["Status643Enum"];
+            /** Commentaire */
+            comment?: string;
+            placement?: components["schemas"]["PlacementEnum"];
+        };
+        /**
+         * @description * `unplaced` - Non placé
+         *     * `confirmed` - Confirmé
+         *     * `bench` - Banc
+         * @enum {string}
+         */
+        PlacementEnum: "unplaced" | "confirmed" | "bench";
         PlayerClass: {
             readonly id: number;
             slug: string;
@@ -673,7 +1016,7 @@ export interface components {
             format_rule?: components["schemas"]["FormatRuleEnum"];
             /** Définit le nom de guilde */
             sets_guild_name?: boolean;
-            readonly status: components["schemas"]["StatusEnum"];
+            readonly status: components["schemas"]["PollStatusEnum"];
             readonly validated_proposal: number | null;
             /** Justification de la validation */
             readonly validation_note: string;
@@ -717,15 +1060,29 @@ export interface components {
             /** Définit le nom de guilde */
             sets_guild_name?: boolean;
         };
+        /**
+         * @description * `proposals` - proposals
+         *     * `votes` - votes
+         *     * `closed` - closed
+         *     * `validated` - validated
+         * @enum {string}
+         */
+        PollStatusEnum: "proposals" | "votes" | "closed" | "validated";
         Profession: {
             readonly id: number;
             slug: string;
             /** Nom */
             name: string;
             /** Type */
-            kind: components["schemas"]["KindEnum"];
+            kind: components["schemas"]["ProfessionKindEnum"];
             specializations: components["schemas"]["ProfessionSpecialization"][];
         };
+        /**
+         * @description * `primary` - Principal
+         *     * `secondary` - Secondaire
+         * @enum {string}
+         */
+        ProfessionKindEnum: "primary" | "secondary";
         ProfessionSpecialization: {
             readonly id: number;
             /** @description Préfixé par le métier, ex. engineering-gnomish */
@@ -765,8 +1122,66 @@ export interface components {
             faction?: components["schemas"]["FactionEnum"] | components["schemas"]["BlankEnum"];
             readonly classes: string[];
         };
+        RoleCount: {
+            tank: number;
+            heal: number;
+            dps: number;
+        };
+        /**
+         * @description * `tank` - Tank
+         *     * `heal` - Heal
+         *     * `dps` - DPS
+         * @enum {string}
+         */
+        RoleEnum: "tank" | "heal" | "dps";
         SetRoleRequest: {
             site_role: components["schemas"]["SiteRoleEnum"];
+        };
+        Signup: {
+            readonly id: number;
+            readonly event: number;
+            readonly user: components["schemas"]["Owner"];
+            readonly character: components["schemas"]["SignupCharacter"];
+            /** Rôle */
+            readonly role: components["schemas"]["RoleEnum"];
+            /** Statut */
+            readonly status: components["schemas"]["Status643Enum"];
+            /** Commentaire */
+            readonly comment: string;
+            readonly placement: components["schemas"]["PlacementEnum"];
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        SignupCharacter: {
+            readonly id: number;
+            /** Nom */
+            readonly name: string;
+            readonly player_class: string;
+            /** Niveau */
+            readonly level: number;
+            /** Rôle principal */
+            readonly main_role: components["schemas"]["RoleEnum"];
+            /** Rôle secondaire */
+            readonly off_role: components["schemas"]["RoleEnum"];
+        };
+        /** @description Modification par l'organisateur : placement, et au besoin statut / rôle / commentaire. */
+        SignupManageRequest: {
+            /** Rôle */
+            role: components["schemas"]["RoleEnum"];
+            /** Statut */
+            status?: components["schemas"]["Status643Enum"];
+            /** Commentaire */
+            comment?: string;
+            placement?: components["schemas"]["PlacementEnum"];
+        };
+        /** @description Inscription (création ou mise à jour) : personnage, rôle, statut, commentaire. */
+        SignupWriteRequest: {
+            character: number;
+            role: components["schemas"]["RoleEnum"];
+            /** @default present */
+            status: components["schemas"]["Status643Enum"];
+            /** @default  */
+            comment: string;
         };
         /**
          * @description * `member` - Membre
@@ -790,13 +1205,20 @@ export interface components {
             roles: string[];
         };
         /**
-         * @description * `proposals` - proposals
-         *     * `votes` - votes
-         *     * `closed` - closed
-         *     * `validated` - validated
+         * @description * `present` - Présent
+         *     * `maybe` - Peut-être
+         *     * `late` - En retard
+         *     * `absent` - Absent
          * @enum {string}
          */
-        StatusEnum: "proposals" | "votes" | "closed" | "validated";
+        Status643Enum: "present" | "maybe" | "late" | "absent";
+        /**
+         * @description * `planned` - Planifié
+         *     * `cancelled` - Annulé
+         *     * `done` - Terminé
+         * @enum {string}
+         */
+        StatusA6aEnum: "planned" | "cancelled" | "done";
         ValidateRequest: {
             proposal: number;
             note?: string;
@@ -1112,6 +1534,312 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Character"];
                 };
+            };
+        };
+    };
+    events_list: {
+        parameters: {
+            query?: {
+                /** @description Début de la fenêtre (ISO 8601). */
+                from?: string;
+                /** @description Fin de la fenêtre (ISO 8601). */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"][];
+                };
+            };
+        };
+    };
+    events_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["EventRequest"];
+                "multipart/form-data": components["schemas"]["EventRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    events_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) événement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    events_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) événement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["EventRequest"];
+                "multipart/form-data": components["schemas"]["EventRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    events_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) événement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    events_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) événement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedEventRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedEventRequest"];
+                "multipart/form-data": components["schemas"]["PatchedEventRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    events_cancel_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) événement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    events_duplicate_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) événement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DuplicateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DuplicateRequest"];
+                "multipart/form-data": components["schemas"]["DuplicateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    events_restore_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) événement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    events_signup_create: {
+        parameters: {
+            query?: {
+                /** @description Officiers / organisateur : inscrire un autre joueur. */
+                user?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) événement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SignupWriteRequest"];
+                "multipart/form-data": components["schemas"]["SignupWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signup"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signup"];
+                };
+            };
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    events_signup_destroy: {
+        parameters: {
+            query?: {
+                /** @description Officiers / organisateur : inscrire un autre joueur. */
+                user?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) événement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signup"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signup"];
+                };
+            };
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -1551,6 +2279,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Proposal"];
+                };
+            };
+        };
+    };
+    signups_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) inscription. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupManageRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SignupManageRequest"];
+                "multipart/form-data": components["schemas"]["SignupManageRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signup"];
+                };
+            };
+        };
+    };
+    signups_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) inscription. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    signups_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) inscription. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedSignupManageRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedSignupManageRequest"];
+                "multipart/form-data": components["schemas"]["PatchedSignupManageRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signup"];
                 };
             };
         };

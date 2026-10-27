@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import PlayerClass, Profession, ProfessionSpecialization, Race, Specialization
+from .models import Instance, PlayerClass, Profession, ProfessionSpecialization, Race, Specialization
 
 
 class SpecializationSerializer(serializers.ModelSerializer):
@@ -42,7 +42,26 @@ class ProfessionSerializer(serializers.ModelSerializer):
         fields = ["id", "slug", "name", "kind", "specializations"]
 
 
+class InstanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Instance
+        fields = [
+            "id",
+            "slug",
+            "name",
+            "kind",
+            "size",
+            "min_level",
+            "recommended_level",
+            "default_tanks",
+            "default_heals",
+            "default_dps",
+            "is_forever",
+        ]
+
+
 class GameDataSerializer(serializers.Serializer):
     classes = PlayerClassSerializer(many=True)
     races = RaceSerializer(many=True)
     professions = ProfessionSerializer(many=True)
+    instances = InstanceSerializer(many=True)
