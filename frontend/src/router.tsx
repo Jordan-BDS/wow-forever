@@ -7,6 +7,7 @@ import { EventFormPage } from "./pages/EventFormPage";
 import { EventPage } from "./pages/EventPage";
 import { CharacterFormPage } from "./pages/CharacterFormPage";
 import { CharacterPage } from "./pages/CharacterPage";
+import { CharactersPage } from "./pages/CharactersPage";
 import { CraftsPage } from "./pages/CraftsPage";
 import { GuildPage } from "./pages/GuildPage";
 import { HomePage } from "./pages/HomePage";
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
           { path: "agenda/:id", Component: EventPage },
           { path: "agenda/:id/modifier", Component: EventFormPage },
           { path: "roster", Component: RosterPage },
+          { path: "personnages", Component: CharactersPage },
           { path: "personnages/nouveau", Component: CharacterFormPage },
           { path: "personnages/:id", Component: CharacterPage },
           { path: "personnages/:id/modifier", Component: CharacterFormPage },
