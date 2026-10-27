@@ -3,7 +3,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Instance, PlayerClass, Profession, Race
+from .index_views import ImportRunSerializer
+from .models import ImportRun, Instance, PlayerClass, Profession, Race
 from .serializers import GameDataSerializer
 
 
@@ -18,4 +19,7 @@ class GameDataView(APIView):
             "professions": Profession.objects.prefetch_related("specializations"),
             "instances": Instance.objects.all(),
         }
-        return Response(GameDataSerializer(data).data)
+        payload = GameDataSerializer(data).data
+        last = ImportRun.objects.first()
+        payload["import_run"] = ImportRunSerializer(last).data if last else None
+        return Response(payload)

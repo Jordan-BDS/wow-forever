@@ -1,0 +1,4 @@
+ID,Name_lang,BackgroundFile,Description_lang,OrderIndex,Field_4_4_0_53627_004,ClassMask,CategoryEnumID,SpellIconID,RoleMask,MasterySpellID_0,MasterySpellID_1
+41,Feu,MageFire,,1,0,128,0,135810,0,0,0
+61,Givre,MageFrost,,2,0,128,0,135846,0,0,0
+81,Arcanes,MageArcane,,0,0,128,0,135932,0,0,0

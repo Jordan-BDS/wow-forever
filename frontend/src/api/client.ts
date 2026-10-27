@@ -30,6 +30,10 @@ export type Signup = components["schemas"]["Signup"];
 export type SignupStatus = Signup["status"];
 export type Placement = Signup["placement"];
 export type SignupWriteRequest = components["schemas"]["SignupWriteRequest"];
+export type ItemIndex = components["schemas"]["Item"];
+export type ItemDetail = components["schemas"]["ItemDetail"];
+export type RecipeIndex = components["schemas"]["Recipe"];
+export type EnchantmentIndex = components["schemas"]["Enchantment"];
 
 function readCookie(name: string): string | undefined {
   return document.cookie

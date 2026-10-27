@@ -65,3 +65,4 @@ class GameDataSerializer(serializers.Serializer):
     races = RaceSerializer(many=True)
     professions = ProfessionSerializer(many=True)
     instances = InstanceSerializer(many=True)
+    import_run = serializers.DictField(read_only=True, allow_null=True, required=False)

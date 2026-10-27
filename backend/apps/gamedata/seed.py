@@ -74,7 +74,7 @@ RACES = [
     ("tauren", "Tauren", "horde", ["warrior", "hunter", "shaman", "druid"]),
     ("troll", "Troll", "horde", ["warrior", "hunter", "rogue", "priest", "shaman", "mage"]),
     # WoW Forever : faction et classes à confirmer à la sortie (cf. cahier des charges, section 3).
-    ("skyborn", "Skyborn", "", ["warrior", "hunter", "rogue", "druid", "shaman", "mage"]),
+    ("skyborn", "Éolide", "", ["warrior", "hunter", "rogue", "druid", "shaman", "mage"]),
 ]
 
 PROFESSIONS = [

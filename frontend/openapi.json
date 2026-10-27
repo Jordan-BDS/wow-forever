@@ -491,6 +491,51 @@
                 }
             }
         },
+        "/api/enchantments/": {
+            "get": {
+                "operationId": "enchantments_list",
+                "description": "Enchantements, filtrables par emplacement (`slot`) via le masque d'InventoryType.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "slot",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "tags": [
+                    "enchantments"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Enchantment"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/events/": {
             "get": {
                 "operationId": "events_list",
@@ -1145,6 +1190,96 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/GuildSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/items/": {
+            "get": {
+                "operationId": "items_list",
+                "description": "Recherche d'objets : `q` (nom FR ou EN), `slot` (emplacements séparés par des virgules).",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "equippable",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "Seulement les objets équipables."
+                    },
+                    {
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Début ou fragment du nom (français ou anglais)."
+                    },
+                    {
+                        "in": "query",
+                        "name": "slot",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Emplacements acceptés, ex. head ou finger,trinket."
+                    }
+                ],
+                "tags": [
+                    "items"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Item"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/items/{id}/": {
+            "get": {
+                "operationId": "items_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "items"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ItemDetail"
                                 }
                             }
                         },
@@ -1815,6 +1950,51 @@
                 }
             }
         },
+        "/api/recipes/": {
+            "get": {
+                "operationId": "recipes_list",
+                "description": "Recettes : `profession` (slug), `q` (nom de recette ou d'objet produit).",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "profession",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "tags": [
+                    "recipes"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Recipe"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/signups/{id}/": {
             "put": {
                 "operationId": "signups_update",
@@ -1950,6 +2130,42 @@
                 "responses": {
                     "204": {
                         "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/talents/{slug}/": {
+            "get": {
+                "operationId": "talents_retrieve",
+                "description": "Les trois arbres de talents d'une classe (par slug).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "talents"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClassTalents"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -2255,6 +2471,24 @@
                     "race"
                 ]
             },
+            "ClassTalents": {
+                "type": "object",
+                "properties": {
+                    "player_class": {
+                        "type": "string"
+                    },
+                    "trees": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TalentTree"
+                        }
+                    }
+                },
+                "required": [
+                    "player_class",
+                    "trees"
+                ]
+            },
             "DeactivationReasonEnum": {
                 "enum": [
                     "discord",
@@ -2292,6 +2526,74 @@
                 ],
                 "type": "string",
                 "description": "* `planned` - Planifié\n* `cancelled` - Annulé\n* `done` - Terminé"
+            },
+            "Enchantment": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "spell_id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 80
+                    },
+                    "icon_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "stats": {},
+                    "slot_mask": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "description": "Masque d'InventoryType autorisés (0 = inconnu)"
+                    },
+                    "equipped_class": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "description": "Classe d'objet requise (2 arme, 4 armure), -1 = toutes"
+                    },
+                    "equipped_subclass_mask": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "description": "Masque de sous-classes autorisées (0 = toutes)"
+                    },
+                    "required_skill": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "required_skill_rank": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    }
+                },
+                "required": [
+                    "icon_url",
+                    "id",
+                    "name"
+                ]
             },
             "Event": {
                 "type": "object",
@@ -2610,10 +2912,17 @@
                         "items": {
                             "$ref": "#/components/schemas/Instance"
                         }
+                    },
+                    "import_run": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "readOnly": true,
+                        "nullable": true
                     }
                 },
                 "required": [
                     "classes",
+                    "import_run",
                     "instances",
                     "professions",
                     "races"
@@ -2800,6 +3109,252 @@
                 ],
                 "type": "string",
                 "description": "* `dungeon` - Donjon\n* `raid` - Raid\n* `battleground` - Champ de bataille"
+            },
+            "Item": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "name_en": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "quality": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "item_level": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "required_level": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "inventory_type": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "slot": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "class_id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "subclass_id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "allowable_class": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "description": "Masque de classes, -1 = toutes"
+                    },
+                    "is_unique": {
+                        "type": "boolean"
+                    },
+                    "item_set": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 80
+                    },
+                    "icon_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "stats": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer"
+                        },
+                        "readOnly": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "is_forever": {
+                        "type": "boolean",
+                        "title": "Géré à la main",
+                        "description": "Ajout ou correction manuelle, jamais écrasé par l'import."
+                    }
+                },
+                "required": [
+                    "icon_url",
+                    "id",
+                    "name",
+                    "slot",
+                    "stats"
+                ]
+            },
+            "ItemDetail": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "name_en": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "quality": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "item_level": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "required_level": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "inventory_type": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "slot": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "class_id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "subclass_id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "allowable_class": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "description": "Masque de classes, -1 = toutes"
+                    },
+                    "is_unique": {
+                        "type": "boolean"
+                    },
+                    "item_set": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ItemSet"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 80
+                    },
+                    "icon_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "stats": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer"
+                        },
+                        "readOnly": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "is_forever": {
+                        "type": "boolean",
+                        "title": "Géré à la main",
+                        "description": "Ajout ou correction manuelle, jamais écrasé par l'import."
+                    }
+                },
+                "required": [
+                    "icon_url",
+                    "id",
+                    "item_set",
+                    "name",
+                    "slot",
+                    "stats"
+                ]
+            },
+            "ItemSet": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "bonuses": {
+                        "description": "[{threshold, spell_id, description}]"
+                    },
+                    "item_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "item_ids",
+                    "name"
+                ]
             },
             "Member": {
                 "type": "object",
@@ -3666,6 +4221,93 @@
                     "slug"
                 ]
             },
+            "Recipe": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "description": "ID du sort de fabrication"
+                    },
+                    "profession": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 80
+                    },
+                    "icon_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "min_skill": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "description": "Estimé depuis les paliers jaune/gris du client, corrigeable à la main."
+                    },
+                    "skill_yellow": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "skill_grey": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "product": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Item"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "reagents": {
+                        "description": "[{item_id, name, count}]"
+                    },
+                    "acquire_method": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "source": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "is_forever": {
+                        "type": "boolean",
+                        "title": "Géré à la main",
+                        "description": "Ajout ou correction manuelle, jamais écrasé par l'import."
+                    }
+                },
+                "required": [
+                    "icon_url",
+                    "id",
+                    "name",
+                    "product",
+                    "profession",
+                    "source"
+                ]
+            },
             "RoleCount": {
                 "type": "object",
                 "properties": {
@@ -3959,6 +4601,111 @@
                 ],
                 "type": "string",
                 "description": "* `planned` - Planifié\n* `cancelled` - Annulé\n* `done` - Terminé"
+            },
+            "Talent": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 80
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 80
+                    },
+                    "icon_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "row": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "column": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "rank_spells": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "readOnly": true
+                    },
+                    "max_rank": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "prerequisite": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true
+                    },
+                    "prerequisite_rank": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    }
+                },
+                "required": [
+                    "column",
+                    "icon_url",
+                    "id",
+                    "max_rank",
+                    "name",
+                    "rank_spells",
+                    "row"
+                ]
+            },
+            "TalentTree": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "background": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "order": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "talents": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Talent"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "talents"
+                ]
             },
             "ValidateRequest": {
                 "type": "object",
