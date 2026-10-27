@@ -63,6 +63,14 @@
   }
 }
 
+/* Barres de navigation : défilement possible sur mobile, sans barre visible. */
+.nav-scroll {
+  scrollbar-width: none;
+}
+.nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 /* Filet d'or brodé, utilisé sous les titres et dans la bannière. */
 .rule-gold {
   height: 1px;
