@@ -52,6 +52,8 @@ TABLES = [
     "Talent",
     "TalentTab",
     "ManifestInterfaceData",
+    "ItemModifiedAppearance",
+    "ItemAppearance",
 ]
 
 EFFECT_CREATE_ITEM = 24
@@ -106,7 +108,8 @@ class ClientData:
         return icons
 
     def spell_icon(self, spell_id: str) -> str:
-        return self.spell_icons.get(spell_id, "")
+        icon = self.spell_icons.get(spell_id, "")
+        return "" if icon == "temp" else icon
 
 
 # --- objets -------------------------------------------------------------------
@@ -134,6 +137,15 @@ def item_stats(row: dict, rand_prop: dict) -> dict[str, int]:
 def import_items(data: ClientData) -> dict[str, int]:
     english = {r["ID"]: r["Display_lang"] for r in read(data.directory, "ItemSparse.enUS")}
     base = {r["ID"]: r for r in read(data.directory, "Item")}
+    appearance_icon = {
+        r["ID"]: data.icons.get(r["DefaultIconFileDataID"], "")
+        for r in read(data.directory, "ItemAppearance")
+    }
+    fallback_icon: dict[str, str] = {}
+    for row in read(data.directory, "ItemModifiedAppearance"):
+        icon = appearance_icon.get(row["ItemAppearanceID"], "")
+        if icon and (row["ItemID"] not in fallback_icon or to_int(row["OrderIndex"]) == 0):
+            fallback_icon[row["ItemID"]] = icon
 
     sets = []
     set_bonuses = defaultdict(list)
@@ -173,7 +185,7 @@ def import_items(data: ClientData) -> dict[str, int]:
                 allowable_class=to_int(row["AllowableClass"], -1),
                 is_unique=to_int(row["MaxCount"]) == 1,
                 item_set_id=set_id if set_id in known_sets else None,
-                icon=data.icons.get(extra.get("IconFileDataID", ""), ""),
+                icon=data.icons.get(extra.get("IconFileDataID", ""), "") or fallback_icon.get(row["ID"], ""),
                 stats=item_stats(row, data.rand_prop),
                 description=row["Description_lang"][:255],
             )
@@ -371,6 +383,7 @@ def import_recipes(data: ClientData) -> dict[str, int]:
             if to_int(row[f"Reagent_{i}"])
         ]
     item_names = dict(Item.objects.values_list("id", "name"))
+    item_icons = dict(Item.objects.values_list("id", "icon"))
     protected = set(Recipe.objects.filter(is_forever=True).values_list("id", flat=True))
 
     recipes = {}
@@ -399,7 +412,7 @@ def import_recipes(data: ClientData) -> dict[str, int]:
             id=to_int(spell_id),
             profession=professions[slug],
             name=name,
-            icon=data.spell_icon(spell_id),
+            icon=data.spell_icon(spell_id) or item_icons.get(product_id or 0, ""),
             min_skill=estimate_min_skill(to_int(row["TrivialSkillLineRankLow"])),
             skill_yellow=to_int(row["TrivialSkillLineRankLow"]),
             skill_grey=to_int(row["TrivialSkillLineRankHigh"]),

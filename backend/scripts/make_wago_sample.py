@@ -99,5 +99,12 @@ items = keep("Item", lambda r: r["ID"] in ITEM_IDS)
 levels = {r["ItemLevel"] for r in item_sparse}
 keep("RandPropPoints", lambda r: r["ID"] in levels)
 
-icon_ids = {r["IconFileDataID"] for r in items} | {r["SpellIconFileDataID"] for r in spell_misc}
+appearances = keep("ItemModifiedAppearance", lambda r: r["ItemID"] in ITEM_IDS)
+appearance_ids = {r["ItemAppearanceID"] for r in appearances}
+item_appearances = keep("ItemAppearance", lambda r: r["ID"] in appearance_ids)
+icon_ids = (
+    {r["IconFileDataID"] for r in items}
+    | {r["SpellIconFileDataID"] for r in spell_misc}
+    | {r["DefaultIconFileDataID"] for r in item_appearances}
+)
 keep("ManifestInterfaceData", lambda r: r["ID"] in icon_ids)
