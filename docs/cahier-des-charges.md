@@ -660,8 +660,8 @@ périmètre a été réduit pour s'appuyer sur Wowhead.
 | **5 — Fiche de personnage** | — | Sets d'équipement, calculateur de talents et builds, projection, somme des stats brutes | 4 |
 | **6 — Catalogue et crafts** | — | Catalogue de recettes, recettes connues, « qui sait crafter ? », demandes de craft | 6 |
 
-Les cibles des lots 0 à 4 sont indicatives ; les lots 5 et 6 seront datés une fois le lot 3 livré, et leur périmètre
-réévalué à la lumière de la couverture de WoW Forever par Wowhead.
+**État au 27 octobre 2026 : les six lots sont livrés et fusionnés dans `main`.** Reste la mise en ligne (VPS,
+domaine, application Discord, import des données du jeu en production) et les retours d'usage.
 
 ### Après le MVP (backlog)
 
