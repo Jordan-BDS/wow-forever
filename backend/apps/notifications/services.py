@@ -168,3 +168,50 @@ def poll_validated(poll: Poll) -> Notification:
         text += f"\n_{poll.validation_note}_"
     text += f"\n{poll_url(poll)}"
     return notify_channel(NotificationKind.POLL_VALIDATED, text)
+
+
+# --- demandes de craft ------------------------------------------------------------
+
+
+def craft_url(craft) -> str:
+    return site_url(f"/crafts?demande={craft.pk}")
+
+
+def craft_requested(craft) -> list[Notification]:
+    label = f"**{craft.quantity} × {craft.recipe.name}**"
+    created = [
+        notify_channel(
+            NotificationKind.CRAFT_REQUEST,
+            f"🔨 Demande de craft : {label} pour {craft.requester.display_name}"
+            + (f" (cible : {craft.target_character.name})" if craft.target_character else "")
+            + f"\n{craft_url(craft)}",
+        )
+    ]
+    if craft.target_character and craft.target_character.owner_id != craft.requester_id:
+        dm = notify_user(
+            craft.target_character.owner,
+            NotificationKind.CRAFT_REQUEST,
+            f"🔨 {craft.requester.display_name} te demande {label} avec {craft.target_character.name}.\n"
+            f"{craft_url(craft)}",
+        )
+        if dm:
+            created.append(dm)
+    return created
+
+
+def craft_updated(craft) -> Notification | None:
+    label = f"**{craft.quantity} × {craft.recipe.name}**"
+    if craft.status == "taken" and craft.crafter:
+        who = f"{craft.crafter.name} ({craft.crafter.owner.display_name})"
+        text = f"🔨 {who} prend en charge ta demande {label}."
+    elif craft.status == "delivered":
+        text = f"✅ Ta demande {label} est livrée."
+    elif craft.status == "cancelled":
+        if not craft.crafter:
+            return None
+        return notify_user(
+            craft.crafter.owner, NotificationKind.CRAFT_UPDATE, f"❌ La demande {label} a été annulée."
+        )
+    else:
+        return None
+    return notify_user(craft.requester, NotificationKind.CRAFT_UPDATE, f"{text}\n{craft_url(craft)}")

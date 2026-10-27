@@ -165,3 +165,35 @@ def signup_from_discord(discord_id: str, event_id: int, character_id: int, role:
         f"{verb} : **{signup.character.name}** en {Role(role).label} pour **{event.title}** "
         f"({discord_time(event.starts_at, 'f')}). {event_url(event)}"
     )
+
+
+def craft_search_text(query: str) -> str:
+    """Réponse de /craft : recettes correspondantes et personnages qui les connaissent."""
+    from django.db.models import Q
+
+    from apps.gamedata.models import Recipe
+
+    query = query.strip()
+    if len(query) < 2:
+        return "Donne au moins deux lettres du nom d'une recette ou d'un objet."
+    recipes = (
+        Recipe.objects.filter(
+            Q(name__icontains=query)
+            | Q(product__name__icontains=query)
+            | Q(product__name_en__icontains=query)
+        )
+        .select_related("profession")
+        .prefetch_related("known_by__character__owner", "known_by__character__professions")[:8]
+    )
+    lines = []
+    for recipe in recipes:
+        crafters = [
+            f"{k.character.name} ({k.character.owner.display_name})"
+            for k in recipe.known_by.all()
+            if k.character.owner.is_active
+        ]
+        who = ", ".join(crafters) if crafters else "personne pour l'instant"
+        lines.append(f"• **{recipe.name}** ({recipe.profession.name} {recipe.min_skill}) : {who}")
+    if not lines:
+        return f"Aucune recette ne correspond à « {query} »."
+    return "\n".join(lines) + f"\n{settings.SITE_URL}/crafts?q={query}"

@@ -44,6 +44,7 @@ class GuildBot(commands.Bot):
     async def setup_hook(self) -> None:
         self.tree.add_command(events_command, guild=self.guild_object)
         self.tree.add_command(signup_command, guild=self.guild_object)
+        self.tree.add_command(craft_command, guild=self.guild_object)
         await self.tree.sync(guild=self.guild_object)
         self.dispatch_outbox.start()
         self.scan_reminders.start()
@@ -149,6 +150,13 @@ async def _character_autocomplete(
 ) -> list[app_commands.Choice[int]]:
     choices = await db(services.character_choices)(str(interaction.user.id), current)
     return [app_commands.Choice(name=label, value=pk) for label, pk in choices]
+
+
+@app_commands.command(name="craft", description="Qui sait crafter quoi ?")
+@app_commands.describe(recherche="Nom de recette ou d'objet")
+async def craft_command(interaction: discord.Interaction, recherche: str) -> None:
+    text = await db(services.craft_search_text)(recherche)
+    await interaction.response.send_message(text, ephemeral=True)
 
 
 def run() -> None:

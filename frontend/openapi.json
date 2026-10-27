@@ -1340,6 +1340,130 @@
                 }
             }
         },
+        "/api/characters/{id}/recipes/": {
+            "get": {
+                "operationId": "characters_recipes_retrieve",
+                "description": "GET : IDs des recettes connues. PUT : remplace la liste. POST : coche les recettes de formateur.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/KnownRecipes"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "characters_recipes_create",
+                "description": "Coche toutes les recettes de formateur accessibles au niveau de compétence de chaque métier.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/KnownRecipes"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "characters_recipes_update",
+                "description": "GET : IDs des recettes connues. PUT : remplace la liste. POST : coche les recettes de formateur.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/KnownRecipesRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/KnownRecipesRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/KnownRecipesRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/KnownRecipes"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/characters/{id}/set-main/": {
             "post": {
                 "operationId": "characters_set_main_create",
@@ -1369,6 +1493,294 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Character"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/craft-requests/": {
+            "get": {
+                "operationId": "craft_requests_list",
+                "description": "Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "scope",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "open (défaut), mine, doable, all"
+                    }
+                ],
+                "tags": [
+                    "craft-requests"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CraftRequest"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "craft_requests_create",
+                "description": "Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle.",
+                "tags": [
+                    "craft-requests"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CraftRequestRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CraftRequestRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CraftRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CraftRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/craft-requests/{id}/": {
+            "get": {
+                "operationId": "craft_requests_retrieve",
+                "description": "Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) demande de craft.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "craft-requests"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CraftRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/craft-requests/{id}/cancel/": {
+            "post": {
+                "operationId": "craft_requests_cancel_create",
+                "description": "Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) demande de craft.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "craft-requests"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CraftRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/craft-requests/{id}/deliver/": {
+            "post": {
+                "operationId": "craft_requests_deliver_create",
+                "description": "Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) demande de craft.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "craft-requests"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CraftRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/craft-requests/{id}/release/": {
+            "post": {
+                "operationId": "craft_requests_release_create",
+                "description": "Le crafteur rend une demande prise en charge : elle redevient ouverte.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) demande de craft.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "craft-requests"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CraftRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/craft-requests/{id}/take/": {
+            "post": {
+                "operationId": "craft_requests_take_create",
+                "description": "Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) demande de craft.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "craft-requests"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TakeRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TakeRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TakeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CraftRequest"
                                 }
                             }
                         },
@@ -2843,6 +3255,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "known",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "Seulement les recettes connues par au moins un perso."
+                    },
+                    {
+                        "in": "query",
                         "name": "profession",
                         "schema": {
                             "type": "string"
@@ -3373,6 +3793,229 @@
                 "required": [
                     "player_class",
                     "trees"
+                ]
+            },
+            "CraftRequest": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "requester": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Owner"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "recipe": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Recipe"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "maximum": 200,
+                        "minimum": 1,
+                        "title": "Quantité"
+                    },
+                    "target_character": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CrafterCharacter"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "materials": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MaterialsEnum"
+                            }
+                        ],
+                        "default": "none"
+                    },
+                    "note": {
+                        "type": "string",
+                        "maxLength": 240
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CraftStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "crafter": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CrafterCharacter"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "taken_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "delivered_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "crafter",
+                    "created_at",
+                    "delivered_at",
+                    "id",
+                    "recipe",
+                    "requester",
+                    "status",
+                    "taken_at",
+                    "target_character",
+                    "updated_at"
+                ]
+            },
+            "CraftRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "recipe_id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "description": "ID du sort de fabrication",
+                        "writeOnly": true
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "maximum": 200,
+                        "minimum": 1,
+                        "title": "Quantité"
+                    },
+                    "target_character_id": {
+                        "type": "integer",
+                        "writeOnly": true,
+                        "nullable": true
+                    },
+                    "materials": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MaterialsEnum"
+                            }
+                        ],
+                        "default": "none"
+                    },
+                    "note": {
+                        "type": "string",
+                        "maxLength": 240
+                    }
+                },
+                "required": [
+                    "recipe_id"
+                ]
+            },
+            "CraftStatusEnum": {
+                "enum": [
+                    "open",
+                    "taken",
+                    "delivered",
+                    "cancelled"
+                ],
+                "type": "string",
+                "description": "* `open` - Ouverte\n* `taken` - Prise en charge\n* `delivered` - Livrée\n* `cancelled` - Annulée"
+            },
+            "Crafter": {
+                "type": "object",
+                "properties": {
+                    "character_id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "player_class": {
+                        "type": "string"
+                    },
+                    "level": {
+                        "type": "integer"
+                    },
+                    "skill": {
+                        "type": "integer"
+                    },
+                    "owner_id": {
+                        "type": "integer"
+                    },
+                    "owner_name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "character_id",
+                    "level",
+                    "name",
+                    "owner_id",
+                    "owner_name",
+                    "player_class",
+                    "skill"
+                ]
+            },
+            "CrafterCharacter": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Nom"
+                    },
+                    "player_class": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "level": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "title": "Niveau"
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Owner"
+                            }
+                        ],
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "level",
+                    "name",
+                    "owner",
+                    "player_class"
                 ]
             },
             "DeactivationReasonEnum": {
@@ -4461,6 +5104,43 @@
                     "name"
                 ]
             },
+            "KnownRecipes": {
+                "type": "object",
+                "properties": {
+                    "recipes": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "required": [
+                    "recipes"
+                ]
+            },
+            "KnownRecipesRequest": {
+                "type": "object",
+                "properties": {
+                    "recipes": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "required": [
+                    "recipes"
+                ]
+            },
+            "MaterialsEnum": {
+                "enum": [
+                    "none",
+                    "partial",
+                    "all"
+                ],
+                "type": "string",
+                "description": "* `none` - Aucun composant fourni\n* `partial` - Composants partiels\n* `all` - Tous les composants fournis"
+            },
             "Member": {
                 "type": "object",
                 "properties": {
@@ -5426,6 +6106,13 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "crafters": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Crafter"
+                        },
+                        "readOnly": true
+                    },
                     "is_forever": {
                         "type": "boolean",
                         "title": "Géré à la main",
@@ -5433,12 +6120,77 @@
                     }
                 },
                 "required": [
+                    "crafters",
                     "icon_url",
                     "id",
                     "name",
                     "product",
                     "profession",
                     "source"
+                ]
+            },
+            "RecipeRequest": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "description": "ID du sort de fabrication"
+                    },
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 80
+                    },
+                    "min_skill": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "description": "Estimé depuis les paliers jaune/gris du client, corrigeable à la main."
+                    },
+                    "skill_yellow": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "skill_grey": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "reagents": {
+                        "description": "[{item_id, name, count}]"
+                    },
+                    "acquire_method": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
+                    },
+                    "is_forever": {
+                        "type": "boolean",
+                        "title": "Géré à la main",
+                        "description": "Ajout ou correction manuelle, jamais écrasé par l'import."
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
                 ]
             },
             "RoleCount": {
@@ -5894,6 +6646,17 @@
                 ],
                 "type": "string",
                 "description": "* `planned` - Planifié\n* `cancelled` - Annulé\n* `done` - Terminé"
+            },
+            "TakeRequest": {
+                "type": "object",
+                "properties": {
+                    "character": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "character"
+                ]
             },
             "Talent": {
                 "type": "object",

@@ -289,6 +289,25 @@ export interface paths {
         patch: operations["characters_partial_update"];
         trace?: never;
     };
+    "/api/characters/{id}/recipes/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description GET : IDs des recettes connues. PUT : remplace la liste. POST : coche les recettes de formateur. */
+        get: operations["characters_recipes_retrieve"];
+        /** @description GET : IDs des recettes connues. PUT : remplace la liste. POST : coche les recettes de formateur. */
+        put: operations["characters_recipes_update"];
+        /** @description Coche toutes les recettes de formateur accessibles au niveau de compétence de chaque métier. */
+        post: operations["characters_recipes_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/characters/{id}/set-main/": {
         parameters: {
             query?: never;
@@ -300,6 +319,109 @@ export interface paths {
         put?: never;
         /** @description Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier. */
         post: operations["characters_set_main_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/craft-requests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle. */
+        get: operations["craft_requests_list"];
+        put?: never;
+        /** @description Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle. */
+        post: operations["craft_requests_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/craft-requests/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle. */
+        get: operations["craft_requests_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/craft-requests/{id}/cancel/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle. */
+        post: operations["craft_requests_cancel_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/craft-requests/{id}/deliver/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle. */
+        post: operations["craft_requests_deliver_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/craft-requests/{id}/release/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Le crafteur rend une demande prise en charge : elle redevient ouverte. */
+        post: operations["craft_requests_release_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/craft-requests/{id}/take/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Demandes de craft : création par tout membre ; prise, livraison et annulation selon le rôle. */
+        post: operations["craft_requests_take_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -869,6 +991,66 @@ export interface components {
             player_class: string;
             trees: components["schemas"]["TalentTree"][];
         };
+        CraftRequest: {
+            readonly id: number;
+            readonly requester: components["schemas"]["Owner"];
+            readonly recipe: components["schemas"]["Recipe"];
+            /** Quantité */
+            quantity?: number;
+            readonly target_character: components["schemas"]["CrafterCharacter"];
+            /** @default none */
+            materials: components["schemas"]["MaterialsEnum"];
+            note?: string;
+            readonly status: components["schemas"]["CraftStatusEnum"];
+            readonly crafter: components["schemas"]["CrafterCharacter"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            /** Format: date-time */
+            readonly taken_at: string | null;
+            /** Format: date-time */
+            readonly delivered_at: string | null;
+        };
+        CraftRequestRequest: {
+            /**
+             * Format: int64
+             * @description ID du sort de fabrication
+             */
+            recipe_id: number;
+            /** Quantité */
+            quantity?: number;
+            target_character_id?: number | null;
+            /** @default none */
+            materials: components["schemas"]["MaterialsEnum"];
+            note?: string;
+        };
+        /**
+         * @description * `open` - Ouverte
+         *     * `taken` - Prise en charge
+         *     * `delivered` - Livrée
+         *     * `cancelled` - Annulée
+         * @enum {string}
+         */
+        CraftStatusEnum: "open" | "taken" | "delivered" | "cancelled";
+        Crafter: {
+            character_id: number;
+            name: string;
+            player_class: string;
+            level: number;
+            skill: number;
+            owner_id: number;
+            owner_name: string;
+        };
+        CrafterCharacter: {
+            readonly id: number;
+            /** Nom */
+            readonly name: string;
+            readonly player_class: string;
+            /** Niveau */
+            readonly level: number;
+            readonly owner: components["schemas"]["Owner"];
+        };
         /**
          * @description * `discord` - Rôle Discord perdu ou départ du serveur
          *     * `manual` - Désactivé par un officier
@@ -1301,6 +1483,19 @@ export interface components {
             bonuses?: unknown;
             readonly item_ids: number[];
         };
+        KnownRecipes: {
+            recipes: number[];
+        };
+        KnownRecipesRequest: {
+            recipes: number[];
+        };
+        /**
+         * @description * `none` - Aucun composant fourni
+         *     * `partial` - Composants partiels
+         *     * `all` - Tous les composants fournis
+         * @enum {string}
+         */
+        MaterialsEnum: "none" | "partial" | "all";
         Member: {
             readonly id: number;
             /** ID Discord */
@@ -1662,6 +1857,36 @@ export interface components {
             /** Format: int64 */
             acquire_method?: number;
             readonly source: string;
+            readonly crafters: components["schemas"]["Crafter"][];
+            /**
+             * Géré à la main
+             * @description Ajout ou correction manuelle, jamais écrasé par l'import.
+             */
+            is_forever?: boolean;
+        };
+        RecipeRequest: {
+            /**
+             * Format: int64
+             * @description ID du sort de fabrication
+             */
+            id: number;
+            name: string;
+            icon?: string;
+            /**
+             * Format: int64
+             * @description Estimé depuis les paliers jaune/gris du client, corrigeable à la main.
+             */
+            min_skill?: number;
+            /** Format: int64 */
+            skill_yellow?: number;
+            /** Format: int64 */
+            skill_grey?: number;
+            /** Format: int64 */
+            quantity?: number;
+            /** @description [{item_id, name, count}] */
+            reagents?: unknown;
+            /** Format: int64 */
+            acquire_method?: number;
             /**
              * Géré à la main
              * @description Ajout ou correction manuelle, jamais écrasé par l'import.
@@ -1825,6 +2050,9 @@ export interface components {
          * @enum {string}
          */
         StatusA6aEnum: "planned" | "cancelled" | "done";
+        TakeRequest: {
+            character: number;
+        };
         Talent: {
             /** Format: int64 */
             id: number;
@@ -2609,6 +2837,75 @@ export interface operations {
             };
         };
     };
+    characters_recipes_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnownRecipes"];
+                };
+            };
+        };
+    };
+    characters_recipes_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnownRecipesRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["KnownRecipesRequest"];
+                "multipart/form-data": components["schemas"]["KnownRecipesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnownRecipes"];
+                };
+            };
+        };
+    };
+    characters_recipes_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnownRecipes"];
+                };
+            };
+        };
+    };
     characters_set_main_create: {
         parameters: {
             query?: never;
@@ -2627,6 +2924,169 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Character"];
+                };
+            };
+        };
+    };
+    craft_requests_list: {
+        parameters: {
+            query?: {
+                /** @description open (défaut), mine, doable, all */
+                scope?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftRequest"][];
+                };
+            };
+        };
+    };
+    craft_requests_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CraftRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CraftRequestRequest"];
+                "multipart/form-data": components["schemas"]["CraftRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftRequest"];
+                };
+            };
+        };
+    };
+    craft_requests_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) demande de craft. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftRequest"];
+                };
+            };
+        };
+    };
+    craft_requests_cancel_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) demande de craft. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftRequest"];
+                };
+            };
+        };
+    };
+    craft_requests_deliver_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) demande de craft. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftRequest"];
+                };
+            };
+        };
+    };
+    craft_requests_release_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) demande de craft. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftRequest"];
+                };
+            };
+        };
+    };
+    craft_requests_take_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) demande de craft. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TakeRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TakeRequest"];
+                "multipart/form-data": components["schemas"]["TakeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftRequest"];
                 };
             };
         };
@@ -3471,6 +3931,8 @@ export interface operations {
     recipes_list: {
         parameters: {
             query?: {
+                /** @description Seulement les recettes connues par au moins un perso. */
+                known?: boolean;
                 profession?: string;
                 q?: string;
             };
