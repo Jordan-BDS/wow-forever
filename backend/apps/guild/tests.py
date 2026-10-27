@@ -24,6 +24,15 @@ def test_only_gm_can_update(as_user, member, officer, gm):
     assert (settings.name, settings.faction, settings.realm) == ("Les Potes", "horde", "Auberdine")
 
 
+def test_values_are_public_and_trimmed(as_user, member, gm):
+    response = as_user(gm).patch(
+        "/api/guild/", {"values": "  Entraide.\r\n\r\nBonne humeur.  "}, format="json"
+    )
+    assert response.status_code == 200
+    assert response.data["values"] == "Entraide.\n\nBonne humeur."
+    assert as_user(member).get("/api/guild/").data["values"] == "Entraide.\n\nBonne humeur."
+
+
 def test_rejects_unknown_faction(as_user, gm):
     response = as_user(gm).patch("/api/guild/", {"faction": "scourge"}, format="json")
     assert response.status_code == 400

@@ -1,5 +1,11 @@
 import clsx from "clsx";
-import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes } from "react";
+import type {
+  ButtonHTMLAttributes,
+  HTMLAttributes,
+  InputHTMLAttributes,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 import type { SiteRole } from "@/api/client";
 import { ROLE_LABELS } from "@/lib/roles";
 
@@ -45,6 +51,19 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
+      className={clsx(
+        "w-full rounded-sm border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-muted/70",
+        "focus:border-gold focus:outline-none",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
       className={clsx(
         "w-full rounded-sm border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-muted/70",
         "focus:border-gold focus:outline-none",

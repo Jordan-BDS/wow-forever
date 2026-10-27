@@ -1352,6 +1352,11 @@ export interface components {
             faction?: components["schemas"]["FactionEnum"] | components["schemas"]["BlankEnum"];
             /** Royaume */
             realm?: string;
+            /**
+             * Valeurs de la guilde
+             * @description Affichées en citation sur l'accueil. Une ligne vide sépare les paragraphes.
+             */
+            values?: string;
             /** Format: date-time */
             readonly updated_at: string;
             /**
@@ -1670,6 +1675,11 @@ export interface components {
             faction?: components["schemas"]["FactionEnum"] | components["schemas"]["BlankEnum"];
             /** Royaume */
             realm?: string;
+            /**
+             * Valeurs de la guilde
+             * @description Affichées en citation sur l'accueil. Une ligne vide sépare les paragraphes.
+             */
+            values?: string;
             /**
              * Salon Discord des annonces
              * @description Le bot y publie les annonces.

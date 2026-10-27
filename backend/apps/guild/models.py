@@ -14,6 +14,12 @@ class GuildSettings(models.Model):
     name = models.CharField("Nom de la guilde", max_length=24, blank=True)
     faction = models.CharField("Faction", max_length=16, choices=Faction.choices, blank=True)
     realm = models.CharField("Royaume", max_length=64, blank=True)
+    values = models.TextField(
+        "Valeurs de la guilde",
+        blank=True,
+        max_length=600,
+        help_text="Affichées en citation sur l'accueil. Une ligne vide sépare les paragraphes.",
+    )
     discord_channel_id = models.CharField(
         "Salon Discord des annonces", max_length=32, blank=True, help_text="Le bot y publie les annonces."
     )

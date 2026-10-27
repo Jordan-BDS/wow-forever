@@ -4,7 +4,7 @@ import { Navigate } from "react-router";
 import { api, errorMessage, fieldErrors, type Faction, type GuildSettings } from "@/api/client";
 import { GUILD_KEY, useGuild } from "@/api/guild";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { Button, Card, Field, Input, PageTitle, Select, Spinner } from "@/components/ui";
+import { Button, Card, Field, Input, PageTitle, Select, Spinner, Textarea } from "@/components/ui";
 import { FACTION_LABELS } from "@/lib/roles";
 
 /** Paramètres de la guilde : réservés au GM. */
@@ -25,6 +25,7 @@ type Form = {
   name: string;
   faction: Faction;
   realm: string;
+  values: string;
   discord_channel_id: string;
   reminder_minutes: number;
   discord_client_id: string;
@@ -48,6 +49,7 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
     name: initial.name ?? "",
     faction: initial.faction ?? "",
     realm: initial.realm ?? "",
+    values: initial.values ?? "",
     discord_channel_id: initial.discord_channel_id ?? "",
     reminder_minutes: initial.reminder_minutes ?? 60,
     discord_client_id: initial.discord_client_id ?? "",
@@ -125,6 +127,16 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
         </Field>
         <Field label="Royaume">
           <Input value={form.realm} maxLength={64} onChange={(e) => update({ realm: e.target.value })} />
+        </Field>
+        <Field label="Valeurs de la guilde (affichées en citation sur l'accueil)">
+          <Textarea
+            rows={5}
+            maxLength={600}
+            value={form.values}
+            placeholder={"Entraide avant tout, zéro prise de tête.\n\nUne ligne vide sépare les paragraphes."}
+            onChange={(e) => update({ values: e.target.value })}
+          />
+          {Err("values")}
         </Field>
       </Card>
 
