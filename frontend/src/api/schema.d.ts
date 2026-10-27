@@ -610,15 +610,32 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Paramètres de la guilde : lecture pour tous les membres, modification par le GM. */
+        /** @description Nom, faction et royaume pour tous les membres ; réglages complets et modification pour le GM. */
         get: operations["guild_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** @description Paramètres de la guilde : lecture pour tous les membres, modification par le GM. */
+        /** @description Nom, faction et royaume pour tous les membres ; réglages complets et modification pour le GM. */
         patch: operations["guild_partial_update"];
+        trace?: never;
+    };
+    "/api/guild/discord-check/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Vérifie, avec le token du bot, que le serveur est joignable et liste ses rôles. */
+        post: operations["guild_discord_check_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/items/": {
@@ -1074,6 +1091,17 @@ export interface components {
          * @enum {string}
          */
         DeactivationReasonEnum: "discord" | "manual";
+        DiscordCheck: {
+            ok: boolean;
+            detail: string;
+            guild_name: string;
+            roles: components["schemas"]["DiscordRole"][];
+        };
+        DiscordRole: {
+            id: string;
+            name: string;
+            allowed: boolean;
+        };
         /**
          * @description * `placement` - placement
          *     * `reminder` - reminder
@@ -1317,12 +1345,15 @@ export interface components {
              */
             end_hour: number;
         };
+        /** @description Réglages complets, réservés au GM. Les secrets ne sont jamais renvoyés, seulement « défini ou non ». */
         GuildSettings: {
             /** Nom de la guilde */
             name?: string;
             faction?: components["schemas"]["FactionEnum"] | components["schemas"]["BlankEnum"];
             /** Royaume */
             realm?: string;
+            /** Format: date-time */
+            readonly updated_at: string;
             /**
              * Salon Discord des annonces
              * @description Le bot y publie les annonces.
@@ -1334,8 +1365,20 @@ export interface components {
              * @description 0 = pas de rappel.
              */
             reminder_minutes?: number;
-            /** Format: date-time */
-            readonly updated_at: string;
+            /** Client ID de l'application Discord */
+            discord_client_id?: string;
+            readonly discord_client_secret_set: boolean;
+            readonly discord_bot_token_set: boolean;
+            /** ID du serveur Discord */
+            discord_guild_id?: string;
+            /**
+             * IDs des rôles autorisés
+             * @description Séparés par des virgules.
+             */
+            discord_allowed_role_ids?: string;
+            /** ID Discord du premier GM */
+            discord_first_gm_id?: string;
+            readonly discord_login_ready: boolean;
         };
         Instance: {
             readonly id: number;
@@ -1620,6 +1663,7 @@ export interface components {
              */
             signup_deadline?: string | null;
         };
+        /** @description Réglages complets, réservés au GM. Les secrets ne sont jamais renvoyés, seulement « défini ou non ». */
         PatchedGuildSettingsRequest: {
             /** Nom de la guilde */
             name?: string;
@@ -1637,6 +1681,19 @@ export interface components {
              * @description 0 = pas de rappel.
              */
             reminder_minutes?: number;
+            /** Client ID de l'application Discord */
+            discord_client_id?: string;
+            discord_client_secret?: string;
+            discord_bot_token?: string;
+            /** ID du serveur Discord */
+            discord_guild_id?: string;
+            /**
+             * IDs des rôles autorisés
+             * @description Séparés par des virgules.
+             */
+            discord_allowed_role_ids?: string;
+            /** ID Discord du premier GM */
+            discord_first_gm_id?: string;
         };
         PatchedMeUpdateRequest: {
             /** Nom affiché */
@@ -3554,6 +3611,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GuildSettings"];
+                };
+            };
+        };
+    };
+    guild_discord_check_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscordCheck"];
                 };
             };
         };

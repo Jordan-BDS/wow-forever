@@ -2,10 +2,11 @@
 
 import logging
 
-from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.db import transaction
 from django.utils import timezone
+
+from apps.guild.config import discord_config
 
 from . import discord
 from .models import DeactivationReason, SiteRole, User
@@ -24,7 +25,7 @@ class AccessDenied(Exception):
 def has_allowed_role(member: dict | None) -> bool:
     if member is None:
         return False
-    allowed = set(settings.DISCORD_ALLOWED_ROLE_IDS)
+    allowed = set(discord_config().allowed_role_ids)
     return bool(allowed & set(member.get("roles", [])))
 
 
@@ -78,7 +79,8 @@ def login_from_discord(code: str) -> User:
     if not user.display_name:
         user.display_name = username
 
-    if settings.DISCORD_FIRST_GM_ID and user.discord_id == settings.DISCORD_FIRST_GM_ID:
+    first_gm = discord_config().first_gm_id
+    if first_gm and user.discord_id == first_gm:
         user.site_role = SiteRole.GM
 
     if not user.is_active:

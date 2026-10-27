@@ -26,6 +26,7 @@ describe("roles", () => {
       "discord_denied",
       "state_mismatch",
       "discord_error",
+      "not_configured",
     ];
     for (const code of backendCodes) expect(LOGIN_ERRORS[code]).toBeTruthy();
   });

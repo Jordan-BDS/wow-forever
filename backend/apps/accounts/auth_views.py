@@ -13,6 +13,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.guild.config import discord_config
+
 from . import discord, services
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,8 @@ def _front_login_error(code: str) -> HttpResponseRedirect:
 
 @require_GET
 def discord_login(request: HttpRequest) -> HttpResponseRedirect:
+    if not discord_config().login_ready:
+        return _front_login_error("not_configured")
     state = secrets.token_urlsafe(32)
     request.session[STATE_SESSION_KEY] = state
     return HttpResponseRedirect(discord.authorize_url(state))

@@ -11,8 +11,8 @@ import discord
 from asgiref.sync import sync_to_async
 from discord import app_commands
 from discord.ext import commands, tasks
-from django.conf import settings
 
+from apps.guild.config import discord_config
 from apps.notifications.reminders import scan_due_reminders
 
 from . import services
@@ -39,7 +39,7 @@ class GuildBot(commands.Bot):
         intents = discord.Intents.default()
         intents.members = True  # intent privilégié « Server Members », à activer dans le portail développeur
         super().__init__(command_prefix="!", intents=intents, help_command=None)
-        self.guild_object = discord.Object(id=int(settings.DISCORD_GUILD_ID))
+        self.guild_object = discord.Object(id=int(discord_config().guild_id))
 
     async def setup_hook(self) -> None:
         self.tree.add_command(events_command, guild=self.guild_object)
@@ -160,6 +160,9 @@ async def craft_command(interaction: discord.Interaction, recherche: str) -> Non
 
 
 def run() -> None:
-    if not settings.DISCORD_BOT_TOKEN:
-        raise RuntimeError("DISCORD_BOT_TOKEN manquant.")
-    GuildBot().run(settings.DISCORD_BOT_TOKEN, log_handler=None)
+    token = discord_config().bot_token
+    if not token:
+        raise RuntimeError(
+            "Token du bot manquant : à renseigner dans Guilde › Paramètres ou DISCORD_BOT_TOKEN."
+        )
+    GuildBot().run(token, log_handler=None)

@@ -20,6 +20,15 @@ class GuildSettings(models.Model):
     reminder_minutes = models.PositiveSmallIntegerField(
         "Rappel avant un événement (minutes)", default=60, help_text="0 = pas de rappel."
     )
+    # Connexion Discord, saisie par le GM sur le site (les variables d'environnement servent de secours).
+    discord_client_id = models.CharField("Client ID de l'application Discord", max_length=32, blank=True)
+    discord_client_secret = models.CharField("Client secret", max_length=128, blank=True)
+    discord_bot_token = models.CharField("Token du bot", max_length=128, blank=True)
+    discord_guild_id = models.CharField("ID du serveur Discord", max_length=32, blank=True)
+    discord_allowed_role_ids = models.CharField(
+        "IDs des rôles autorisés", max_length=255, blank=True, help_text="Séparés par des virgules."
+    )
+    discord_first_gm_id = models.CharField("ID Discord du premier GM", max_length=32, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

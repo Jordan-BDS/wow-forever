@@ -31,4 +31,5 @@ export const LOGIN_ERRORS: Record<string, string> = {
   discord_denied: "Tu as refusé la connexion Discord.",
   state_mismatch: "La connexion a expiré, recommence.",
   discord_error: "Discord n'a pas répondu, réessaie dans un instant.",
+  not_configured: "La connexion Discord n'est pas encore configurée par le GM.",
 };

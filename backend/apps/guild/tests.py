@@ -34,3 +34,63 @@ def test_singleton_never_duplicates(db):
     GuildSettings(name="B").save()
     assert GuildSettings.objects.count() == 1
     assert GuildSettings.load().name == "B"
+
+
+class TestDiscordSettings:
+    def test_site_values_override_environment_and_secrets_are_hidden(self, as_user, gm, member):
+        client = as_user(gm)
+        before = client.get("/api/guild/").data
+        assert before["discord_client_id"] == "client-id"  # valeur d'environnement de test
+        assert before["discord_bot_token_set"] is True and "discord_bot_token" not in before
+        response = client.patch(
+            "/api/guild/",
+            {"discord_client_id": "111", "discord_guild_id": "222", "discord_allowed_role_ids": "333, 444",
+             "discord_first_gm_id": "555", "discord_bot_token": "new-token", "discord_client_secret": ""},
+            format="json",
+        )  # fmt: skip
+        assert response.status_code == 200, response.data
+        assert response.data["discord_allowed_role_ids"] == "333, 444"
+        from apps.guild.config import discord_config
+
+        config = discord_config()
+        assert (config.client_id, config.guild_id, config.allowed_role_ids, config.first_gm_id) == (
+            "111",
+            "222",
+            ["333", "444"],
+            "555",
+        )
+        assert config.bot_token == "new-token" and config.client_secret == "client-secret"  # vide = inchangé
+        assert "discord_client_id" not in as_user(member).get("/api/guild/").data
+
+    def test_rejects_non_numeric_ids(self, as_user, gm):
+        response = as_user(gm).patch("/api/guild/", {"discord_allowed_role_ids": "abc"}, format="json")
+        assert response.status_code == 400
+
+    def test_login_refused_when_not_configured(self, client, settings):
+        settings.DISCORD_CLIENT_ID = ""
+        response = client.get("/api/auth/discord/login/")
+        assert response.status_code == 302 and "error=not_configured" in response["Location"]
+
+    def test_discord_check_lists_roles(self, as_user, gm):
+        import httpx
+        import respx
+        from django.conf import settings as dj
+
+        with respx.mock:
+            respx.get(f"{dj.DISCORD_API_BASE}/guilds/999").mock(
+                return_value=httpx.Response(200, json={"name": "Les Zouaves"})
+            )
+            respx.get(f"{dj.DISCORD_API_BASE}/guilds/999/roles").mock(return_value=httpx.Response(200, json=[
+                {"id": "role-member", "name": "Membre", "position": 2},
+                {"id": "x", "name": "@everyone", "position": 0},
+                {"id": "role-visitor", "name": "Visiteur", "position": 1},
+            ]))  # fmt: skip
+            response = as_user(gm).post("/api/guild/discord-check/")
+        assert response.status_code == 200, response.data
+        assert response.data["guild_name"] == "Les Zouaves"
+        assert [(r["name"], r["allowed"]) for r in response.data["roles"]] == [
+            ("Membre", True),
+            ("Visiteur", False),
+        ]
+        assert "role-officer" in response.data["detail"]  # autorisé dans l'env de test mais absent du serveur
+        assert response.data["ok"] is False
