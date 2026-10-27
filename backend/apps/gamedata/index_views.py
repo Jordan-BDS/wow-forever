@@ -1,7 +1,7 @@
 """API de consultation de l'index du jeu : objets (autocomplétion), talents, enchantements, recettes."""
 
 from django.db.models import Q
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_field
 from rest_framework import serializers
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.request import Request
@@ -194,11 +194,22 @@ class EnchantmentListView(ListAPIView):
         return queryset
 
 
+class CrafterSerializer(serializers.Serializer):
+    character_id = serializers.IntegerField()
+    name = serializers.CharField()
+    player_class = serializers.CharField()
+    level = serializers.IntegerField()
+    skill = serializers.IntegerField()
+    owner_id = serializers.IntegerField()
+    owner_name = serializers.CharField()
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     profession = serializers.SlugRelatedField(slug_field="slug", read_only=True)
     product = ItemSerializer(read_only=True)
     icon_url = serializers.SerializerMethodField()
     source = serializers.SerializerMethodField()
+    crafters = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
@@ -216,14 +227,41 @@ class RecipeSerializer(serializers.ModelSerializer):
             "reagents",
             "acquire_method",
             "source",
+            "crafters",
             "is_forever",
         ]
 
     def get_icon_url(self, recipe: Recipe) -> str:
         return icon_url(recipe.icon)
 
+    @extend_schema_field(CrafterSerializer(many=True))
+    def get_crafters(self, recipe: Recipe) -> list[dict]:
+        """Personnages actifs qui connaissent la recette, avec leur niveau de compétence dans le métier."""
+        rows = []
+        for known in recipe.known_by.all():
+            character = known.character
+            if not character.owner.is_active:
+                continue
+            skill = next(
+                (cp.skill for cp in character.professions.all() if cp.profession_id == recipe.profession_id),
+                0,
+            )
+            rows.append(
+                {
+                    "character_id": character.pk,
+                    "name": character.name,
+                    "player_class": character.player_class.slug,
+                    "level": character.level,
+                    "skill": skill,
+                    "owner_id": character.owner_id,
+                    "owner_name": character.owner.display_name,
+                }
+            )
+        return sorted(rows, key=lambda r: -r["skill"])
+
     def get_source(self, recipe: Recipe) -> str:
-        return "Formateur" if recipe.acquire_method == 3 else "Drop, vendeur ou quête"
+        # Le client ne dit pas clairement d'où vient une recette : on n'affiche que ce qui est sûr.
+        return "Formateur" if recipe.acquire_method == 3 else ""
 
 
 class RecipeListView(ListAPIView):
@@ -231,13 +269,29 @@ class RecipeListView(ListAPIView):
 
     serializer_class = RecipeSerializer
 
-    @extend_schema(parameters=[OpenApiParameter("profession", str), OpenApiParameter("q", str)])
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("profession", str),
+            OpenApiParameter("q", str),
+            OpenApiParameter(
+                "known", bool, description="Seulement les recettes connues par au moins un perso."
+            ),
+        ]
+    )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
         params = self.request.query_params
-        queryset = Recipe.objects.select_related("profession", "product", "product__item_set")
+        queryset = Recipe.objects.select_related(
+            "profession", "product", "product__item_set"
+        ).prefetch_related(
+            "known_by__character__owner",
+            "known_by__character__player_class",
+            "known_by__character__professions",
+        )
+        if params.get("known") in ("1", "true"):
+            queryset = queryset.filter(known_by__character__owner__is_active=True).distinct()
         if profession := params.get("profession"):
             queryset = queryset.filter(profession__slug=profession)
         if query := params.get("q", "").strip():

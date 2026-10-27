@@ -7,6 +7,7 @@ import { EventFormPage } from "./pages/EventFormPage";
 import { EventPage } from "./pages/EventPage";
 import { CharacterFormPage } from "./pages/CharacterFormPage";
 import { CharacterPage } from "./pages/CharacterPage";
+import { CraftsPage } from "./pages/CraftsPage";
 import { GuildPage } from "./pages/GuildPage";
 import { HomePage } from "./pages/HomePage";
 import { ItemsPage } from "./pages/ItemsPage";
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
           { path: "personnages/:id", Component: CharacterPage },
           { path: "personnages/:id/modifier", Component: CharacterFormPage },
           { path: "metiers", Component: ProfessionsPage },
+          { path: "crafts", Component: CraftsPage },
           { path: "objets", Component: ItemsPage },
           { path: "talents", Component: TalentsPage },
           { path: "disponibilites", Component: AvailabilityPage },

@@ -142,3 +142,18 @@ class TalentBuild(models.Model):
 
     def __str__(self) -> str:
         return f"{self.character} — {self.name}"
+
+
+class KnownRecipe(models.Model):
+    """Recette connue par un personnage (catalogue coché, cf. cahier des charges § 6)."""
+
+    character = models.ForeignKey(Character, on_delete=models.CASCADE, related_name="known_recipes")
+    recipe = models.ForeignKey("gamedata.Recipe", on_delete=models.CASCADE, related_name="known_by")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "recette connue"
+        constraints = [models.UniqueConstraint(fields=["character", "recipe"], name="unique_known_recipe")]
+
+    def __str__(self) -> str:
+        return f"{self.character} connaît {self.recipe}"

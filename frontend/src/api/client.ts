@@ -39,6 +39,8 @@ export type SlotRead = components["schemas"]["SlotRead"];
 export type SheetStats = components["schemas"]["Stats"];
 export type TalentBuild = components["schemas"]["TalentBuild"];
 export type SlotKey = components["schemas"]["SlotRequest"]["slot"];
+export type CraftRequest = components["schemas"]["CraftRequest"];
+export type Crafter = components["schemas"]["Crafter"];
 
 function readCookie(name: string): string | undefined {
   return document.cookie

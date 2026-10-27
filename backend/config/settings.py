@@ -84,6 +84,7 @@ INSTALLED_APPS = [
     "apps.polls",
     "apps.events",
     "apps.notifications",
+    "apps.crafting",
     "apps.discordbot",
 ]
 

@@ -329,7 +329,10 @@ question numéro un d'une guilde qui level ; le catalogue ci-dessous vient compl
 
 ### Catalogue de recettes (lot 6)
 
-Catalogue **complet** pré-rempli ; chaque joueur **coche les recettes connues** par ses personnages.
+Catalogue **complet** pré-rempli (import du client, cf. § 5) ; chaque joueur **coche les recettes connues** par
+ses personnages, avec un bouton qui coche d'un coup toutes les recettes accessibles à son niveau de compétence (à élaguer
+ensuite : les données client ne distinguent pas de façon fiable formateur, drop et vendeur).
+Seules les recettes des métiers du personnage sont proposées.
 
 | Champ recette | Remarque |
 |---|---|
@@ -355,6 +358,8 @@ Catalogue **complet** pré-rempli ; chaque joueur **coche les recettes connues**
 ### Demandes de craft (MVP)
 
 **Cycle de vie :** `Ouverte` → `Prise en charge` → `Livrée` (ou `Annulée` à tout moment par le demandeur / un officier).
+Le crafteur peut **rendre** une demande prise en charge, qui redevient ouverte. Seul un personnage qui connaît la
+recette peut la prendre ; une demande ciblée ne peut être prise que par le crafteur visé (ou un officier).
 
 | Champ | Remarque |
 |---|---|

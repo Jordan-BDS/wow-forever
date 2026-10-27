@@ -10,6 +10,7 @@ import {
   useTalentBuilds,
 } from "@/api/hooks";
 import { EquipmentPanel } from "@/components/EquipmentPanel";
+import { RecipesPanel } from "@/components/RecipesPanel";
 import { TalentPanel } from "@/components/TalentPanel";
 import clsx from "clsx";
 import { useState } from "react";
@@ -28,7 +29,7 @@ export function CharacterPage() {
   const gamedata = useGameData();
   const sets = useEquipmentSets(id);
   const builds = useTalentBuilds(id);
-  const [activeTab, setTab] = useState<"equipment" | "talents">("equipment");
+  const [activeTab, setTab] = useState<"equipment" | "talents" | "recipes">("equipment");
 
   const setMain = useMutation({
     mutationFn: async () => {
@@ -158,7 +159,7 @@ export function CharacterPage() {
         </Card>
         <div className="md:col-span-2">
           <div className="mb-3 flex gap-1 border-b border-border text-sm">
-            {(["equipment", "talents"] as const).map((tab) => (
+            {(["equipment", "talents", "recipes"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -170,7 +171,7 @@ export function CharacterPage() {
                     : "border-transparent text-muted hover:text-text",
                 )}
               >
-                {tab === "equipment" ? "Équipement et stats" : "Talents"}
+                {tab === "equipment" ? "Équipement et stats" : tab === "talents" ? "Talents" : "Recettes"}
               </button>
             ))}
           </div>
@@ -180,10 +181,14 @@ export function CharacterPage() {
             ) : (
               <EquipmentPanel character={character} sets={sets.data ?? []} canEdit={canEdit} />
             )
-          ) : builds.isPending ? (
-            <Spinner />
+          ) : activeTab === "talents" ? (
+            builds.isPending ? (
+              <Spinner />
+            ) : (
+              <TalentPanel character={character} builds={builds.data ?? []} canEdit={canEdit} />
+            )
           ) : (
-            <TalentPanel character={character} builds={builds.data ?? []} canEdit={canEdit} />
+            <RecipesPanel character={character} canEdit={canEdit} />
           )}
         </div>
       </div>
