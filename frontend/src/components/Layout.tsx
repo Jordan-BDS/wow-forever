@@ -18,19 +18,7 @@ export function Layout() {
   useEffect(() => {
     document.title = guild.data?.name ? `${guild.data.name} — WoW Forever` : "WoW Forever — Guilde";
   }, [guild.data?.name]);
-  const subtitle = guild.data?.name
-    ? [
-        "Guilde",
-        guild.data.faction === "alliance"
-          ? "de l'Alliance"
-          : guild.data.faction === "horde"
-            ? "de la Horde"
-            : null,
-        guild.data.realm ? `· ${guild.data.realm}` : null,
-      ]
-        .filter(Boolean)
-        .join(" ")
-    : "Par des zouaves, pour des zouaves";
+  const subtitle = "Par des zouaves, pour des zouaves";
 
   return (
     <div className="flex min-h-screen flex-col">
