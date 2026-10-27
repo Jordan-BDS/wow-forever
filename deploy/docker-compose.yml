@@ -49,7 +49,7 @@ services:
       dockerfile: deploy/Caddy.Dockerfile
     restart: unless-stopped
     environment:
-      SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN manquant}
+      SITE_DOMAIN: ${SITE_DOMAIN:-:80}  # domaine public pour le HTTPS automatique ; « :80 » derrière un nginx hôte
     ports:
       - "80:80"
       - "443:443"
