@@ -101,3 +101,21 @@ export function dominantTree(trees: TalentTreeData[], build: Build): TalentTreeD
   const [best] = [...trees].sort((a, b) => pointsInTree(b, build) - pointsInTree(a, build));
   return best && pointsInTree(best, build) > 0 ? best : undefined;
 }
+
+/** Compte les points par talent à partir de la liste ordonnée d'attribution. */
+export function countsFromOrder(points: number[]): Build {
+  const build: Build = {};
+  for (const id of points) build[id] = (build[id] ?? 0) + 1;
+  return build;
+}
+
+/** Nombre de points acquis à un niveau donné (1 point par niveau à partir du 10). */
+export function acquiredAtLevel(level: number): number {
+  return Math.max(0, Math.min(MAX_POINTS, level - 9));
+}
+
+/** Retire la dernière occurrence d'un talent de la liste ordonnée. */
+export function removeLast(points: number[], talentId: number): number[] {
+  const index = points.lastIndexOf(talentId);
+  return index === -1 ? points : [...points.slice(0, index), ...points.slice(index + 1)];
+}

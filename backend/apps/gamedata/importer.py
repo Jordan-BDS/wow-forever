@@ -305,14 +305,18 @@ def import_talents(data: ClientData) -> dict[str, int]:
         ranks = [r for r in ranks if r]
         if not ranks:
             continue
-        first = str(ranks[0])
+        # Nom et icône : premier rang dont le sort est connu (certains sorts manquent dans les exports).
+        name = next(
+            (data.spell_names[str(r)] for r in ranks if data.spell_names.get(str(r))), f"Talent {row['ID']}"
+        )
+        icon = next((data.spell_icon(str(r)) for r in ranks if data.spell_icon(str(r))), "")
         prerequisite = to_int(row["PrereqTalent_0"]) or None
         talents.append(
             Talent(
                 id=to_int(row["ID"]),
                 tree_id=tab_id,
-                name=data.spell_names.get(first, f"Talent {row['ID']}"),
-                icon=data.spell_icon(first),
+                name=name,
+                icon=icon,
                 row=to_int(row["TierID"]),
                 column=to_int(row["ColumnIndex"]),
                 rank_spells=ranks,

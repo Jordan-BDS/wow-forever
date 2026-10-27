@@ -10,6 +10,9 @@ export const KEYS = {
   events: ["events"] as const,
   eventsWindow: (from: string, to: string) => ["events", "window", from, to] as const,
   event: (id: number) => ["events", id] as const,
+  equipmentSets: (characterId: number) => ["characters", characterId, "equipment-sets"] as const,
+  talentBuilds: (characterId: number) => ["characters", characterId, "talent-builds"] as const,
+  classTalents: (slug: string) => ["talents", slug] as const,
   guildAvailability: ["availability", "guild"] as const,
   myAvailability: ["availability", "me"] as const,
 };
@@ -59,6 +62,38 @@ export function useEvent(id: number) {
   return useQuery({
     queryKey: KEYS.event(id),
     queryFn: () => unwrap(api.GET("/api/events/{id}/", { params: { path: { id } } })),
+  });
+}
+
+export function useEquipmentSets(characterId: number) {
+  return useQuery({
+    queryKey: KEYS.equipmentSets(characterId),
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/characters/{character_pk}/equipment-sets/", {
+          params: { path: { character_pk: characterId } },
+        }),
+      ),
+  });
+}
+
+export function useTalentBuilds(characterId: number) {
+  return useQuery({
+    queryKey: KEYS.talentBuilds(characterId),
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/characters/{character_pk}/talent-builds/", {
+          params: { path: { character_pk: characterId } },
+        }),
+      ),
+  });
+}
+
+export function useClassTalents(slug: string) {
+  return useQuery({
+    queryKey: KEYS.classTalents(slug),
+    queryFn: () => unwrap(api.GET("/api/talents/{slug}/", { params: { path: { slug } } })),
+    staleTime: Infinity,
   });
 }
 

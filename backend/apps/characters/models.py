@@ -76,3 +76,69 @@ class CharacterProfession(models.Model):
 
     def __str__(self) -> str:
         return f"{self.character} — {self.profession} {self.skill}"
+
+
+# --- Fiche de personnage : sets d'équipement et builds de talents (lot 5) ---
+
+
+class EquipmentSet(models.Model):
+    character = models.ForeignKey(Character, on_delete=models.CASCADE, related_name="equipment_sets")
+    name = models.CharField("Nom", max_length=40)
+    is_primary = models.BooleanField("Set principal", default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "set d'équipement"
+        ordering = ["-is_primary", "created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character"],
+                condition=models.Q(is_primary=True),
+                name="one_primary_set_per_character",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.character} — {self.name}"
+
+
+class EquipmentSlot(models.Model):
+    """Un emplacement d'un set : objet + enchantement optionnel."""
+
+    equipment_set = models.ForeignKey(EquipmentSet, on_delete=models.CASCADE, related_name="slots")
+    slot = models.CharField(max_length=16)
+    item = models.ForeignKey("gamedata.Item", on_delete=models.SET_NULL, null=True, blank=True)
+    enchantment = models.ForeignKey("gamedata.Enchantment", on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "emplacement"
+        constraints = [models.UniqueConstraint(fields=["equipment_set", "slot"], name="unique_slot_per_set")]
+
+    def __str__(self) -> str:
+        return f"{self.slot}: {self.item or '—'}"
+
+
+class TalentBuild(models.Model):
+    """Build de talents : l'ordre d'attribution des points est conservé (acquis puis projetés)."""
+
+    character = models.ForeignKey(Character, on_delete=models.CASCADE, related_name="talent_builds")
+    name = models.CharField("Nom", max_length=40)
+    is_active = models.BooleanField("Build actif", default=False)
+    points = models.JSONField("Points dans l'ordre", default=list, help_text="Liste d'ID de talents")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "build de talents"
+        ordering = ["-is_active", "created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character"],
+                condition=models.Q(is_active=True),
+                name="one_active_build_per_character",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.character} — {self.name}"

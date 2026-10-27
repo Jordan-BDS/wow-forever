@@ -1,7 +1,18 @@
 import { useMutation } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { api, errorMessage, type GameRole } from "@/api/client";
-import { KEYS, useCharacters, useGameData, useInvalidate } from "@/api/hooks";
+import {
+  KEYS,
+  useCharacters,
+  useEquipmentSets,
+  useGameData,
+  useInvalidate,
+  useTalentBuilds,
+} from "@/api/hooks";
+import { EquipmentPanel } from "@/components/EquipmentPanel";
+import { TalentPanel } from "@/components/TalentPanel";
+import clsx from "clsx";
+import { useState } from "react";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ClassName, GameRoleTag, LevelBadge } from "@/components/game";
 import { Button, Card, PageTitle, Spinner } from "@/components/ui";
@@ -15,6 +26,9 @@ export function CharacterPage() {
   const invalidate = useInvalidate();
   const characters = useCharacters();
   const gamedata = useGameData();
+  const sets = useEquipmentSets(id);
+  const builds = useTalentBuilds(id);
+  const [activeTab, setTab] = useState<"equipment" | "talents">("equipment");
 
   const setMain = useMutation({
     mutationFn: async () => {
@@ -142,12 +156,36 @@ export function CharacterPage() {
             <p className="mt-3 text-sm text-muted">Aucun métier renseigné.</p>
           )}
         </Card>
-        <Card className="md:col-span-2">
-          <h2 className="font-display text-lg">Équipement, talents et statistiques</h2>
-          <p className="mt-2 text-sm text-muted">
-            Arrivent avec la fiche de personnage complète (lot 5). En attendant, Wowhead reste ton ami.
-          </p>
-        </Card>
+        <div className="md:col-span-2">
+          <div className="mb-3 flex gap-1 border-b border-border text-sm">
+            {(["equipment", "talents"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setTab(tab)}
+                className={clsx(
+                  "-mb-px border-b-2 px-3 py-2",
+                  activeTab === tab
+                    ? "border-gold text-gold"
+                    : "border-transparent text-muted hover:text-text",
+                )}
+              >
+                {tab === "equipment" ? "Équipement et stats" : "Talents"}
+              </button>
+            ))}
+          </div>
+          {activeTab === "equipment" ? (
+            sets.isPending ? (
+              <Spinner />
+            ) : (
+              <EquipmentPanel character={character} sets={sets.data ?? []} canEdit={canEdit} />
+            )
+          ) : builds.isPending ? (
+            <Spinner />
+          ) : (
+            <TalentPanel character={character} builds={builds.data ?? []} canEdit={canEdit} />
+          )}
+        </div>
       </div>
     </>
   );

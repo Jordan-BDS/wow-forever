@@ -34,6 +34,11 @@ export type ItemIndex = components["schemas"]["Item"];
 export type ItemDetail = components["schemas"]["ItemDetail"];
 export type RecipeIndex = components["schemas"]["Recipe"];
 export type EnchantmentIndex = components["schemas"]["Enchantment"];
+export type EquipmentSet = components["schemas"]["EquipmentSet"];
+export type SlotRead = components["schemas"]["SlotRead"];
+export type SheetStats = components["schemas"]["Stats"];
+export type TalentBuild = components["schemas"]["TalentBuild"];
+export type SlotKey = components["schemas"]["SlotRequest"]["slot"];
 
 function readCookie(name: string): string | undefined {
   return document.cookie

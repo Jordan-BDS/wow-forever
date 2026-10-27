@@ -54,3 +54,26 @@ export function formatStats(stats: Record<string, number> | undefined): string {
     .map(([key, value]) => `${value > 0 ? "+" : ""}${value} ${STAT_LABEL[key] ?? key}`)
     .join(", ");
 }
+
+/** Emplacements de la fiche (ordre d'affichage) avec libellé et filtre de recherche. */
+export const SHEET_SLOTS: { key: string; label: string; filter: string }[] = [
+  { key: "head", label: "Tête", filter: "head" },
+  { key: "neck", label: "Cou", filter: "neck" },
+  { key: "shoulder", label: "Épaules", filter: "shoulder" },
+  { key: "back", label: "Dos", filter: "back" },
+  { key: "chest", label: "Torse", filter: "chest" },
+  { key: "shirt", label: "Chemise", filter: "shirt" },
+  { key: "tabard", label: "Tabard", filter: "tabard" },
+  { key: "wrist", label: "Poignets", filter: "wrist" },
+  { key: "hands", label: "Mains", filter: "hands" },
+  { key: "waist", label: "Taille", filter: "waist" },
+  { key: "legs", label: "Jambes", filter: "legs" },
+  { key: "feet", label: "Pieds", filter: "feet" },
+  { key: "finger1", label: "Doigt 1", filter: "finger" },
+  { key: "finger2", label: "Doigt 2", filter: "finger" },
+  { key: "trinket1", label: "Bijou 1", filter: "trinket" },
+  { key: "trinket2", label: "Bijou 2", filter: "trinket" },
+  { key: "main_hand", label: "Main droite", filter: "one_hand,two_hand,main_hand" },
+  { key: "off_hand", label: "Main gauche", filter: "one_hand,shield,off_hand,held_off_hand" },
+  { key: "ranged", label: "À distance / relique", filter: "ranged,thrown,relic" },
+];
