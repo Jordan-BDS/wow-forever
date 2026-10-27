@@ -8,7 +8,7 @@
 2. [Rôles et permissions](#2-rôles-et-permissions) ✅
 3. [Comptes et personnages](#3-comptes-et-personnages) ✅
 4. [Fiche de personnage](#4-fiche-de-personnage) ✅
-5. [Base de données du jeu et encyclopédie](#5-base-de-données-du-jeu-et-encyclopédie) ✅
+5. [Base de données du jeu](#5-base-de-données-du-jeu) ✅
 6. [Métiers](#6-métiers) ✅
 7. [Agenda et événements](#7-agenda-et-événements) ✅
 8. [Fonctionnalités annexes](#8-fonctionnalités-annexes) ✅
@@ -36,11 +36,14 @@ chacun a son compte, on sait qui joue quoi, qui a quels métiers, et on organise
 | Sujet | Décision | Remarque |
 |---|---|---|
 | Stack | **Django** (backend/API) + **React** (frontend) | Détails à l'étape 9 |
-| Authentification | **Discord OAuth2** | Pas de mot de passe à gérer côté site |
+| Authentification | **Discord OAuth2** + **sessions Django** | Pas de mot de passe à gérer côté site, pas de JWT (même origine) |
 | Personnages | **Saisie manuelle** | Import auto via API Blizzard envisagé plus tard, si l'API couvre WoW Forever |
+| Données du jeu | **Wowhead** pour les infobulles et fiches détaillées, **index local minimal** pour l'autocomplétion et les contrôles | Détails à l'étape 5 |
 | Taille | **< 30 membres** | Pas d'enjeu de montée en charge |
 | Hébergement | **Petit VPS** (Docker) | Détails à l'étape 9 |
 | Langue | Français | |
+| Support | **Mobile d'abord** | Un site de guilde se consulte surtout depuis le téléphone |
+| Jalon | **Lots 0 et 1 en ligne le 4 novembre 2026** | Cf. étape 10 |
 
 ### Points ouverts
 
@@ -58,22 +61,23 @@ chacun a son compte, on sait qui joue quoi, qui a quels métiers, et on organise
   et se connecter.
 
 **Vérification à la connexion :**
-1. Scopes OAuth demandés : `identify` + `guilds.members.read`.
-2. Avec le token de l'utilisateur, le backend appelle `GET /users/@me/guilds/{ID_SERVEUR}/member`, qui renvoie
-   le profil de membre sur **notre** serveur, dont la liste des **IDs de rôles**.
+1. Scope OAuth demandé : `identify` uniquement (écran de consentement minimal).
+2. Le backend appelle, **avec le token du bot**, `GET /guilds/{ID_SERVEUR}/members/{ID_UTILISATEUR}`, qui renvoie
+   le profil de membre sur **notre** serveur, dont la liste des **IDs de rôles**. L'application bot est donc créée
+   dès le lot 0, mais seul son token est utilisé (pas de connexion à la gateway avant le lot 3).
 3. Refus si : pas membre du serveur (réponse 404), ou aucun des rôles autorisés dans sa liste. Message explicite
    (« Tu dois avoir le rôle Membre sur le Discord de la guilde »).
 4. Les rôles autorisés sont configurés par **ID de rôle** (pas par nom, qui peut être renommé), en variable
    d'environnement, sous forme de liste (ex. Membre, Officier, GM si ce sont des rôles Discord distincts).
 
-**Révocation en continu (via le bot) :**
+**Révocation en continu (via le bot, lot 3) :**
 - Le bot écoute les événements Discord « membre mis à jour » (perte du rôle) et « membre parti / banni » : le compte
   est **désactivé immédiatement** (pas supprimé : l'historique des événements reste cohérent).
-- Comme chaque refresh de JWT vérifie que le compte est actif, l'accès est coupé au plus tard à l'expiration de
-  l'access token (~15 min).
+- Django refuse un utilisateur inactif à chaque requête : l'accès est coupé **dès la requête suivante**, et ses
+  sessions ouvertes sont supprimées.
 - Si le rôle est rendu, le compte est réactivé à la prochaine connexion.
 - Nécessite l'intent privilégié **Server Members** du bot (à activer dans le Discord Developer Portal).
-- Avant la mise en service du bot (lot 5), la révocation se fait uniquement à la connexion suivante ; un officier
+- Avant la mise en service du bot, la révocation se fait uniquement à la connexion suivante ; un officier
   peut aussi désactiver un compte à la main.
 
 > Le rôle Discord « Membre » sert **uniquement à l'accès**. Les rôles du site (GM / Officier / Membre) restent
@@ -82,7 +86,8 @@ chacun a son compte, on sait qui joue quoi, qui a quels métiers, et on organise
 
 ### Rôles
 
-Rôles **gérés sur le site** (pas de synchronisation avec les rôles Discord, pas de bot nécessaire).
+Rôles **gérés sur le site**, sans synchronisation avec les rôles Discord (le bot ne sert qu'à l'accès et aux
+notifications).
 
 | Rôle | Description |
 |---|---|
@@ -104,6 +109,9 @@ Rôles **gérés sur le site** (pas de synchronisation avec les rôles Discord, 
 | Désactiver / réactiver un membre | ❌ | ✅ | ✅ |
 | Promouvoir / rétrograder un officier | ❌ | ❌ | ✅ |
 | Gérer les données de référence (classes, métiers…) | ❌ | ❌ | ✅ |
+| Proposer et voter dans un sondage, retirer **sa** proposition | ✅ | ✅ | ✅ |
+| Créer / modifier un sondage, supprimer **n'importe quelle** proposition | ❌ | ✅ | ✅ |
+| Valider le résultat d'un sondage | ❌ | ❌ | ✅ |
 
 ### Points ouverts
 
@@ -142,7 +150,8 @@ Un joueur peut avoir **plusieurs personnages**, dont **exactement un « main »*
 | Niveau | ✅ | 1–60, mis à jour manuellement |
 | Rôle principal | ✅ | Tank / Heal / DPS, filtré selon ce que la classe permet |
 | Rôle secondaire | ❌ | Ex. druide Heal en principal, Tank en secondaire |
-| Spécialisation | — | **Déduite** du build de talents actif (arbre le plus investi), cf. étape 4 |
+| Spécialisation | ❌ | **Saisie manuelle** (donnée de référence) ; **remplacée** par la déduction depuis le build de talents actif dès qu'il en existe un, cf. étape 4 |
+| Métiers | ❌ | Métier × niveau de compétence, version légère dès le lot 1, cf. étape 6 |
 | Main | ✅ | Booléen, un seul main par joueur |
 | Note | ❌ | Texte libre |
 | Source / ID externe | — | Technique : `manuel` pour l'instant, prépare l'import Blizzard |
@@ -174,7 +183,7 @@ Stockées en base, administrables par le GM, pré-remplies au lancement :
 ## 4. Fiche de personnage
 
 La fiche de personnage reproduit l'essentiel de la fenêtre personnage du jeu : **équipement**, **talents** et
-**statistiques calculées**. Elle s'appuie sur la base de données du jeu (cf. étape 5).
+**statistiques** (somme des stats brutes au MVP). Elle s'appuie sur l'index du jeu et les infobulles Wowhead (cf. étape 5).
 
 ### Principe de « projection »
 
@@ -208,91 +217,91 @@ Quand le niveau du personnage est mis à jour, les éléments devenus accessible
   les suivants sont **projetés** (affichage distinct). Retirer un point n'est
   possible que si l'ordre reste valide (prérequis et paliers respectés à chaque étape).
 - **Plusieurs builds nommés** par personnage (ex. « Raid », « PvP », « Leveling »), dont **un actif**.
-- La **spécialisation** affichée sur le roster est déduite du build actif (arbre avec le plus de points acquis).
+- Dès qu'un build actif existe, la **spécialisation** affichée sur le roster est déduite de ce build (arbre avec le
+  plus de points acquis) et remplace la saisie manuelle de l'étape 3.
 - **Lien partageable** vers un build (lecture seule).
 
-### Statistiques (fiche complète)
+### Statistiques (MVP : somme des stats brutes)
 
-**Calcul côté backend** (source de vérité unique, testable, réutilisable par le bot), avec un endpoint de
-**prévisualisation** pour voir l'effet d'une modification avant de l'enregistrer.
+Le MVP se limite à la **somme des statistiques brutes** de l'équipement acquis du set sélectionné, enchantements et
+bonus de set compris : Force, Agilité, Endurance, Intelligence, Esprit, Armure, les cinq résistances, et les bonus
+plats explicites portés par les objets (puissance d'attaque, puissance des sorts, soins, régénération de mana…).
 
-**Entrées du calcul :**
-- Stats de base selon **race, classe et niveau** ;
-- **Équipement acquis** du set sélectionné + enchantements + bonus de set.
+- **Calcul côté backend** (source de vérité unique, testable, réutilisable par le bot), avec un endpoint de
+  **prévisualisation** pour voir l'effet d'une modification avant de l'enregistrer.
+- **Détail au survol** de chaque stat : part des objets, des enchantements, des bonus de set.
+- La fiche permet de **choisir le set** dont on affiche les stats (ex. set de résistance feu).
+- **Exclus** : éléments projetés, effets conditionnels ou aléatoires (procs), qui sont seulement décrits.
 
-**Exclus :**
-- **Talents** : aucun effet de talent n'est pris en compte dans les stats pour l'instant (cf. hors MVP) ;
-- éléments projetés ;
-- buffs et consommables (des interrupteurs de buffs pourront venir plus tard) ;
-- effets conditionnels ou aléatoires (procs), qui sont seulement décrits.
-
-**Statistiques affichées :**
-
-| Catégorie | Statistiques |
-|---|---|
-| Générales | Force, Agilité, Endurance, Intelligence, Esprit, Points de vie, Mana / Rage / Énergie, Armure |
-| Résistances | Arcane, Feu, Givre, Nature, Ombre |
-| Mêlée | Puissance d'attaque, Dégâts et vitesse d'arme, Toucher, Critique, Compétence d'arme |
-| Distance | Puissance d'attaque à distance, Dégâts et vitesse, Toucher, Critique |
-| Sorts | Puissance des sorts (par école), Puissance de soins, Critique, Toucher, Régénération de mana (5 s) |
-| Défense | Défense, Esquive, Parade, Blocage, Valeur de blocage |
-
-- **Détail au survol** de chaque stat : part de base, des objets, des enchantements, des bonus de set.
-- La fiche permet de **choisir le set** dont on affiche les stats (ex. set PvP).
-- **Formules** : celles de **WoW Classic Era** comme base ; les coefficients (par classe, par niveau) sont stockés en
-  données pour pouvoir être ajustés si WoW Forever les modifie.
+Ce périmètre couvre l'usage réel (comparer deux sets, vérifier un seuil de résistance) sans dépendre des formules
+du jeu.
 
 ### Hors MVP
 
-- **Prise en compte des talents dans les stats** (+% de caractéristique, +crit, +toucher…) : c'est la partie la plus
-  coûteuse du moteur (effets simples déductibles des données importées, les autres à coder au cas par cas), reportée.
-  Le moteur est conçu pour pouvoir ajouter cette source plus tard sans refonte (une « source » de stats parmi d'autres).
+- **Stats dérivées** (points de vie, mana, % de critique, % de toucher, esquive, parade, compétence d'arme…) et
+  **stats de base** par race, classe et niveau : nécessitent les formules et coefficients de WoW Forever, inconnus
+  avant la sortie, et un gros travail de données. Le moteur est conçu en « sources » de stats additionnables pour
+  les ajouter sans refonte.
+- **Prise en compte des talents dans les stats** (+% de caractéristique, +crit, +toucher…) : partie la plus
+  coûteuse (effets simples déductibles des données importées, les autres à coder au cas par cas).
+- Buffs et consommables (interrupteurs de buffs).
 
 ### Points ouverts
 
-- Effets d'objets non triviaux (« Équipé : … » hors bonus de stat simple) : à modéliser au cas par cas.
-- Formules et stats de base de WoW Forever (et de la race Skyborn) inconnues avant la sortie.
+- Effets d'objets non triviaux (« Équipé : … » hors bonus de stat simple) : seulement décrits, à modéliser au cas par
+  cas si le besoin apparaît.
 
 ---
 
-## 5. Base de données du jeu et encyclopédie
+## 5. Base de données du jeu
 
-### Contenu
+### Principe : Wowhead fait le gros du travail
+
+Le site **ne reconstruit pas une encyclopédie**. Wowhead couvre chaque version du jeu et couvrira WoW Forever
+rapidement ; son **script d'infobulles** s'intègre sur n'importe quel site. Le site se contente donc de :
+
+- stocker un **index local minimal** de ce dont il a besoin pour l'autocomplétion, les contrôles et la somme des
+  stats, chaque entrée portant l'**ID Wowhead** ;
+- afficher les **infobulles Wowhead** au survol de tout objet, sort ou talent, partout sur le site (équipement,
+  recettes, demandes de craft…), et **lier** vers la fiche Wowhead pour le détail.
+
+### Contenu de l'index local
 
 | Données | Détails |
 |---|---|
-| **Objets** | Nom, icône, qualité, emplacement, type (armure/arme), niveau d'objet, niveau requis, restrictions de classe, stats, effets (« Équipé : … », « Utilisation : … »), unicité, set d'appartenance |
-| **Sets d'objets** | Pièces, bonus par palier |
-| **Enchantements** | Effet, emplacement, source (métier, quête…) |
-| **Sorts et techniques** | Classe, rang, niveau d'apprentissage, coût, temps d'incantation, portée, temps de recharge, description, icône |
+| **Objets** | ID Wowhead, nom FR / EN, icône, qualité, emplacement, type (armure/arme), niveau requis, restrictions de classe, stats brutes, unicité, set d'appartenance. Les effets « Équipé : … » sont seulement conservés en texte |
+| **Sets d'objets** | Pièces, bonus par palier (texte + stats brutes si simples) |
+| **Enchantements** | Effet (stats brutes), emplacement, source (métier, quête…) |
 | **Talents** | Arbres par classe (nom, icône, fond), talents (position, rangs, prérequis, description par rang) |
-| **Stats de base** | Par race, classe et niveau |
 | **Recettes** | cf. étape 6 |
-| **Instances** | cf. étape 7 |
+| **Instances** | cf. étape 7, saisies à la main dès le lot 2 |
 
-Données en **français** (avec le nom anglais conservé pour la recherche et les liens externes).
+Hors index : sorts et techniques, stats de base par race/classe/niveau (cf. étape 4, hors MVP).
 
 ### Alimentation
 
-1. **Import initial depuis les données client de WoW Classic Era** (exports des tables du jeu) via des commandes
-   Django **rejouables et idempotentes** ; **icônes** téléchargées et servies par notre propre serveur.
-2. **Couche de surcharge « Forever »** : ajouts et corrections manuels (GM, via l'admin) pour le contenu propre à
-   WoW Forever (nouveaux objets, sorts, talents, race Skyborn…). Ces surcharges **survivent aux réimports**.
+1. **Import depuis les données client** via des commandes Django **rejouables et idempotentes** ; **icônes**
+   téléchargées et servies par notre propre serveur. Source visée : **le client WoW Forever lui-même** dès que ses
+   tables sont exportables (type wago.tools). Les données **Classic Era** ne servent que de **bouche-trou** avant.
+2. **Couche de surcharge** : ajouts et corrections manuels (GM, via l'admin) pour ce que l'import ne couvre pas
+   encore. Ces surcharges **survivent aux réimports**.
 3. Plus tard : synchronisation via l'API Blizzard si elle couvre WoW Forever.
 
-### Encyclopédie (consultation)
+### Consultation
 
-- **Recherche d'objets** avec filtres (emplacement, type, qualité, niveau, classe, statistique) et fiche objet.
-- **Sorts par classe**, classés par niveau d'apprentissage, avec leurs rangs.
 - **Calculateur de talents « vierge »** (sans personnage), avec lien partageable.
-- **Infobulles façon WoW** au survol de tout objet, sort ou talent, partout sur le site (équipement, recettes,
-  demandes de craft…).
+- **Recherche d'objets** limitée à l'autocomplétion (nom, filtre par emplacement). Pour le reste : Wowhead.
+
+### Hors MVP
+
+- Encyclopédie interne complète (recherche d'objets multi-critères, sorts par classe, fiches détaillées).
+- Infobulles maison, si celles de Wowhead s'avèrent insuffisantes ou indisponibles pour Forever.
 
 ### Points ouverts
 
-- **Source exacte des données** Classic Era (outil d'export des tables du jeu) et conditions d'utilisation des
-  données et icônes Blizzard — acceptable pour un site **privé et non commercial**, à confirmer.
-- Ampleur des différences entre Classic Era et WoW Forever, connue seulement après la sortie.
+- **Disponibilité des exports du client WoW Forever** et délai de couverture par Wowhead après la sortie.
+- Conditions d'utilisation des données et icônes Blizzard — acceptable pour un site **privé et non commercial**, à
+  confirmer. Conditions d'utilisation du script d'infobulles Wowhead à relire.
 
 ---
 
@@ -308,7 +317,13 @@ Données en **français** (avec le nom anglais conservé pour la recherche et le
 Pour chaque personnage × métier : **niveau de compétence** (0–300, mis à jour manuellement) et éventuelle
 **spécialisation** (ex. Ingénierie gnome/gobeline, Forge d'armes/d'armures, Travail du cuir élémentaire/tribal/dragon).
 
-### Catalogue de recettes
+### Version légère (lot 1)
+
+Livrée avec le roster, sans catalogue de recettes : métiers et niveaux par personnage, affichés sur la fiche
+personnage, plus une vue **« Métiers de la guilde »** (qui a quel métier, à quel niveau, filtrable par métier). C'est la
+question numéro un d'une guilde qui level ; le catalogue ci-dessous vient compléter plus tard.
+
+### Catalogue de recettes (lot 6)
 
 Catalogue **complet** pré-rempli ; chaque joueur **coche les recettes connues** par ses personnages.
 
@@ -354,9 +369,9 @@ Catalogue **complet** pré-rempli ; chaque joueur **coche les recettes connues**
 
 ### Points ouverts
 
-- **Source de données du catalogue** : choisir la source exacte pour Classic Era (export DB2 type wago.tools,
-  base communautaire…) et vérifier les conditions d'utilisation. Risque : les recettes WoW Forever ne seront connues
-  qu'à la sortie et au fil des découvertes → saisie manuelle au début.
+- **Source de données du catalogue** : même stratégie qu'à l'étape 5 (export du client Forever, Classic Era en
+  attendant). Risque : les recettes WoW Forever ne seront connues qu'à la sortie et au fil des découvertes → saisie
+  manuelle au début.
 - Notifications des demandes de craft (Discord ?) : à traiter à l'étape 8.
 
 ---
@@ -432,6 +447,7 @@ Un **bot Discord** dédié à la guilde.
 - Rappel avant un événement (délai configurable, ex. 1 h avant).
 - Événement annulé ou modifié (date/heure).
 - Nouvelle demande de craft.
+- Sondage ouvert, rappel 24 h avant la fin des propositions et avant la fin des votes, résultat validé.
 
 **Messages privés (MP)** au joueur concerné :
 - Placement dans un événement : confirmé / banc.
@@ -445,6 +461,54 @@ Un **bot Discord** dédié à la guilde.
 - `/craft <recette ou objet>` — qui sait crafter quoi.
 
 **Préférences** : chaque joueur peut désactiver les MP (globalement ou par type) depuis son profil.
+
+### Sondages à propositions (MVP, lot 1)
+
+Mécanisme **générique** : les membres proposent des réponses, puis votent. Premier usage : **choisir le nom de la
+guilde** avant la sortie du jeu. Réutilisable ensuite (jour de raid, logo, nom du bot…).
+
+**Sondage** (créé par un officier ou le GM) :
+
+| Champ | Obligatoire | Remarque |
+|---|:---:|---|
+| Titre | ✅ | Ex. « Nom de la guilde » |
+| Description | ❌ | Markdown simple (consignes, contexte) |
+| Fin des propositions | ✅ | Date/heure, fuseau Europe/Paris |
+| Fin des votes | ✅ | Strictement après la fin des propositions |
+| Propositions max par personne | ✅ | Défaut **3** |
+| Votes max par personne | ❌ | Vide = **illimité** (défaut) |
+| Règle de format | ❌ | `libre` (défaut) ou `nom de guilde WoW` : 2–24 caractères, lettres (accents acceptés) et espaces simples, ni chiffres ni caractères spéciaux |
+| Définit le nom de guilde | ❌ | Booléen : à la validation, la proposition gagnante devient le **nom de guilde** (paramètre de guilde, cf. étape 3) |
+| Statut | ✅ | `Propositions` → `Votes` → `Clos` → `Validé` (transitions automatiques aux dates, sauf la validation) |
+
+**Déroulement :**
+
+1. **Phase propositions** (jusqu'à la fin des propositions) : chaque membre soumet jusqu'au maximum autorisé
+   (texte + note optionnelle, ex. le sens ou la blague derrière le nom). Unicité **insensible à la casse** et aux
+   espaces superflus. Un membre peut **retirer** sa proposition tant que la phase est ouverte, ce qui libère un
+   emplacement et supprime les votes reçus ; pas de modification, on retire et on repropose. **Le vote est ouvert
+   dès la première proposition.**
+2. **Phase votes** (jusqu'à la fin des votes) : **un vote par membre et par proposition**, retirable à tout moment,
+   sans limite de nombre sauf si le sondage en fixe une. Voter pour sa propre proposition est autorisé. Plus aucune
+   proposition ne peut être ajoutée.
+3. **Clôture** automatique à la fin des votes : classement par nombre de votes, puis par ancienneté de la proposition
+   en cas d'égalité. Plus aucun vote possible.
+4. **Validation par le GM** : le GM confirme la proposition gagnante (par défaut la première du classement) ou en
+   choisit une autre du classement avec une **justification** affichée (ex. nom déjà pris sur le royaume). Si le
+   sondage « définit le nom de guilde », le nom de guilde est mis à jour. Le sondage passe en `Validé`.
+
+**Visibilité : tout est public.** Chaque proposition affiche son auteur, son nombre de votes et la liste des
+votants, en temps réel pendant toute la durée du sondage.
+
+**Modération :** les officiers et le GM peuvent supprimer n'importe quelle proposition et modifier les dates d'un
+sondage en cours (prolongation). Un sondage ne peut être supprimé qu'avant sa première proposition.
+
+**Vues :**
+- Liste des sondages (en cours, puis clos / validés).
+- **Fiche sondage** : compte à rebours de la phase en cours, formulaire de proposition avec compteur (ex. « 2/3 »),
+  propositions triées par votes avec bouton voter / retirer mon vote, résultat validé mis en avant une fois le
+  sondage terminé.
+- Accueil : bannière pour chaque sondage en cours où je n'ai pas encore voté.
 
 ### Autres fonctionnalités
 
@@ -484,18 +548,18 @@ annonces/news, export iCal, banque de guilde, suivi du loot / DKP.
 | Langage / framework | Python 3.13, **Django 5.2 LTS** |
 | API | **Django REST Framework**, schéma OpenAPI via **drf-spectacular** |
 | Base de données | **PostgreSQL** |
-| Authentification | **Discord OAuth2** (flux maison : échange du code, lecture de `/users/@me` et `/users/@me/guilds`) puis émission de **JWT** via **djangorestframework-simplejwt** |
-| Bot | **discord.py**, lancé par `manage.py runbot`, accès direct à l'ORM |
+| Authentification | **Discord OAuth2** (flux maison : échange du code, lecture de `/users/@me`, puis vérification du rôle via `GET /guilds/{id}/members/{user_id}` avec le token du bot) puis **session Django** classique |
+| Bot | **discord.py**, lancé par `manage.py runbot`, accès direct à l'ORM. Le bot est asynchrone et l'ORM synchrone : **tout accès base passe par `sync_to_async`** (ou des helpers dédiés) |
 | Tâches de fond | Pas de Celery/Redis : boucles `discord.ext.tasks` dans le bot |
 | Admin | Django admin pour les données de référence et le dépannage |
 
-**Stratégie JWT :**
-- **Access token** courte durée (~15 min), gardé **en mémoire** côté front (jamais en `localStorage`).
-- **Refresh token** longue durée en **cookie `httpOnly`, `Secure`, `SameSite=Strict`**, limité au chemin `/api/auth/`,
-  avec rotation et blacklist à l'usage.
-- Après le callback Discord, le backend pose le cookie de refresh et redirige vers le front, qui obtient un access token
-  via `/api/auth/refresh/`. Déconnexion = blacklist du refresh + suppression du cookie.
-- À chaque refresh, on vérifie que le compte est toujours actif (membre désactivé = accès coupé).
+**Stratégie de session :**
+- Front et API sont servis par Caddy sur la **même origine** : pas besoin de JWT. On utilise les **sessions Django**
+  (cookie `httpOnly`, `Secure`, `SameSite=Lax`) avec `SessionAuthentication` côté DRF et la protection CSRF de Django
+  (le front lit le cookie `csrftoken` et renvoie l'en-tête `X-CSRFToken`).
+- Après le callback Discord, le backend ouvre la session et redirige vers le front. Déconnexion = `logout()`.
+- Un utilisateur **désactivé est refusé à la requête suivante** (comportement standard de Django) ; à la désactivation,
+  ses sessions sont supprimées. Aucune fenêtre de 15 minutes, aucune rotation ni blacklist à gérer.
 
 **Notifications (outbox) :** le site écrit des lignes dans une table `Notification` (type, destinataire ou salon,
 payload, statut) ; le bot les dépile et les envoie. Les rappels d'événements sont générés par une boucle du bot qui
@@ -505,13 +569,14 @@ scrute les événements à venir. Découplage simple : si le bot est arrêté, r
 
 | App | Contenu |
 |---|---|
-| `accounts` | Utilisateur (ID Discord, rôle site, bio, préférences de notification), disponibilités, auth Discord/JWT |
+| `accounts` | Utilisateur (ID Discord, rôle site, bio, préférences de notification), disponibilités, auth Discord/session |
 | `guild` | Paramètres de guilde (nom, faction, royaume, ID serveur et salon Discord) |
-| `gamedata` | Base de données du jeu : classes, races, stats de base, objets, sets, enchantements, sorts, talents, métiers, recettes, instances ; commandes d'import et surcharges « Forever » |
-| `characters` | Personnages, sets d'équipement, builds de talents, métiers des personnages, recettes connues |
-| `stats` | Moteur de calcul des statistiques (sans modèle, logique pure et testée) |
+| `gamedata` | Données de référence et index du jeu : classes, races, spécialisations, métiers, instances, objets, sets, enchantements, talents, recettes ; commandes d'import et surcharges |
+| `characters` | Personnages, métiers des personnages, sets d'équipement, builds de talents, recettes connues |
+| `stats` | Somme des statistiques brutes par set (sans modèle, logique pure et testée, conçue en « sources » additionnables) |
 | `crafting` | Demandes de craft |
 | `events` | Événements, inscriptions, placements |
+| `polls` | Sondages à propositions, propositions, votes, validation du résultat |
 | `notifications` | Outbox de notifications |
 | `discordbot` | Bot, commandes slash, boucles de tâches, commande `runbot` |
 
@@ -523,9 +588,10 @@ scrute les événements à venir. Découplage simple : si le bot est arrêté, r
 | Routage | **React Router** |
 | Données serveur | **TanStack Query** ; client et types **générés depuis le schéma OpenAPI** (openapi-typescript) |
 | UI | **Tailwind CSS** + **shadcn/ui**, thème sombre aux couleurs WoW, couleurs de classe officielles |
+| Responsive | **Mobile d'abord** : roster, agenda, inscription et métiers doivent être confortables sur téléphone ; la fenêtre d'équipement et le calculateur de talents peuvent être pensés pour l'écran large |
 | Formulaires | react-hook-form + zod |
-| Calendrier | Composant calendrier à choisir à l'implémentation (ex. FullCalendar ou vue maison) |
-| Spécifique WoW | Composants maison : infobulles d'objets/sorts, fenêtre d'équipement, calculateur de talents |
+| Calendrier | Composant calendrier à choisir à l'implémentation (ex. FullCalendar ou vue maison) ; vue liste privilégiée sur mobile |
+| Spécifique WoW | Script d'**infobulles Wowhead** ; composants maison : fenêtre d'équipement, calculateur de talents |
 
 ### Organisation du dépôt
 
@@ -544,8 +610,9 @@ wow-forever/
   en statique par Caddy.
 - **HTTPS** automatique via Caddy (Let's Encrypt) → nécessite un **nom de domaine**.
 - **Sauvegardes** : `pg_dump` quotidien, rétention ~14 jours, copie hors du VPS.
-- **Secrets** en variables d'environnement (`.env` non versionné) : clés Django/JWT, client ID/secret OAuth Discord,
-  token du bot, ID du serveur Discord, IDs des rôles Discord autorisés, ID Discord du premier GM.
+- **Secrets** en variables d'environnement (`.env` non versionné) : clé secrète Django, client ID/secret OAuth Discord,
+  token du bot (nécessaire dès le lot 0 pour la vérification du rôle), ID du serveur Discord, IDs des rôles Discord
+  autorisés, ID Discord du premier GM.
 - **Dev local** : `docker compose` pour PostgreSQL, Django en `runserver`, Vite en dev avec proxy `/api`.
 - **Icônes** du jeu stockées sur un volume et servies en statique par Caddy (cache long).
 
@@ -564,24 +631,29 @@ wow-forever/
 
 ## 10. MVP et feuille de route
 
-Principe : mettre en ligne au plus vite ce qui sert dès la sortie du jeu (qui joue quoi, sorties de groupe),
-puis construire les grosses briques (base de données du jeu, fiche de personnage).
+Principe : mettre en ligne au plus vite ce qui sert dès la sortie du jeu (qui joue quoi, qui a quel métier, sorties
+de groupe), puis le bot, et seulement ensuite les grosses briques (données du jeu, fiche de personnage), dont le
+périmètre a été réduit pour s'appuyer sur Wowhead.
 
-| Lot | Contenu | Sections |
-|---|---|---|
-| **0 — Socle** | Dépôt (backend/frontend/deploy), Docker, CI, connexion Discord + JWT avec contrôle du rôle Discord « Membre », rôles du site, paramètres de guilde, déploiement sur le VPS | 1, 2, 9 |
-| **1 — Roster** | Profils, disponibilités, personnages (classe, race, niveau, rôles, main/alts), roster, synthèse de composition. Classes et races saisies à la main (sans attendre l'import complet) | 3 |
-| **2 — Agenda** | Événements, inscriptions, composition validée, calendrier, bouton « Dupliquer » | 7 |
-| **3 — Base de données du jeu** | Import Classic Era (objets, sets, enchantements, sorts, talents, stats de base, icônes), surcharges « Forever », encyclopédie, infobulles | 5 |
-| **4 — Fiche de personnage** | Sets d'équipement, calculateur de talents et builds, projection, moteur de stats (sans talents) | 4 |
-| **5 — Bot Discord** | Notifications en salon et en MP, rappels, commandes slash, révocation d'accès en temps réel | 8, 2 |
-| **6 — Métiers** | Métiers des personnages, catalogue de recettes, « qui sait crafter ? », demandes de craft | 6 |
+| Lot | Cible | Contenu | Sections |
+|---|---|---|---|
+| **0 — Socle** | **4 nov. 2026** | Dépôt (backend/frontend/deploy), Docker, CI, connexion Discord + session avec contrôle du rôle Discord « Membre » via le token du bot, rôles du site, paramètres de guilde, déploiement sur le VPS | 1, 2, 9 |
+| **1 — Roster, métiers légers, sondages** | **4 nov. 2026** | Profils, disponibilités, personnages (classe, race, niveau, rôles, spé manuelle, main/alts), métiers × niveau par personnage, roster, « Métiers de la guilde », synthèse de composition, **sondages à propositions** (premier usage : nom de la guilde). Classes, races et métiers saisis à la main | 3, 6, 8 |
+| **2 — Agenda** | mi-nov. 2026 | Événements, inscriptions, composition validée, calendrier, bouton « Dupliquer ». Instances saisies à la main | 7 |
+| **3 — Bot Discord** | fin nov. 2026 | Notifications en salon et en MP, rappels, commandes slash, révocation d'accès en temps réel | 8, 2 |
+| **4 — Données du jeu** | déc. 2026 | Import de l'index (objets, sets, enchantements, talents, recettes, icônes) depuis le client Forever ou Classic Era en attendant, surcharges, infobulles Wowhead, calculateur de talents vierge | 5 |
+| **5 — Fiche de personnage** | — | Sets d'équipement, calculateur de talents et builds, projection, somme des stats brutes | 4 |
+| **6 — Catalogue et crafts** | — | Catalogue de recettes, recettes connues, « qui sait crafter ? », demandes de craft | 6 |
+
+Les cibles des lots 0 à 4 sont indicatives ; les lots 5 et 6 seront datés une fois le lot 3 livré, et leur périmètre
+réévalué à la lumière de la couverture de WoW Forever par Wowhead.
 
 ### Après le MVP (backlog)
 
-- Prise en compte des talents dans les stats.
+- Stats dérivées et stats de base dans le moteur (points de vie, crit, toucher, esquive…), puis talents, puis
+  buffs / consommables.
+- Encyclopédie interne complète et infobulles maison.
 - Événements récurrents.
 - Synchronisation des rôles du site avec les rôles Discord.
 - Import automatique des personnages via l'API Blizzard (si elle couvre WoW Forever).
-- Buffs / consommables dans le calcul des stats.
 - Annonces, export iCal, banque de guilde, suivi du loot / DKP.
