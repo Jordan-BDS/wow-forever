@@ -130,10 +130,12 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
         </Field>
         <Field label="Valeurs de la guilde (affichées en citation sur l'accueil)">
           <Textarea
-            rows={5}
-            maxLength={600}
+            rows={12}
+            maxLength={1000}
             value={form.values}
-            placeholder={"Entraide avant tout, zéro prise de tête.\n\nUne ligne vide sépare les paragraphes."}
+            placeholder={
+              "Entraide avant tout, zéro prise de tête.\n\nLes retours à la ligne sont conservés, une ligne vide sépare les strophes."
+            }
             onChange={(e) => update({ values: e.target.value })}
           />
           {Err("values")}

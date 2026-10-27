@@ -4790,8 +4790,8 @@
                     "values": {
                         "type": "string",
                         "title": "Valeurs de la guilde",
-                        "description": "Affichées en citation sur l'accueil. Une ligne vide sépare les paragraphes.",
-                        "maxLength": 600
+                        "description": "Affichées en citation sur l'accueil. Retours à la ligne conservés, une ligne vide sépare les strophes.",
+                        "maxLength": 1000
                     },
                     "updated_at": {
                         "type": "string",
@@ -5630,8 +5630,8 @@
                     "values": {
                         "type": "string",
                         "title": "Valeurs de la guilde",
-                        "description": "Affichées en citation sur l'accueil. Une ligne vide sépare les paragraphes.",
-                        "maxLength": 600
+                        "description": "Affichées en citation sur l'accueil. Retours à la ligne conservés, une ligne vide sépare les strophes.",
+                        "maxLength": 1000
                     },
                     "discord_channel_id": {
                         "type": "string",

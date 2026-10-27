@@ -1354,7 +1354,7 @@ export interface components {
             realm?: string;
             /**
              * Valeurs de la guilde
-             * @description Affichées en citation sur l'accueil. Une ligne vide sépare les paragraphes.
+             * @description Affichées en citation sur l'accueil. Retours à la ligne conservés, une ligne vide sépare les strophes.
              */
             values?: string;
             /** Format: date-time */
@@ -1677,7 +1677,7 @@ export interface components {
             realm?: string;
             /**
              * Valeurs de la guilde
-             * @description Affichées en citation sur l'accueil. Une ligne vide sépare les paragraphes.
+             * @description Affichées en citation sur l'accueil. Retours à la ligne conservés, une ligne vide sépare les strophes.
              */
             values?: string;
             /**

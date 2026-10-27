@@ -1,28 +1,39 @@
 /**
  * Valeurs de la guilde, mises en avant comme une devise gravée : plume d'or en haut à droite,
- * filets brodés, texte en italique de parchemin. Rien n'est affiché tant que le GM n'a rien écrit.
+ * filets brodés, texte en italique de parchemin aligné à gauche. Une ligne vide sépare les strophes,
+ * les retours à la ligne à l'intérieur d'une strophe sont conservés (vers d'un poème).
+ * Rien n'est affiché tant que le GM n'a rien écrit.
  */
 export function GuildValues({ text, author }: { text: string; author?: string }) {
-  const paragraphs = text
+  const stanzas = text
     .split(/\n\s*\n/)
-    .map((p) => p.trim())
+    .map((stanza) =>
+      stanza
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join("\n"),
+    )
     .filter(Boolean);
-  if (paragraphs.length === 0) return null;
+  if (stanzas.length === 0) return null;
 
   return (
     <figure className="relative mb-8 overflow-hidden rounded-md border border-gold-dark/50 bg-surface/80 px-6 py-6 sm:px-10 sm:py-8">
       <div className="rule-gold absolute inset-x-6 top-0 sm:inset-x-10" />
       <QuillIcon className="absolute top-4 right-4 size-7 text-gold sm:top-5 sm:right-5 sm:size-8" />
-      <blockquote className="relative space-y-3 text-center font-sans text-lg italic leading-relaxed text-text sm:text-xl">
-        {paragraphs.map((paragraph, index) => (
-          <p key={index}>{paragraph}</p>
-        ))}
-      </blockquote>
-      {author && (
-        <figcaption className="mt-4 text-center font-display text-sm tracking-widest text-gold uppercase">
-          {author}
-        </figcaption>
-      )}
+      {/* Bloc centré à la largeur du vers le plus long, texte aligné à gauche à l'intérieur. */}
+      <div className="relative mx-auto w-fit max-w-full pr-8 sm:pr-0">
+        <blockquote className="space-y-4 text-left font-sans text-lg italic leading-relaxed whitespace-pre-line text-text">
+          {stanzas.map((stanza, index) => (
+            <p key={index}>{stanza}</p>
+          ))}
+        </blockquote>
+        {author && (
+          <figcaption className="mt-5 text-right font-display text-sm tracking-widest text-gold uppercase">
+            {author}
+          </figcaption>
+        )}
+      </div>
       <div className="rule-gold absolute inset-x-6 bottom-0 sm:inset-x-10" />
     </figure>
   );

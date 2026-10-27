@@ -17,8 +17,11 @@ class GuildSettings(models.Model):
     values = models.TextField(
         "Valeurs de la guilde",
         blank=True,
-        max_length=600,
-        help_text="Affichées en citation sur l'accueil. Une ligne vide sépare les paragraphes.",
+        max_length=1000,
+        help_text=(
+            "Affichées en citation sur l'accueil. "
+            "Retours à la ligne conservés, une ligne vide sépare les strophes."
+        ),
     )
     discord_channel_id = models.CharField(
         "Salon Discord des annonces", max_length=32, blank=True, help_text="Le bot y publie les annonces."
