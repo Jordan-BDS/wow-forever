@@ -16,7 +16,7 @@ export function LoginPage() {
         <Emblem className="mx-auto size-24" />
         <h1 className="mt-5 font-display text-4xl text-gold">WoW Forever</h1>
         <div className="rule-gold mx-auto mt-3 w-40" />
-        <p className="mt-3 text-sm text-muted">Pour l'Alliance. La plateforme de la guilde.</p>
+        <p className="mt-3 text-sm text-muted">Par des zouaves, pour des zouaves.</p>
         {errorCode && (
           <p className="mt-6 rounded-sm border border-danger/50 bg-danger/10 p-3 text-sm text-danger">
             {LOGIN_ERRORS[errorCode] ?? "Connexion impossible."}

@@ -1,31 +1,18 @@
 import clsx from "clsx";
-import { NavLink, Outlet, useNavigate } from "react-router";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useGuild } from "@/api/guild";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { useLogout } from "@/auth/useMe";
+import { SECTIONS, isSectionActive } from "@/lib/navigation";
 import { Emblem } from "./Emblem";
 import { Button, RoleBadge } from "./ui";
-
-const links = [
-  { to: "/", label: "Accueil" },
-  { to: "/personnages", label: "Personnages" },
-  { to: "/agenda", label: "Agenda" },
-  { to: "/roster", label: "Roster" },
-  { to: "/metiers", label: "Métiers" },
-  { to: "/crafts", label: "Crafts" },
-  { to: "/objets", label: "Objets" },
-  { to: "/talents", label: "Talents" },
-  { to: "/disponibilites", label: "Dispos" },
-  { to: "/sondages", label: "Sondages" },
-  { to: "/membres", label: "Membres" },
-];
 
 export function Layout() {
   const me = useCurrentUser();
   const guild = useGuild();
   const logout = useLogout();
   const navigate = useNavigate();
-  const navLinks = me.site_role === "gm" ? [...links, { to: "/guilde", label: "Paramètres" }] : links;
+  const { pathname } = useLocation();
   const title = guild.data?.name || "WoW Forever";
   const subtitle = guild.data?.name
     ? [
@@ -39,7 +26,7 @@ export function Layout() {
       ]
         .filter(Boolean)
         .join(" ")
-    : "La plateforme de la guilde";
+    : "Par des zouaves, pour des zouaves";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -67,31 +54,27 @@ export function Layout() {
             </Button>
           </div>
           <nav className="-mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-4 text-sm sm:mx-0 sm:w-auto sm:basis-full sm:px-0">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                end={link.to === "/"}
-                className={({ isActive }) =>
-                  clsx(
+            {SECTIONS.map((section) => {
+              const active = isSectionActive(section, pathname);
+              return (
+                <NavLink
+                  key={section.to}
+                  to={section.to}
+                  className={clsx(
                     "whitespace-nowrap border-b-2 px-3 py-2 transition-colors",
-                    isActive ? "border-gold text-gold" : "border-transparent text-muted hover:text-text",
-                  )
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
+                    active ? "border-gold text-gold" : "border-transparent text-muted hover:text-text",
+                  )}
+                >
+                  {section.label}
+                </NavLink>
+              );
+            })}
           </nav>
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <Outlet context={me} />
       </main>
-      <footer className="mx-auto w-full max-w-6xl px-4 pb-6 text-xs text-muted">
-        <div className="rule-gold mb-3 opacity-50" />
-        Pour la guilde, par la guilde. Infobulles et fiches détaillées fournies par Wowhead.
-      </footer>
     </div>
   );
 }
