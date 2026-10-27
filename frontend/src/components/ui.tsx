@@ -29,12 +29,12 @@ export function Button({
   );
 }
 
-/** Carte : tissu de bannière, bordure fine, un liseré plus clair en haut. Pas d'ombre. */
+/** Carte : tissu de bannière légèrement translucide (le fond affleure), bordure fine, liseré plus clair en haut. */
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={clsx(
-        "min-w-0 rounded-md border border-border bg-surface bg-gradient-to-b from-surface-2/40 to-surface p-4",
+        "min-w-0 rounded-md border border-border bg-surface/90 bg-gradient-to-b from-surface-2/40 to-surface/90 p-4",
         className,
       )}
       {...props}
