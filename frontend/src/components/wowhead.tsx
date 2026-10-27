@@ -1,4 +1,4 @@
-import { QUALITY_COLOR, WOWHEAD_DOMAIN } from "@/lib/wowhead";
+import { QUALITY_COLOR, WOWHEAD_DOMAIN, WOWHEAD_URL } from "@/lib/wowhead";
 
 export function WowheadLink({
   kind,
@@ -15,7 +15,7 @@ export function WowheadLink({
 }) {
   return (
     <a
-      href={`https://www.wowhead.com/${WOWHEAD_DOMAIN}/${kind}=${id}`}
+      href={`${WOWHEAD_URL}/${kind}=${id}`}
       data-wowhead={`${kind}=${id}&domain=${WOWHEAD_DOMAIN}`}
       data-wh-icon-added="true"
       target="_blank"

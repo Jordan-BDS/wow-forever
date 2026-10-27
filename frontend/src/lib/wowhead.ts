@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 
-/** Domaine Wowhead à utiliser pour les infobulles. À passer sur le domaine Forever dès qu'il existe. */
-export const WOWHEAD_DOMAIN = "classic";
+/** Domaine Wowhead des infobulles : le jeu Forever, en français (le script tooltips.js le reconnaît). */
+export const WOWHEAD_DOMAIN = "fr.forever";
+/** Base des liens vers les fiches Wowhead. */
+export const WOWHEAD_URL = "https://www.wowhead.com/forever/fr";
 
 export const QUALITY_COLOR: Record<number, string> = {
   0: "#9d9d9d",
