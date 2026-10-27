@@ -135,6 +135,53 @@ class TestEquipmentSets:
         )
 
 
+class TestSingleSlot:
+    def test_patch_one_slot_even_if_another_piece_is_now_invalid(self, as_user, member, warrior):
+        client = as_user(member)
+        set_id = client.post(sets_url(warrior), {"name": "x"}, format="json").data["id"]
+        client.put(
+            sets_url(warrior, f"{set_id}/slots/"),
+            {"slots": [{"slot": "main_hand", "item": ASHBRINGER}]},
+            format="json",
+        )
+        # Le guerrier devient mage : l'épée à deux mains n'est plus portable, mais on peut quand même agir.
+        warrior.player_class = PlayerClass.objects.get(slug="mage")
+        warrior.save()
+        listing = client.get(sets_url(warrior)).data[0]
+        assert listing["slots"][0]["error"]
+        blocked = client.put(
+            sets_url(warrior, f"{set_id}/slots/"),
+            {"slots": [{"slot": "main_hand", "item": ASHBRINGER}, {"slot": "finger1", "item": RING}]},
+            format="json",
+        )
+        assert blocked.status_code == 400
+        patched = client.patch(
+            sets_url(warrior, f"{set_id}/slot/"), {"slot": "finger1", "item": RING}, format="json"
+        )
+        assert patched.status_code == 200, patched.data
+        assert {s["slot"] for s in patched.data["slots"]} == {"main_hand", "finger1"}
+        emptied = client.patch(
+            sets_url(warrior, f"{set_id}/slot/"), {"slot": "main_hand", "item": None}, format="json"
+        )
+        assert emptied.status_code == 200 and [s["slot"] for s in emptied.data["slots"]] == ["finger1"]
+
+    def test_patch_keeps_cross_checks(self, as_user, member, warrior):
+        client = as_user(member)
+        set_id = client.post(sets_url(warrior), {"name": "x"}, format="json").data["id"]
+        client.patch(sets_url(warrior, f"{set_id}/slot/"), {"slot": "finger1", "item": RING}, format="json")
+        twice = client.patch(
+            sets_url(warrior, f"{set_id}/slot/"), {"slot": "finger2", "item": RING}, format="json"
+        )
+        assert twice.status_code == 400 and "finger2" in twice.data
+        client.patch(
+            sets_url(warrior, f"{set_id}/slot/"), {"slot": "main_hand", "item": ASHBRINGER}, format="json"
+        )
+        off = client.patch(
+            sets_url(warrior, f"{set_id}/slot/"), {"slot": "off_hand", "item": THUNDERFURY}, format="json"
+        )
+        assert off.status_code == 400 and "off_hand" in off.data
+
+
 class TestTalentBuilds:
     def mage_points(self, count=6):
         """Les `count` premiers points dans le premier talent 5 rangs de l'arbre Feu puis un talent de

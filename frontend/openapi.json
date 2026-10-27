@@ -663,6 +663,69 @@
                 }
             }
         },
+        "/api/characters/{character_pk}/equipment-sets/{id}/slot/": {
+            "patch": {
+                "operationId": "characters_equipment_sets_slot_partial_update",
+                "description": "Modifie ou vide un seul emplacement sans revalider les autres pièces.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "character_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSlotPatchRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSlotPatchRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSlotPatchRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EquipmentSet"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/characters/{character_pk}/equipment-sets/{id}/slots/": {
             "put": {
                 "operationId": "characters_equipment_sets_slots_update",
@@ -1377,7 +1440,7 @@
             },
             "post": {
                 "operationId": "characters_recipes_create",
-                "description": "Coche toutes les recettes de formateur accessibles au niveau de compétence de chaque métier.",
+                "description": "Coche toutes les recettes accessibles au niveau de compétence de chaque métier.",
                 "parameters": [
                     {
                         "in": "path",
@@ -5571,6 +5634,29 @@
                     }
                 }
             },
+            "PatchedSlotPatchRequest": {
+                "type": "object",
+                "description": "PATCH d'un seul emplacement : seule cette pièce est validée, plus les contrôles croisés.",
+                "properties": {
+                    "slot": {
+                        "$ref": "#/components/schemas/SlotEnum"
+                    },
+                    "item": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true
+                    },
+                    "enchantment": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64",
+                        "nullable": true
+                    }
+                }
+            },
             "PatchedTalentBuildRequest": {
                 "type": "object",
                 "properties": {
@@ -6479,10 +6565,16 @@
                     "projected": {
                         "type": "boolean",
                         "readOnly": true
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "required": [
                     "enchantment",
+                    "error",
                     "item",
                     "projected",
                     "slot"

@@ -15,7 +15,7 @@ import { ItemPicker } from "@/components/ItemPicker";
 import { Button, Card, Input } from "@/components/ui";
 import { WowheadLink } from "@/components/wowhead";
 import { SHEET_SLOTS, STAT_LABEL } from "@/lib/items";
-import { useWowheadTooltips } from "@/lib/wowhead";
+import { WOWHEAD_URL, useWowheadTooltips } from "@/lib/wowhead";
 
 interface Props {
   character: Character;
@@ -46,6 +46,8 @@ export function EquipmentPanel({ character, sets, canEdit }: Props) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const slots = slotsOf(selected);
+  const slotErrors: Record<string, string | null> = {};
+  for (const slot of selected?.slots ?? []) slotErrors[slot.slot] = slot.error ?? null;
   useWowheadTooltips([selected?.updated_at]);
 
   const stats = useQuery({
@@ -62,18 +64,18 @@ export function EquipmentPanel({ character, sets, canEdit }: Props) {
   const refresh = () => invalidate(KEYS.equipmentSets(character.id));
   const base = { params: { path: { character_pk: character.id, id: String(selected?.id ?? 0) } } };
 
-  const saveSlots = useMutation({
-    mutationFn: async (next: SlotState) => {
-      const { error } = await api.PUT("/api/characters/{character_pk}/equipment-sets/{id}/slots/", {
+  const saveSlot = useMutation({
+    mutationFn: async (next: {
+      slot: string;
+      item: ItemIndex | null;
+      enchantment: EnchantmentIndex | null;
+    }) => {
+      const { error } = await api.PATCH("/api/characters/{character_pk}/equipment-sets/{id}/slot/", {
         ...base,
         body: {
-          slots: Object.entries(next)
-            .filter(([, v]) => v.item)
-            .map(([slot, v]) => ({
-              slot: slot as SlotKey,
-              item: v.item!.id,
-              enchantment: v.enchantment?.id ?? null,
-            })),
+          slot: next.slot as SlotKey,
+          item: next.item?.id ?? null,
+          enchantment: next.enchantment?.id ?? null,
         },
       });
       if (error) throw error;
@@ -228,18 +230,23 @@ export function EquipmentPanel({ character, sets, canEdit }: Props) {
                 const entry = slots[slot.key];
                 const projected =
                   !!entry?.item?.required_level && entry.item.required_level > (character.level ?? 1);
+                const invalid = slotErrors[slot.key];
                 return (
-                  <button
+                  <div
                     key={slot.key}
-                    type="button"
-                    disabled={!canEdit}
-                    onClick={() => setPicking(slot.key)}
                     className={clsx(
-                      "flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-sm transition",
-                      projected ? "border-dashed border-muted" : "border-border",
-                      canEdit ? "hover:border-gold/60" : "cursor-default",
+                      "group relative flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm transition",
+                      invalid
+                        ? "border-danger/60"
+                        : projected
+                          ? "border-dashed border-muted"
+                          : "border-border",
+                      canEdit && "hover:border-gold/60",
                     )}
-                    title={projected ? `Projeté : niveau ${entry!.item!.required_level} requis` : undefined}
+                    title={
+                      invalid ??
+                      (projected ? `Projeté : niveau ${entry!.item!.required_level} requis` : undefined)
+                    }
                   >
                     {entry?.item ? (
                       <img
@@ -248,14 +255,21 @@ export function EquipmentPanel({ character, sets, canEdit }: Props) {
                         className={clsx("size-9 rounded border border-border", projected && "opacity-60")}
                       />
                     ) : (
-                      <span className="flex size-9 items-center justify-center rounded border border-dashed border-border text-xs text-muted">
+                      <button
+                        type="button"
+                        disabled={!canEdit}
+                        onClick={() => setPicking(slot.key)}
+                        aria-label={`Équiper ${slot.label}`}
+                        className="flex size-9 items-center justify-center rounded border border-dashed border-border text-muted hover:border-gold hover:text-gold disabled:cursor-default disabled:hover:border-border disabled:hover:text-muted"
+                      >
                         +
-                      </span>
+                      </button>
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="block text-[10px] text-muted">
                         {slot.label}
                         {projected && " · projeté"}
+                        {invalid && " · non portable"}
                       </span>
                       {entry?.item ? (
                         <WowheadLink
@@ -263,17 +277,58 @@ export function EquipmentPanel({ character, sets, canEdit }: Props) {
                           id={entry.item.id}
                           quality={entry.item.quality}
                           className="block truncate font-medium"
+                          onClick={(e) => e.preventDefault()}
                         >
                           {entry.item.name}
                         </WowheadLink>
                       ) : (
-                        <span className="block text-muted">—</span>
+                        <button
+                          type="button"
+                          disabled={!canEdit}
+                          onClick={() => setPicking(slot.key)}
+                          className="block text-left text-muted hover:text-gold disabled:cursor-default disabled:hover:text-muted"
+                        >
+                          {canEdit ? "Choisir un objet" : "—"}
+                        </button>
                       )}
                       {entry?.enchantment && (
                         <span className="block truncate text-xs text-success">{entry.enchantment.name}</span>
                       )}
                     </span>
-                  </button>
+                    {entry?.item && (
+                      <span className="absolute inset-y-0 right-1 flex items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                        <a
+                          href={`${WOWHEAD_URL}/item=${entry.item.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-sm border border-border bg-surface px-2 py-1 text-xs text-text hover:border-gold hover:text-gold"
+                        >
+                          Wowhead
+                        </a>
+                        {canEdit && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setPicking(slot.key)}
+                              className="rounded-sm border border-border bg-surface px-2 py-1 text-xs text-text hover:border-gold hover:text-gold"
+                            >
+                              Modifier
+                            </button>
+                            <button
+                              type="button"
+                              disabled={saveSlot.isPending}
+                              onClick={() =>
+                                saveSlot.mutate({ slot: slot.key, item: null, enchantment: null })
+                              }
+                              className="rounded-sm border border-danger/50 bg-surface px-2 py-1 text-xs text-danger hover:border-danger"
+                            >
+                              Vider
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -353,7 +408,7 @@ export function EquipmentPanel({ character, sets, canEdit }: Props) {
           current={slots[pickingSlot.key] ?? { item: null, enchantment: null }}
           onChoose={(item, enchantment) => {
             setPicking(null);
-            saveSlots.mutate({ ...slots, [pickingSlot.key]: { item, enchantment } });
+            saveSlot.mutate({ slot: pickingSlot.key, item, enchantment });
           }}
           onClose={() => setPicking(null)}
         />

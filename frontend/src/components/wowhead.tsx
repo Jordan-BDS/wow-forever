@@ -6,12 +6,14 @@ export function WowheadLink({
   quality,
   className,
   children,
+  onClick,
 }: {
   kind: "item" | "spell";
   id: number;
   quality?: number;
   className?: string;
   children: React.ReactNode;
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <a
@@ -21,6 +23,7 @@ export function WowheadLink({
       target="_blank"
       rel="noreferrer"
       className={className}
+      onClick={onClick}
       style={quality != null ? { color: QUALITY_COLOR[quality] } : undefined}
     >
       {children}

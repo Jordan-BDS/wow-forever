@@ -163,6 +163,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/characters/{character_pk}/equipment-sets/{id}/slot/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Modifie ou vide un seul emplacement sans revalider les autres pièces. */
+        patch: operations["characters_equipment_sets_slot_partial_update"];
+        trace?: never;
+    };
     "/api/characters/{character_pk}/equipment-sets/{id}/slots/": {
         parameters: {
             query?: never;
@@ -300,7 +317,7 @@ export interface paths {
         get: operations["characters_recipes_retrieve"];
         /** @description GET : IDs des recettes connues. PUT : remplace la liste. POST : coche les recettes de formateur. */
         put: operations["characters_recipes_update"];
-        /** @description Coche toutes les recettes de formateur accessibles au niveau de compétence de chaque métier. */
+        /** @description Coche toutes les recettes accessibles au niveau de compétence de chaque métier. */
         post: operations["characters_recipes_create"];
         delete?: never;
         options?: never;
@@ -1669,6 +1686,14 @@ export interface components {
             comment?: string;
             placement?: components["schemas"]["PlacementEnum"];
         };
+        /** @description PATCH d'un seul emplacement : seule cette pièce est validée, plus les contrôles croisés. */
+        PatchedSlotPatchRequest: {
+            slot?: components["schemas"]["SlotEnum"];
+            /** Format: int64 */
+            item?: number | null;
+            /** Format: int64 */
+            enchantment?: number | null;
+        };
         PatchedTalentBuildRequest: {
             /** Nom */
             name?: string;
@@ -1989,6 +2014,7 @@ export interface components {
             readonly item: components["schemas"]["Item"];
             readonly enchantment: components["schemas"]["Enchantment"];
             readonly projected: boolean;
+            readonly error: string | null;
         };
         SlotReadRequest: {
             slot: string;
@@ -2481,6 +2507,34 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentSet"];
+                };
+            };
+        };
+    };
+    characters_equipment_sets_slot_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_pk: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedSlotPatchRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedSlotPatchRequest"];
+                "multipart/form-data": components["schemas"]["PatchedSlotPatchRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {

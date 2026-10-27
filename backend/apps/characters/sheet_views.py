@@ -15,6 +15,7 @@ from . import talent_rules
 from .models import Character, EquipmentSet, EquipmentSlot, TalentBuild
 from .sheet_serializers import (
     EquipmentSetSerializer,
+    SlotPatchSerializer,
     SlotsUpdateSerializer,
     TalentBuildSerializer,
     validate_slots,
@@ -73,7 +74,9 @@ class EquipmentSetViewSet(CharacterSheetMixin, viewsets.ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         if "character_pk" in self.kwargs:
-            context["level"] = (getattr(self, "character", None) or self.get_character()).level
+            character = getattr(self, "character", None) or self.get_character()
+            context["level"] = character.level
+            context["class_slug"] = character.player_class.slug
         return context
 
     def perform_create(self, serializer):
@@ -102,6 +105,17 @@ class EquipmentSetViewSet(CharacterSheetMixin, viewsets.ModelViewSet):
         equipment_set = self.get_object()
         self.check_write(equipment_set.character)
         serializer = SlotsUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(equipment_set)
+        return Response(self.get_serializer(self.get_queryset().get(pk=equipment_set.pk)).data)
+
+    @extend_schema(request=SlotPatchSerializer, responses=EquipmentSetSerializer)
+    @action(detail=True, methods=["patch"], url_path="slot")
+    def slot(self, request: Request, character_pk=None, pk=None) -> Response:
+        """Modifie ou vide un seul emplacement sans revalider les autres pièces."""
+        equipment_set = self.get_object()
+        self.check_write(equipment_set.character)
+        serializer = SlotPatchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(equipment_set)
         return Response(self.get_serializer(self.get_queryset().get(pk=equipment_set.pk)).data)
