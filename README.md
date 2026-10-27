@@ -71,13 +71,15 @@ Les variables à remplir sont décrites dans [`deploy/.env.example`](deploy/.env
 ## Déploiement sur le VPS
 
 ```sh
-git clone <dépôt> /opt/wow-forever && cd /opt/wow-forever/deploy
-cp .env.example .env && $EDITOR .env    # domaine, mots de passe, Discord
-docker compose up -d --build
+git clone <dépôt> /opt/wow-forever && cd /opt/wow-forever
+cp deploy/.env.example deploy/.env && $EDITOR deploy/.env    # domaine, mots de passe, Discord
+make deploy MODE=caddy
 ```
 
 Caddy obtient le certificat HTTPS tout seul (le domaine doit pointer sur le VPS, ports 80 et 443 ouverts).
-Mises à jour : `git pull && docker compose up -d --build`. Sauvegardes : `deploy/backup.sh` dans la crontab.
+Mises à jour : `make update` (git pull puis build et redémarrage). Sauvegardes : `make backup`, ou
+`deploy/backup.sh` dans la crontab. `make help` liste les autres commandes (`down`, `logs`, `ps`, `shell`,
+`migrate`, `import-gamedata`…). Le Makefile se lance depuis la racine du dépôt.
 
 ### Derrière un nginx déjà présent sur le VPS
 
@@ -85,21 +87,21 @@ Si nginx occupe déjà les ports 80 et 443, Caddy reste dans Compose mais écout
 et nginx termine le TLS :
 
 ```sh
-cd /opt/wow-forever/deploy
-cp .env.example .env && $EDITOR .env           # SITE_DOMAIN n'est pas utilisé dans ce mode
-docker compose -f docker-compose.yml -f docker-compose.nginx.yml up -d --build
-sudo cp nginx/wow.koj.dev.conf /etc/nginx/sites-available/wow.koj.dev   # adapter le domaine
+cd /opt/wow-forever
+cp deploy/.env.example deploy/.env && $EDITOR deploy/.env   # SITE_DOMAIN n'est pas utilisé dans ce mode
+make deploy                                                 # MODE=nginx par défaut
+sudo cp deploy/nginx/wow.koj.dev.conf /etc/nginx/sites-available/wow.koj.dev   # adapter le domaine
 sudo ln -s /etc/nginx/sites-available/wow.koj.dev /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d wow.koj.dev --redirect   # ajoute le bloc HTTPS au fichier
 ```
 
 Dans `.env`, mettre `SITE_URL`, `DJANGO_ALLOWED_HOSTS` et `DJANGO_CSRF_TRUSTED_ORIGINS` sur le domaine public en
-`https`. Pour les mises à jour, garder les deux fichiers `-f` dans la commande.
+`https`. Mises à jour : `make update`, ou `make down && make deploy` pour repartir de conteneurs neufs.
 
 ### Première mise en ligne
 
-1. `docker compose … exec web python manage.py import_gamedata` (objets, talents, recettes ; ~2 min).
+1. `make import-gamedata` (objets, talents, recettes ; ~2 min).
 2. Ajouter `https://<domaine>/api/auth/discord/callback/` dans les Redirects de l'application Discord.
 3. Se connecter avec Discord : le premier GM est promu, puis Guilde › Paramètres pour vérifier la configuration.
    Les réglages Discord saisis en local se transfèrent avec
