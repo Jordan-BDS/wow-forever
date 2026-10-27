@@ -120,6 +120,7 @@ class TestImporter:
 
     def test_recipes_with_product_and_reagents(self, imported):
         potion = Recipe.objects.get(pk=17580)
+        assert potion.icon == potion.product.icon != ""  # icône du sort = TEMP.BLP → celle de la potion
         assert potion.profession.slug == "alchemy"
         assert potion.product.name_en == "Major Mana Potion" and potion.quantity == 1
         assert (potion.min_skill, potion.skill_yellow, potion.skill_grey) == (295, 310, 350)

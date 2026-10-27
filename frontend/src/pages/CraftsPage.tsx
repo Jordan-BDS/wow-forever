@@ -234,6 +234,11 @@ function RequestCard({ craft, highlighted }: { craft: CraftRequest; highlighted:
           <WowheadLink kind="spell" id={craft.recipe.id} className="text-text hover:text-gold">
             {craft.recipe.name}
           </WowheadLink>
+          <span className="ml-2 rounded-sm border border-gold/50 px-1.5 py-0.5 text-xs text-gold">
+            {gamedata.data?.professions.find((p) => p.slug === craft.recipe.profession)?.name ??
+              craft.recipe.profession}{" "}
+            {craft.recipe.min_skill}
+          </span>
           <span
             className={clsx(
               "ml-2 rounded border px-1.5 py-0.5 text-xs",
