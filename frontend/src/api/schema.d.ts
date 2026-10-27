@@ -166,6 +166,23 @@ export interface paths {
         patch: operations["events_partial_update"];
         trace?: never;
     };
+    "/api/events/{id}/announce/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Publie la composition actuelle dans le salon Discord de la guilde. */
+        post: operations["events_announce_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events/{id}/cancel/": {
         parameters: {
             query?: never;
@@ -592,6 +609,13 @@ export interface components {
          * @enum {string}
          */
         DeactivationReasonEnum: "discord" | "manual";
+        /**
+         * @description * `placement` - placement
+         *     * `reminder` - reminder
+         *     * `craft` - craft
+         * @enum {string}
+         */
+        DmMutedKindsEnum: "placement" | "reminder" | "craft";
         DuplicateRequest: {
             /** Format: date-time */
             starts_at: string;
@@ -756,9 +780,15 @@ export interface components {
             realm?: string;
             /**
              * Salon Discord des annonces
-             * @description Utilisé par le bot (lot 3).
+             * @description Le bot y publie les annonces.
              */
             discord_channel_id?: string;
+            /**
+             * Rappel avant un événement (minutes)
+             * Format: int64
+             * @description 0 = pas de rappel.
+             */
+            reminder_minutes?: number;
             /** Format: date-time */
             readonly updated_at: string;
         };
@@ -835,6 +865,9 @@ export interface components {
              * Format: date-time
              */
             readonly last_login: string | null;
+            /** Accepte les messages privés du bot */
+            readonly dm_enabled: boolean;
+            readonly dm_muted_kinds: string[];
         };
         Owner: {
             readonly id: number;
@@ -917,14 +950,23 @@ export interface components {
             realm?: string;
             /**
              * Salon Discord des annonces
-             * @description Utilisé par le bot (lot 3).
+             * @description Le bot y publie les annonces.
              */
             discord_channel_id?: string;
+            /**
+             * Rappel avant un événement (minutes)
+             * Format: int64
+             * @description 0 = pas de rappel.
+             */
+            reminder_minutes?: number;
         };
         PatchedMeUpdateRequest: {
             /** Nom affiché */
             display_name?: string;
             bio?: string;
+            /** Accepte les messages privés du bot */
+            dm_enabled?: boolean;
+            dm_muted_kinds?: components["schemas"]["DmMutedKindsEnum"][];
         };
         PatchedPollRequest: {
             /** Titre */
@@ -1674,6 +1716,28 @@ export interface operations {
                 "multipart/form-data": components["schemas"]["PatchedEventRequest"];
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    events_announce_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) événement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {

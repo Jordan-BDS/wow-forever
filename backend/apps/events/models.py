@@ -67,6 +67,7 @@ class Event(models.Model):
     status = models.CharField(
         "Statut", max_length=16, choices=EventStatus.choices, default=EventStatus.PLANNED
     )
+    reminder_sent_at = models.DateTimeField("Rappel envoyé le", null=True, blank=True, editable=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
     )

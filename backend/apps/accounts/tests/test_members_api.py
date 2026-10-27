@@ -109,3 +109,13 @@ def test_delete_user_sessions_only_touches_that_user(member, other_member):
         store.create()
     assert delete_user_sessions(member) == 1
     assert Session.objects.count() == 1
+
+
+def test_me_can_update_dm_preferences(as_user, member):
+    client = as_user(member)
+    response = client.patch(
+        "/api/auth/me/", {"dm_enabled": False, "dm_muted_kinds": ["placement"]}, format="json"
+    )
+    assert response.status_code == 200, response.data
+    assert response.data["dm_enabled"] is False and response.data["dm_muted_kinds"] == ["placement"]
+    assert client.patch("/api/auth/me/", {"dm_muted_kinds": ["spam"]}, format="json").status_code == 400

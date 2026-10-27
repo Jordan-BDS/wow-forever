@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.notifications.models import DM_PREFERENCE_KINDS
+
 from .models import Availability, SiteRole, User
 
 
@@ -20,14 +22,22 @@ class MemberSerializer(serializers.ModelSerializer):
             "deactivation_reason",
             "date_joined",
             "last_login",
+            "dm_enabled",
+            "dm_muted_kinds",
         ]
         read_only_fields = fields
 
+    dm_muted_kinds = serializers.ListField(child=serializers.CharField(), read_only=True)
+
 
 class MeUpdateSerializer(serializers.ModelSerializer):
+    dm_muted_kinds = serializers.ListField(
+        child=serializers.ChoiceField(choices=list(DM_PREFERENCE_KINDS)), required=False
+    )
+
     class Meta:
         model = User
-        fields = ["display_name", "bio"]
+        fields = ["display_name", "bio", "dm_enabled", "dm_muted_kinds"]
         extra_kwargs = {"display_name": {"min_length": 2}}
 
 

@@ -293,3 +293,43 @@ class TestSignups:
 
 def test_instance_default_needs_available(db):
     assert Instance.objects.get(slug="deadmines").default_dps == 3
+
+
+class TestNotificationHooks:
+    def test_create_cancel_reschedule_announce_enqueue_channel_messages(self, as_user, officer):
+        from apps.notifications.models import Notification
+
+        client = as_user(officer)
+        event_id = create_event(client).data["id"]
+        assert list(Notification.objects.values_list("kind", flat=True)) == ["event_created"]
+        client.patch(f"/api/events/{event_id}/", {"title": "Renommé"}, format="json")
+        assert Notification.objects.count() == 1  # pas de notification pour un simple renommage
+        client.patch(
+            f"/api/events/{event_id}/",
+            {"starts_at": (TOMORROW + timedelta(hours=1)).isoformat(), "signup_deadline": None},
+            format="json",
+        )
+        assert Notification.objects.latest("pk").kind == "event_rescheduled"
+        client.post(f"/api/events/{event_id}/announce/")
+        assert Notification.objects.latest("pk").kind == "composition"
+        client.post(f"/api/events/{event_id}/cancel/")
+        client.post(f"/api/events/{event_id}/cancel/")  # idempotent
+        assert list(Notification.objects.filter(kind="event_cancelled")).__len__() == 1
+
+    def test_placement_change_sends_dm(self, as_user, member, officer):
+        from apps.notifications.models import Notification
+
+        event_id = create_event(as_user(officer)).data["id"]
+        character = make_character(member, "Thrall")
+        signup_id = (
+            as_user(member)
+            .post(
+                f"/api/events/{event_id}/signup/", {"character": character.pk, "role": "tank"}, format="json"
+            )
+            .data["id"]
+        )
+        as_user(officer).patch(f"/api/signups/{signup_id}/", {"placement": "confirmed"}, format="json")
+        dm = Notification.objects.get(kind="placement")
+        assert dm.recipient == member and "confirmé" in dm.text
+        as_user(officer).patch(f"/api/signups/{signup_id}/", {"placement": "confirmed"}, format="json")
+        assert Notification.objects.filter(kind="placement").count() == 1

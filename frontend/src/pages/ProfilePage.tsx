@@ -1,12 +1,20 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { api, errorMessage } from "@/api/client";
+import { api, errorMessage, type Member } from "@/api/client";
 import { KEYS, useInvalidate, useMyAvailability } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ME_KEY } from "@/auth/useMe";
 import { AvailabilityGrid } from "@/components/AvailabilityGrid";
 import { Button, Card, Field, Input, PageTitle, Spinner } from "@/components/ui";
 import { cellsToSlots, slotsToCells } from "@/lib/availability";
+
+type DmKind = "placement" | "reminder" | "craft";
+
+const DM_KINDS: { key: DmKind; label: string; help: string }[] = [
+  { key: "placement", label: "Placement dans un événement", help: "Confirmé ou sur le banc." },
+  { key: "reminder", label: "Rappel personnel avant un événement", help: "Quand tu es confirmé." },
+  { key: "craft", label: "Demandes de craft", help: "Quand une demande te vise ou avance." },
+];
 
 export function ProfilePage() {
   const me = useCurrentUser();
@@ -16,7 +24,10 @@ export function ProfilePage() {
     <>
       <PageTitle>Mon profil</PageTitle>
       <div className="grid gap-4 md:grid-cols-[360px_1fr]">
-        <ProfileForm key={me.id} initialName={me.display_name} initialBio={me.bio ?? ""} />
+        <div className="space-y-4">
+          <ProfileForm key={me.id} initialName={me.display_name} initialBio={me.bio ?? ""} />
+          <DmPreferences key={`${me.dm_enabled}-${me.dm_muted_kinds.join(",")}`} me={me} />
+        </div>
         <AvailabilityEditor
           key={JSON.stringify(availability.data)}
           initial={slotsToCells(availability.data ?? [])}
@@ -77,6 +88,77 @@ function ProfileForm({ initialName, initialBio }: { initialName: string; initial
           {message && <span className="text-sm text-muted">{message}</span>}
         </div>
       </form>
+    </Card>
+  );
+}
+
+function DmPreferences({ me }: { me: Member }) {
+  const invalidate = useInvalidate();
+  const [enabled, setEnabled] = useState(me.dm_enabled ?? true);
+  const [muted, setMuted] = useState<DmKind[]>(me.dm_muted_kinds as DmKind[]);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const save = useMutation({
+    mutationFn: async (body: { dm_enabled: boolean; dm_muted_kinds: DmKind[] }) => {
+      const { error } = await api.PATCH("/api/auth/me/", { body });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await invalidate(ME_KEY);
+      setMessage("Préférences enregistrées.");
+    },
+    onError: (e) => setMessage(errorMessage(e)),
+  });
+
+  const apply = (nextEnabled: boolean, nextMuted: DmKind[]) => {
+    setEnabled(nextEnabled);
+    setMuted(nextMuted);
+    setMessage(null);
+    save.mutate({ dm_enabled: nextEnabled, dm_muted_kinds: nextMuted });
+  };
+
+  return (
+    <Card className="space-y-3">
+      <div>
+        <h2 className="font-display text-lg">Messages privés du bot</h2>
+        <p className="text-xs text-muted">
+          Le bot Discord de la guilde peut t'écrire en MP. Tu choisis quoi.
+        </p>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => apply(e.target.checked, muted)}
+          className="accent-gold"
+        />
+        Accepter les messages privés
+      </label>
+      <ul className={enabled ? "space-y-2" : "space-y-2 opacity-50"}>
+        {DM_KINDS.map((kind) => (
+          <li key={kind.key}>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                disabled={!enabled}
+                checked={!muted.includes(kind.key)}
+                onChange={(e) =>
+                  apply(
+                    enabled,
+                    e.target.checked ? muted.filter((k) => k !== kind.key) : [...muted, kind.key],
+                  )
+                }
+                className="mt-0.5 accent-gold"
+              />
+              <span>
+                {kind.label}
+                <span className="block text-xs text-muted">{kind.help}</span>
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      {message && <p className="text-xs text-muted">{message}</p>}
     </Card>
   );
 }
