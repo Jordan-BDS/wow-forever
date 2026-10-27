@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import { RequireAuth } from "./auth/RequireAuth";
 import { Layout } from "./components/Layout";
+import { SectionLayout } from "./components/SectionLayout";
 import { AgendaPage } from "./pages/AgendaPage";
 import { AvailabilityPage } from "./pages/AvailabilityPage";
 import { EventFormPage } from "./pages/EventFormPage";
@@ -19,6 +20,7 @@ import { PollPage } from "./pages/PollPage";
 import { PollsPage } from "./pages/PollsPage";
 import { ProfessionsPage } from "./pages/ProfessionsPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { RecipesPage } from "./pages/RecipesPage";
 import { RosterPage } from "./pages/RosterPage";
 import { TalentsPage } from "./pages/TalentsPage";
 
@@ -32,26 +34,32 @@ export const router = createBrowserRouter([
         Component: Layout,
         children: [
           { index: true, Component: HomePage },
-          { path: "agenda", Component: AgendaPage },
-          { path: "agenda/nouveau", Component: EventFormPage },
-          { path: "agenda/:id", Component: EventPage },
-          { path: "agenda/:id/modifier", Component: EventFormPage },
-          { path: "roster", Component: RosterPage },
           { path: "personnages", Component: CharactersPage },
           { path: "personnages/nouveau", Component: CharacterFormPage },
           { path: "personnages/:id", Component: CharacterPage },
           { path: "personnages/:id/modifier", Component: CharacterFormPage },
-          { path: "metiers", Component: ProfessionsPage },
-          { path: "crafts", Component: CraftsPage },
-          { path: "objets", Component: ItemsPage },
-          { path: "talents", Component: TalentsPage },
-          { path: "disponibilites", Component: AvailabilityPage },
-          { path: "sondages", Component: PollsPage },
-          { path: "sondages/:id", Component: PollPage },
-          { path: "membres", Component: MembersPage },
-          { path: "membres/:id", Component: MemberPage },
+          { path: "agenda", Component: AgendaPage },
+          { path: "agenda/nouveau", Component: EventFormPage },
+          { path: "agenda/:id", Component: EventPage },
+          { path: "agenda/:id/modifier", Component: EventFormPage },
           { path: "profil", Component: ProfilePage },
-          { path: "guilde", Component: GuildPage },
+          {
+            Component: SectionLayout,
+            children: [
+              { path: "roster", Component: RosterPage },
+              { path: "membres", Component: MembersPage },
+              { path: "membres/:id", Component: MemberPage },
+              { path: "disponibilites", Component: AvailabilityPage },
+              { path: "sondages", Component: PollsPage },
+              { path: "sondages/:id", Component: PollPage },
+              { path: "guilde", Component: GuildPage },
+              { path: "crafts", Component: CraftsPage },
+              { path: "metiers", Component: ProfessionsPage },
+              { path: "objets", Component: ItemsPage },
+              { path: "talents", Component: TalentsPage },
+              { path: "recettes", Component: RecipesPage },
+            ],
+          },
         ],
       },
     ],
