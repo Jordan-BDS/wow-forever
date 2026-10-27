@@ -6,6 +6,7 @@ import { useCurrentUser } from "@/auth/useCurrentUser";
 import { useLogout } from "@/auth/useMe";
 import { SECTIONS, isSectionActive } from "@/lib/navigation";
 import { Emblem } from "./Emblem";
+import { Footer } from "./Footer";
 import { Button, RoleBadge } from "./ui";
 
 export function Layout() {
@@ -69,6 +70,7 @@ export function Layout() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <Outlet context={me} />
       </main>
+      <Footer />
     </div>
   );
 }
