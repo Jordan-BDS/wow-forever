@@ -1,33 +1,102 @@
 @import "tailwindcss";
 
+/*
+  Thème « bannière de Hurlevent » : bleu nuit du tissu, or brodé pour la structure,
+  parchemin pour le texte. Les couleurs de classe WoW restent intactes.
+*/
 @theme {
-  --color-bg: #0b0d12;
-  --color-surface: #141822;
-  --color-surface-2: #1c2230;
-  --color-border: #2a3142;
-  --color-text: #e8e2d2;
-  --color-muted: #9a9484;
-  --color-gold: #d4af5a;
-  --color-gold-dark: #a7832f;
-  --color-danger: #d05a4e;
-  --color-success: #5fa868;
-  --color-alliance: #3f7fd9;
-  --color-horde: #c1352d;
+  --color-bg: #0b1424;
+  --color-surface: #152238;
+  --color-surface-2: #1c2d49;
+  --color-border: #2a3d5e;
+  --color-text: #efe6cf;
+  --color-muted: #9aa7bd;
+  --color-gold: #d9b84a;
+  --color-gold-light: #ead27a;
+  --color-gold-dark: #a8862a;
+  --color-danger: #d4624c;
+  --color-success: #7cb97a;
+  --color-alliance: #2b5bb0;
+  --color-royal: #2b5bb0;
+  --color-horde: #b3382c;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Cinzel", Georgia, serif;
+  --font-sans: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Marcellus", "Palatino Linotype", Georgia, serif;
 }
 
 :root {
   color-scheme: dark;
 }
 
-body {
-  @apply bg-bg text-text antialiased;
-  background-image: radial-gradient(ellipse at top, rgba(212, 175, 90, 0.08), transparent 60%);
-  min-height: 100vh;
+@layer base {
+  body {
+    @apply bg-bg text-text antialiased;
+    font-size: 17px;
+    line-height: 1.5;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse 70% 40% at 50% -10%, rgba(43, 91, 176, 0.35), transparent 70%),
+      repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 14px);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0.01em;
+    font-weight: 400;
+  }
+
+  a {
+    @apply text-gold hover:text-gold-light;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+
+  thead th {
+    font-weight: 500;
+    color: var(--color-muted);
+  }
 }
 
-a {
-  @apply text-gold hover:text-gold-dark;
+/* Filet d'or brodé, utilisé sous les titres et dans la bannière. */
+.rule-gold {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-gold) 15%, var(--color-gold) 85%, transparent);
+}
+
+/* Bannière d'en-tête : tissu plus sombre, double filet d'or en bas. */
+.banner {
+  background: linear-gradient(180deg, #0d1a30, #0b1424);
+  position: relative;
+}
+.banner::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 5px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold-dark) 12%,
+    var(--color-gold) 50%,
+    var(--color-gold-dark) 88%,
+    transparent
+  );
+  -webkit-mask: linear-gradient(#000 0 1px, transparent 1px 3px, #000 3px 4px, transparent 4px);
+  mask: linear-gradient(#000 0 1px, transparent 1px 3px, #000 3px 4px, transparent 4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

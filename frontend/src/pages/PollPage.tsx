@@ -58,7 +58,7 @@ function PollDetail({ poll }: { poll: Poll }) {
         <div className="space-y-4">
           {poll.status === "validated" && winner && (
             <Card className="border-gold/60 bg-gold/10">
-              <p className="text-xs uppercase text-gold">Résultat validé</p>
+              <p className="text-xs text-gold">Résultat validé</p>
               <p className="font-display text-2xl">{winner.text}</p>
               <p className="mt-1 text-xs text-muted">
                 Validé par {poll.validated_by?.display_name} le {formatDateTime(poll.validated_at!)}

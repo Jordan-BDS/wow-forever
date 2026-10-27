@@ -32,7 +32,7 @@ export function HomePage() {
           {toVote.map((poll) => (
             <Card key={poll.id} className="flex flex-wrap items-center justify-between gap-3 border-gold/50">
               <div>
-                <p className="text-xs uppercase text-gold">Sondage en cours</p>
+                <p className="text-xs text-gold">Sondage en cours</p>
                 <p className="font-display text-lg">{poll.title}</p>
                 <p className="text-xs text-muted">
                   Tu n'as pas encore voté · fin{" "}
@@ -50,7 +50,7 @@ export function HomePage() {
       <div className="grid gap-4 md:grid-cols-2">
         <section className="md:col-span-2">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm uppercase text-muted">
+            <h2 className="text-sm text-muted">
               Prochains événements
               {pending.length > 0 && (
                 <span className="ml-2 text-gold">· {pending.length} sans réponse de ta part</span>
@@ -130,7 +130,7 @@ export function HomePage() {
 
         {openPolls.length > 0 && (
           <section className="md:col-span-2">
-            <h2 className="mb-2 text-sm uppercase text-muted">Sondages en cours</h2>
+            <h2 className="mb-2 text-sm text-muted">Sondages en cours</h2>
             <div className="space-y-3">
               {openPolls.map((p) => (
                 <PollCard key={p.id} poll={p} />

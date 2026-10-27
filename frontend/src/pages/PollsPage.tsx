@@ -33,7 +33,7 @@ export function PollsPage() {
       </PageTitle>
       {creating && <PollForm onDone={() => setCreating(false)} />}
       <section className="space-y-3">
-        <h2 className="text-sm uppercase text-muted">En cours</h2>
+        <h2 className="text-sm text-muted">En cours</h2>
         {open.length === 0 && <p className="text-sm text-muted">Aucun sondage en cours.</p>}
         {open.map((p) => (
           <PollCard key={p.id} poll={p} />
@@ -41,7 +41,7 @@ export function PollsPage() {
       </section>
       {done.length > 0 && (
         <section className="mt-6 space-y-3">
-          <h2 className="text-sm uppercase text-muted">Terminés</h2>
+          <h2 className="text-sm text-muted">Terminés</h2>
           {done.map((p) => (
             <PollCard key={p.id} poll={p} />
           ))}

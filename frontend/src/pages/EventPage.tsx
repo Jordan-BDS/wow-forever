@@ -474,13 +474,13 @@ function CompositionBoard({
               <ul className="space-y-1">{confirmed.map(renderSignup)}</ul>
               {waiting.length > 0 && (
                 <>
-                  <p className="mt-3 text-xs uppercase text-muted">Candidats</p>
+                  <p className="mt-3 text-xs text-muted">Candidats</p>
                   <ul className="mt-1 space-y-1">{waiting.map(renderSignup)}</ul>
                 </>
               )}
               {bench.length > 0 && (
                 <>
-                  <p className="mt-3 text-xs uppercase text-muted">Banc</p>
+                  <p className="mt-3 text-xs text-muted">Banc</p>
                   <ul className="mt-1 space-y-1 opacity-70">{bench.map(renderSignup)}</ul>
                 </>
               )}
@@ -506,7 +506,7 @@ function SignupList({ event }: { event: GuildEvent }) {
           if (list.length === 0) return null;
           return (
             <div key={status}>
-              <p className="text-xs uppercase text-muted">
+              <p className="text-xs text-muted">
                 {SIGNUP_STATUS_LABEL[status]} ({list.length})
               </p>
               <ul className="mt-1 space-y-1 text-sm">

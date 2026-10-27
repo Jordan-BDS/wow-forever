@@ -48,7 +48,7 @@ export function ItemPicker({ slotLabel, slotFilter, enchantSlot, current, onChoo
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg border border-border bg-surface shadow-xl"
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg border border-border bg-surface"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-border p-3">

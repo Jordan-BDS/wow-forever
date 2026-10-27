@@ -95,7 +95,7 @@ export function RosterPage() {
             </p>
           ) : (
             <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase text-muted">
+              <thead className="text-left text-xs text-muted">
                 <tr>
                   <th className="px-3 py-2">Personnage</th>
                   <th className="px-3 py-2">Niveau</th>

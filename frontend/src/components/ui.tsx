@@ -6,9 +6,9 @@ import { ROLE_LABELS } from "@/lib/roles";
 type Variant = "primary" | "ghost" | "danger";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-gold text-bg hover:bg-gold-dark",
-  ghost: "border border-border bg-transparent text-text hover:bg-surface-2",
-  danger: "border border-danger/60 text-danger hover:bg-danger/10",
+  primary: "border border-gold-dark bg-gold text-bg hover:bg-gold-light hover:border-gold-light",
+  ghost: "border border-border bg-transparent text-text hover:border-gold hover:text-gold",
+  danger: "border border-danger/50 text-danger hover:border-danger hover:bg-danger/10",
 };
 
 export function Button({
@@ -19,7 +19,7 @@ export function Button({
   return (
     <button
       className={clsx(
-        "inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition",
+        "inline-flex items-center justify-center gap-2 rounded-sm px-3.5 py-2 text-sm font-medium transition-colors",
         "disabled:cursor-not-allowed disabled:opacity-50",
         variants[variant],
         className,
@@ -29,10 +29,14 @@ export function Button({
   );
 }
 
+/** Carte : tissu de bannière, bordure fine, un liseré plus clair en haut. Pas d'ombre. */
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={clsx("min-w-0 rounded-lg border border-border bg-surface p-4 shadow-lg", className)}
+      className={clsx(
+        "min-w-0 rounded-md border border-border bg-surface bg-gradient-to-b from-surface-2/40 to-surface p-4",
+        className,
+      )}
       {...props}
     />
   );
@@ -42,7 +46,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={clsx(
-        "w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text",
+        "w-full rounded-sm border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-muted/70",
         "focus:border-gold focus:outline-none",
         className,
       )}
@@ -55,7 +59,7 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
   return (
     <select
       className={clsx(
-        "rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-text focus:border-gold focus:outline-none",
+        "rounded-sm border border-border bg-bg px-2 py-1.5 text-sm text-text focus:border-gold focus:outline-none",
         className,
       )}
       {...props}
@@ -73,14 +77,14 @@ export function Field({ label, children }: { label: string; children: React.Reac
 }
 
 const roleStyles: Record<SiteRole, string> = {
-  gm: "bg-gold/20 text-gold border-gold/40",
-  officer: "bg-alliance/20 text-alliance border-alliance/40",
-  member: "bg-surface-2 text-muted border-border",
+  gm: "border-gold/60 text-gold",
+  officer: "border-royal text-[#8fb0ea]",
+  member: "border-border text-muted",
 };
 
 export function RoleBadge({ role }: { role: SiteRole }) {
   return (
-    <span className={clsx("rounded border px-1.5 py-0.5 text-xs font-medium", roleStyles[role])}>
+    <span className={clsx("rounded-sm border px-1.5 py-0.5 text-xs", roleStyles[role])}>
       {ROLE_LABELS[role]}
     </span>
   );
@@ -96,10 +100,13 @@ export function Spinner() {
   );
 }
 
+/** Titre de page en capitales romaines gravées, souligné d'un court filet d'or. */
 export function PageTitle({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="font-display text-2xl text-gold">{children}</h1>
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <h1 className="font-display text-3xl text-text after:mt-2 after:block after:h-px after:w-14 after:bg-gold">
+        {children}
+      </h1>
       {actions}
     </div>
   );

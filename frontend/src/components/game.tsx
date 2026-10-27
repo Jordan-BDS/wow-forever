@@ -31,7 +31,7 @@ export function ClassDot({ playerClass }: { playerClass: PlayerClass | undefined
 
 export function GameRoleTag({ role, muted }: { role: GameRole; muted?: boolean }) {
   return (
-    <span className={clsx("text-xs font-semibold uppercase", muted ? "text-muted" : ROLE_COLOR[role])}>
+    <span className={clsx("text-xs font-semibold tracking-wide", muted ? "text-muted" : ROLE_COLOR[role])}>
       {ROLE_LABEL[role]}
     </span>
   );

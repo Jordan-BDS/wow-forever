@@ -253,7 +253,7 @@ export function EquipmentPanel({ character, sets, canEdit }: Props) {
                       </span>
                     )}
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[10px] uppercase text-muted">
+                      <span className="block text-[10px] text-muted">
                         {slot.label}
                         {projected && " · projeté"}
                       </span>
@@ -312,7 +312,7 @@ export function EquipmentPanel({ character, sets, canEdit }: Props) {
                 )}
                 {(stats.data.active_set_bonuses.length > 0 || stats.data.inactive_set_bonuses.length > 0) && (
                   <div className="mt-3 border-t border-border pt-2">
-                    <p className="text-xs uppercase text-muted">Bonus de set</p>
+                    <p className="text-xs text-muted">Bonus de set</p>
                     <ul className="mt-1 space-y-1 text-xs">
                       {[...stats.data.active_set_bonuses, ...stats.data.inactive_set_bonuses].map(
                         (bonus, i) => {
