@@ -17,6 +17,7 @@ import { isOfficerOrAbove } from "@/lib/roles";
 
 interface FormState {
   name: string;
+  surname: string;
   player_class: string;
   race: string;
   level: number;
@@ -30,6 +31,7 @@ interface FormState {
 
 const EMPTY: FormState = {
   name: "",
+  surname: "",
   player_class: "",
   race: "",
   level: 1,
@@ -44,6 +46,7 @@ const EMPTY: FormState = {
 function fromCharacter(c: Character): FormState {
   return {
     name: c.name,
+    surname: c.surname ?? "",
     player_class: c.player_class,
     race: c.race,
     level: c.level ?? 1,
@@ -90,6 +93,7 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
     mutationFn: async (state: FormState) => {
       const body = {
         name: state.name.trim(),
+        surname: state.surname.trim(),
         player_class: state.player_class,
         race: state.race,
         level: state.level,
@@ -166,15 +170,25 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
       >
         <Card className="space-y-4">
           <h2 className="font-display text-lg">Identité</h2>
-          <Field label="Nom du personnage">
-            <Input
-              value={form.name}
-              maxLength={24}
-              required
-              onChange={(e) => update({ name: e.target.value })}
-            />
-            <FieldError message={errors.name} />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Prénom du personnage">
+              <Input
+                value={form.name}
+                maxLength={24}
+                required
+                onChange={(e) => update({ name: e.target.value })}
+              />
+              <FieldError message={errors.name} />
+            </Field>
+            <Field label="Nom de famille (Forever)">
+              <Input
+                value={form.surname}
+                maxLength={24}
+                placeholder="Rempli par l'addon"
+                onChange={(e) => update({ surname: e.target.value })}
+              />
+            </Field>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Classe">
               <Select

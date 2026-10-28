@@ -15,6 +15,10 @@ export const KEYS = {
   classTalents: (slug: string) => ["talents", slug] as const,
   guildAvailability: ["availability", "guild"] as const,
   myAvailability: ["availability", "me"] as const,
+  syncPending: ["sync", "pending"] as const,
+  syncDevices: ["sync", "devices"] as const,
+  syncImports: ["sync", "imports"] as const,
+  syncRelease: ["sync", "release"] as const,
 };
 
 async function unwrap<T>(promise: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
@@ -108,6 +112,32 @@ export function useMyAvailability() {
   return useQuery({
     queryKey: KEYS.myAvailability,
     queryFn: () => unwrap(api.GET("/api/auth/me/availability/")),
+  });
+}
+
+export function useSyncPending() {
+  return useQuery({ queryKey: KEYS.syncPending, queryFn: () => unwrap(api.GET("/api/sync/pending/")) });
+}
+
+export function useSyncDevices() {
+  return useQuery({ queryKey: KEYS.syncDevices, queryFn: () => unwrap(api.GET("/api/sync/devices/")) });
+}
+
+export function useSyncImports() {
+  return useQuery({ queryKey: KEYS.syncImports, queryFn: () => unwrap(api.GET("/api/sync/imports/")) });
+}
+
+/** Dernière release du compagnon ; `null` tant qu'aucune n'est publiée (204). */
+export function useSyncRelease() {
+  return useQuery({
+    queryKey: KEYS.syncRelease,
+    staleTime: 60 * 60_000,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET("/api/sync/release/");
+      if (response.status === 204) return null;
+      if (error || data === undefined) throw error ?? new Error(`Erreur ${response.status}`);
+      return data;
+    },
   });
 }
 

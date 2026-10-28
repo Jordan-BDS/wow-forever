@@ -15,6 +15,7 @@ from apps.gamedata.models import (
 class CharacterSource(models.TextChoices):
     MANUAL = "manual", "Saisie manuelle"
     BLIZZARD = "blizzard", "API Blizzard"
+    ADDON = "addon", "Addon du jeu"
 
 
 class Character(models.Model):
@@ -22,6 +23,9 @@ class Character(models.Model):
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="characters")
     name = models.CharField("Nom", max_length=24)
+    surname = models.CharField(
+        "Nom de famille", max_length=24, blank=True, help_text="Les noms Forever sont en deux parties."
+    )
     player_class = models.ForeignKey(PlayerClass, on_delete=models.PROTECT, verbose_name="Classe")
     race = models.ForeignKey(Race, on_delete=models.PROTECT, verbose_name="Race")
     level = models.PositiveSmallIntegerField("Niveau", default=1)
@@ -34,6 +38,16 @@ class Character(models.Model):
     note = models.TextField("Note", blank=True)
     source = models.CharField(max_length=16, choices=CharacterSource.choices, default=CharacterSource.MANUAL)
     external_id = models.CharField("Identifiant externe", max_length=64, blank=True)
+    guid = models.CharField(
+        "GUID du jeu", max_length=64, blank=True, db_index=True, help_text="Vide tant que jamais synchronisé."
+    )
+    realm = models.CharField("Royaume", max_length=64, blank=True)
+    last_synced_at = models.DateTimeField("Dernière synchronisation depuis le jeu", null=True, blank=True)
+    roles_confirmed = models.BooleanField(
+        "Rôles confirmés",
+        default=True,
+        help_text="Faux pour un personnage créé par l'import, tant que le joueur n'a pas choisi ses rôles.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -46,10 +60,17 @@ class Character(models.Model):
                 fields=["owner"], condition=models.Q(is_main=True), name="one_main_per_owner"
             ),
             models.CheckConstraint(condition=models.Q(level__gte=1, level__lte=60), name="level_range"),
+            models.UniqueConstraint(
+                fields=["guid"], condition=~models.Q(guid=""), name="unique_character_guid"
+            ),
         ]
 
     def __str__(self) -> str:
         return self.name
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.name} {self.surname}".strip()
 
 
 class CharacterProfession(models.Model):

@@ -80,10 +80,19 @@ class CharacterSerializer(serializers.ModelSerializer):
             "professions",
             "source",
             "external_id",
+            "surname",
+            "full_name",
+            "guid",
+            "realm",
+            "last_synced_at",
+            "roles_confirmed",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["source", "external_id", "created_at", "updated_at"]
+        read_only_fields = [
+            "source", "external_id", "full_name", "guid", "realm", "last_synced_at", "roles_confirmed",
+            "created_at", "updated_at",
+        ]  # fmt: skip
         # Pas de validateur unique_together automatique : la contrainte « un seul main par joueur » est
         # conditionnelle (gérée par services.set_main) et forcerait owner_id à être obligatoire.
         validators: list = []
@@ -174,6 +183,8 @@ class CharacterSerializer(serializers.ModelSerializer):
         )
         for field, value in validated_data.items():
             setattr(instance, field, value)
+        if "main_role" in validated_data:
+            instance.roles_confirmed = True  # le joueur a choisi ses rôles (perso créé par l'import)
         if class_changed:
             # Les talents de l'ancienne classe n'ont plus de sens ; l'équipement reste, marqué non portable.
             instance.talent_builds.update(points=[])

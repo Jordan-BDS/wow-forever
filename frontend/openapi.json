@@ -3566,6 +3566,354 @@
                 }
             }
         },
+        "/api/sync/companion/me/": {
+            "get": {
+                "operationId": "sync_companion_me_retrieve",
+                "description": "Pour le compagnon : qui je suis, et mon dernier import.",
+                "tags": [
+                    "sync"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanionStatus"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/devices/": {
+            "get": {
+                "operationId": "sync_devices_list",
+                "description": "Mes compagnons appairés (y compris révoqués, pour l'historique).",
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CompanionDevice"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/devices/{id}/revoke/": {
+            "post": {
+                "operationId": "sync_devices_revoke_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanionDevice"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/import/": {
+            "post": {
+                "operationId": "sync_import_create",
+                "description": "Reçoit un code d'export : collé par le joueur (session) ou envoyé par le compagnon (jeton).",
+                "tags": [
+                    "sync"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportRequestRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportRequestRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportBatch"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Code illisible"
+                    },
+                    "409": {
+                        "description": "Déjà importé"
+                    }
+                }
+            }
+        },
+        "/api/sync/imports/": {
+            "get": {
+                "operationId": "sync_imports_list",
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ImportBatch"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/pair/": {
+            "post": {
+                "operationId": "sync_pair_create",
+                "description": "Appelé par le compagnon : échange le code contre un jeton longue durée.",
+                "tags": [
+                    "sync"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PairRequestRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PairRequestRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PairRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PairResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/pairing-code/": {
+            "post": {
+                "operationId": "sync_pairing_code_create",
+                "description": "Génère un code d'appairage à saisir dans le compagnon (valable 10 minutes, un seul à la fois).",
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PairingCode"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/pending/": {
+            "get": {
+                "operationId": "sync_pending_list",
+                "description": "Personnages du jeu encore à rattacher, ou ignorés faute de niveau.",
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CharacterSnapshot"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/pending/{id}/resolve/": {
+            "post": {
+                "operationId": "sync_pending_resolve_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResolveRequestRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResolveRequestRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResolveRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CharacterSnapshot"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/release/": {
+            "get": {
+                "operationId": "sync_release_retrieve",
+                "description": "Dernière release du compagnon (null tant qu'aucune n'est publiée).",
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Release"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "204": {
+                        "description": "Aucune release"
+                    }
+                }
+            }
+        },
         "/api/talents/{slug}/": {
             "get": {
                 "operationId": "talents_retrieve",
@@ -3605,6 +3953,15 @@
     },
     "components": {
         "schemas": {
+            "ActionEnum": {
+                "enum": [
+                    "merge",
+                    "create",
+                    "ignore"
+                ],
+                "type": "string",
+                "description": "* `merge` - merge\n* `create` - create\n* `ignore` - ignore"
+            },
             "AvailabilitySlot": {
                 "type": "object",
                 "properties": {
@@ -3749,7 +4106,7 @@
                     "source": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/SourceEnum"
+                                "$ref": "#/components/schemas/CharacterSourceEnum"
                             }
                         ],
                         "readOnly": true
@@ -3758,6 +4115,40 @@
                         "type": "string",
                         "readOnly": true,
                         "title": "Identifiant externe"
+                    },
+                    "surname": {
+                        "type": "string",
+                        "title": "Nom de famille",
+                        "description": "Les noms Forever sont en deux parties.",
+                        "maxLength": 24
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "guid": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "GUID du jeu",
+                        "description": "Vide tant que jamais synchronisé."
+                    },
+                    "realm": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Royaume"
+                    },
+                    "last_synced_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true,
+                        "title": "Dernière synchronisation depuis le jeu"
+                    },
+                    "roles_confirmed": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "title": "Rôles confirmés",
+                        "description": "Faux pour un personnage créé par l'import, tant que le joueur n'a pas choisi ses rôles."
                     },
                     "created_at": {
                         "type": "string",
@@ -3773,12 +4164,17 @@
                 "required": [
                     "created_at",
                     "external_id",
+                    "full_name",
+                    "guid",
                     "id",
+                    "last_synced_at",
                     "main_role",
                     "name",
                     "owner",
                     "player_class",
                     "race",
+                    "realm",
+                    "roles_confirmed",
                     "source",
                     "updated_at"
                 ]
@@ -3894,6 +4290,12 @@
                         "items": {
                             "$ref": "#/components/schemas/CharacterProfessionRequest"
                         }
+                    },
+                    "surname": {
+                        "type": "string",
+                        "title": "Nom de famille",
+                        "description": "Les noms Forever sont en deux parties.",
+                        "maxLength": 24
                     }
                 },
                 "required": [
@@ -3902,6 +4304,115 @@
                     "player_class",
                     "race"
                 ]
+            },
+            "CharacterSnapshot": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "guid": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "surname": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "realm": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "level": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "exported_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CharacterSnapshotStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "note": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "low_level": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "character": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LinkedCharacter"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "candidate": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LinkedCharacter"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "candidate",
+                    "character",
+                    "exported_at",
+                    "full_name",
+                    "guid",
+                    "id",
+                    "level",
+                    "low_level",
+                    "name",
+                    "note",
+                    "realm",
+                    "status",
+                    "surname"
+                ]
+            },
+            "CharacterSnapshotStatusEnum": {
+                "enum": [
+                    "applied",
+                    "created",
+                    "pending",
+                    "ignored",
+                    "stale",
+                    "refused"
+                ],
+                "type": "string",
+                "description": "* `applied` - Mis à jour\n* `created` - Créé\n* `pending` - À rattacher\n* `ignored` - Ignoré\n* `stale` - Plus ancien que le dernier import\n* `refused` - Refusé"
+            },
+            "CharacterSourceEnum": {
+                "enum": [
+                    "manual",
+                    "blizzard",
+                    "addon"
+                ],
+                "type": "string",
+                "description": "* `manual` - Saisie manuelle\n* `blizzard` - API Blizzard\n* `addon` - Addon du jeu"
             },
             "ClassTalents": {
                 "type": "object",
@@ -3919,6 +4430,73 @@
                 "required": [
                     "player_class",
                     "trees"
+                ]
+            },
+            "CompanionDevice": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "title": "Machine"
+                    },
+                    "token_prefix": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "last_seen_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "revoked_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "last_seen_at",
+                    "name",
+                    "revoked_at",
+                    "token_prefix"
+                ]
+            },
+            "CompanionStatus": {
+                "type": "object",
+                "properties": {
+                    "display_name": {
+                        "type": "string"
+                    },
+                    "device": {
+                        "$ref": "#/components/schemas/CompanionDevice"
+                    },
+                    "last_import": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ImportBatch"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "device",
+                    "display_name",
+                    "last_import"
                 ]
             },
             "CraftRequest": {
@@ -4942,6 +5520,85 @@
                     "updated_at"
                 ]
             },
+            "ImportBatch": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "source": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ImportBatchSourceEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "device": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CompanionDevice"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "received_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "format_version": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "addon_version": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "summary": {
+                        "readOnly": true
+                    },
+                    "snapshots": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CharacterSnapshot"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "addon_version",
+                    "device",
+                    "format_version",
+                    "id",
+                    "received_at",
+                    "snapshots",
+                    "source",
+                    "summary"
+                ]
+            },
+            "ImportBatchSourceEnum": {
+                "enum": [
+                    "paste",
+                    "companion"
+                ],
+                "type": "string",
+                "description": "* `paste` - Collage sur le site\n* `companion` - Compagnon"
+            },
+            "ImportRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "code"
+                ]
+            },
             "Instance": {
                 "type": "object",
                 "properties": {
@@ -5398,6 +6055,29 @@
                     "recipes"
                 ]
             },
+            "LinkedCharacter": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "full_name": {
+                        "type": "string"
+                    },
+                    "level": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "full_name",
+                    "id",
+                    "level",
+                    "name"
+                ]
+            },
             "MaterialsEnum": {
                 "enum": [
                     "none",
@@ -5525,6 +6205,59 @@
                     "id"
                 ]
             },
+            "PairRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8
+                    },
+                    "device_name": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 64
+                    }
+                },
+                "required": [
+                    "code"
+                ]
+            },
+            "PairResponse": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "device": {
+                        "$ref": "#/components/schemas/CompanionDevice"
+                    },
+                    "display_name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "device",
+                    "display_name",
+                    "token"
+                ]
+            },
+            "PairingCode": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "code",
+                    "expires_at"
+                ]
+            },
             "PatchedCharacterRequest": {
                 "type": "object",
                 "properties": {
@@ -5590,6 +6323,12 @@
                         "items": {
                             "$ref": "#/components/schemas/CharacterProfessionRequest"
                         }
+                    },
+                    "surname": {
+                        "type": "string",
+                        "title": "Nom de famille",
+                        "description": "Les noms Forever sont en deux parties.",
+                        "maxLength": 24
                     }
                 }
             },
@@ -6553,6 +7292,68 @@
                     "name"
                 ]
             },
+            "Release": {
+                "type": "object",
+                "properties": {
+                    "version": {
+                        "type": "string"
+                    },
+                    "tag": {
+                        "type": "string"
+                    },
+                    "published_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "assets": {
+                        "$ref": "#/components/schemas/ReleaseAssets"
+                    }
+                },
+                "required": [
+                    "assets",
+                    "published_at",
+                    "tag",
+                    "url",
+                    "version"
+                ]
+            },
+            "ReleaseAssets": {
+                "type": "object",
+                "properties": {
+                    "windows": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "macos": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "addon": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                }
+            },
+            "ResolveRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/ActionEnum"
+                    },
+                    "character_id": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "action"
+                ]
+            },
             "RoleCount": {
                 "type": "object",
                 "properties": {
@@ -6906,14 +7707,6 @@
                 "required": [
                     "slots"
                 ]
-            },
-            "SourceEnum": {
-                "enum": [
-                    "manual",
-                    "blizzard"
-                ],
-                "type": "string",
-                "description": "* `manual` - Saisie manuelle\n* `blizzard` - API Blizzard"
             },
             "Specialization": {
                 "type": "object",
