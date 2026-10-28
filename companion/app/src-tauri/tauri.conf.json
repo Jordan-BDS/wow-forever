@@ -48,7 +48,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMzNjdDNjgwODIyRkM1RDcKUldUWHhTK0NnTVpudzJ0K2MrY0tHKzE0V0E4RlVtZ1FGQytUb1l4cThJYWxEbUV5aVIrTjhxdWIK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNENjA1MDdGQUQ2NDA1MzkKUldRNUJXU3RmMUJnUFJ3UHB2bTZQVHRVL2hwQjczZXI2blFhSFQ5UXF0VHdXU3JPSXlYL2VOalcK",
       "endpoints": [
         "https://github.com/Jordan-BDS/wow-forever/releases/latest/download/latest.json"
       ]
