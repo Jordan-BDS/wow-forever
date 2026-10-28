@@ -13,6 +13,13 @@ from .config import discord_config
 from .models import GuildSettings
 
 PUBLIC_FIELDS = ["name", "faction", "realm", "values", "updated_at"]
+ID_FIELDS = ("discord_guild_id", "discord_first_gm_id", "discord_client_id")
+CHANNEL_FIELDS = (
+    "discord_channel_id",
+    "discord_agenda_channel_id",
+    "discord_crafts_channel_id",
+    "discord_polls_channel_id",
+)
 
 
 class GuildSettingsSerializer(serializers.ModelSerializer):
@@ -29,6 +36,9 @@ class GuildSettingsSerializer(serializers.ModelSerializer):
         fields = [
             *PUBLIC_FIELDS,
             "discord_channel_id",
+            "discord_agenda_channel_id",
+            "discord_crafts_channel_id",
+            "discord_polls_channel_id",
             "reminder_minutes",
             "discord_client_id",
             "discord_client_secret",
@@ -76,7 +86,7 @@ class GuildSettingsSerializer(serializers.ModelSerializer):
                     {"discord_allowed_role_ids": "Des IDs numériques séparés par des virgules."}
                 )
             attrs["discord_allowed_role_ids"] = ",".join(ids)
-        for field in ("discord_guild_id", "discord_first_gm_id", "discord_client_id", "discord_channel_id"):
+        for field in (*ID_FIELDS, *CHANNEL_FIELDS):
             value = attrs.get(field)
             if value and not value.isdigit():
                 raise serializers.ValidationError({field: "Un identifiant Discord est numérique."})
@@ -118,15 +128,46 @@ class DiscordRoleSerializer(serializers.Serializer):
     allowed = serializers.BooleanField()
 
 
+class DiscordChannelSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    name = serializers.CharField()
+    category = serializers.CharField(allow_blank=True)
+
+
 class DiscordCheckSerializer(serializers.Serializer):
     ok = serializers.BooleanField()
     detail = serializers.CharField()
     guild_name = serializers.CharField(allow_blank=True)
     roles = DiscordRoleSerializer(many=True)
+    channels = DiscordChannelSerializer(many=True)
+
+
+def _failure(detail: str) -> Response:
+    return Response({"ok": False, "detail": detail, "guild_name": "", "roles": [], "channels": []})
+
+
+def text_channels(channels: list[dict]) -> list[dict]:
+    """Salons texte triés comme dans Discord (catégorie puis position), avec le nom de leur catégorie."""
+    categories = {c["id"]: c for c in channels if c["type"] == 4}
+    listing = [c for c in channels if c["type"] == 0]
+    listing.sort(
+        key=lambda c: (
+            categories.get(c.get("parent_id") or "", {}).get("position", -1),
+            c.get("position", 0),
+        )
+    )
+    return [
+        {
+            "id": c["id"],
+            "name": c["name"],
+            "category": categories.get(c.get("parent_id") or "", {}).get("name", ""),
+        }
+        for c in listing
+    ]
 
 
 class DiscordCheckView(APIView):
-    """Vérifie, avec le token du bot, que le serveur est joignable et liste ses rôles."""
+    """Vérifie, avec le token du bot, que le serveur est joignable ; liste ses rôles et ses salons texte."""
 
     permission_classes = [IsGM]
 
@@ -134,14 +175,7 @@ class DiscordCheckView(APIView):
     def post(self, request: Request) -> Response:
         config = discord_config()
         if not config.bot_token or not config.guild_id:
-            return Response(
-                {
-                    "ok": False,
-                    "detail": "Renseigne d'abord le token du bot et l'ID du serveur.",
-                    "guild_name": "",
-                    "roles": [],
-                }
-            )
+            return _failure("Renseigne d'abord le token du bot et l'ID du serveur.")
         headers = {"Authorization": f"Bot {config.bot_token}"}
         try:
             guild = httpx.get(
@@ -150,32 +184,19 @@ class DiscordCheckView(APIView):
             roles = httpx.get(
                 f"{settings.DISCORD_API_BASE}/guilds/{config.guild_id}/roles", headers=headers, timeout=10.0
             )
+            channels = httpx.get(
+                f"{settings.DISCORD_API_BASE}/guilds/{config.guild_id}/channels",
+                headers=headers,
+                timeout=10.0,
+            )
         except httpx.HTTPError as exc:
-            return Response(
-                {"ok": False, "detail": f"Discord injoignable : {exc}", "guild_name": "", "roles": []}
-            )
+            return _failure(f"Discord injoignable : {exc}")
         if guild.status_code == 401:
-            return Response(
-                {"ok": False, "detail": "Token du bot refusé par Discord.", "guild_name": "", "roles": []}
-            )
+            return _failure("Token du bot refusé par Discord.")
         if guild.status_code in (403, 404):
-            return Response(
-                {
-                    "ok": False,
-                    "detail": "Le bot n'est pas sur ce serveur, ou l'ID du serveur est faux.",
-                    "guild_name": "",
-                    "roles": [],
-                }
-            )
+            return _failure("Le bot n'est pas sur ce serveur, ou l'ID du serveur est faux.")
         if guild.is_error or roles.is_error:
-            return Response(
-                {
-                    "ok": False,
-                    "detail": f"Discord a répondu {guild.status_code}.",
-                    "guild_name": "",
-                    "roles": [],
-                }
-            )
+            return _failure(f"Discord a répondu {guild.status_code}.")
         allowed = set(config.allowed_role_ids)
         listing = [
             {"id": role["id"], "name": role["name"], "allowed": role["id"] in allowed}
@@ -194,5 +215,6 @@ class DiscordCheckView(APIView):
                 "detail": detail,
                 "guild_name": guild.json().get("name", ""),
                 "roles": listing,
+                "channels": text_channels(channels.json()) if channels.is_success else [],
             }
         )

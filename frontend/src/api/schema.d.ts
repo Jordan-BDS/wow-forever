@@ -630,7 +630,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Vérifie, avec le token du bot, que le serveur est joignable et liste ses rôles. */
+        /** @description Vérifie, avec le token du bot, que le serveur est joignable ; liste ses rôles et ses salons texte. */
         post: operations["guild_discord_check_create"];
         delete?: never;
         options?: never;
@@ -1091,11 +1091,17 @@ export interface components {
          * @enum {string}
          */
         DeactivationReasonEnum: "discord" | "manual";
+        DiscordChannel: {
+            id: string;
+            name: string;
+            category: string;
+        };
         DiscordCheck: {
             ok: boolean;
             detail: string;
             guild_name: string;
             roles: components["schemas"]["DiscordRole"][];
+            channels: components["schemas"]["DiscordChannel"][];
         };
         DiscordRole: {
             id: string;
@@ -1365,10 +1371,25 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
             /**
-             * Salon Discord des annonces
-             * @description Le bot y publie les annonces.
+             * Salon Discord général
+             * @description Secours : reçoit les annonces dont le salon dédié n'est pas renseigné.
              */
             discord_channel_id?: string;
+            /**
+             * Salon Discord de l'agenda
+             * @description Messages d'inscription des événements, déplacements, annulations, rappels, compositions.
+             */
+            discord_agenda_channel_id?: string;
+            /**
+             * Salon Discord des demandes de craft
+             * @description Nouvelles demandes de craft.
+             */
+            discord_crafts_channel_id?: string;
+            /**
+             * Salon Discord des sondages
+             * @description Ouverture, rappels et résultats.
+             */
+            discord_polls_channel_id?: string;
             /**
              * Rappel avant un événement (minutes)
              * Format: int64
@@ -1686,10 +1707,25 @@ export interface components {
              */
             values?: string;
             /**
-             * Salon Discord des annonces
-             * @description Le bot y publie les annonces.
+             * Salon Discord général
+             * @description Secours : reçoit les annonces dont le salon dédié n'est pas renseigné.
              */
             discord_channel_id?: string;
+            /**
+             * Salon Discord de l'agenda
+             * @description Messages d'inscription des événements, déplacements, annulations, rappels, compositions.
+             */
+            discord_agenda_channel_id?: string;
+            /**
+             * Salon Discord des demandes de craft
+             * @description Nouvelles demandes de craft.
+             */
+            discord_crafts_channel_id?: string;
+            /**
+             * Salon Discord des sondages
+             * @description Ouverture, rappels et résultats.
+             */
+            discord_polls_channel_id?: string;
             /**
              * Rappel avant un événement (minutes)
              * Format: int64

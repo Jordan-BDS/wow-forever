@@ -37,6 +37,22 @@ DM_PREFERENCE_FOR_KIND = {
 }
 
 
+# Salon de destination (champ de GuildSettings) de chaque type de message de salon ; `discord_channel_id`
+# (le salon général) sert de secours quand le salon dédié n'est pas renseigné.
+CHANNEL_FIELD_FOR_KIND = {
+    NotificationKind.EVENT_CREATED: "discord_agenda_channel_id",
+    NotificationKind.EVENT_CANCELLED: "discord_agenda_channel_id",
+    NotificationKind.EVENT_RESCHEDULED: "discord_agenda_channel_id",
+    NotificationKind.EVENT_REMINDER: "discord_agenda_channel_id",
+    NotificationKind.EVENT_SYNC: "discord_agenda_channel_id",
+    NotificationKind.COMPOSITION: "discord_agenda_channel_id",
+    NotificationKind.POLL_OPENED: "discord_polls_channel_id",
+    NotificationKind.POLL_REMINDER: "discord_polls_channel_id",
+    NotificationKind.POLL_VALIDATED: "discord_polls_channel_id",
+    NotificationKind.CRAFT_REQUEST: "discord_crafts_channel_id",
+}
+
+
 class NotificationStatus(models.TextChoices):
     PENDING = "pending", "En attente"
     SENT = "sent", "Envoyée"

@@ -2562,7 +2562,7 @@
         "/api/guild/discord-check/": {
             "post": {
                 "operationId": "guild_discord_check_create",
-                "description": "Vérifie, avec le token du bot, que le serveur est joignable et liste ses rôles.",
+                "description": "Vérifie, avec le token du bot, que le serveur est joignable ; liste ses rôles et ses salons texte.",
                 "tags": [
                     "guild"
                 ],
@@ -4115,6 +4115,25 @@
                 "type": "string",
                 "description": "* `discord` - Rôle Discord perdu ou départ du serveur\n* `manual` - Désactivé par un officier"
             },
+            "DiscordChannel": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "category": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "category",
+                    "id",
+                    "name"
+                ]
+            },
             "DiscordCheck": {
                 "type": "object",
                 "properties": {
@@ -4132,9 +4151,16 @@
                         "items": {
                             "$ref": "#/components/schemas/DiscordRole"
                         }
+                    },
+                    "channels": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DiscordChannel"
+                        }
                     }
                 },
                 "required": [
+                    "channels",
                     "detail",
                     "guild_name",
                     "ok",
@@ -4808,8 +4834,26 @@
                     },
                     "discord_channel_id": {
                         "type": "string",
-                        "title": "Salon Discord des annonces",
-                        "description": "Le bot y publie les annonces.",
+                        "title": "Salon Discord général",
+                        "description": "Secours : reçoit les annonces dont le salon dédié n'est pas renseigné.",
+                        "maxLength": 32
+                    },
+                    "discord_agenda_channel_id": {
+                        "type": "string",
+                        "title": "Salon Discord de l'agenda",
+                        "description": "Messages d'inscription des événements, déplacements, annulations, rappels, compositions.",
+                        "maxLength": 32
+                    },
+                    "discord_crafts_channel_id": {
+                        "type": "string",
+                        "title": "Salon Discord des demandes de craft",
+                        "description": "Nouvelles demandes de craft.",
+                        "maxLength": 32
+                    },
+                    "discord_polls_channel_id": {
+                        "type": "string",
+                        "title": "Salon Discord des sondages",
+                        "description": "Ouverture, rappels et résultats.",
                         "maxLength": 32
                     },
                     "reminder_minutes": {
@@ -5643,8 +5687,26 @@
                     },
                     "discord_channel_id": {
                         "type": "string",
-                        "title": "Salon Discord des annonces",
-                        "description": "Le bot y publie les annonces.",
+                        "title": "Salon Discord général",
+                        "description": "Secours : reçoit les annonces dont le salon dédié n'est pas renseigné.",
+                        "maxLength": 32
+                    },
+                    "discord_agenda_channel_id": {
+                        "type": "string",
+                        "title": "Salon Discord de l'agenda",
+                        "description": "Messages d'inscription des événements, déplacements, annulations, rappels, compositions.",
+                        "maxLength": 32
+                    },
+                    "discord_crafts_channel_id": {
+                        "type": "string",
+                        "title": "Salon Discord des demandes de craft",
+                        "description": "Nouvelles demandes de craft.",
+                        "maxLength": 32
+                    },
+                    "discord_polls_channel_id": {
+                        "type": "string",
+                        "title": "Salon Discord des sondages",
+                        "description": "Ouverture, rappels et résultats.",
                         "maxLength": 32
                     },
                     "reminder_minutes": {
