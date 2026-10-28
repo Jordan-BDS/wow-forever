@@ -875,6 +875,31 @@ Clé de rattachement : **prénom + nom + royaume**. Quand elle ne trouve rien :
 Prérequis de modèle : les noms Forever sont en **deux parties** ; le personnage gagne un champ *nom de famille*
 (le roster affiche le prénom, nom complet au survol et sur la fiche).
 
+### Garde-fous de l'import (aucune perte en cas d'import tardif)
+
+**L'addon est la mémoire, pas le site** : le site reçoit toujours l'état complet accumulé, jamais des incréments.
+Un seul collage après une semaine et vingt déconnexions rattrape tout.
+
+1. **Compteurs cumulés** dans le fichier ; le site garde la dernière valeur. Import en retard, en double ou d'un
+   vieux code : ni perte ni double comptage.
+2. **Journal quotidien embarqué** : par personnage et par jour, valeur des compteurs en fin de journée, **60 jours
+   glissants**. Le site reconstruit les instantanés manquants pour les classements par période.
+3. **Événements horodatés** (kills de boss, accès obtenus, passages de niveau), liste bornée aux 500 derniers : les
+   dates de premier kill et d'accès restent exactes même importées tard.
+4. **Titres de la semaine figés, tableaux vivants** : un titre attribué le lundi n'est plus remis en cause ; les
+   tableaux se recalculent avec les données tardives, marquées « données reçues le JJ/MM ».
+5. **Fraîcheur par personnage** : chaque personnage porte sa date d'export ; un code plus ancien que le dernier
+   import est ignoré pour ce personnage seulement.
+6. **Baisse d'un compteur = nouvelle époque**, jamais une soustraction : réinstallation, fichier supprimé ou second
+   PC (identifiant d'installation dans le code) ouvrent une période de comptage que le site **additionne** aux
+   précédentes.
+7. **Somme de contrôle** (code tronqué refusé : « recopie-le ») et **empreinte** (code identique : « déjà importé »).
+8. **Archive brute** de chaque code accepté : les imports sont **rejouables** si un traitement doit être corrigé.
+
+Limites assumées : le jeu n'écrit le fichier qu'à la déconnexion ou au `/reload`, un plantage du client perd la
+session depuis la dernière écriture (le compagnon n'y change rien) ; au-delà de 60 jours sans import, les totaux
+restent exacts mais le détail quotidien est perdu.
+
 ### Données collectées
 
 | Catégorie | Contenu | Fiabilité | Par défaut |
