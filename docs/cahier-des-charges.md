@@ -937,8 +937,8 @@ jeu (zone, niveau, dernière source de dégâts) et diffusait un message d'addon
 Pourquoi pas le journal de combat : il ne contient pas la zone et impose au compagnon de reconstituer le tueur ; le
 journal de chat porte une ligne déjà complète, rédigée par l'addon.
 
-Règles : gabarits de messages tirés au hasard, modifiables par le GM (variables : personnage, tueur, zone,
-niveau) ; une annonce par mort, dédoublonnée côté site (plusieurs compagnons peuvent relayer la même ligne) ;
+Règles : gabarits de messages tirés au hasard, modifiables par le GM (variables : `{personnage}`, `{tueur}`,
+`{zone}`, `{niveau}`, `{classe}`) ; **la liste de départ sera fournie par Jordan**, objectif : troller un maximum ; une annonce par mort, dédoublonnée côté site (plusieurs compagnons peuvent relayer la même ligne) ;
 opt-out par joueur (« mes morts restent privées », l'addon ne poste alors rien) ; le compagnon **ne remonte jamais
 autre chose que les lignes de l'addon**, règle écrite et vérifiée par test ; il archive et vide le journal de chat quand
 le jeu n'est pas lancé ; les morts ainsi captées alimentent le compteur et le classement de la honte à la seconde.
