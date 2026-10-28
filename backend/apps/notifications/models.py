@@ -20,6 +20,7 @@ class NotificationKind(models.TextChoices):
     POLL_VALIDATED = "poll_validated", "Sondage validé"
     POLL_CANCELLED = "poll_cancelled", "Sondage annulé"
     POLL_SYNC = "poll_sync", "Synchronisation Discord d'un sondage"
+    DISCORD_CLEANUP = "discord_cleanup", "Nettoyage Discord après une suppression"
     CRAFT_REQUEST = "craft_request", "Demande de craft"
     CRAFT_UPDATE = "craft_update", "Suivi de demande de craft"
 
@@ -90,6 +91,11 @@ class Notification(models.Model):
         blank=True,
         related_name="sync_notifications",
         help_text="Sondage à synchroniser avec Discord (kind = poll_sync).",
+    )
+    payload = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Identifiants Discord à effacer (kind = discord_cleanup) : l'objet du site n'existe plus.",
     )
     status = models.CharField(
         max_length=10, choices=NotificationStatus.choices, default=NotificationStatus.PENDING

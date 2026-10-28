@@ -104,7 +104,7 @@ async def sync_event(bot: discord.Client, event_id: int) -> None:
     try:
         await _sync_scheduled_event(guild, snapshot)
     except discord.Forbidden:
-        logger.warning("Le bot n'a pas la permission « Gérer les événements » sur le serveur.")
+        logger.warning("Le bot n'a pas les permissions « Créer / Gérer les événements » sur le serveur.")
     await _sync_signup_message(bot, snapshot)
     await db(services.complete_event_syncs)(event_id)
 
@@ -211,3 +211,29 @@ async def sync_poll(bot: discord.Client, poll_id: int) -> None:
         await message.edit(content=snapshot.message_text)
     await db(services.store_poll_message)(poll_id, str(message.id), snapshot.status)
     await db(services.complete_poll_syncs)(poll_id)
+
+
+# --- nettoyage après une suppression sur le site ------------------------------------------------
+
+
+async def cleanup_discord(bot: discord.Client, payload: dict) -> None:
+    """Efface l'événement planifié et/ou le message qu'un objet supprimé du site avait laissés sur Discord."""
+    scheduled_event_id = str(payload.get("scheduled_event_id", ""))
+    if scheduled_event_id.isdigit():
+        guild_id = bot.guild_object.id
+        guild = bot.get_guild(guild_id) or await bot.fetch_guild(guild_id)
+        existing = await _fetch_scheduled(guild, scheduled_event_id)
+        if existing is not None and existing.status in (
+            discord.EventStatus.scheduled,
+            discord.EventStatus.active,
+        ):
+            await existing.delete(reason="Supprimé sur le site")
+
+    channel_id, message_id = str(payload.get("channel_id", "")), str(payload.get("message_id", ""))
+    if channel_id.isdigit() and message_id.isdigit():
+        try:
+            channel = bot.get_channel(int(channel_id)) or await bot.fetch_channel(int(channel_id))
+            message = await channel.fetch_message(int(message_id))
+        except discord.NotFound:
+            return  # salon ou message déjà disparu : rien à faire
+        await message.delete()

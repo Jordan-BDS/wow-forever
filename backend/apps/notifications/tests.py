@@ -186,3 +186,41 @@ class TestDiscordSync:
         text = services.signup_message_text(event)
         assert text.startswith("❌") and "Annulé" in text
         assert "boutons" not in text
+
+
+class TestDiscordCleanup:
+    def _cleanups(self):
+        return list(Notification.objects.filter(kind=NotificationKind.DISCORD_CLEANUP))
+
+    def test_deleting_an_event_queues_cleanup_of_its_discord_traces(self, event, as_user, officer):
+        settings = GuildSettings.load()
+        settings.discord_channel_id = "1"
+        settings.discord_agenda_channel_id = "42"
+        settings.save()
+        Event.objects.filter(pk=event.pk).update(discord_event_id="777", discord_message_id="888")
+        services.event_sync(event)  # une synchro en attente disparaît avec l'événement
+        event.refresh_from_db()
+
+        assert as_user(officer).delete(f"/api/events/{event.pk}/").status_code == 204
+
+        (cleanup,) = self._cleanups()
+        assert cleanup.payload == {"scheduled_event_id": "777", "channel_id": "42", "message_id": "888"}
+        assert cleanup.event is None and cleanup.recipient is None and "Cœur du Magma" in cleanup.text
+        assert not Notification.objects.filter(kind=NotificationKind.EVENT_SYNC).exists()
+
+    def test_nothing_queued_when_discord_never_heard_of_it(self, event):
+        event.delete()
+        assert self._cleanups() == []
+
+    def test_deleting_a_poll_removes_its_follow_up_message(self, officer, as_user):
+        GuildSettings.objects.update_or_create(pk=1, defaults={"discord_channel_id": "5"})
+        poll = Poll.objects.create(
+            title="Nom de guilde",
+            proposals_end=NOW + timedelta(days=1),
+            votes_end=NOW + timedelta(days=2),
+            created_by=officer,
+            discord_message_id="999",
+        )
+        assert as_user(officer).delete(f"/api/polls/{poll.pk}/").status_code == 204
+        (cleanup,) = self._cleanups()
+        assert cleanup.payload == {"channel_id": "5", "message_id": "999"}  # secours : salon général

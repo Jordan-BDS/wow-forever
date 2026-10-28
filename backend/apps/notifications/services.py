@@ -8,7 +8,7 @@ from apps.accounts.models import User
 from apps.events.models import Event, Placement, Signup, SignupStatus
 from apps.polls.models import Poll
 
-from .models import DM_PREFERENCE_FOR_KIND, Notification, NotificationKind
+from .models import CHANNEL_FIELD_FOR_KIND, DM_PREFERENCE_FOR_KIND, Notification, NotificationKind
 
 
 def site_url(path: str) -> str:
@@ -35,6 +35,52 @@ def notify_user(user: User, kind: str, text: str) -> Notification | None:
     if not wants_dm(user, kind):
         return None
     return Notification.objects.create(kind=kind, recipient=user, text=text)
+
+
+# --- nettoyage Discord après une suppression -------------------------------------------
+
+
+def _channel_for(kind: str) -> str:
+    from apps.guild.models import GuildSettings
+
+    stored = GuildSettings.load()
+    return getattr(stored, CHANNEL_FIELD_FOR_KIND[kind]) or stored.discord_channel_id
+
+
+def discord_cleanup(
+    label: str, *, channel_kind: str, message_id: str, scheduled_event_id: str = ""
+) -> Notification | None:
+    """Demande au bot d'effacer ce qui reste sur Discord d'un objet supprimé du site.
+
+    Contrairement aux synchronisations, l'objet n'existe plus en base : les identifiants Discord
+    voyagent dans `payload`. Rien n'est mis en file si Discord n'a jamais rien reçu.
+    """
+    payload = {}
+    if scheduled_event_id.isdigit():
+        payload["scheduled_event_id"] = scheduled_event_id
+    if message_id.isdigit():
+        payload["channel_id"] = _channel_for(channel_kind)
+        payload["message_id"] = message_id
+    if not payload:
+        return None
+    return Notification.objects.create(
+        kind=NotificationKind.DISCORD_CLEANUP, text=f"Nettoyage Discord de « {label} »", payload=payload
+    )
+
+
+def event_deleted(event: Event) -> Notification | None:
+    return discord_cleanup(
+        event.title,
+        channel_kind=NotificationKind.EVENT_SYNC,
+        message_id=event.discord_message_id,
+        scheduled_event_id=event.discord_event_id,
+    )
+
+
+def poll_deleted(poll: Poll) -> Notification | None:
+    return discord_cleanup(
+        poll.title, channel_kind=NotificationKind.POLL_SYNC, message_id=poll.discord_message_id
+    )
 
 
 # --- événements -----------------------------------------------------------------

@@ -73,6 +73,10 @@ class GuildBot(commands.Bot):
                         continue
                     await eventsync.sync_poll(self, notification.poll_id)
                     continue  # acquittée par sync_poll
+                if notification.kind == NotificationKind.DISCORD_CLEANUP:
+                    await eventsync.cleanup_discord(self, notification.payload)
+                    await db(services.mark_sent)(notification)
+                    continue
                 if notification.is_dm:
                     user = await self.fetch_user(int(notification.recipient.discord_id))
                     await user.send(notification.text)

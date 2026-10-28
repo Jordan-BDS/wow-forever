@@ -18,7 +18,21 @@ from apps.guild.models import GuildSettings
 MANAGE_ROLES = 0x10000000
 VIEW_CHANNEL = 0x400
 SEND_MESSAGES = 0x800
-BOT_PERMISSIONS = MANAGE_ROLES | VIEW_CHANNEL | SEND_MESSAGES
+# Tout ce dont le bot a besoin : lire/écrire dans les salons, gérer ses messages, créer rôles et salons
+# (commandes de configuration), et tenir l'onglet « Événements » (Discord distingue « Gérer les événements »
+# de « Créer des événements », les deux sont nécessaires).
+BOT_PERMISSIONS = (
+    VIEW_CHANNEL
+    | SEND_MESSAGES
+    | (1 << 13)  # Gérer les messages
+    | (1 << 14)  # Intégrer des liens
+    | (1 << 15)  # Joindre des fichiers
+    | (1 << 16)  # Lire l'historique
+    | (1 << 4)  # Gérer les salons
+    | MANAGE_ROLES
+    | (1 << 33)  # Gérer les événements
+    | (1 << 44)  # Créer des événements
+)
 
 
 class DiscordClient:
