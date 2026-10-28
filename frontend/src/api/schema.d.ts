@@ -932,6 +932,173 @@ export interface paths {
         patch: operations["signups_partial_update"];
         trace?: never;
     };
+    "/api/sync/companion/me/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Pour le compagnon : qui je suis, et mon dernier import. */
+        get: operations["sync_companion_me_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/devices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mes compagnons appairés (y compris révoqués, pour l'historique). */
+        get: operations["sync_devices_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/devices/{id}/revoke/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync_devices_revoke_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/import/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Reçoit un code d'export : collé par le joueur (session) ou envoyé par le compagnon (jeton). */
+        post: operations["sync_import_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/imports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sync_imports_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/pair/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Appelé par le compagnon : échange le code contre un jeton longue durée. */
+        post: operations["sync_pair_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/pairing-code/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Génère un code d'appairage à saisir dans le compagnon (valable 10 minutes, un seul à la fois). */
+        post: operations["sync_pairing_code_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/pending/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Personnages du jeu encore à rattacher, ou ignorés faute de niveau. */
+        get: operations["sync_pending_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/pending/{id}/resolve/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync_pending_resolve_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/release/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Dernière release du compagnon (null tant qu'aucune n'est publiée). */
+        get: operations["sync_release_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/talents/{slug}/": {
         parameters: {
             query?: never;
@@ -953,6 +1120,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description * `merge` - merge
+         *     * `create` - create
+         *     * `ignore` - ignore
+         * @enum {string}
+         */
+        ActionEnum: "merge" | "create" | "ignore";
         AvailabilitySlot: {
             /** Jour */
             weekday: components["schemas"]["WeekdayEnum"];
@@ -996,9 +1170,32 @@ export interface components {
             is_main?: boolean;
             note?: string;
             professions?: components["schemas"]["CharacterProfession"][];
-            readonly source: components["schemas"]["SourceEnum"];
+            readonly source: components["schemas"]["CharacterSourceEnum"];
             /** Identifiant externe */
             readonly external_id: string;
+            /**
+             * Nom de famille
+             * @description Les noms Forever sont en deux parties.
+             */
+            surname?: string;
+            readonly full_name: string;
+            /**
+             * GUID du jeu
+             * @description Vide tant que jamais synchronisé.
+             */
+            readonly guid: string;
+            /** Royaume */
+            readonly realm: string;
+            /**
+             * Dernière synchronisation depuis le jeu
+             * Format: date-time
+             */
+            readonly last_synced_at: string | null;
+            /**
+             * Rôles confirmés
+             * @description Faux pour un personnage créé par l'import, tant que le joueur n'a pas choisi ses rôles.
+             */
+            readonly roles_confirmed: boolean;
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
@@ -1037,10 +1234,65 @@ export interface components {
             is_main?: boolean;
             note?: string;
             professions?: components["schemas"]["CharacterProfessionRequest"][];
+            /**
+             * Nom de famille
+             * @description Les noms Forever sont en deux parties.
+             */
+            surname?: string;
         };
+        CharacterSnapshot: {
+            readonly id: number;
+            readonly guid: string;
+            readonly name: string;
+            readonly surname: string;
+            readonly full_name: string;
+            readonly realm: string;
+            readonly level: number | null;
+            /** Format: date-time */
+            readonly exported_at: string;
+            readonly status: components["schemas"]["CharacterSnapshotStatusEnum"];
+            readonly note: string;
+            readonly low_level: boolean;
+            readonly character: components["schemas"]["LinkedCharacter"] | null;
+            readonly candidate: components["schemas"]["LinkedCharacter"] | null;
+        };
+        /**
+         * @description * `applied` - Mis à jour
+         *     * `created` - Créé
+         *     * `pending` - À rattacher
+         *     * `ignored` - Ignoré
+         *     * `stale` - Plus ancien que le dernier import
+         *     * `refused` - Refusé
+         * @enum {string}
+         */
+        CharacterSnapshotStatusEnum: "applied" | "created" | "pending" | "ignored" | "stale" | "refused";
+        /**
+         * @description * `manual` - Saisie manuelle
+         *     * `blizzard` - API Blizzard
+         *     * `addon` - Addon du jeu
+         * @enum {string}
+         */
+        CharacterSourceEnum: "manual" | "blizzard" | "addon";
         ClassTalents: {
             player_class: string;
             trees: components["schemas"]["TalentTree"][];
+        };
+        CompanionDevice: {
+            readonly id: number;
+            /** Machine */
+            readonly name: string;
+            readonly token_prefix: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly last_seen_at: string | null;
+            /** Format: date-time */
+            readonly revoked_at: string | null;
+        };
+        CompanionStatus: {
+            display_name: string;
+            device: components["schemas"]["CompanionDevice"];
+            last_import: components["schemas"]["ImportBatch"] | null;
         };
         CraftRequest: {
             readonly id: number;
@@ -1428,6 +1680,26 @@ export interface components {
             discord_first_gm_id?: string;
             readonly discord_login_ready: boolean;
         };
+        ImportBatch: {
+            readonly id: number;
+            readonly source: components["schemas"]["ImportBatchSourceEnum"];
+            readonly device: components["schemas"]["CompanionDevice"] | null;
+            /** Format: date-time */
+            readonly received_at: string;
+            readonly format_version: number;
+            readonly addon_version: string;
+            readonly summary: unknown;
+            readonly snapshots: components["schemas"]["CharacterSnapshot"][];
+        };
+        /**
+         * @description * `paste` - Collage sur le site
+         *     * `companion` - Compagnon
+         * @enum {string}
+         */
+        ImportBatchSourceEnum: "paste" | "companion";
+        ImportRequestRequest: {
+            code: string;
+        };
         Instance: {
             readonly id: number;
             slug: string;
@@ -1597,6 +1869,12 @@ export interface components {
         KnownRecipesRequest: {
             recipes: number[];
         };
+        LinkedCharacter: {
+            id: number;
+            name: string;
+            full_name: string;
+            level: number;
+        };
         /**
          * @description * `none` - Aucun composant fourni
          *     * `partial` - Composants partiels
@@ -1640,6 +1918,21 @@ export interface components {
             readonly display_name: string;
             readonly avatar_url: string;
         };
+        PairRequestRequest: {
+            code: string;
+            /** @default  */
+            device_name: string;
+        };
+        PairResponse: {
+            token: string;
+            device: components["schemas"]["CompanionDevice"];
+            display_name: string;
+        };
+        PairingCode: {
+            code: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
         PatchedCharacterRequest: {
             /** @description Officiers seulement : créer le perso pour un autre membre. */
             owner_id?: number;
@@ -1659,6 +1952,11 @@ export interface components {
             is_main?: boolean;
             note?: string;
             professions?: components["schemas"]["CharacterProfessionRequest"][];
+            /**
+             * Nom de famille
+             * @description Les noms Forever sont en deux parties.
+             */
+            surname?: string;
         };
         PatchedEquipmentSetRequest: {
             /** Nom */
@@ -2054,6 +2352,27 @@ export interface components {
              */
             is_forever?: boolean;
         };
+        Release: {
+            version: string;
+            tag: string;
+            /** Format: date-time */
+            published_at: string | null;
+            /** Format: uri */
+            url: string;
+            assets: components["schemas"]["ReleaseAssets"];
+        };
+        ReleaseAssets: {
+            /** Format: uri */
+            windows?: string;
+            /** Format: uri */
+            macos?: string;
+            /** Format: uri */
+            addon?: string;
+        };
+        ResolveRequestRequest: {
+            action: components["schemas"]["ActionEnum"];
+            character_id?: number | null;
+        };
         RoleCount: {
             tank: number;
             heal: number;
@@ -2166,12 +2485,6 @@ export interface components {
         SlotsUpdateRequest: {
             slots: components["schemas"]["SlotRequest"][];
         };
-        /**
-         * @description * `manual` - Saisie manuelle
-         *     * `blizzard` - API Blizzard
-         * @enum {string}
-         */
-        SourceEnum: "manual" | "blizzard";
         Specialization: {
             readonly id: number;
             /** @description Préfixé par la classe, ex. druid-restoration */
@@ -4257,6 +4570,239 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Signup"];
                 };
+            };
+        };
+    };
+    sync_companion_me_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanionStatus"];
+                };
+            };
+        };
+    };
+    sync_devices_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanionDevice"][];
+                };
+            };
+        };
+    };
+    sync_devices_revoke_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanionDevice"];
+                };
+            };
+        };
+    };
+    sync_import_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRequestRequest"];
+                "multipart/form-data": components["schemas"]["ImportRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+            /** @description Code illisible */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Déjà importé */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sync_imports_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"][];
+                };
+            };
+        };
+    };
+    sync_pair_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PairRequestRequest"];
+                "multipart/form-data": components["schemas"]["PairRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairResponse"];
+                };
+            };
+        };
+    };
+    sync_pairing_code_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingCode"];
+                };
+            };
+        };
+    };
+    sync_pending_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CharacterSnapshot"][];
+                };
+            };
+        };
+    };
+    sync_pending_resolve_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ResolveRequestRequest"];
+                "multipart/form-data": components["schemas"]["ResolveRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CharacterSnapshot"];
+                };
+            };
+        };
+    };
+    sync_release_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Release"];
+                };
+            };
+            /** @description Aucune release */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

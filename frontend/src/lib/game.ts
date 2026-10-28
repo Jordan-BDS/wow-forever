@@ -68,6 +68,16 @@ export function formatRemaining(iso: string, now = new Date()): string {
   return `dans ${Math.max(minutes, 1)} min`;
 }
 
+/** « il y a 2 h », « il y a 3 j », « à l'instant ». */
+export function formatAgo(iso: string, now = new Date()): string {
+  const minutes = Math.floor((now.getTime() - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return "à l'instant";
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `il y a ${hours} h`;
+  return `il y a ${Math.floor(hours / 24)} j`;
+}
+
 /** Valeur pour un <input type="datetime-local"> en heure locale. */
 export function toLocalInput(iso: string | Date): string {
   const d = new Date(iso);

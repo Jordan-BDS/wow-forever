@@ -7,13 +7,15 @@ export function ClassName({
   playerClass,
   children,
   className,
+  title,
 }: {
   playerClass: PlayerClass | undefined;
   children: React.ReactNode;
   className?: string;
+  title?: string;
 }) {
   return (
-    <span className={clsx("font-medium", className)} style={{ color: playerClass?.color }}>
+    <span className={clsx("font-medium", className)} style={{ color: playerClass?.color }} title={title}>
       {children}
     </span>
   );

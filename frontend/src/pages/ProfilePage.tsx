@@ -5,6 +5,7 @@ import { KEYS, useInvalidate, useMyAvailability } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ME_KEY } from "@/auth/useMe";
 import { AvailabilityGrid } from "@/components/AvailabilityGrid";
+import { CompanionCard, GameImportCard, PendingCharactersCard } from "@/components/GameSync";
 import { Button, Card, Field, Input, PageTitle, Spinner } from "@/components/ui";
 import { cellsToSlots, slotsToCells } from "@/lib/availability";
 
@@ -28,10 +29,17 @@ export function ProfilePage() {
           <ProfileForm key={me.id} initialName={me.display_name} initialBio={me.bio ?? ""} />
           <DmPreferences key={`${me.dm_enabled}-${me.dm_muted_kinds.join(",")}`} me={me} />
         </div>
-        <AvailabilityEditor
-          key={JSON.stringify(availability.data)}
-          initial={slotsToCells(availability.data ?? [])}
-        />
+        <div className="space-y-4">
+          <AvailabilityEditor
+            key={JSON.stringify(availability.data)}
+            initial={slotsToCells(availability.data ?? [])}
+          />
+          <PendingCharactersCard />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <GameImportCard />
+            <CompanionCard />
+          </div>
+        </div>
       </div>
     </>
   );

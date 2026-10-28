@@ -101,6 +101,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.crafting",
     "apps.discordbot",
+    "apps.gamesync",
 ]
 
 MIDDLEWARE = [
@@ -157,6 +158,8 @@ DISCORD_API_BASE = "https://discord.com/api/v10"
 
 # URL publique du site (pour l'URL de retour OAuth) et URL du front (redirection après connexion).
 SITE_URL = env("SITE_URL", "http://localhost:8000" if DEBUG else None).rstrip("/")
+# Dépôt GitHub dont les releases « companion-vX.Y.Z » fournissent le compagnon et l'addon à télécharger.
+COMPANION_RELEASES_REPO = env("COMPANION_RELEASES_REPO", "Jordan-BDS/wow-forever")
 FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173" if DEBUG else SITE_URL).rstrip("/")
 
 # En dev, le front (serveur Vite) est une autre origine que Django : on la déclare de confiance pour le CSRF.

@@ -16,6 +16,7 @@ import clsx from "clsx";
 import { useState } from "react";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ClassName, GameRoleTag, LevelBadge } from "@/components/game";
+import { RolesToConfirmBadge, SyncBadge } from "@/components/SyncBadge";
 import { Button, Card, PageTitle, Spinner } from "@/components/ui";
 import { findClass, findRace, specName } from "@/lib/game";
 import { isOfficerOrAbove } from "@/lib/roles";
@@ -86,8 +87,12 @@ export function CharacterPage() {
           )
         }
       >
-        <ClassName playerClass={playerClass}>{character.name}</ClassName>
+        <ClassName playerClass={playerClass}>{character.full_name || character.name}</ClassName>
         {character.is_main && <span className="ml-2 text-sm text-muted">main</span>}
+        <span className="ml-3 inline-flex items-center gap-2 align-middle">
+          <SyncBadge character={character} />
+          <RolesToConfirmBadge character={character} />
+        </span>
       </PageTitle>
       {(setMain.error || remove.error) && (
         <p className="mb-4 text-sm text-danger">{errorMessage(setMain.error ?? remove.error)}</p>
