@@ -185,6 +185,16 @@ function EventDetail({ event }: { event: GuildEvent }) {
                   <span className="text-muted"> ({formatDateTime(event.signup_deadline)})</span>
                 )}
               </dd>
+              {event.discord_url && (
+                <>
+                  <dt className="text-muted">Discord</dt>
+                  <dd>
+                    <a href={event.discord_url} target="_blank" rel="noreferrer" className="underline">
+                      Voir dans l'onglet Événements
+                    </a>
+                  </dd>
+                </>
+              )}
             </dl>
             {event.description && (
               <p className="whitespace-pre-wrap border-t border-border pt-2">{event.description}</p>

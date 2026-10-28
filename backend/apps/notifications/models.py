@@ -12,6 +12,7 @@ class NotificationKind(models.TextChoices):
     EVENT_CANCELLED = "event_cancelled", "Événement annulé"
     EVENT_RESCHEDULED = "event_rescheduled", "Événement déplacé"
     EVENT_REMINDER = "event_reminder", "Rappel d'événement"
+    EVENT_SYNC = "event_sync", "Synchronisation Discord d'un événement"
     COMPOSITION = "composition", "Composition publiée"
     PLACEMENT = "placement", "Placement (confirmé / banc)"
     POLL_OPENED = "poll_opened", "Sondage ouvert"
@@ -54,6 +55,14 @@ class Notification(models.Model):
         help_text="Vide = message dans le salon de la guilde.",
     )
     text = models.TextField()
+    event = models.ForeignKey(
+        "events.Event",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="sync_notifications",
+        help_text="Événement à synchroniser avec Discord (kind = event_sync).",
+    )
     status = models.CharField(
         max_length=10, choices=NotificationStatus.choices, default=NotificationStatus.PENDING
     )

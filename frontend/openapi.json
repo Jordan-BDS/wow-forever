@@ -4531,6 +4531,13 @@
                         "nullable": true,
                         "readOnly": true
                     },
+                    "discord_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Lien vers l'événement dans l'onglet Événements Discord."
+                    },
                     "created_at": {
                         "type": "string",
                         "format": "date-time",
@@ -4546,6 +4553,7 @@
                     "candidates",
                     "confirmed",
                     "created_at",
+                    "discord_url",
                     "effective_status",
                     "id",
                     "kind",

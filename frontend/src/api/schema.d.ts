@@ -1251,6 +1251,11 @@ export interface components {
             readonly confirmed: components["schemas"]["RoleCount"];
             readonly candidates: components["schemas"]["RoleCount"];
             readonly my_signup: components["schemas"]["Signup"] | null;
+            /**
+             * Format: uri
+             * @description Lien vers l'événement dans l'onglet Événements Discord.
+             */
+            readonly discord_url: string | null;
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
