@@ -115,21 +115,18 @@ export function TitleCards({ titles }: { titles: WeeklyTitle[] }) {
                 >
                   {t.user.display_name}
                 </Link>
-                <div className="mt-1 text-sm">
-                  {t.character && (
-                    <>
-                      <Link to={`/personnages/${t.character.id}`}>
-                        <ClassName playerClass={findClass(gamedata.data, t.character.player_class)}>
-                          {t.character.name}
-                        </ClassName>
-                      </Link>
-                      <span className="text-muted"> · </span>
-                    </>
-                  )}
-                  <span className="font-mono" style={{ color: theme.accent }}>
-                    {value(t, theme.unit)}
-                  </span>
+                <div className="mt-0.5 font-mono text-2xl leading-tight" style={{ color: theme.accent }}>
+                  {value(t, theme.unit)}
                 </div>
+                {t.character && (
+                  <div className="mt-1 text-sm">
+                    <Link to={`/personnages/${t.character.id}`}>
+                      <ClassName playerClass={findClass(gamedata.data, t.character.player_class)}>
+                        {t.character.name}
+                      </ClassName>
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </div>
