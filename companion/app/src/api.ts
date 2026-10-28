@@ -1,0 +1,53 @@
+// Pont vers le noyau Rust (commandes Tauri) et événements de fond.
+import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+
+export type AppState = {
+  version: string;
+  addon_version: string;
+  site_url: string;
+  game_dir: string | null;
+  device_name: string;
+  paired: boolean;
+  display_name: string | null;
+  autostart: boolean;
+  relay_deaths: boolean;
+  accounts: string[];
+  installed_addon_version: string | null;
+  last_sync: SyncOutcome[] | null;
+  last_sync_at: string | null;
+  candidates: string[];
+};
+
+export type SyncOutcome =
+  | { kind: "unchanged"; account: string }
+  | { kind: "sent"; account: string; summary: string; characters: string[] }
+  | { kind: "duplicate"; account: string }
+  | { kind: "failed"; account: string; error: string };
+
+export type DeathEvent = {
+  name: string;
+  surname: string;
+  class: string;
+  level: number;
+  killer: string;
+  zone: string;
+  subzone: string;
+  timestamp: number;
+};
+
+export const api = {
+  getState: () => invoke<AppState>("get_state"),
+  setGameDir: (path: string) => invoke<AppState>("set_game_dir", { path }),
+  pair: (code: string, deviceName: string) => invoke<AppState>("pair", { code, deviceName }),
+  unpair: () => invoke<AppState>("unpair"),
+  syncNow: () => invoke<SyncOutcome[]>("sync_now"),
+  installAddon: () => invoke<string>("install_addon"),
+  setSettings: (settings: { autostart?: boolean; relay_deaths?: boolean; site_url?: string }) =>
+    invoke<AppState>("set_settings", { settings }),
+  openSite: (path: string) => invoke<void>("open_site", { path }),
+  onSync: (handler: (outcomes: SyncOutcome[]) => void): Promise<UnlistenFn> =>
+    listen<SyncOutcome[]>("sync-result", (e) => handler(e.payload)),
+  onDeath: (handler: (death: DeathEvent) => void): Promise<UnlistenFn> =>
+    listen<DeathEvent>("death", (e) => handler(e.payload)),
+};

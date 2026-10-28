@@ -1,0 +1,22 @@
+[package]
+name = "companion-core"
+version = "0.1.0"
+edition = "2021"
+description = "Cœur du compagnon WoW Forever Guilde : SavedVariables, dossier WoW, addon embarqué, API du site. Sans interface."
+license = "MIT"
+
+[dependencies]
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+hex = "0.4"
+thiserror = "2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
+include_dir = "0.7"
+dirs = "6"
+log = "0.4"
+
+[dev-dependencies]
+tempfile = "3"
+httpmock = "0.7"
