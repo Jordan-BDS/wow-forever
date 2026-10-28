@@ -1009,7 +1009,7 @@ Un seul collage après une semaine et vingt déconnexions rattrape tout.
    glissants**. Le site reconstruit les instantanés manquants pour les classements par période.
 3. **Événements horodatés** (kills de boss, accès obtenus, passages de niveau), liste bornée aux 500 derniers : les
    dates de premier kill et d'accès restent exactes même importées tard.
-4. **Titres de la semaine figés, tableaux vivants** : un titre attribué le lundi à 10h n'est plus remis en cause ; les
+4. **Roxors de la semaine passée figés, tableaux vivants** : un titre attribué le lundi à 10h n'est plus remis en cause ; les
    tableaux se recalculent avec les données tardives, marquées « données reçues le JJ/MM ».
 5. **Fraîcheur par personnage** : chaque personnage porte sa date d'export ; un code plus ancien que le dernier
    import est ignoré pour ce personnage seulement.
@@ -1111,7 +1111,7 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
   - *Opt-in* : temps de jeu, affiché seulement pour ceux qui l'ont activé.
 - **Tableau** : podium des trois premiers, top 10, puis **ta ligne** mise en évidence avec ton rang même hors
   top 10 ; variation par rapport à la période précédente (▲ ▼) ; clic vers la fiche du personnage.
-- **Titres de la semaine** (« Mineur de la semaine », « Calamité de la Horde » pour les joueurs tués, « Mort le plus souvent »…) calculés le
+- **Roxors de la semaine passée** (titres : « Mineur de la semaine », « Calamité de la Horde » pour les joueurs tués, « Mort le plus souvent »…) calculés le
   **lundi à 10h** sur les données **horodatées avant lundi 00h00**, pour laisser arriver les déconnexions tardives et
   les envois du compagnon ; affichés sur la fiche du gagnant pendant la semaine, et **récapitulatif hebdomadaire**
   posté par le bot dans le salon général (top 3 par catégorie, nouveaux accès, premiers kills).

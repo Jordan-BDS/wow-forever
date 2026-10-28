@@ -21,7 +21,8 @@ export function WeekWidget() {
         </Link>
       </div>
       {data.titles.length > 0 && (
-        <div className="mt-3">
+        <div className="mt-3 space-y-1">
+          <div className="text-xs text-muted">Roxors de la semaine passée</div>
           <TitleChips titles={data.titles} />
         </div>
       )}

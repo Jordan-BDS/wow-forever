@@ -82,7 +82,7 @@ function value(t: WeeklyTitle, unit: string): string {
   return unit ? `${n} ${unit}` : String(n);
 }
 
-/** Cartes des titres de la semaine : icône, accent, gagnant en grand, personnage à la couleur de classe. */
+/** Cartes des Roxors de la semaine passée : icône, accent, gagnant en grand, personnage à la couleur de classe. */
 export function TitleCards({ titles }: { titles: WeeklyTitle[] }) {
   const gamedata = useGameData();
   return (

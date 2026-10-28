@@ -86,7 +86,11 @@ export function RankingsPage() {
   return (
     <>
       <PageTitle>Classements de la guilde</PageTitle>
-      <p className="-mt-4 mb-4 text-sm text-muted">
+
+      {data.titles.length > 0 && <TitlesRow titles={data.titles} />}
+
+      <h2 className="font-display text-lg">Classements</h2>
+      <p className="mb-4 text-sm text-muted">
         {periodLabel} · {data.players} joueur{data.players > 1 ? "s" : ""}, {data.characters} personnage
         {data.characters > 1 ? "s" : ""} synchronisés
       </p>
@@ -118,8 +122,6 @@ export function RankingsPage() {
         </div>
       </div>
 
-      {data.titles.length > 0 && <TitlesRow titles={data.titles} />}
-
       {data.characters === 0 ? (
         <Card className="text-sm text-muted">
           Aucun personnage synchronisé pour l'instant. Les classements se rempliront dès que l'addon enverra
@@ -145,9 +147,9 @@ export function RankingsPage() {
 
 function TitlesRow({ titles }: { titles: Rankings["titles"] }) {
   return (
-    <section className="mb-6">
+    <section className="mb-8">
       <div className="mb-2 flex flex-wrap items-baseline gap-3">
-        <h2 className="font-display text-lg">Titres de la semaine</h2>
+        <h2 className="font-display text-lg">Roxors de la semaine passée</h2>
         <span className="text-xs text-muted">
           semaine du {shortDate(titles[0].week_start)} · attribués le lundi à 10h, figés ensuite
         </span>
