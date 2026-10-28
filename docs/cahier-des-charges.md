@@ -924,22 +924,27 @@ par un Sanglier des Tarides, quel noob »). Le fichier de l'addon n'étant écri
 par ce que le client écrit **en continu**, sur le modèle du premier addon Hardcore, qui lisait tout en mémoire du
 jeu (zone, niveau, dernière source de dégâts) et diffusait un message d'addon à la guilde :
 
-1. **En jeu** : à `PLAYER_DEAD`, l'addon assemble l'événement (zone et sous-zone, niveau, tueur = dernière source de
-   dégâts vue dans les événements du journal de combat) et le **poste dans le canal de guilde**, sous une forme
-   lisible par les joueurs et balisée pour la machine. Les addons des guildiens connectés le mettent en forme (message
-   troll) ; c'est aussi la version Hardcore si Forever ouvre ces serveurs.
+1. **En jeu** : à `PLAYER_DEAD`, l'addon assemble l'événement (zone et sous-zone, niveau, classe, tueur = dernière
+   source de dégâts vue dans les événements du journal de combat) et le poste dans un **canal personnalisé caché**
+   (ex. `wfgdeaths`, protégé par mot de passe, rejoint à la connexion et détaché de toutes les fenêtres de chat) :
+   **rien n'apparaît dans le canal de guilde**. Les addons des guildiens connectés reçoivent la ligne et affichent un
+   **popup** en haut de l'écran pendant **5 secondes**, avec le message troll et un **petit son** livré avec l'addon.
+   À vérifier sur le client Forever que le canal reste invisible ; repli : messages d'addon pour le popup.
 2. **Vers Discord** : l'addon active le **journal de chat** à la connexion (`/chatlog`, que le client écrit en continu
-   dans `Logs/WoWChatLog.txt`). Le **compagnon** lit ce fichier au fil de l'eau, ne retient **que les lignes balisées
-   par l'addon**, et les envoie au site → outbox → le bot poste dans un salon dédié (`#cimetière`). Un seul joueur
-   connecté avec le compagnon suffit à relayer les morts de toute la guilde, puisque chacun reçoit le message de
-   guilde. Latence : quelques secondes.
+   dans `Logs/WoWChatLog.txt`, canaux personnalisés compris). Le **compagnon** lit ce fichier au fil de l'eau, ne
+   retient **que les lignes balisées par l'addon**, et les envoie au site → outbox → le bot poste dans un salon dédié
+   (`#cimetière`). Un seul joueur connecté avec le compagnon suffit à relayer les morts de toute la guilde. Latence :
+   quelques secondes.
+
+Interrupteurs dans la fenêtre de l'addon : « Afficher les morts des autres » (popup et son) et « Annoncer mes
+morts » (rien n'est posté si désactivé, ni en jeu ni vers Discord).
 
 Pourquoi pas le journal de combat : il ne contient pas la zone et impose au compagnon de reconstituer le tueur ; le
 journal de chat porte une ligne déjà complète, rédigée par l'addon.
 
 Règles : gabarits de messages tirés au hasard, modifiables par le GM (variables : `{personnage}`, `{tueur}`,
 `{zone}`, `{niveau}`, `{classe}`) ; **la liste de départ sera fournie par Jordan**, objectif : troller un maximum ; une annonce par mort, dédoublonnée côté site (plusieurs compagnons peuvent relayer la même ligne) ;
-opt-out par joueur (« mes morts restent privées », l'addon ne poste alors rien) ; le compagnon **ne remonte jamais
+opt-out par joueur via « Annoncer mes morts » ; le compagnon **ne remonte jamais
 autre chose que les lignes de l'addon**, règle écrite et vérifiée par test ; il archive et vide le journal de chat quand
 le jeu n'est pas lancé ; les morts ainsi captées alimentent le compteur et le classement de la honte à la seconde.
 
