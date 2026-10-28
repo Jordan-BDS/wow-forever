@@ -15,4 +15,5 @@ class EventAdmin(admin.ModelAdmin):
     list_filter = ["kind", "status"]
     search_fields = ["title"]
     autocomplete_fields = ["organizer"]
+    readonly_fields = ["discord_event_id", "discord_message_id", "reminder_sent_at"]
     inlines = [SignupInline]

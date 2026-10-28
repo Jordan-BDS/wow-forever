@@ -43,7 +43,7 @@ l'URL de retour OAuth à déclarer côté Discord est donc `http://localhost:800
 | backend | `uv run ruff check . && uv run ruff format .` | lint + format |
 | backend | `uv run python manage.py createsuperuser` | accès à `/admin/` (demande un ID Discord) |
 | backend | `uv run python manage.py seed_gamedata` | recharge les données de référence sans toucher aux ajouts manuels |
-| backend | `uv run python manage.py runbot` | lance le bot Discord (outbox, rappels, commandes slash, révocation) |
+| backend | `uv run python manage.py runbot` | lance le bot Discord (outbox, rappels, commandes slash, révocation, synchro de l'onglet Événements) |
 | backend | `uv run python manage.py import_gamedata` | télécharge les tables du client WoW Forever (wago.tools) et importe objets, sets, enchantements, talents, recettes (~2 min, rejouable) |
 
 En production : `docker compose exec web python manage.py import_gamedata` après la première mise en ligne, puis
@@ -62,8 +62,9 @@ Dans le [Discord Developer Portal](https://discord.com/developers/applications),
 
 1. **OAuth2** : récupérer *Client ID* et *Client Secret*, ajouter l'URL de retour dans *Redirects*.
 2. **Bot** : créer le bot, copier son token, activer l'intent privilégié *Server Members*. Inviter le bot sur le
-   serveur avec les scopes `bot` et `applications.commands`, et les permissions *Voir les salons* et *Envoyer des
-   messages*. Le GM renseigne ensuite l'ID du salon des annonces dans les paramètres du site.
+   serveur avec les scopes `bot` et `applications.commands`, et les permissions *Voir les salons*, *Envoyer des
+   messages* et *Gérer les événements* (onglet Événements synchronisé avec l'agenda). Le GM renseigne ensuite
+   l'ID du salon des annonces dans les paramètres du site.
 3. Activer le *mode développeur* dans Discord pour copier l'ID du serveur, des rôles autorisés et du premier GM.
 
 Les variables à remplir sont décrites dans [`deploy/.env.example`](deploy/.env.example).

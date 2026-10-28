@@ -453,8 +453,26 @@ recommandé, spécifique WoW Forever ou non (Forever ajoute 9 donjons et 2 raids
 
 Un **bot Discord** dédié à la guilde.
 
-**Messages dans un salon de la guilde** (salon configurable) :
-- Nouvel événement créé (titre, date, lien vers la fiche).
+**Synchronisation avec l'onglet « Événements » de Discord** (dans les deux sens) :
+- Chaque événement planifié du site existe aussi comme événement planifié Discord (titre, début, fin, description
+  suivie du lien vers la fiche, lieu = instance). Modification de date/titre/description et annulation sur le site
+  se répercutent dans Discord ; la fiche du site affiche un lien vers l'événement Discord.
+- Un événement créé dans l'onglet Discord par un membre ayant un compte arrive sur le site en type
+  « Social / autre », son créateur comme organisateur ; ses modifications et sa suppression sont reflétées
+  (suppression = annulation sur le site, l'historique reste). Un créateur sans compte est ignoré.
+- Le bouton « Intéressé » de Discord n'est pas une inscription : il ne porte ni personnage ni rôle.
+
+**Message d'inscription dans le salon** (salon configurable) :
+- À la création d'un événement, le bot publie un message avec l'état de l'événement, les inscrits par rôle
+  (✅ = confirmé) et des boutons Présent / Peut-être / En retard / Absent / Me désinscrire. Il est réédité à
+  chaque changement (inscription sur le site ou via les boutons, placement, date, annulation), et les boutons
+  disparaissent quand les inscriptions ferment.
+- Un clic inscrit le joueur avec son unique combinaison perso / rôle possible, sinon un menu éphémère lui fait
+  choisir ; une inscription existante ne change que de statut.
+- Le site écrit une demande `event_sync` dédupliquée dans l'outbox ; le bot la dépile et aligne Discord. Les
+  échos de ses propres écritures (identiques à l'état en base) sont ignorés, ce qui évite les boucles.
+
+**Autres messages dans le salon** :
 - Composition publiée par l'organisateur (bouton « Publier sur Discord » sur la fiche, pour éviter un message à
   chaque placement).
 - Rappel avant un événement (délai configurable, ex. 1 h avant).

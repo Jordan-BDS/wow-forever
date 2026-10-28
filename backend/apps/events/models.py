@@ -68,6 +68,11 @@ class Event(models.Model):
         "Statut", max_length=16, choices=EventStatus.choices, default=EventStatus.PLANNED
     )
     reminder_sent_at = models.DateTimeField("Rappel envoyé le", null=True, blank=True, editable=False)
+    # Miroir Discord : l'événement planifié de l'onglet « Événements » et le message d'inscription du salon.
+    discord_event_id = models.CharField(
+        "Événement Discord", max_length=32, blank=True, editable=False, db_index=True
+    )
+    discord_message_id = models.CharField("Message Discord", max_length=32, blank=True, editable=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
     )
@@ -99,6 +104,16 @@ class Event(models.Model):
             return False
         deadline = self.signup_deadline or self.starts_at
         return timezone.now() < deadline
+
+    @property
+    def discord_url(self) -> str | None:
+        """Lien vers l'événement dans l'onglet Événements du serveur Discord, s'il est synchronisé."""
+        if not self.discord_event_id:
+            return None
+        from apps.guild.config import discord_config
+
+        guild_id = discord_config().guild_id
+        return f"https://discord.com/events/{guild_id}/{self.discord_event_id}" if guild_id else None
 
     def can_manage(self, user) -> bool:
         return user.pk == self.organizer_id or user.is_officer_or_above

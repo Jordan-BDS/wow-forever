@@ -73,7 +73,7 @@ class EventViewSet(viewsets.ModelViewSet):
         if organizer != self.request.user and not self.request.user.is_officer_or_above:
             raise PermissionDenied("Seul un officier peut désigner un autre organisateur.")
         event = serializer.save(organizer=organizer, created_by=self.request.user)
-        notify.event_created(event)
+        notify.event_sync(event)  # le message d'inscription dans le salon fait office d'annonce
 
     def perform_update(self, serializer):
         if "organizer" in serializer.validated_data and not self.request.user.is_officer_or_above:
@@ -82,6 +82,7 @@ class EventViewSet(viewsets.ModelViewSet):
         event = serializer.save()
         if event.starts_at != previous_start and event.effective_status == EventStatus.PLANNED:
             notify.event_rescheduled(event, previous_start)
+        notify.event_sync(event)
 
     # --- actions sur l'événement ---------------------------------------------
 
@@ -93,6 +94,7 @@ class EventViewSet(viewsets.ModelViewSet):
             event.status = EventStatus.CANCELLED
             event.save(update_fields=["status", "updated_at"])
             notify.event_cancelled(event)
+            notify.event_sync(event)
         return Response(self.get_serializer(event).data)
 
     @extend_schema(request=None, responses=EventSerializer)
@@ -109,6 +111,7 @@ class EventViewSet(viewsets.ModelViewSet):
         event: Event = self.get_object()
         event.status = EventStatus.PLANNED
         event.save(update_fields=["status", "updated_at"])
+        notify.event_sync(event)
         return Response(self.get_serializer(event).data)
 
     @extend_schema(request=DuplicateSerializer, responses={201: EventSerializer})
@@ -135,6 +138,7 @@ class EventViewSet(viewsets.ModelViewSet):
             signup_deadline=source.signup_deadline + shift if source.signup_deadline else None,
             created_by=request.user,
         )
+        notify.event_sync(copy)
         copy = EVENT_QUERYSET.get(pk=copy.pk)
         return Response(self.get_serializer(copy).data, status=status.HTTP_201_CREATED)
 
@@ -158,7 +162,7 @@ class EventViewSet(viewsets.ModelViewSet):
             raise ValidationError({"detail": "Les inscriptions sont closes pour cet événement."})
 
         if request.method == "DELETE":
-            deleted, _ = Signup.objects.filter(event=event, user=target).delete()
+            deleted = services.remove_signup(event, target)
             return Response(status=status.HTTP_204_NO_CONTENT if deleted else status.HTTP_404_NOT_FOUND)
 
         signup, created = services.upsert_signup(event, target, request.data)
@@ -197,10 +201,12 @@ class SignupViewSet(mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.
         signup = serializer.save()
         if signup.placement != previous_placement:
             notify.placement_changed(signup)
+        notify.event_sync(signup.event)
 
     def perform_destroy(self, instance: Signup):
         self._check(instance)
         instance.delete()
+        notify.event_sync(instance.event)
 
     @extend_schema(responses=SignupSerializer)
     def update(self, request, *args, **kwargs):

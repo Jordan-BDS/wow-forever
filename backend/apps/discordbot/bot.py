@@ -1,6 +1,7 @@
 """
 Bot Discord de la guilde : dépile l'outbox de notifications, envoie les rappels,
-coupe l'accès des membres qui perdent le rôle, et expose quelques commandes slash.
+coupe l'accès des membres qui perdent le rôle, expose quelques commandes slash et tient
+l'onglet « Événements » de Discord synchronisé avec l'agenda du site (dans les deux sens).
 
 discord.py est asynchrone et l'ORM Django synchrone : tout accès base passe par `sync_to_async`.
 """
@@ -13,9 +14,10 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from apps.guild.config import discord_config
+from apps.notifications.models import NotificationKind
 from apps.notifications.reminders import scan_due_reminders
 
-from . import services
+from . import eventsync, services
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,7 @@ class GuildBot(commands.Bot):
         self.tree.add_command(signup_command, guild=self.guild_object)
         self.tree.add_command(craft_command, guild=self.guild_object)
         await self.tree.sync(guild=self.guild_object)
+        self.add_dynamic_items(eventsync.SignupButton)  # boutons d'inscription des messages déjà publiés
         self.dispatch_outbox.start()
         self.scan_reminders.start()
 
@@ -58,6 +61,12 @@ class GuildBot(commands.Bot):
     async def dispatch_outbox(self) -> None:
         for notification in await db(services.pending_notifications)():
             try:
+                if notification.kind == NotificationKind.EVENT_SYNC:
+                    if notification.event_id is None:
+                        await db(services.mark_skipped)(notification, "Événement supprimé.")
+                        continue
+                    await eventsync.sync_event(self, notification.event_id)
+                    continue  # acquittée par sync_event
                 if notification.is_dm:
                     user = await self.fetch_user(int(notification.recipient.discord_id))
                     await user.send(notification.text)
@@ -106,6 +115,48 @@ class GuildBot(commands.Bot):
     async def on_member_remove(self, member: discord.Member) -> None:
         if member.guild.id == self.guild_object.id:
             await db(services.revoke_access)(str(member.id), "a quitté le serveur")
+
+    # --- onglet « Événements » de Discord → site -------------------------------------
+
+    def _ours(self, scheduled: discord.ScheduledEvent) -> bool:
+        return scheduled.guild_id == self.guild_object.id
+
+    async def on_scheduled_event_create(self, scheduled: discord.ScheduledEvent) -> None:
+        if not self._ours(scheduled) or scheduled.creator_id == self.user.id:
+            return  # créé par le bot lui-même : déjà sur le site
+        event = await db(services.create_event_from_discord)(
+            scheduled.id,
+            scheduled.creator_id,
+            scheduled.name,
+            scheduled.description,
+            scheduled.start_time,
+            scheduled.end_time,
+        )
+        if event is not None:
+            await eventsync.sync_event(self, event.pk)  # publie le message d'inscription
+
+    async def on_scheduled_event_update(
+        self, before: discord.ScheduledEvent, after: discord.ScheduledEvent
+    ) -> None:
+        if not self._ours(after):
+            return
+        if after.status == discord.EventStatus.cancelled:
+            event = await db(services.cancel_event_from_discord)(after.id)
+        elif after.status == discord.EventStatus.scheduled:
+            event = await db(services.update_event_from_discord)(
+                after.id, after.name, after.description, after.start_time, after.end_time
+            )
+        else:
+            return  # démarré / terminé côté Discord : rien à refléter
+        if event is not None:
+            await eventsync.sync_event(self, event.pk)
+
+    async def on_scheduled_event_delete(self, scheduled: discord.ScheduledEvent) -> None:
+        if not self._ours(scheduled):
+            return
+        event = await db(services.cancel_event_from_discord)(scheduled.id)
+        if event is not None:
+            await eventsync.sync_event(self, event.pk)
 
 
 # --- commandes slash ----------------------------------------------------------------

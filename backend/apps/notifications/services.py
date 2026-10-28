@@ -48,6 +48,113 @@ def event_url(event: Event) -> str:
     return site_url(f"/agenda/{event.pk}")
 
 
+def event_sync(event: Event) -> Notification:
+    """Demande au bot de resynchroniser l'événement avec Discord (événement planifié + message d'inscription).
+
+    Dédupliquée : une seule demande en attente par événement, quel que soit le nombre de changements.
+    """
+    pending = Notification.objects.filter(
+        kind=NotificationKind.EVENT_SYNC, event=event, status="pending"
+    ).first()
+    if pending:
+        return pending
+    return Notification.objects.create(
+        kind=NotificationKind.EVENT_SYNC, event=event, text=f"Synchronisation Discord de « {event.title} »"
+    )
+
+
+# Limites Discord pour un événement planifié.
+DISCORD_EVENT_NAME_MAX = 100
+DISCORD_EVENT_DESCRIPTION_MAX = 1000
+DISCORD_MESSAGE_MAX = 2000
+
+
+def discord_event_name(event: Event) -> str:
+    return event.title[:DISCORD_EVENT_NAME_MAX]
+
+
+def discord_event_description(event: Event) -> str:
+    """Description de l'événement Discord : la description du site suivie du lien vers la fiche."""
+    link = f"Inscriptions : {event_url(event)}"
+    room = DISCORD_EVENT_DESCRIPTION_MAX - len(link) - 2
+    description = event.description.strip()
+    if len(description) > room:
+        description = description[: room - 1].rstrip() + "…"
+    return f"{description}\n\n{link}" if description else link
+
+
+def strip_discord_event_link(description: str) -> str:
+    """Inverse de `discord_event_description` : retire la ligne de lien ajoutée par le bot."""
+    lines = description.rstrip().splitlines()
+    if lines and lines[-1].startswith("Inscriptions : ") and settings.SITE_URL in lines[-1]:
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
+
+
+def discord_event_location(event: Event) -> str | None:
+    """Lieu affiché par Discord : l'instance ciblée ; None = ne pas toucher au lieu saisi côté Discord."""
+    return event.instance.name if event.instance else None
+
+
+def signup_message_text(event: Event) -> str:
+    """Message d'inscription publié dans le salon : état de l'événement et inscrits par rôle, tenu à jour.
+
+    Les boutons d'inscription sont ajoutés par le bot ; ce texte en est le corps.
+    """
+    status = event.effective_status
+    header = f"📅 {_event_line(event)}"
+    if status == "cancelled":
+        header = f"❌ ~~{event.title}~~ — **Annulé**"
+    elif status == "done":
+        header = f"✔️ {_event_line(event)} — terminé"
+
+    details = [event.get_kind_display() + (f" · {event.instance.name}" if event.instance else "")]
+    details.append(f"Organisé par {event.organizer.display_name}")
+    if event.min_level:
+        details.append(f"niveau {event.min_level}+")
+    signups = list(event.signups.all())
+    coming = [s for s in signups if s.status in (SignupStatus.PRESENT, SignupStatus.LATE)]
+    details.append(f"{len(coming)}" + (f"/{event.max_size}" if event.max_size else "") + " inscrits")
+
+    lines = [header, " · ".join(details)]
+    if event.description.strip():
+        description = event.description.strip()
+        lines.append(description[:300].rstrip() + ("…" if len(description) > 300 else ""))
+    lines.append("")
+    for role, label in (("tank", "Tanks"), ("heal", "Heals"), ("dps", "DPS")):
+        by_role = [s for s in coming if s.role == role]
+        need = event.needs_for(role)
+        count = f"{len(by_role)}" + (f"/{need}" if need is not None else "")
+        names = ", ".join(
+            ("✅ " if s.placement == Placement.CONFIRMED else "")
+            + s.character.name
+            + (" (en retard)" if s.status == SignupStatus.LATE else "")
+            for s in by_role
+        )
+        lines.append(f"**{label}** ({count}) : {names or '—'}")
+    maybe = [s for s in signups if s.status == SignupStatus.MAYBE]
+    absent = [s for s in signups if s.status == SignupStatus.ABSENT]
+    if maybe:
+        lines.append("🤔 Peut-être : " + ", ".join(s.character.name for s in maybe))
+    if absent:
+        lines.append("🚫 Absents : " + ", ".join(s.character.name for s in absent))
+    lines.append("")
+    if status != "planned":
+        lines.append(event_url(event))
+    elif event.signups_open:
+        deadline = event.signup_deadline or event.starts_at
+        lines.append(
+            f"Inscris-toi avec les boutons ci-dessous (clôture {discord_time(deadline, 'f')})"
+            f" · {event_url(event)}"
+        )
+    else:
+        lines.append(f"Inscriptions closes · {event_url(event)}")
+    text = "\n".join(lines)
+    if len(text) > DISCORD_MESSAGE_MAX:
+        text = text[: DISCORD_MESSAGE_MAX - 1] + "…"
+    return text
+
+
 def event_created(event: Event) -> Notification:
     text = (
         f"📅 Nouvel événement : {_event_line(event)}\n"

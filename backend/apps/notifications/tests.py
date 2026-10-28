@@ -132,3 +132,57 @@ class TestReminders:
             created_by=officer,
         )
         assert scan_due_reminders(NOW) == 0
+
+
+class TestDiscordSync:
+    def test_event_sync_is_deduplicated_while_pending(self, event):
+        first = services.event_sync(event)
+        assert services.event_sync(event) == first
+        assert first.kind == NotificationKind.EVENT_SYNC and first.event == event and first.recipient is None
+        first.status = "sent"
+        first.save()
+        assert services.event_sync(event) != first
+
+    def test_discord_description_round_trip(self, event):
+        event.description = "Venez avec vos potions."
+        rendered = services.discord_event_description(event)
+        assert rendered.startswith("Venez avec vos potions.\n\nInscriptions : ")
+        assert f"/agenda/{event.pk}" in rendered
+        assert services.strip_discord_event_link(rendered) == "Venez avec vos potions."
+        event.description = ""
+        assert services.strip_discord_event_link(services.discord_event_description(event)) == ""
+        event.description = "x" * 2000
+        assert len(services.discord_event_description(event)) <= services.DISCORD_EVENT_DESCRIPTION_MAX
+
+    def test_discord_name_and_location(self, event):
+        from apps.gamedata.models import Instance
+
+        event.title = "t" * 150
+        assert len(services.discord_event_name(event)) == 100
+        assert services.discord_event_location(event) is None
+        event.instance = Instance.objects.get(slug="molten-core")
+        assert services.discord_event_location(event) == event.instance.name
+
+    def test_signup_message_lists_signups_by_role_and_state(self, event, other_member):
+        other = Character.objects.create(
+            owner=other_member,
+            name="Jaina",
+            player_class=PlayerClass.objects.get(slug="mage"),
+            race=Race.objects.get(slug="human"),
+            level=60,
+            main_role="dps",
+        )
+        Signup.objects.create(event=event, user=other_member, character=other, role="dps", status="maybe")
+        text = services.signup_message_text(event)
+        assert "**Tanks** (1/4) : ✅ Thrall" in text
+        assert "**DPS** (0) : —" in text
+        assert "Peut-être : Jaina" in text
+        assert "1 inscrits" in text and "niveau 58+" in text
+        assert "boutons ci-dessous" in text and f"/agenda/{event.pk}" in text
+        assert len(text) <= services.DISCORD_MESSAGE_MAX
+
+    def test_signup_message_for_cancelled_event_has_no_buttons_hint(self, event):
+        event.status = "cancelled"
+        text = services.signup_message_text(event)
+        assert text.startswith("❌") and "Annulé" in text
+        assert "boutons" not in text

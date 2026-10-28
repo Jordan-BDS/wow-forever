@@ -301,9 +301,10 @@ class TestNotificationHooks:
 
         client = as_user(officer)
         event_id = create_event(client).data["id"]
-        assert list(Notification.objects.values_list("kind", flat=True)) == ["event_created"]
+        # La création ne poste plus de texte : le message d'inscription synchronisé fait office d'annonce.
+        assert list(Notification.objects.values_list("kind", flat=True)) == ["event_sync"]
         client.patch(f"/api/events/{event_id}/", {"title": "Renommé"}, format="json")
-        assert Notification.objects.count() == 1  # pas de notification pour un simple renommage
+        assert Notification.objects.count() == 1  # un renommage ne fait que resynchroniser (déjà en attente)
         client.patch(
             f"/api/events/{event_id}/",
             {"starts_at": (TOMORROW + timedelta(hours=1)).isoformat(), "signup_deadline": None},
@@ -315,6 +316,36 @@ class TestNotificationHooks:
         client.post(f"/api/events/{event_id}/cancel/")
         client.post(f"/api/events/{event_id}/cancel/")  # idempotent
         assert list(Notification.objects.filter(kind="event_cancelled")).__len__() == 1
+        assert Notification.objects.filter(kind="event_sync").count() == 1  # toujours dédupliquée
+
+    def test_signups_and_placements_request_a_discord_sync(self, as_user, member, officer):
+        from apps.notifications.models import Notification
+
+        event_id = create_event(as_user(officer)).data["id"]
+        Notification.objects.update(status="sent")  # le bot a traité la création
+        character = make_character(member, "Thrall")
+        response = as_user(member).post(
+            f"/api/events/{event_id}/signup/", {"character": character.pk, "role": "tank"}, format="json"
+        )
+        assert response.status_code == 201
+        assert Notification.objects.filter(kind="event_sync", status="pending").count() == 1
+        Notification.objects.update(status="sent")
+        as_user(officer).patch(
+            f"/api/signups/{response.data['id']}/", {"placement": "confirmed"}, format="json"
+        )
+        assert Notification.objects.filter(kind="event_sync", status="pending").count() == 1
+        Notification.objects.update(status="sent")
+        assert as_user(member).delete(f"/api/events/{event_id}/signup/").status_code == 204
+        assert Notification.objects.filter(kind="event_sync", status="pending").count() == 1
+        assert as_user(member).delete(f"/api/events/{event_id}/signup/").status_code == 404
+
+    def test_discord_url_exposed_when_mirrored(self, as_user, officer, settings):
+        settings.DISCORD_GUILD_ID = "4242"
+        event_id = create_event(as_user(officer)).data["id"]
+        assert as_user(officer).get(f"/api/events/{event_id}/").data["discord_url"] is None
+        Event.objects.filter(pk=event_id).update(discord_event_id="777")
+        url = as_user(officer).get(f"/api/events/{event_id}/").data["discord_url"]
+        assert url == "https://discord.com/events/4242/777"
 
     def test_placement_change_sends_dm(self, as_user, member, officer):
         from apps.notifications.models import Notification

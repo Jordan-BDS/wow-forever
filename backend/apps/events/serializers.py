@@ -99,6 +99,9 @@ class EventSerializer(serializers.ModelSerializer):
     confirmed = serializers.SerializerMethodField()
     candidates = serializers.SerializerMethodField()
     my_signup = serializers.SerializerMethodField()
+    discord_url = serializers.URLField(
+        read_only=True, allow_null=True, help_text="Lien vers l'événement dans l'onglet Événements Discord."
+    )
 
     class Meta:
         model = Event
@@ -125,6 +128,7 @@ class EventSerializer(serializers.ModelSerializer):
             "confirmed",
             "candidates",
             "my_signup",
+            "discord_url",
             "created_at",
             "updated_at",
         ]
