@@ -888,6 +888,25 @@ fusion à confirmer. La guilde étant mono-royaume, un personnage d'un autre roy
 Prérequis de modèle : le personnage gagne un champ *GUID* (vide tant que jamais synchronisé) ; les noms Forever sont en **deux parties** ; le personnage gagne un champ *nom de famille*
 (le roster affiche le prénom, nom complet au survol et sur la fiche).
 
+### Plusieurs personnages par joueur
+
+Le fichier de l'addon est au niveau du **compte WoW** : un code contient tous les personnages joués depuis
+l'installation, chacun avec sa date d'export.
+
+- **Import en boucle** : connus mis à jour, inconnus créés (règles de rattachement ci-dessus), résultat détaillé
+  (« 3 mis à jour, 1 créé, 1 ignoré »).
+- **Le main n'est jamais deviné** : l'import ne touche pas au main choisi sur le site. Sans aucun personnage, le plus
+  haut niveau du code devient main avec un bandeau « à confirmer ».
+- **Sous le niveau 10, ignoré par défaut** (alts banque), case « inclure quand même » dans le résultat, choix mémorisé.
+- **Plusieurs comptes WoW** sur un Battle.net : un fichier et un code par compte ; le compagnon surveille tous les
+  dossiers de comptes ; par collage, un code par compte (la fenêtre de l'addon indique lequel). Fusion sans conflit
+  grâce au GUID.
+- **Classements** par joueur = somme de ses personnages (bascule par personnage) ; les titres vont au joueur, avec le
+  personnage qui a fait le score.
+- **Personnage supprimé en jeu** : invisible pour l'addon, il disparaît des exports ; le site affiche « pas joué
+  depuis N jours », suppression manuelle par le joueur.
+- **Deux joueurs sur un même compte WoW** : non géré, refusé (un personnage appartient à un seul compte du site).
+
 ### Garde-fous de l'import (aucune perte en cas d'import tardif)
 
 **L'addon est la mémoire, pas le site** : le site reçoit toujours l'état complet accumulé, jamais des incréments.
