@@ -797,6 +797,13 @@ compagnon).
    du code d'export, écriture par le jeu. Le fichier n'est écrit qu'à ce moment : un plantage perd la session en
    cours (limite assumée).
 
+**Journées et semaines** : le vérificateur de minuit clôt la journée en cours **en session** (instantané de fin de
+journée dans le journal, les compteurs cumulés continuent sans remise à zéro) ; une session 22h → 2h est donc
+répartie sur deux jours, et un boss tombé à 1h30 compte pour le lendemain. L'instantané d'un jour est réécrit à
+chaque déconnexion de ce jour jusqu'à ce que minuit le fige. Minuit est celui de l'horloge du PC du joueur, les
+horodatages sont en temps serveur (UTC) et le site raisonne en Europe/Paris : un PC sur un autre fuseau décale ses
+journées de la différence (limite acceptée, les horodatages d'événements restent exacts).
+
 **Collecteurs** (événement déclencheur → lecture)
 
 | Catégorie | Déclencheur | Lecture |
@@ -976,7 +983,7 @@ Un seul collage après une semaine et vingt déconnexions rattrape tout.
    glissants**. Le site reconstruit les instantanés manquants pour les classements par période.
 3. **Événements horodatés** (kills de boss, accès obtenus, passages de niveau), liste bornée aux 500 derniers : les
    dates de premier kill et d'accès restent exactes même importées tard.
-4. **Titres de la semaine figés, tableaux vivants** : un titre attribué le lundi n'est plus remis en cause ; les
+4. **Titres de la semaine figés, tableaux vivants** : un titre attribué le lundi à 10h n'est plus remis en cause ; les
    tableaux se recalculent avec les données tardives, marquées « données reçues le JJ/MM ».
 5. **Fraîcheur par personnage** : chaque personnage porte sa date d'export ; un code plus ancien que le dernier
    import est ignoré pour ce personnage seulement.
@@ -1050,8 +1057,9 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
   - *Opt-in* : or, temps de jeu, affichés seulement pour ceux qui l'ont activé.
 - **Tableau** : podium des trois premiers, top 10, puis **ta ligne** mise en évidence avec ton rang même hors
   top 10 ; variation par rapport à la période précédente (▲ ▼) ; clic vers la fiche du personnage.
-- **Titres de la semaine** attribués automatiquement le lundi (« Mineur de la semaine », « Boucher des BG »,
-  « Mort le plus souvent »…), affichés sur la fiche du gagnant pendant la semaine, et **récapitulatif hebdomadaire**
+- **Titres de la semaine** (« Mineur de la semaine », « Boucher des BG », « Mort le plus souvent »…) calculés le
+  **lundi à 10h** sur les données **horodatées avant lundi 00h00**, pour laisser arriver les déconnexions tardives et
+  les envois du compagnon ; affichés sur la fiche du gagnant pendant la semaine, et **récapitulatif hebdomadaire**
   posté par le bot dans le salon général (top 3 par catégorie, nouveaux accès, premiers kills).
 - **Progression de guilde** : page par raid, chaque boss avec la **date du premier kill de la guilde** (dérivée des
   événements de boss horodatés, boss par un groupe de la guilde = au moins 5 joueurs du site présents), nombre de
