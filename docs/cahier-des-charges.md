@@ -797,8 +797,9 @@ compagnon).
    du code d'export, écriture par le jeu. Le fichier n'est écrit qu'à ce moment : un plantage perd la session en
    cours (limite assumée).
 
-**Journées et semaines** : le vérificateur de minuit clôt la journée en cours **en session** (instantané de fin de
-journée dans le journal, les compteurs cumulés continuent sans remise à zéro) ; une session 22h → 2h est donc
+**Journées et semaines** : le vérificateur de minuit clôt la journée en cours **en mémoire, en session** (instantané de
+fin de journée dans le journal, les compteurs cumulés continuent sans remise à zéro) ; tout est écrit sur le disque
+à la prochaine déconnexion ou au prochain `/reload`, en différé mais sans mélange des journées ; une session 22h → 2h est donc
 répartie sur deux jours, et un boss tombé à 1h30 compte pour le lendemain. L'instantané d'un jour est réécrit à
 chaque déconnexion de ce jour jusqu'à ce que minuit le fige. Minuit est celui de l'horloge du PC du joueur, les
 horodatages sont en temps serveur (UTC) et le site raisonne en Europe/Paris : un PC sur un autre fuseau décale ses
@@ -825,6 +826,9 @@ journées de la différence (limite acceptée, les horodatages d'événements re
 rappel « ouvre tes métiers une fois » tant qu'un métier n'a jamais été lu (et message discret au login si plus de 7
 jours), interrupteurs opt-in (or, sacs et banque, temps de jeu), « exclure ce personnage du site », bouton
 **Exporter** qui ouvre une zone de texte avec le code présélectionné (Ctrl+C) et le compte WoW concerné.
+
+**Sauvegarde encouragée, jamais forcée** : après 3 h de session sans écriture, message discret « un /reload met tes
+données à l'abri » (un `/reload` écrit le fichier sans se déconnecter) ; jamais de `/reload` automatique.
 
 **Robustesse** : chaque collecteur tourne dans un `pcall` ; les erreurs sont journalisées dans la base (bornées) et
 jointes à l'export pour diagnostic, avec la version de l'addon et le build du client ; aucune lecture de valeur
