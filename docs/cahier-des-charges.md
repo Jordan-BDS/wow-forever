@@ -1,6 +1,6 @@
 # Cahier des charges — Plateforme de guilde WoW Forever
 
-> Document vivant, construit étape par étape. Dernière mise à jour : 2026-10-27.
+> Document vivant, construit étape par étape. Dernière mise à jour : 2026-10-28.
 
 ## Sommaire
 
@@ -14,6 +14,7 @@
 8. [Fonctionnalités annexes](#8-fonctionnalités-annexes) ✅
 9. [Architecture technique](#9-architecture-technique) ✅
 10. [MVP et feuille de route](#10-mvp-et-feuille-de-route) ✅
+11. [Synchronisation depuis le jeu](#11-synchronisation-depuis-le-jeu) 🚧 (addon, compagnon, fiche vivante, classements)
 
 ---
 
@@ -701,6 +702,10 @@ périmètre a été réduit pour s'appuyer sur Wowhead.
 | **4 — Données du jeu** | déc. 2026 | Import de l'index (objets, sets, enchantements, talents, recettes, icônes) depuis le client Forever ou Classic Era en attendant, surcharges, infobulles Wowhead, calculateur de talents vierge | 5 |
 | **5 — Fiche de personnage** | — | Sets d'équipement, calculateur de talents et builds, projection, somme des stats brutes | 4 |
 | **6 — Catalogue et crafts** | — | Catalogue de recettes, recettes connues, « qui sait crafter ? », demandes de craft | 6 |
+| **7 — Appairage et import** | nov. 2026 | Code d'appairage, jeton de compagnon, point d'import versionné, stockage brut par personnage, mise à jour des champs du personnage, badge « synchronisé », import de secours par collage de chaîne | 11 |
+| **8 — Addon** | dès le client du 4 nov. 2026 | Collecte en jeu (personnage, équipement, talents, métiers et recettes, accès, verrous, réputations), puis compteurs d'activité | 11 |
+| **9 — Compagnon** | déc. 2026 | Application Tauri : appairage, dossier WoW, surveillance du fichier, envoi, mise à jour automatique | 11 |
+| **10 — Fiche vivante et classements** | — | Onglets « En jeu », comparaisons porté / planifié, progression de guilde, classements par période, récap hebdomadaire Discord | 11 |
 
 **État au 27 octobre 2026 : les six lots sont livrés et fusionnés dans `main`.** Reste la mise en ligne (VPS,
 domaine, application Discord, import des données du jeu en production) et les retours d'usage.
@@ -712,5 +717,177 @@ domaine, application Discord, import des données du jeu en production) et les r
 - Encyclopédie interne complète et infobulles maison.
 - Événements récurrents.
 - Synchronisation des rôles du site avec les rôles Discord.
-- Import automatique des personnages via l'API Blizzard (si elle couvre WoW Forever).
+- Import automatique des personnages via l'API Blizzard (si un espace Forever apparaît ; aucune annonce de
+  Blizzard au 28 octobre 2026, cf. étape 11).
 - Annonces, export iCal, banque de guilde, suivi du loot / DKP.
+
+---
+
+## 11. Synchronisation depuis le jeu
+
+Faire remonter sur le site, sans saisie, tout ce que le jeu sait de chaque personnage : équipement porté, talents,
+métiers et recettes connues, accès et verrous de raid, puis des **compteurs d'activité** (champs de bataille, donjons,
+récoltes…) qui alimentent une fiche de personnage « vivante » et des **classements de guilde**.
+
+### Pourquoi un addon et un compagnon
+
+- Un addon WoW n'a **aucun accès réseau** : il ne peut qu'écrire dans un fichier `SavedVariables`, à la déconnexion
+  ou au `/reload`. Il faut donc un programme sur le PC pour envoyer ce fichier.
+- Raider.IO ou Warcraft Logs ne remontent rien depuis le jeu : ils lisent l'**API publique Blizzard** (profils,
+  classements) et, pour les logs, un programme de bureau envoie le fichier de combat.
+- Pour WoW Forever, **aucun espace d'API Blizzard n'existe ni n'est annoncé** au 28 octobre 2026 (les fils du
+  forum développeurs restent sans réponse officielle ; tous les espaces essayés renvoient 403). On garde la source
+  « API Blizzard » en réserve, mais le calendrier n'en dépend pas.
+- Côté addon, Forever repose sur l'**architecture d'interface moderne** (base 12.1.5, interface `16001`, suffixe
+  `Forever` accepté dans le `.toc`) : espaces `C_Item`, `C_Spell`, `C_TradeSkillUI`, valeurs « secrètes » en combat.
+  Les anciennes fonctions globales de Classic ont disparu.
+
+### Architecture
+
+```
+  Jeu (addon Lua) ──écrit à la déconnexion──▶ WTF/Account/<compte>/SavedVariables/WoWForeverGuilde.lua
+                                                        │  surveillance du fichier
+                                              Compagnon (Tauri, barre des tâches)
+                                                        │  POST /api/sync/import  (jeton de compagnon)
+                                              Site ── stockage brut + tables normalisées ── fiche, roster, classements
+```
+
+**Décisions (28 octobre 2026) :** compagnon en **Tauri** (interface React comme le site, noyau Rust limité à la
+surveillance de fichier et aux appels HTTP, exécutable de quelques Mo, mise à jour automatique) ; connexion par
+**code d'appairage** (pas d'OAuth Discord dans l'exécutable, qui devrait embarquer le secret client).
+
+### L'addon
+
+- Un seul fichier `SavedVariables` **au niveau du compte**, une entrée par personnage, pour que le compagnon ne
+  surveille qu'un fichier et retrouve tous les persos.
+- L'addon **sérialise lui-même en JSON** (chaîne dans le fichier Lua) : le compagnon n'a pas besoin d'interpréter
+  du Lua. Chaque export porte une **version de format**, l'horodatage, le royaume et le nom complet (prénom + nom,
+  propre à Forever).
+- Collecte à l'ouverture de session et sur événements : changement d'équipement, de talents, ouverture de la fenêtre
+  d'un métier (seule façon d'obtenir la liste des recettes : l'addon affiche un rappel « ouvre tes métiers une fois »
+  tant qu'un métier n'a jamais été lu), fin de match PvP, entrée en instance, mort de boss, butin reçu après un sort
+  de récolte, mort du personnage, quête rendue, changement de réputation ou d'honneur.
+- Les **compteurs sont cumulés dans le fichier** et envoyés tels quels ; le site garde la dernière valeur, jamais une
+  somme d'envois (pas de double comptage, renvoi inoffensif).
+- Fenêtre en jeu minimale : état de la collecte par catégorie, bouton « Copier la chaîne d'export » (secours sans
+  compagnon), interrupteurs des catégories sensibles.
+- Pas d'écriture pendant un combat, pas de lecture des valeurs secrètes : l'addon ne doit jamais provoquer d'erreur.
+
+### Le compagnon
+
+| Écran | Contenu |
+|---|---|
+| Appairage | Saisie du code à 6 caractères obtenu sur le site (Profil › « Lier le compagnon »), échangé contre un jeton longue durée propre à cette machine, stocké dans le coffre du système |
+| Dossier WoW | Détection automatique du dossier `_forever_` (chemins habituels, registre), confirmation ; gestion de plusieurs comptes WoW |
+| Catégories | Interrupteurs par catégorie (sacs/banque/or désactivés par défaut), repris de l'addon |
+| État | Dernier envoi, personnages reconnus, erreurs ; icône de barre des tâches ; démarrage avec Windows optionnel |
+
+- Déclenchement : modification du fichier (donc à chaque déconnexion ou `/reload`), **empreinte** comparée au dernier
+  envoi, envoi seulement si différent. Hors ligne : réessai au prochain changement ou au lancement.
+- Distribution : GitHub Releases, mise à jour automatique Tauri. Sans certificat de signature, Windows affiche
+  l'avertissement SmartScreen au premier lancement (acceptable pour la guilde ; Azure Trusted Signing en option) ;
+  macOS demande un compte développeur Apple (99 $/an), à décider selon la demande.
+
+### Appairage et import côté site
+
+- **Jeton de compagnon** : créé par l'échange du code, révocable depuis le profil (liste des machines liées, dernier
+  envoi), limité au point d'import. Le code expire après 10 minutes ou dès son usage.
+- **Point d'import** `POST /api/sync/import` : accepte un export complet ; vérifie la version du format (refus propre
+  d'une version inconnue), **rattache chaque personnage à un personnage du compte** (par nom complet + royaume ;
+  proposition de création si inconnu, jamais rattachement à un perso d'un autre joueur), rejette les horodatages plus
+  anciens que le dernier import.
+- **Import de secours** : la même chaîne collée dans Profil › « Importer depuis le jeu », pour qui ne veut pas du
+  compagnon. Même point d'import, même traitement.
+- **Stockage** : l'export brut est conservé tel quel par personnage (historique borné, ex. un instantané par jour sur
+  90 jours), ce qui permet d'exploiter plus tard des données non encore affichées ; les tables normalisées portent
+  ce que le site affiche (équipement porté relié à l'index, recettes connues reliées au catalogue, talents, métiers,
+  compteurs, accès, verrous, réputations).
+- **Règle de priorité** : un champ importé remplace la saisie manuelle (niveau, spécialisation, métiers, recettes) ;
+  les champs sans équivalent en jeu (rôles, note, main) restent manuels. La source du personnage passe à `addon`.
+
+### Données collectées
+
+| Catégorie | Contenu | Fiabilité | Par défaut |
+|---|---|---|---|
+| Identité | Nom complet, royaume, classe, race, niveau, temps de jeu, or | Exacte (jeu) ; or et temps de jeu opt-in | ✅ (or ❌) |
+| Équipement | 19 emplacements : objet, enchantement, qualité, niveau d'objet | Exacte | ✅ |
+| Talents | Points par talent, ordre non connu (le build « en jeu » est figé) | Exacte | ✅ |
+| Métiers | Compétence, spécialisation, **recettes connues** | Exacte quand la fenêtre a été ouverte | ✅ |
+| Accès et verrous | Quêtes d'accès aux raids, verrous en cours et date d'expiration | Exacte | ✅ |
+| Réputations | Factions et niveaux | Exacte | ✅ |
+| PvP | **Victoires honorables à vie** et rang (totaux du jeu) ; champs de bataille joués / gagnés / perdus par type | Totaux exacts ; BG comptés depuis l'installation | ✅ |
+| PvE | Donjons et raids entrés / terminés (dernier boss), boss tués par nom et date, morts | Comptés depuis l'installation | ✅ |
+| Récolte et artisanat | Minerais, herbes, peaux, poissons ramassés ; objets fabriqués par recette | Approximatif (sort de récolte + butin suivant) | ✅ |
+| Quêtes | Quêtes rendues (nombre), quêtes clés marquées | Comptées depuis l'installation ; clés exactes | ✅ |
+| Sacs et banque | Matériaux de craft en stock | Exacte | ❌ opt-in |
+
+Les compteurs « depuis l'installation » sont toujours affichés avec la date de début de comptage. Les kills PvP
+détaillés par adversaire dépendent du journal de combat, en partie secret sur Forever : à vérifier en jeu.
+
+### Fiche de personnage vivante
+
+La fiche de l'étape 4 reste la fiche de **préparation** (sets planifiés, builds, projection). L'import ajoute la
+réalité du jeu à côté, sans la remplacer.
+
+- **En-tête** : nom complet, classe colorée, race, niveau, spécialisation déduite, main/alt, et le badge de
+  fraîcheur : « Synchronisé depuis le jeu il y a 2 h » (vert), « il y a 9 jours » (orange), « saisie manuelle »
+  (gris). Au survol : date exacte, machine, catégories reçues.
+- **Onglet Équipement** : un set système **« Porté en jeu »**, en lecture seule, s'ajoute aux sets planifiés et sert
+  de référence. Vue **comparaison** entre le set porté et un set planifié : par emplacement, identique / différent /
+  manquant, avec la différence de stats brutes (moteur de l'étape 4). C'est la « liste de courses » du joueur.
+- **Onglet Talents** : build **« En jeu »** en lecture seule à côté des builds planifiés ; comparaison avec le build
+  actif, points différents surlignés. Le build en jeu devient la source de la spécialisation du roster.
+- **Onglet Métiers** : compétence réelle, recettes connues filtrables (lien direct « demander ce craft »), et
+  **recettes manquantes** par rapport au catalogue, triées par source (raid, réputation, vendeur, drop).
+- **Onglet Progression** : accès aux raids en pastilles (acquis / manquant), verrous en cours avec compte à
+  rebours, réputations en barres, honneur et rang, puis les compteurs : BG joués et gagnés avec taux de victoire,
+  donjons et raids terminés, boss tués (tableau boss × nombre × dernière date), morts, récoltes par type.
+- **Onglet Historique** : courbe du niveau, courbes des compteurs (une par catégorie, période choisie), journal des
+  synchronisations. Les instantanés quotidiens conservés 90 jours alimentent ces courbes.
+- **Fiche joueur** : totaux de tous ses personnages, dernier perso joué, temps de jeu cumulé si partagé.
+- **Roster** : colonne « synchro » (pastille de fraîcheur), tri par niveau réel, filtre « a l'accès à <raid> »,
+  « verrouillé cette semaine ».
+
+### Classements
+
+Page **Classements** dans la navigation principale, plus un widget « Cette semaine » sur l'accueil.
+
+- **Périodes** : semaine (lundi 00:00 Europe/Paris, cohérente avec la réinitialisation des raids), mois, saison
+  (depuis la sortie du jeu), total. Les classements par période se calculent par **différence entre instantanés**,
+  d'où l'importance de l'historique.
+- **Vue par joueur par défaut** (somme de ses personnages), bascule « par personnage ».
+- **Catégories** et tableaux :
+  - *PvE* : boss tués, donjons terminés, raids terminés, morts (le « classement de la honte », assumé).
+  - *PvP* : victoires honorables (gain sur la période), champs de bataille gagnés, taux de victoire (minimum 10 BG).
+  - *Récolte* : minerais, herbes, peaux, poissons ; un classement par ressource et un total.
+  - *Artisanat* : objets fabriqués, et **demandes de craft livrées** (donnée du site, déjà disponible).
+  - *Guilde* : présence aux événements (inscrit présent / organisé, donnée du site), quêtes rendues.
+  - *Opt-in* : or, temps de jeu, affichés seulement pour ceux qui l'ont activé.
+- **Tableau** : podium des trois premiers, top 10, puis **ta ligne** mise en évidence avec ton rang même hors
+  top 10 ; variation par rapport à la période précédente (▲ ▼) ; clic vers la fiche du personnage.
+- **Titres de la semaine** attribués automatiquement le lundi (« Mineur de la semaine », « Boucher des BG »,
+  « Mort le plus souvent »…), affichés sur la fiche du gagnant pendant la semaine, et **récapitulatif hebdomadaire**
+  posté par le bot dans le salon général (top 3 par catégorie, nouveaux accès, premiers kills).
+- **Progression de guilde** : page par raid, chaque boss avec la **date du premier kill de la guilde** (dérivée des
+  événements de boss horodatés, boss par un groupe de la guilde = au moins 5 joueurs du site présents), nombre de
+  kills, et le pourcentage de membres niveau 60 ayant l'accès. Répartition des niveaux du roster dans le temps.
+- **Équité** : les compteurs ne comptent qu'avec l'addon installé ; chaque tableau indique « depuis le JJ/MM »
+  pour les joueurs arrivés en cours de période. Un joueur peut se retirer d'une catégorie depuis son profil.
+
+### Confidentialité et confiance
+
+- Les données viennent du client du joueur : elles ne sont pas vérifiables et ne servent qu'à la vie de la guilde
+  (pas de classement public). Le GM peut **remettre à zéro** les compteurs d'un personnage en cas d'anomalie.
+- Catégories sensibles (or, sacs, banque, temps de jeu) désactivées par défaut, activables par le joueur dans
+  l'addon ou le compagnon, et masquables des classements.
+- Suppression d'un personnage ou du compte : exports bruts et compteurs supprimés avec.
+
+### Points ouverts
+
+- API Lua exacte de Forever à la sortie (bêta fermée le 21 octobre 2026) : noms d'événements PvP, détection de
+  fin de donjon, fonctions de métiers ; valider les collectes une par une sur le client du 4 novembre.
+- Reconnaissance des boss et des derniers boss d'instance : table d'instances de l'étape 7 à compléter avec les
+  identifiants de rencontre.
+- Signature de l'exécutable Windows et distribution macOS : selon le nombre de joueurs concernés.
+- Si un espace d'API Blizzard apparaît : import de la partie identité / équipement / talents sans compagnon, en
+  complément de l'addon pour le reste.
