@@ -73,6 +73,21 @@ Dans le [Discord Developer Portal](https://discord.com/developers/applications),
 
 Les variables à remplir sont décrites dans [`deploy/.env.example`](deploy/.env.example).
 
+## Addon du jeu
+
+`addon/WoWForeverGuilde/` est l'addon WoW (Lua pur + LibDeflate) qui collecte la progression de chaque personnage et
+produit le **code d'export** que le site importe (Profil › Importer depuis le jeu), ou que le compagnon enverra tout
+seul. Cahier des charges, étape 11.
+
+- **Installation à la main** (tant que le compagnon n'existe pas) : copier le dossier `WoWForeverGuilde` dans
+  `World of Warcraft/_forever_/Interface/AddOns/`, puis `/wfg` en jeu.
+- **Tests hors du jeu** : l'addon tourne dans un environnement WoW simulé (`backend/apps/gamesync/wow_stub.lua`)
+  via `lupa` (Lua 5.1, comme le client) : `cd backend && uv run pytest apps/gamesync/tests_addon.py`. Une session
+  complète y est jouée et le code produit est décodé puis importé par le site.
+- **À valider en jeu à la sortie** (4 novembre 2026) : les collecteurs dépendent de l'API du client Forever ; la liste
+  de vérification est dans le cahier des charges (talents, fin de rencontre des boss de donjon, sorts de récolte,
+  canal caché des annonces de mort).
+
 ## Déploiement sur le VPS
 
 ```sh

@@ -1,0 +1,36 @@
+## Interface: 16001
+## Title: WoW Forever Guilde
+## Notes: Remonte la progression de tes personnages sur le site de la guilde (export ou compagnon).
+## Author: WoW Forever
+## Version: 0.1.0
+## SavedVariables: WoWForeverGuildeDB
+## X-Category: Guild
+## X-Website: https://github.com/Jordan-BDS/wow-forever
+
+Libs\LibStub\LibStub.lua
+Libs\LibDeflate\LibDeflate.lua
+
+Locales\frFR.lua
+Data.lua
+Phrases.lua
+Json.lua
+Base64.lua
+Store.lua
+Journal.lua
+Export.lua
+Core.lua
+
+Collectors\Identity.lua
+Collectors\Gear.lua
+Collectors\Talents.lua
+Collectors\Professions.lua
+Collectors\Reputation.lua
+Collectors\Attunements.lua
+Collectors\Lockouts.lua
+Collectors\PvP.lua
+Collectors\PvE.lua
+Collectors\Gathering.lua
+Collectors\Quests.lua
+Collectors\Deaths.lua
+
+UI.lua

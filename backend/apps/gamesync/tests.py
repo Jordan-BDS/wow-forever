@@ -153,6 +153,13 @@ class TestImport:
             11448,
         }  # 99999 inconnue ignorée
 
+    def test_default_role_follows_the_talent_tab(self, as_user, member):
+        payload = character_payload(
+            guid="Player-1-0007", name="Soigneur", spec="", spec_tab=3
+        )  # restauration
+        do_import(as_user(member), export_code(payload))
+        assert Character.objects.get(guid="Player-1-0007").main_role == "heal"
+
     def test_matches_by_guid_then_by_name_and_replaces_professions(self, as_user, member):
         existing = Character.objects.create(
             owner=member, name="Thrall", player_class=PlayerClass.objects.get(slug="shaman"),
