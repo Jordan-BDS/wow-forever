@@ -862,7 +862,10 @@ joueur sans compagnon le colle lui-même. Mêmes octets, même point d'entrée, 
 
 ### Rattachement des personnages
 
-Clé de rattachement : **prénom + nom + royaume**. Quand elle ne trouve rien :
+Clé de rattachement principale : l'**identifiant unique du personnage** (GUID, fourni par le jeu à tout addon,
+stable à travers les changements de nom, côté serveur Blizzard donc insensible aux réinstallations). Clé de secours :
+**prénom + nom + royaume**, pour les personnages créés sur le site avant que leur GUID soit connu. Quand aucune des
+deux ne trouve rien :
 
 | Situation | Comportement |
 |---|---|
@@ -872,7 +875,17 @@ Clé de rattachement : **prénom + nom + royaume**. Quand elle ne trouve rien :
 | Personnage que le joueur ne veut pas sur le site (alt banque…) | « Ignorer ce personnage » mémorisé dans l'écran de résultat ; désactivation possible aussi depuis l'addon |
 | Personnage du site absent du code | Inchangé, saisie manuelle conservée, badge « jamais synchronisé » |
 
-Prérequis de modèle : les noms Forever sont en **deux parties** ; le personnage gagne un champ *nom de famille*
+**Changement de nom** : même GUID, nom différent → mise à jour automatique du nom, historique conservé
+(« anciennement … »). Le fichier de l'addon étant indexé par GUID, pas de doublon ni de perte de compteurs.
+
+**Changement de royaume** : le jeu attribue un nouveau GUID, le personnage réapparaît comme inconnu. Deux filets :
+dans l'addon, à la première connexion d'un personnage inconnu alors qu'une entrée de même classe, même race et
+niveau ≤ existe, question en jeu « Est-ce l'ancien X transféré ? » → fusion locale, compteurs conservés, ancien
+GUID mentionné dans le code ; sur le site, l'ancien GUID suffit à fusionner automatiquement, sinon proposition de
+fusion à confirmer. La guilde étant mono-royaume, un personnage d'un autre royaume est importé avec le marqueur
+« hors royaume de la guilde », visible sur le roster. Cas rare sur Forever (un méga-royaume par type de règles).
+
+Prérequis de modèle : le personnage gagne un champ *GUID* (vide tant que jamais synchronisé) ; les noms Forever sont en **deux parties** ; le personnage gagne un champ *nom de famille*
 (le roster affiche le prénom, nom complet au survol et sur la fiche).
 
 ### Garde-fous de l'import (aucune perte en cas d'import tardif)
