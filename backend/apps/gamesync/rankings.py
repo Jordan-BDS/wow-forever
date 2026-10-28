@@ -78,7 +78,7 @@ CATEGORIES: list[Category] = [
 CATEGORY_BY_KEY = {c.key: c for c in CATEGORIES}
 
 WEEKLY_TITLES: list[tuple[str, str, str]] = [
-    ("gathering", "Récolteur de la semaine", "gathering_total"),
+    ("gathering", "Farmeur chinois", "gathering_total"),
     ("bg", "Calamité de la Horde", "hk"),
     ("boss", "Fléau des boss", "boss_kills"),
     ("shame", "Lord Fragilux", "deaths"),

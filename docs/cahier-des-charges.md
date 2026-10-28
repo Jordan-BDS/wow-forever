@@ -1112,7 +1112,7 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
   - *Opt-in* : temps de jeu, affiché seulement pour ceux qui l'ont activé.
 - **Tableau** : podium des trois premiers, top 10, puis **ta ligne** mise en évidence avec ton rang même hors
   top 10 ; variation par rapport à la période précédente (▲ ▼) ; clic vers la fiche du personnage.
-- **Roxors de la semaine passée** (titres : « Récolteur de la semaine » pour les ressources récoltées tous métiers confondus, « Calamité de la Horde » pour les joueurs tués, « Lord Fragilux »…) calculés le
+- **Roxors de la semaine passée** (titres : « Farmeur chinois » pour les ressources récoltées tous métiers confondus, « Calamité de la Horde » pour les joueurs tués, « Lord Fragilux »…) calculés le
   **lundi à 10h** sur les données **horodatées avant lundi 00h00**, pour laisser arriver les déconnexions tardives et
   les envois du compagnon ; affichés sur la fiche du gagnant pendant la semaine, et **récapitulatif hebdomadaire**
   posté par le bot dans le salon général (top 3 par catégorie, nouveaux accès, premiers kills).

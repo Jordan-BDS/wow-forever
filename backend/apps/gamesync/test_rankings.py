@@ -157,7 +157,7 @@ class TestTitles:
         assert by_key["bg"].value == 50.0  # 60 − 10 joueurs tués sur la semaine close
         recap = Notification.objects.get(kind="weekly_recap")
         assert (
-            "Récolteur de la semaine" in recap.text
+            "Farmeur chinois" in recap.text
             and member.display_name in recap.text
             and "80 ressources" in recap.text
         )
