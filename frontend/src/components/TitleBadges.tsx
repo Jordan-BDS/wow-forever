@@ -115,11 +115,11 @@ export function TitleCards({ titles }: { titles: WeeklyTitle[] }) {
                 >
                   {t.user.display_name}
                 </Link>
-                <div className="mt-0.5 font-mono text-2xl leading-tight" style={{ color: theme.accent }}>
+                <div className="mt-0.5 font-mono text-sm" style={{ color: theme.accent }}>
                   {value(t, theme.unit)}
                 </div>
                 {t.character && (
-                  <div className="mt-1 text-sm">
+                  <div className="text-sm">
                     <Link to={`/personnages/${t.character.id}`}>
                       <ClassName playerClass={findClass(gamedata.data, t.character.player_class)}>
                         {t.character.name}
