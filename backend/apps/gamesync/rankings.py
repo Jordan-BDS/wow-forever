@@ -45,7 +45,7 @@ CATEGORIES: list[Category] = [
     Category("boss_kills", "Boss tués", "pve", counter="boss_kills"),
     Category("dungeons_done", "Donjons terminés", "pve", counter="dungeons_done"),
     Category("raids_done", "Raids terminés", "pve", counter="raids_done"),
-    Category("deaths", "Les fragiles", "pve", counter="deaths", shame=True),
+    Category("deaths", "Morts", "pve", counter="deaths", shame=True),
     Category("hk", "Victoires honorables", "pvp", counter="hk"),
     Category("bg_won", "Champs de bataille gagnés", "pvp", counter="bg_won"),
     Category("bg_played", "Champs de bataille joués", "pvp", counter="bg_played"),
@@ -73,7 +73,7 @@ WEEKLY_TITLES: list[tuple[str, str, str]] = [
     ("mining", "Mineur de la semaine", "mining"),
     ("bg", "Calamité de la Horde", "hk"),
     ("boss", "Fléau des boss", "boss_kills"),
-    ("shame", "Mort le plus souvent", "deaths"),
+    ("shame", "Lord Fragilux", "deaths"),
 ]
 
 

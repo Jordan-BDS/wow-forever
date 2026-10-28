@@ -1102,7 +1102,7 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
   d'où l'importance de l'historique.
 - **Vue par joueur par défaut** (somme de ses personnages), bascule « par personnage ».
 - **Catégories** et tableaux :
-  - *PvE* : boss tués, donjons terminés, raids terminés, morts (« Les fragiles », assumé).
+  - *PvE* : boss tués, donjons terminés, raids terminés, morts (« Morts », assumé).
   - *PvP* : victoires honorables (gain sur la période), champs de bataille gagnés et joués, taux de victoire (minimum
     5 BG sur la période).
   - *Récolte* : minerais, herbes, peaux, poissons ; un classement par ressource et un total.
@@ -1111,7 +1111,7 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
   - *Opt-in* : temps de jeu, affiché seulement pour ceux qui l'ont activé.
 - **Tableau** : podium des trois premiers, top 10, puis **ta ligne** mise en évidence avec ton rang même hors
   top 10 ; variation par rapport à la période précédente (▲ ▼) ; clic vers la fiche du personnage.
-- **Roxors de la semaine passée** (titres : « Mineur de la semaine », « Calamité de la Horde » pour les joueurs tués, « Mort le plus souvent »…) calculés le
+- **Roxors de la semaine passée** (titres : « Mineur de la semaine », « Calamité de la Horde » pour les joueurs tués, « Lord Fragilux »…) calculés le
   **lundi à 10h** sur les données **horodatées avant lundi 00h00**, pour laisser arriver les déconnexions tardives et
   les envois du compagnon ; affichés sur la fiche du gagnant pendant la semaine, et **récapitulatif hebdomadaire**
   posté par le bot dans le salon général (top 3 par catégorie, nouveaux accès, premiers kills).

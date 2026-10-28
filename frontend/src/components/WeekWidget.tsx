@@ -8,7 +8,7 @@ const RACES: { key: string; title: string }[] = [
   { key: "mining", title: "Mineur de la semaine" },
   { key: "hk", title: "Calamité de la Horde" },
   { key: "boss_kills", title: "Fléau des boss" },
-  { key: "deaths", title: "Mort le plus souvent" },
+  { key: "deaths", title: "Lord Fragilux" },
 ];
 
 /** Accueil : les Roxors de la semaine passée (définitifs), puis la course en cours vers les prochains. */
