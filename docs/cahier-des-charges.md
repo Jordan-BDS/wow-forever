@@ -430,6 +430,10 @@ recommandé, spécifique WoW Forever ou non (Forever ajoute 9 donjons et 2 raids
 
 - Les inscrits sont des **candidats**. L'organisateur (ou un officier/GM) place chacun en
   **Confirmé** ou **Banc** ; par défaut : **Non placé**.
+- **Confirmation automatique** : un inscrit « Présent » est confirmé d'office tant qu'il reste de la place
+  (besoin du rôle non atteint, puis taille max). Au-delà, il reste Non placé et l'organisateur arbitre.
+  « Peut-être » et « En retard » ne sont jamais confirmés d'office ; se déclarer « Absent » libère sa place.
+  Un placement décidé par l'organisateur (confirmé ou banc) n'est pas remis en cause par le joueur.
 - Vue composition : colonnes Tank / Heal / DPS, persos colorés par classe, compteurs « confirmés / besoin » par rôle.
 - Les joueurs voient leur placement sur l'événement.
 

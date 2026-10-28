@@ -166,7 +166,7 @@ class TestSignups:
         )
         assert response.status_code == 201, response.data
         assert response.data["character"]["player_class"] == "shaman"
-        assert response.data["placement"] == "unplaced"
+        assert response.data["placement"] == "confirmed"  # confirmé d'office : il reste de la place en heal
         event = as_user(member).get(f"/api/events/{event_id}/").data
         assert event["my_signup"]["id"] == response.data["id"]
         assert event["candidates"] == {"tank": 0, "heal": 1, "dps": 0}
@@ -359,8 +359,76 @@ class TestNotificationHooks:
             )
             .data["id"]
         )
-        as_user(officer).patch(f"/api/signups/{signup_id}/", {"placement": "confirmed"}, format="json")
+        # Confirmé d'office à l'inscription (sans MP) ; l'organisateur le met sur le banc puis le reconfirme.
+        assert not Notification.objects.filter(kind="placement").exists()
+        as_user(officer).patch(f"/api/signups/{signup_id}/", {"placement": "bench"}, format="json")
         dm = Notification.objects.get(kind="placement")
-        assert dm.recipient == member and "confirmé" in dm.text
+        assert dm.recipient == member and "banc" in dm.text
         as_user(officer).patch(f"/api/signups/{signup_id}/", {"placement": "confirmed"}, format="json")
-        assert Notification.objects.filter(kind="placement").count() == 1
+        assert "confirmé" in Notification.objects.filter(kind="placement").latest("pk").text
+        as_user(officer).patch(f"/api/signups/{signup_id}/", {"placement": "confirmed"}, format="json")
+        assert Notification.objects.filter(kind="placement").count() == 2
+
+
+class TestAutoPlacement:
+    """Un « Présent » est confirmé d'office tant qu'il reste de la place (besoin du rôle, puis taille max)."""
+
+    def _signup(self, as_user, user, event_id, character, role="tank", status="present"):
+        response = as_user(user).post(
+            f"/api/events/{event_id}/signup/",
+            {"character": character.pk, "role": role, "status": status},
+            format="json",
+        )
+        assert response.status_code in (200, 201), response.data
+        return response.data
+
+    def test_present_is_confirmed_while_role_has_room(self, as_user, member, other_member, officer):
+        event_id = create_event(as_user(officer), need_tanks=1, max_size=5).data["id"]
+        thrall = make_character(member, "Thrall")
+        garrosh = make_character(other_member, "Garrosh")
+        assert self._signup(as_user, member, event_id, thrall)["placement"] == "confirmed"
+        # Le besoin en tanks (1) est atteint : le second reste non placé, l'organisateur arbitre.
+        assert self._signup(as_user, other_member, event_id, garrosh)["placement"] == "unplaced"
+        # En DPS (3 attendus, 0 confirmé), il est confirmé.
+        assert self._signup(as_user, other_member, event_id, garrosh, role="dps")["placement"] == "confirmed"
+
+    def test_max_size_caps_when_no_role_need(self, as_user, member, other_member, officer):
+        payload = dict(need_tanks=None, need_heals=None, need_dps=None, max_size=1)
+        event_id = create_event(as_user(officer), **payload).data["id"]
+        assert (
+            self._signup(as_user, member, event_id, make_character(member, "Thrall"))["placement"]
+            == "confirmed"
+        )
+        garrosh = make_character(other_member, "Garrosh")
+        assert self._signup(as_user, other_member, event_id, garrosh)["placement"] == "unplaced"
+
+    def test_no_limits_means_everyone_confirmed(self, as_user, member, officer):
+        payload = dict(need_tanks=None, need_heals=None, need_dps=None, max_size=None)
+        event_id = create_event(as_user(officer), **payload).data["id"]
+        assert (
+            self._signup(as_user, member, event_id, make_character(member, "Thrall"))["placement"]
+            == "confirmed"
+        )
+
+    def test_maybe_stays_unplaced_and_absent_frees_the_slot(self, as_user, member, other_member, officer):
+        event_id = create_event(as_user(officer), need_tanks=1).data["id"]
+        thrall = make_character(member, "Thrall")
+        garrosh = make_character(other_member, "Garrosh")
+        assert self._signup(as_user, member, event_id, thrall, status="maybe")["placement"] == "unplaced"
+        assert self._signup(as_user, member, event_id, thrall)["placement"] == "confirmed"
+        assert self._signup(as_user, other_member, event_id, garrosh)["placement"] == "unplaced"
+        assert self._signup(as_user, member, event_id, thrall, status="absent")["placement"] == "unplaced"
+        # La place libérée profite au suivant qui (re)confirme sa présence.
+        assert self._signup(as_user, other_member, event_id, garrosh)["placement"] == "confirmed"
+        # Pas de MP « confirmé » pour une confirmation automatique : c'est l'action du joueur lui-même.
+        from apps.notifications.models import Notification
+
+        assert not Notification.objects.filter(kind="placement").exists()
+
+    def test_bench_decided_by_organizer_is_kept(self, as_user, member, officer):
+        event_id = create_event(as_user(officer), need_tanks=4).data["id"]
+        thrall = make_character(member, "Thrall")
+        signup_id = self._signup(as_user, member, event_id, thrall)["id"]
+        as_user(officer).patch(f"/api/signups/{signup_id}/", {"placement": "bench"}, format="json")
+        assert self._signup(as_user, member, event_id, thrall, status="late")["placement"] == "bench"
+        assert self._signup(as_user, member, event_id, thrall)["placement"] == "bench"
