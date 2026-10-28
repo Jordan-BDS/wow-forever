@@ -811,6 +811,38 @@ surveillance de fichier et aux appels HTTP, exécutable de quelques Mo, mise à 
   suivantes passent grâce à la signature Tauri) ; macOS exige un clic droit « Ouvrir » sans compte développeur ;
   détection du dossier WoW pour les installations standard, choix manuel sinon.
 
+### Format d'échange et transfert
+
+**Un seul format, deux chemins.** L'addon produit un **code d'export** ; le compagnon ne fait que le transmettre, le
+joueur sans compagnon le colle lui-même. Mêmes octets, même point d'entrée, même traitement.
+
+- **Production** : à la déconnexion ou au `/reload`, l'addon sérialise sa table en **JSON** (encodeur maison, WoW
+  n'a pas de bibliothèque JSON), compresse avec **LibDeflate** et encode en **texte imprimable** (alphabet de 64
+  caractères : +33 % contre +100 % pour l'hexadécimal). Le code est écrit dans `SavedVariables` et affiché dans la
+  fenêtre « Exporter » de l'addon (texte présélectionné, Ctrl+C ; un addon ne peut pas écrire le presse-papiers).
+- **Anatomie** : préfixe `WFG<version>:`, données, somme de contrôle (détecte un code tronqué à la copie). Une version
+  inconnue est refusée proprement (« mets à jour l'addon »).
+- **Taille** : 10 à 20 Ko de JSON par personnage 60 (300 recettes, équipement, talents, compteurs), 3 à 5 Ko
+  compressés, 4 à 7 Ko de texte ; cinq personnages ≈ 35 Ko. Taille maximale acceptée par le site : 256 Ko.
+- **Contenu par personnage** : identité (prénom, nom, royaume, classe, race, niveau, date d'export, temps de jeu et
+  or si partagés) ; équipement par emplacement (identifiant d'objet et d'enchantement) ; talents (rang par
+  identifiant) ; métiers (identifiant, compétence, maximum, spécialisation, identifiants des recettes connues) ;
+  réputations ; quêtes d'accès ; verrous (réinitialisation, boss tombés) ; PvP (victoires honorables à vie, rang,
+  joués / gagnés par champ de bataille) ; compteurs cumulés (boss par identifiant avec premier et dernier kill,
+  donjons terminés, morts, quêtes rendues, récoltes par objet, fabrications par recette) et date de début de
+  comptage. **Des identifiants, jamais des libellés** : les noms viennent de l'index du jeu (étape 5), quelle que soit
+  la langue du client.
+- **Compagnon** : extrait le code du fichier `SavedVariables` par recherche de texte (aucune interprétation du Lua),
+  compare son empreinte à celle du dernier envoi, envoie tel quel avec son jeton.
+- **Traitement côté site** (identique pour les deux chemins) : authentification (session ou jeton) → décodage,
+  décompression, validation par version → rejet d'une empreinte déjà importée → rattachement par prénom + nom +
+  royaume aux personnages du compte (inconnu : proposition de création ; jamais vers un autre joueur ; export plus
+  ancien que le dernier import ignoré) → mise à jour des tables normalisées et archivage de l'export brut comme
+  instantané du jour → réponse « 3 personnages mis à jour, 1 inconnu, 12 nouvelles recettes », affichée sur la page
+  de collage comme dans le compagnon.
+- **Répartition des responsabilités** : seul l'addon connaît le jeu, seul le site connaît le format, le compagnon est
+  trivial et interchangeable. Un changement d'API Lua ne touche que l'addon.
+
 ### Appairage et import côté site
 
 - **Jeton de compagnon** : créé par l'échange du code, révocable depuis le profil (liste des machines liées, dernier
