@@ -320,23 +320,33 @@ function GuildProgression({ data }: { data: Rankings }) {
 
 function LevelsCard({ levels }: { levels: Rankings["levels"] }) {
   const max = Math.max(1, ...levels.map((l) => l.count));
+  const total = levels.reduce((sum, l) => sum + l.count, 0);
   return (
     <Card className="space-y-3">
-      <h2 className="font-display text-lg">Niveaux du roster</h2>
-      <div className="flex h-36 items-end gap-2">
-        {levels.map((l) => (
-          <div key={l.label} className="flex flex-1 flex-col items-center gap-1">
-            <span className={clsx("text-xs", l.label === "60" ? "text-gold-light" : "text-muted")}>
-              {l.count || ""}
-            </span>
-            <div
-              className={clsx("w-full rounded-t", l.label === "60" ? "bg-gold" : "bg-border")}
-              style={{ height: `${Math.max(2, Math.round((100 * l.count) / max))}%` }}
-              title={`${l.count} personnage${l.count > 1 ? "s" : ""}`}
-            />
-            <span className="text-xs text-muted">{l.label}</span>
-          </div>
-        ))}
+      <div className="flex items-baseline justify-between">
+        <h2 className="font-display text-lg">Niveaux du roster</h2>
+        <span className="text-xs text-muted">{total} personnages</span>
+      </div>
+      <div className="flex h-44 items-stretch gap-2">
+        {levels.map((l) => {
+          const height = `${Math.max(l.count > 0 ? 4 : 1, Math.round((100 * l.count) / max))}%`;
+          const is60 = l.label === "60";
+          return (
+            <div key={l.label} className="flex flex-1 flex-col items-center gap-1">
+              <div className="flex w-full flex-1 flex-col justify-end">
+                <div className={clsx("mb-1 text-center text-xs", is60 ? "text-gold-light" : "text-muted")}>
+                  {l.count || ""}
+                </div>
+                <div
+                  className={clsx("w-full rounded-t", is60 ? "bg-gold" : "bg-border")}
+                  style={{ height }}
+                  title={`${l.count} personnage${l.count > 1 ? "s" : ""}`}
+                />
+              </div>
+              <span className="text-xs text-muted">{l.label}</span>
+            </div>
+          );
+        })}
       </div>
     </Card>
   );

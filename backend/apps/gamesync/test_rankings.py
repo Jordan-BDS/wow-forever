@@ -96,7 +96,7 @@ class TestRankings:
         assert mining[0]["previous_rank"] == 1  # semaine précédente : 100 − 20 = 80
         assert mining[0]["character"]["name"] == "Thrall"
         assert len(mining) == 1  # Garona : 0 cette semaine, absente
-        assert by_key["bg_rate"]["entries"] == []  # 2 BG cette semaine < 10
+        assert by_key["bg_rate"]["entries"][0]["value"] == 50.0  # 1 gagné sur 2 cette semaine
         assert result["players"] == 2 and result["characters"] == 3
 
         per_character = rankings.compute_rankings("week", "character", now=NOW)

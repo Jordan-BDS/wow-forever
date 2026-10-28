@@ -26,7 +26,7 @@ from .services import PARIS
 
 SEASON_START = date(2026, 11, 4)
 PERIODS = ("week", "month", "season", "all")
-MIN_BG_FOR_RATE = 5
+MIN_BG_FOR_RATE = 1
 
 
 @dataclass
@@ -55,7 +55,7 @@ CATEGORIES: list[Category] = [
         "pvp",
         unit="%",
         counter="bg_rate",
-        note=f"Classé à partir de {MIN_BG_FOR_RATE} champs de bataille joués sur la période.",
+        note="Dès le premier champ de bataille joué sur la période.",
     ),
     Category("mining", "Minerais récoltés", "gathering", counter="gathering.mining"),
     Category("herbalism", "Herbes récoltées", "gathering", counter="gathering.herbalism"),
