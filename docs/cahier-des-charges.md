@@ -860,6 +860,21 @@ joueur sans compagnon le colle lui-même. Mêmes octets, même point d'entrée, 
 - **Règle de priorité** : un champ importé remplace la saisie manuelle (niveau, spécialisation, métiers, recettes) ;
   les champs sans équivalent en jeu (rôles, note, main) restent manuels. La source du personnage passe à `addon`.
 
+### Rattachement des personnages
+
+Clé de rattachement : **prénom + nom + royaume**. Quand elle ne trouve rien :
+
+| Situation | Comportement |
+|---|---|
+| Aucun personnage du joueur ne correspond | **Création directe** depuis le code (classe, race, niveau, métiers), source `addon`. Les rôles tank / heal / DPS n'existent pas en jeu : rôle par défaut déduit de la spécialisation du build en jeu, bandeau « rôles à confirmer » jusqu'à validation par le joueur |
+| Nom différent mais un candidat plausible existe (même classe, même race, jamais synchronisé) | **Proposition de fusion**, jamais automatique : « “Thrall” sur le site est-il “Thrall Fils-de-Durotan” en jeu ? Fusionner / Créer un nouveau personnage ». Par collage : question dans l'écran de résultat ; par compagnon : personnage importé **en attente**, « 1 personnage à rattacher » dans le compagnon et sur le profil. Le lien est mémorisé ensuite |
+| Le nom correspond au personnage d'un **autre joueur** | Refus, rien n'est importé, officiers prévenus (noms uniques par région sur Forever : compte partagé ou erreur à régler à la main) |
+| Personnage que le joueur ne veut pas sur le site (alt banque…) | « Ignorer ce personnage » mémorisé dans l'écran de résultat ; désactivation possible aussi depuis l'addon |
+| Personnage du site absent du code | Inchangé, saisie manuelle conservée, badge « jamais synchronisé » |
+
+Prérequis de modèle : les noms Forever sont en **deux parties** ; le personnage gagne un champ *nom de famille*
+(le roster affiche le prénom, nom complet au survol et sur la fiche).
+
 ### Données collectées
 
 | Catégorie | Contenu | Fiabilité | Par défaut |
