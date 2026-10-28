@@ -228,8 +228,15 @@ class TestUpdateAndDelete:
         create(as_user(member))
         other_member.is_active = False
         other_member.save()
+        from apps.gamedata.models import PlayerClass, Race
+
         Character.objects.create(
-            owner=other_member, name="Fantôme", player_class_id=1, race_id=5, level=1, main_role="dps"
+            owner=other_member,
+            name="Fantôme",
+            player_class=PlayerClass.objects.get(slug="warrior"),
+            race=Race.objects.get(slug="orc"),
+            level=1,
+            main_role="dps",
         )
         response = as_user(member).get("/api/characters/")
         assert [c["name"] for c in response.data] == ["Thrall"]

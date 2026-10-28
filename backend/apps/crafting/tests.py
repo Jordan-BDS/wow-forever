@@ -140,13 +140,14 @@ class TestCraftRequests:
             format="json",
         )
         assert bad.status_code == 400
-        as_user(member).post("/api/craft-requests/", {"recipe_id": MAJOR_MANA}, format="json")
+        created = as_user(member).post("/api/craft-requests/", {"recipe_id": MAJOR_MANA}, format="json")
+        request_id = created.data["id"]
         assert len(as_user(member).get("/api/craft-requests/", {"scope": "mine"}).data) == 1
         assert len(as_user(other_member).get("/api/craft-requests/", {"scope": "doable"}).data) == 1
         assert len(as_user(member).get("/api/craft-requests/", {"scope": "doable"}).data) == 0
         assert len(as_user(member).get("/api/craft-requests/").data) == 1
-        assert as_user(other_member).post("/api/craft-requests/1/cancel/").status_code == 403
-        assert as_user(member).post("/api/craft-requests/1/cancel/").data["status"] == "cancelled"
+        assert as_user(other_member).post(f"/api/craft-requests/{request_id}/cancel/").status_code == 403
+        assert as_user(member).post(f"/api/craft-requests/{request_id}/cancel/").data["status"] == "cancelled"
         assert crafter.pk  # fixture utilisée
 
 
