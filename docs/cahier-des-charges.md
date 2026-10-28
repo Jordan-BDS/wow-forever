@@ -704,7 +704,7 @@ périmètre a été réduit pour s'appuyer sur Wowhead.
 | **6 — Catalogue et crafts** | — | Catalogue de recettes, recettes connues, « qui sait crafter ? », demandes de craft | 6 |
 | **7 — Appairage et import** | **livré le 28 oct. 2026** | Code d'appairage, jeton de compagnon, point d'import versionné, stockage brut par personnage, mise à jour des champs du personnage, badge « synchronisé », import de secours par collage de chaîne | 11 |
 | **8 — Addon** | **cœur livré le 28 oct. 2026**, collecteurs à valider sur le client du 4 nov. | Collecte en jeu (personnage, équipement, talents, métiers et recettes, accès, verrous, réputations), puis compteurs d'activité | 11 |
-| **9 — Compagnon** | **cœur et application écrits le 28 oct. 2026**, à compiler et tester sur Windows | Application Tauri : appairage, dossier WoW, installation et mise à jour de l'addon embarqué, surveillance du fichier, envoi, mise à jour automatique ; release GitHub par CI ; page « Compagnon » du profil ; extension : annonces de mort en direct via le journal de chat | 11 |
+| **9 — Compagnon** | **livré le 28 oct. 2026** (testé en dev sous Linux : appairage, installation de l'addon, envoi), première release Windows/macOS à publier | Application Tauri : appairage, dossier WoW, installation et mise à jour de l'addon embarqué, surveillance du fichier, envoi, mise à jour automatique ; release GitHub par CI ; page « Compagnon » du profil | 11 |
 | **10 — Fiche vivante et classements** | — | Onglets « En jeu », comparaisons porté / planifié, progression de guilde, classements par période, récap hebdomadaire Discord | 11 |
 
 **État au 27 octobre 2026 : les six lots sont livrés et fusionnés dans `main`.** Reste la mise en ligne (VPS,
@@ -917,36 +917,22 @@ joueur sans compagnon le colle lui-même. Mêmes octets, même point d'entrée, 
 - **Répartition des responsabilités** : seul l'addon connaît le jeu, seul le site connaît le format, le compagnon est
   trivial et interchangeable. Un changement d'API Lua ne touche que l'addon.
 
-### Annonces de mort en direct (idée du 28 octobre 2026, extension du lot 9)
+### Annonces de mort en jeu (idée du 28 octobre 2026, dans l'addon)
 
 Proposé par un membre : à chaque mort d'un joueur équipé de l'addon, un message troll (« Gul'dan s'est fait saucer
-par un Sanglier des Tarides, quel noob »). Le fichier de l'addon n'étant écrit qu'à la déconnexion, le direct passe
-par ce que le client écrit **en continu**, sur le modèle du premier addon Hardcore, qui lisait tout en mémoire du
-jeu (zone, niveau, dernière source de dégâts) et diffusait un message d'addon à la guilde :
+par un Sanglier des Tarides, quel noob »). **En jeu seulement, pas de relais vers Discord** (écarté le 28 octobre).
 
-1. **En jeu** : à `PLAYER_DEAD`, l'addon assemble l'événement (zone et sous-zone, niveau, classe, tueur = dernière
-   source de dégâts vue dans les événements du journal de combat) et le poste dans un **canal personnalisé caché**
-   (ex. `wfgdeaths`, protégé par mot de passe, rejoint à la connexion et détaché de toutes les fenêtres de chat) :
-   **rien n'apparaît dans le canal de guilde**. Les addons des guildiens connectés reçoivent la ligne et affichent un
-   **popup** en haut de l'écran pendant **5 secondes**, avec le message troll et un **petit son** livré avec l'addon.
-   À vérifier sur le client Forever que le canal reste invisible ; repli : messages d'addon pour le popup.
-2. **Vers Discord** : l'addon active le **journal de chat** à la connexion (`/chatlog`, que le client écrit en continu
-   dans `Logs/WoWChatLog.txt`, canaux personnalisés compris). Le **compagnon** lit ce fichier au fil de l'eau, ne
-   retient **que les lignes balisées par l'addon**, et les envoie au site → outbox → le bot poste dans un salon dédié
-   (`#cimetière`). Un seul joueur connecté avec le compagnon suffit à relayer les morts de toute la guilde. Latence :
-   quelques secondes.
+À `PLAYER_DEAD`, l'addon assemble l'événement (zone et sous-zone, niveau, classe, tueur = dernière source de dégâts
+vue dans les événements du journal de combat) et le poste dans un **canal personnalisé caché** (ex. `wfgdeaths`,
+protégé par mot de passe, rejoint à la connexion et détaché de toutes les fenêtres de chat) : **rien n'apparaît dans
+le canal de guilde**. Les addons des guildiens connectés reçoivent la ligne et affichent un **texte flottant** en haut
+de l'écran pendant **5 secondes**, sans cadre, avec le message troll et un **petit son**. À vérifier sur le client
+Forever que le canal reste invisible ; repli : messages d'addon.
 
 Interrupteurs dans la fenêtre de l'addon : « Afficher les morts des autres » (popup et son) et « Annoncer mes
-morts » (rien n'est posté si désactivé, ni en jeu ni vers Discord).
-
-Pourquoi pas le journal de combat : il ne contient pas la zone et impose au compagnon de reconstituer le tueur ; le
-journal de chat porte une ligne déjà complète, rédigée par l'addon.
-
-Règles : gabarits de messages tirés au hasard, modifiables par le GM (variables : `{personnage}`, `{tueur}`,
-`{zone}`, `{niveau}`, `{classe}`) ; **la liste de départ sera fournie par Jordan**, objectif : troller un maximum ; une annonce par mort, dédoublonnée côté site (plusieurs compagnons peuvent relayer la même ligne) ;
-opt-out par joueur via « Annoncer mes morts » ; le compagnon **ne remonte jamais
-autre chose que les lignes de l'addon**, règle écrite et vérifiée par test ; il archive et vide le journal de chat quand
-le jeu n'est pas lancé ; les morts ainsi captées alimentent le compteur et le classement de la honte à la seconde.
+morts ». Gabarits tirés au hasard (variables : `{personnage}`, `{tueur}`, `{zone}`, `{niveau}`, `{classe}`) ; **la
+liste de départ sera fournie par Jordan**, objectif : troller un maximum. Les morts alimentent aussi le compteur et
+le classement de la honte via l'export habituel.
 
 ### Appairage et import côté site
 

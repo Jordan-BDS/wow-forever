@@ -201,10 +201,6 @@ function StatusView({ state, onChange, onError }: { state: AppState; onChange: (
           <input type="checkbox" checked={state.autostart} onChange={(e) => run(() => api.setSettings({ autostart: e.target.checked }))} />
           Démarrer avec l'ordinateur
         </label>
-        <label className="check">
-          <input type="checkbox" checked={state.relay_deaths} onChange={(e) => run(() => api.setSettings({ relay_deaths: e.target.checked }))} />
-          Relayer les annonces de mort vers Discord (lit seulement les lignes de l'addon dans le journal de chat)
-        </label>
         <div className="row">
           <span className="muted">Machine : {state.device_name} · dossier : <code>{state.game_dir}</code></span>
         </div>

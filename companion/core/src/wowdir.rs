@@ -23,14 +23,28 @@ pub fn is_game_dir(path: &Path) -> bool {
     versioned || has_client || (path.join("Interface").is_dir() && path.join("WTF").is_dir())
 }
 
-/// Accepte le dossier choisi par le joueur : s'il a désigné `World of Warcraft/`, on descend dans `_forever_/`.
+/// Accepte le dossier choisi par le joueur : `World of Warcraft/` (on descend dans `_forever_/`), le dossier de
+/// version lui-même, ou un sous-dossier comme `Interface/AddOns` ou `WTF` (on remonte).
 pub fn normalize(chosen: &Path) -> Option<PathBuf> {
+    let chosen = chosen
+        .to_string_lossy()
+        .trim_start_matches("file://")
+        .to_string();
+    let chosen = Path::new(&chosen);
     if is_game_dir(chosen) {
         return Some(chosen.to_path_buf());
     }
     let forever = chosen.join(FOREVER_DIR);
     if is_game_dir(&forever) {
         return Some(forever);
+    }
+    let mut ancestor = chosen.parent();
+    for _ in 0..3 {
+        match ancestor {
+            Some(dir) if is_game_dir(dir) => return Some(dir.to_path_buf()),
+            Some(dir) => ancestor = dir.parent(),
+            None => break,
+        }
     }
     None
 }
@@ -74,10 +88,6 @@ pub fn addons_dir(game_dir: &Path) -> PathBuf {
 
 pub fn wtf_accounts_dir(game_dir: &Path) -> PathBuf {
     game_dir.join("WTF").join("Account")
-}
-
-pub fn chat_log_path(game_dir: &Path) -> PathBuf {
-    game_dir.join("Logs").join("WoWChatLog.txt")
 }
 
 #[cfg(test)]

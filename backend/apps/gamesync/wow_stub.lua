@@ -93,7 +93,6 @@ function CombatLogGetCurrentEventInfo() return unpack(_CLEU or {}) end
 function JoinChannelByName() return 1 end
 function GetChannelName(name) return 5, name end
 function ChatFrame_RemoveChannel() end
-function LoggingChat() end
 function SendChatMessage(text, kind, lang, target) table.insert(_SENT, { text = text, kind = kind, target = target }) end
 ChatFrame1 = {}
 
