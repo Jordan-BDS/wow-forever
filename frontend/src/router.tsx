@@ -20,6 +20,7 @@ import { PollPage } from "./pages/PollPage";
 import { PollsPage } from "./pages/PollsPage";
 import { ProfessionsPage } from "./pages/ProfessionsPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { RankingsPage } from "./pages/RankingsPage";
 import { RecipesPage } from "./pages/RecipesPage";
 import { RosterPage } from "./pages/RosterPage";
 import { TalentsPage } from "./pages/TalentsPage";
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
               { path: "disponibilites", Component: AvailabilityPage },
               { path: "sondages", Component: PollsPage },
               { path: "sondages/:id", Component: PollPage },
+              { path: "classements", Component: RankingsPage },
               { path: "guilde", Component: GuildPage },
               { path: "crafts", Component: CraftsPage },
               { path: "metiers", Component: ProfessionsPage },

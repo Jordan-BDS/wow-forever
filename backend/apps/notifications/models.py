@@ -21,6 +21,7 @@ class NotificationKind(models.TextChoices):
     POLL_CANCELLED = "poll_cancelled", "Sondage annulé"
     POLL_SYNC = "poll_sync", "Synchronisation Discord d'un sondage"
     DISCORD_CLEANUP = "discord_cleanup", "Nettoyage Discord après une suppression"
+    WEEKLY_RECAP = "weekly_recap", "Récapitulatif hebdomadaire des classements"
     CRAFT_REQUEST = "craft_request", "Demande de craft"
     CRAFT_UPDATE = "craft_update", "Suivi de demande de craft"
 

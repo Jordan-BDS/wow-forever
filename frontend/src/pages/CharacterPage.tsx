@@ -10,6 +10,7 @@ import {
   useTalentBuilds,
 } from "@/api/hooks";
 import { EquipmentPanel } from "@/components/EquipmentPanel";
+import { ProgressPanel } from "@/components/ProgressPanel";
 import { RecipesPanel } from "@/components/RecipesPanel";
 import { TalentPanel } from "@/components/TalentPanel";
 import clsx from "clsx";
@@ -30,7 +31,7 @@ export function CharacterPage() {
   const gamedata = useGameData();
   const sets = useEquipmentSets(id);
   const builds = useTalentBuilds(id);
-  const [activeTab, setTab] = useState<"equipment" | "talents" | "recipes">("equipment");
+  const [activeTab, setTab] = useState<"equipment" | "talents" | "recipes" | "progress">("equipment");
 
   const setMain = useMutation({
     mutationFn: async () => {
@@ -164,7 +165,7 @@ export function CharacterPage() {
         </Card>
         <div className="md:col-span-2">
           <div className="mb-3 flex gap-1 border-b border-border text-sm">
-            {(["equipment", "talents", "recipes"] as const).map((tab) => (
+            {(["equipment", "talents", "recipes", "progress"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -176,7 +177,13 @@ export function CharacterPage() {
                     : "border-transparent text-muted hover:text-text",
                 )}
               >
-                {tab === "equipment" ? "Équipement et stats" : tab === "talents" ? "Talents" : "Recettes"}
+                {tab === "equipment"
+                  ? "Équipement et stats"
+                  : tab === "talents"
+                    ? "Talents"
+                    : tab === "recipes"
+                      ? "Recettes"
+                      : "Progression"}
               </button>
             ))}
           </div>
@@ -192,8 +199,10 @@ export function CharacterPage() {
             ) : (
               <TalentPanel character={character} builds={builds.data ?? []} canEdit={canEdit} />
             )
-          ) : (
+          ) : activeTab === "recipes" ? (
             <RecipesPanel character={character} canEdit={canEdit} />
+          ) : (
+            <ProgressPanel character={character} />
           )}
         </div>
       </div>

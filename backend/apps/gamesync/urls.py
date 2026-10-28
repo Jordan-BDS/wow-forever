@@ -13,4 +13,8 @@ urlpatterns = [
     path("pending/<int:pk>/resolve/", views.ResolveSnapshotView.as_view(), name="sync-resolve"),
     path("release/", views.ReleaseView.as_view(), name="sync-release"),
     path("companion/me/", views.CompanionStatusView.as_view(), name="sync-companion-me"),
+    path(
+        "characters/<int:pk>/progress/", views.CharacterProgressView.as_view(), name="sync-character-progress"
+    ),
+    path("rankings/", views.RankingsView.as_view(), name="sync-rankings"),
 ]

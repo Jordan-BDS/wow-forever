@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import CharacterSnapshot, CompanionDevice, IgnoredCharacter, ImportBatch, PairingCode
+from .models import (
+    CharacterSnapshot,
+    CompanionDevice,
+    IgnoredCharacter,
+    ImportBatch,
+    PairingCode,
+    WeeklyTitle,
+)
 
 
 @admin.register(PairingCode)
@@ -31,3 +38,8 @@ class CharacterSnapshotAdmin(admin.ModelAdmin):
 @admin.register(IgnoredCharacter)
 class IgnoredCharacterAdmin(admin.ModelAdmin):
     list_display = ["name", "guid", "user", "created_at"]
+
+
+@admin.register(WeeklyTitle)
+class WeeklyTitleAdmin(admin.ModelAdmin):
+    list_display = ["week_start", "label", "user", "character", "value"]

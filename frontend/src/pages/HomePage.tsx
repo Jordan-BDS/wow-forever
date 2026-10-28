@@ -9,6 +9,7 @@ import { Button, Card, PageTitle } from "@/components/ui";
 import { findClass, formatRemaining } from "@/lib/game";
 import { FACTION_LABELS } from "@/lib/roles";
 import { PollCard } from "./PollsPage";
+import { WeekWidget } from "@/components/WeekWidget";
 
 export function HomePage() {
   const me = useCurrentUser();
@@ -130,6 +131,8 @@ export function HomePage() {
             <Link to="/disponibilites">Disponibilités</Link>
           </div>
         </Card>
+
+        <WeekWidget />
 
         {openPolls.length > 0 && (
           <section className="md:col-span-2">

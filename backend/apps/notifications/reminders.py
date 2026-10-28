@@ -18,6 +18,14 @@ def scan_due_reminders(now=None) -> int:
     """Crée les notifications de rappel dues et renvoie leur nombre."""
     now = now or timezone.now()
     created = 0
+    try:
+        from apps.gamesync.titles import award_weekly_titles
+
+        created += len(award_weekly_titles(now))
+    except Exception:  # noqa: BLE001 — les titres ne doivent jamais bloquer les rappels
+        import logging
+
+        logging.getLogger(__name__).exception("Attribution des titres de la semaine impossible")
     lead = timedelta(minutes=GuildSettings.load().reminder_minutes)
 
     due_events = (

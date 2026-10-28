@@ -705,7 +705,7 @@ périmètre a été réduit pour s'appuyer sur Wowhead.
 | **7 — Appairage et import** | **livré le 28 oct. 2026** | Code d'appairage, jeton de compagnon, point d'import versionné, stockage brut par personnage, mise à jour des champs du personnage, badge « synchronisé », import de secours par collage de chaîne | 11 |
 | **8 — Addon** | **cœur livré le 28 oct. 2026**, collecteurs à valider sur le client du 4 nov. | Collecte en jeu (personnage, équipement, talents, métiers et recettes, accès, verrous, réputations), puis compteurs d'activité | 11 |
 | **9 — Compagnon** | **livré le 28 oct. 2026** (testé en dev sous Linux : appairage, installation de l'addon, envoi), première release Windows/macOS à publier | Application Tauri : appairage, dossier WoW, installation et mise à jour de l'addon embarqué, surveillance du fichier, envoi, mise à jour automatique ; release GitHub par CI ; page « Compagnon » du profil | 11 |
-| **10 — Fiche vivante et classements** | — | Onglets « En jeu », comparaisons porté / planifié, progression de guilde, classements par période, récap hebdomadaire Discord | 11 |
+| **10 — Fiche vivante et classements** | **livré le 28 oct. 2026** (onglet Progression, page Classements, titres du lundi + récap Discord, progression de guilde ; build « En jeu » des talents en attente de l'API Forever) | Onglets « En jeu », comparaisons porté / planifié, progression de guilde, classements par période, récap hebdomadaire Discord | 11 |
 
 **État au 27 octobre 2026 : les six lots sont livrés et fusionnés dans `main`.** Reste la mise en ligne (VPS,
 domaine, application Discord, import des données du jeu en production) et les retours d'usage.
@@ -1084,6 +1084,16 @@ réalité du jeu à côté, sans la remplacer.
   « verrouillé cette semaine ».
 
 ### Classements
+
+**Réalisation (28 octobre 2026)** : onglet **Progression** de la fiche (tuiles d'activité avec variation sur 7 jours,
+accès, verrous, réputations, récolte, PvP, boss tués, « Porté en jeu » en lecture seule, historique et dernières
+synchronisations), page **Classements** (`/classements`, onglet de la section Guilde), widget « Cette semaine » sur
+l'accueil, titres attribués par le balayage du bot (lundi ≥ 10h) avec récapitulatif dans le salon général
+(`weekly_recap`), progression de guilde dédoublonnée par rencontre et créneau de 5 minutes. Tout est calculé à la
+demande depuis les instantanés bruts (cache d'une minute), sans table recalculée. Les noms de factions voyagent dans
+l'export (seul libellé admis : pas d'index des factions sur le site). Le build « En jeu » des talents attend la
+confirmation de l'API sur le client Forever.
+
 
 Page **Classements** dans la navigation principale, plus un widget « Cette semaine » sur l'accueil.
 
