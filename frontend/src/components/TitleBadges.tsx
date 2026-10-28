@@ -1,4 +1,3 @@
-import clsx from "clsx";
 import { Link } from "react-router";
 import { useGameData } from "@/api/hooks";
 import type { WeeklyTitle } from "@/api/sync";
@@ -130,39 +129,6 @@ export function TitleCards({ titles }: { titles: WeeklyTitle[] }) {
               </div>
             </div>
           </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Version compacte pour l'accueil : un badge par titre. */
-export function TitleChips({ titles }: { titles: WeeklyTitle[] }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {titles.map((t) => {
-        const theme = THEMES[t.key] ?? DEFAULT_THEME;
-        return (
-          <Link
-            key={t.key}
-            to="/classements"
-            className={clsx(
-              "inline-flex items-center gap-2 rounded-full border bg-bg/60 py-1 pl-1 pr-3 text-sm text-text hover:bg-surface-2",
-            )}
-            style={{ borderColor: theme.accent }}
-            title={`${t.label} : ${value(t, theme.unit)}`}
-          >
-            <span
-              className="flex size-6 items-center justify-center rounded-full [&>svg]:size-3.5"
-              style={{ background: theme.accent, color: "#0b1424" }}
-            >
-              {theme.icon}
-            </span>
-            <span className="text-xs uppercase tracking-wide" style={{ color: theme.accent }}>
-              {t.label}
-            </span>
-            <span className="font-medium">{t.user.display_name}</span>
-          </Link>
         );
       })}
     </div>
