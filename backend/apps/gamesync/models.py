@@ -143,3 +143,25 @@ class IgnoredCharacter(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name or self.guid} ({self.user})"
+
+
+class WeeklyTitle(models.Model):
+    """Titre de la semaine, attribué le lundi à 10h sur la semaine close, jamais remis en cause."""
+
+    week_start = models.DateField(help_text="Lundi de la semaine récompensée.")
+    key = models.CharField(max_length=32)
+    label = models.CharField(max_length=64)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="weekly_titles")
+    character = models.ForeignKey(
+        "characters.Character", on_delete=models.SET_NULL, null=True, blank=True, related_name="weekly_titles"
+    )
+    value = models.FloatField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "titre de la semaine"
+        ordering = ["-week_start", "key"]
+        constraints = [models.UniqueConstraint(fields=["week_start", "key"], name="unique_title_per_week")]
+
+    def __str__(self) -> str:
+        return f"{self.label} — semaine du {self.week_start} : {self.user}"

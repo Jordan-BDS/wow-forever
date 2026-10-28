@@ -28,7 +28,7 @@ ns.Data.FINAL_BOSSES = {
   [796] = { instance = "zul-gurub", raid = true },
   [723] = { instance = "ruins-of-ahnqiraj", raid = true },
   [717] = { instance = "temple-of-ahnqiraj", raid = true },
-  [1114] = { instance = "naxxramas", raid = true },
+  [1121] = { instance = "naxxramas", raid = true },
 }
 
 -- Sorts de récolte (identifiant → ressource). Tous les rangs vanilla.

@@ -3566,6 +3566,43 @@
                 }
             }
         },
+        "/api/sync/characters/{id}/progress/": {
+            "get": {
+                "operationId": "sync_characters_progress_retrieve",
+                "description": "État d'un personnage tel que reçu du jeu (dernier instantané) : compteurs, accès, verrous…",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/sync/companion/me/": {
             "get": {
                 "operationId": "sync_companion_me_retrieve",
@@ -3877,6 +3914,51 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/CharacterSnapshot"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/rankings/": {
+            "get": {
+                "operationId": "sync_rankings_retrieve",
+                "description": "Classements de guilde pour une période (week, month, season, all), par joueur ou par personnage.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "by",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "player (défaut) ou character"
+                    },
+                    {
+                        "in": "query",
+                        "name": "period",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "week (défaut), month, season, all"
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
                                 }
                             }
                         },

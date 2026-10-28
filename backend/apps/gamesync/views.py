@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import ValidationError
@@ -174,3 +175,43 @@ class CompanionStatusView(APIView):
         )
         payload = {"display_name": request.user.display_name, "device": device, "last_import": last}
         return Response(CompanionStatusSerializer(payload).data)
+
+
+# --- fiche vivante et classements -------------------------------------------------------------------
+
+
+class CharacterProgressView(APIView):
+    """État d'un personnage tel que reçu du jeu (dernier instantané) : compteurs, accès, verrous…"""
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    def get(self, request: Request, pk: int) -> Response:
+        character = get_object_or_404(Character.objects.select_related("owner"), pk=pk)
+        from . import progress
+
+        data = progress.character_progress(character)
+        return Response({"available": data is not None, **(data or {})})
+
+
+class RankingsView(APIView):
+    """Classements de guilde pour une période (week, month, season, all), par joueur ou par personnage."""
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("period", OpenApiTypes.STR, description="week (défaut), month, season, all"),
+            OpenApiParameter("by", OpenApiTypes.STR, description="player (défaut) ou character"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def get(self, request: Request) -> Response:
+        from django.core.cache import cache
+
+        from . import rankings
+
+        period = request.query_params.get("period", "week")
+        by = request.query_params.get("by", "player")
+        key = f"gamesync:rankings:{period}:{by}"
+        data = cache.get(key)
+        if data is None:
+            data = rankings.compute_rankings(period, by)
+            cache.set(key, data, 60)
+        return Response(data)
