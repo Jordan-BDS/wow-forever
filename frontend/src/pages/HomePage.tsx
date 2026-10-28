@@ -8,6 +8,7 @@ import { Button, Card, PageTitle } from "@/components/ui";
 import { formatRemaining } from "@/lib/game";
 import { PollCard } from "./PollsPage";
 import { WeekWidget } from "@/components/WeekWidget";
+import { LaunchCountdown } from "@/components/LaunchCountdown";
 
 export function HomePage() {
   const me = useCurrentUser();
@@ -23,6 +24,8 @@ export function HomePage() {
   return (
     <>
       <PageTitle>Bienvenue, {me.display_name}</PageTitle>
+
+      <LaunchCountdown />
 
       {guild.data?.values && <GuildValues text={guild.data.values} author={guild.data.name || undefined} />}
 
