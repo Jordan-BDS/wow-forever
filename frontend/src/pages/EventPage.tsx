@@ -66,6 +66,18 @@ function EventDetail({ event }: { event: GuildEvent }) {
     onError: (e) => setError(errorMessage(e)),
   });
 
+  const remove = useMutation({
+    mutationFn: async () => {
+      const { error } = await api.DELETE("/api/events/{id}/", { params: { path: { id: event.id } } });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await invalidate(KEYS.events);
+      navigate("/agenda");
+    },
+    onError: (e) => setError(errorMessage(e)),
+  });
+
   const duplicate = useMutation({
     mutationFn: async (startsAt: string) => {
       const { data, error } = await api.POST("/api/events/{id}/duplicate/", {
@@ -100,6 +112,20 @@ function EventDetail({ event }: { event: GuildEvent }) {
                   onClick={() => toggleCancel.mutate()}
                 >
                   {event.effective_status === "cancelled" ? "Rétablir" : "Annuler"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={remove.isPending}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Supprimer définitivement cet événement ? Les inscriptions seront perdues et il sera retiré de Discord.",
+                      )
+                    )
+                      remove.mutate();
+                  }}
+                >
+                  Supprimer
                 </Button>
                 <Button
                   variant="ghost"

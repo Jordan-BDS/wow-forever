@@ -97,6 +97,16 @@ class TestEvents:
             == 200
         )
 
+    def test_only_organizer_or_officer_deletes(self, as_user, member, other_member, officer):
+        from apps.events.models import Event
+
+        event_id = create_event(as_user(member)).data["id"]
+        assert as_user(other_member).delete(f"/api/events/{event_id}/").status_code == 403
+        assert as_user(member).delete(f"/api/events/{event_id}/").status_code == 204
+        assert not Event.objects.filter(pk=event_id).exists()
+        event_id = create_event(as_user(member)).data["id"]
+        assert as_user(officer).delete(f"/api/events/{event_id}/").status_code == 204
+
     def test_cancel_and_restore(self, as_user, member):
         client = as_user(member)
         event_id = create_event(client).data["id"]
