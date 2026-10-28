@@ -74,6 +74,7 @@ export type RankingCategory = {
   group: "pve" | "pvp" | "gathering" | "crafting" | "guild" | "optin";
   unit: string;
   shame: boolean;
+  note: string;
   total: number;
   entries: RankingEntry[];
   all_entries: { rank: number; user_id: number; value: number }[];

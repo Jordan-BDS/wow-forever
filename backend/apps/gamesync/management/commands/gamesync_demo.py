@@ -190,6 +190,9 @@ class Command(BaseCommand):
                     won = sum(1 for _ in range(bg) if rng.random() < 0.55)
                     counters["bg_played"] += bg
                     counters["bg_won"] += won
+                    counters["hk"] = (
+                        counters.get("hk", 0) + won * rng.randint(6, 14) + (bg - won) * rng.randint(1, 5)
+                    )
                 if rng.random() < 0.3:
                     counters["dungeons_entered"] += 1
                     counters["dungeons_done"] += 1

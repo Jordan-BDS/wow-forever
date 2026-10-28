@@ -4,8 +4,10 @@ local ADDON, ns = ...
 local function scan(char)
   local pvp = char.pvp or {}
   if GetPVPLifetimeStats then
-    local hk = GetPVPLifetimeStats()
-    pvp.hk_lifetime = ns.plain(hk)
+    local hk = ns.plain((GetPVPLifetimeStats()))
+    pvp.hk_lifetime = hk
+    -- Total tenu par le jeu, recopié dans les compteurs pour que le journal quotidien en garde la trace.
+    if type(hk) == "number" then char.counters.hk = hk end
   end
   if UnitPVPRank then pvp.rank = ns.plain(UnitPVPRank("player")) end
   if UnitHonor and UnitHonorLevel then

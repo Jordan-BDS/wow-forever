@@ -170,6 +170,7 @@ function RankingCard({ category, by, meId }: { category: RankingCategory; by: Ra
           {GROUPS.find((g) => g.key === category.group)?.label}
         </span>
       </div>
+      {category.note && <p className="text-xs text-muted">{category.note}</p>}
       {category.entries.length === 0 ? (
         <p className="text-sm text-muted">Personne pour l'instant sur cette période.</p>
       ) : (

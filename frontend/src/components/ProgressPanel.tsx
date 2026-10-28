@@ -107,13 +107,14 @@ function ProgressContent({ character, p }: { character: Character; p: CharacterP
 
       <section>
         <h3 className="mb-2 font-display text-lg">Activité</h3>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           <Tile label="Boss tués" tile={tiles.boss_kills} />
           <Tile label="Donjons terminés" tile={tiles.dungeons_done} />
           <Tile label="Raids terminés" tile={tiles.raids_done} />
           <Tile label="Morts" tile={tiles.deaths} danger />
           <Tile label="Champs de bataille" tile={tiles.bg_played} />
           <Tile label="BG gagnés" tile={tiles.bg_won} />
+          <Tile label="Victoires honorables" tile={tiles.hk} />
           <Tile label="Quêtes rendues" tile={tiles.quests} />
           <Tile label="Objets fabriqués" tile={tiles.crafted_total} />
         </div>

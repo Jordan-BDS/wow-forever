@@ -3,7 +3,7 @@ import { formatValue, useRankings } from "@/api/sync";
 import { TitleChips } from "@/components/TitleBadges";
 import { Card } from "@/components/ui";
 
-const KEYS = ["boss_kills", "mining", "bg_won", "deaths"];
+const KEYS = ["boss_kills", "mining", "hk", "deaths"];
 
 /** Accueil : top 3 de quelques classements de la semaine et titres en cours. */
 export function WeekWidget() {

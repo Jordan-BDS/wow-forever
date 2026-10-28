@@ -253,6 +253,7 @@ def character_progress(character: Character, now: datetime | None = None) -> dic
             "bg_won": tile("bg_won"),
             "quests": tile("quests"),
             "crafted_total": tile("crafted_total"),
+            "hk": tile("hk"),
         },
         "gathering": {
             k: int(number(gathering.get(k))) for k in ("mining", "herbalism", "skinning", "fishing")

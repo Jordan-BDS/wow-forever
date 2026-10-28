@@ -26,7 +26,7 @@ from .services import PARIS
 
 SEASON_START = date(2026, 11, 4)
 PERIODS = ("week", "month", "season", "all")
-MIN_BG_FOR_RATE = 10
+MIN_BG_FOR_RATE = 5
 
 
 @dataclass
@@ -38,16 +38,25 @@ class Category:
     counter: str | None = None  # clé dans les compteurs de l'addon
     source: str = "addon"  # ou "site"
     shame: bool = False
+    note: str = ""
 
 
 CATEGORIES: list[Category] = [
     Category("boss_kills", "Boss tués", "pve", counter="boss_kills"),
     Category("dungeons_done", "Donjons terminés", "pve", counter="dungeons_done"),
     Category("raids_done", "Raids terminés", "pve", counter="raids_done"),
-    Category("deaths", "Classement de la honte", "pve", counter="deaths", shame=True),
+    Category("deaths", "Les fragiles", "pve", counter="deaths", shame=True),
+    Category("hk", "Victoires honorables", "pvp", counter="hk"),
     Category("bg_won", "Champs de bataille gagnés", "pvp", counter="bg_won"),
     Category("bg_played", "Champs de bataille joués", "pvp", counter="bg_played"),
-    Category("bg_rate", "Taux de victoire en BG", "pvp", unit="%", counter="bg_rate"),
+    Category(
+        "bg_rate",
+        "Taux de victoire en BG",
+        "pvp",
+        unit="%",
+        counter="bg_rate",
+        note=f"Classé à partir de {MIN_BG_FOR_RATE} champs de bataille joués sur la période.",
+    ),
     Category("mining", "Minerais récoltés", "gathering", counter="gathering.mining"),
     Category("herbalism", "Herbes récoltées", "gathering", counter="gathering.herbalism"),
     Category("skinning", "Peaux récoltées", "gathering", counter="gathering.skinning"),
@@ -254,6 +263,7 @@ def compute_rankings(
                 "group": category.group,
                 "unit": category.unit,
                 "shame": category.shame,
+                "note": category.note,
                 "total": len(entries),
                 "entries": [
                     {

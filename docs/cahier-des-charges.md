@@ -1102,8 +1102,9 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
   d'où l'importance de l'historique.
 - **Vue par joueur par défaut** (somme de ses personnages), bascule « par personnage ».
 - **Catégories** et tableaux :
-  - *PvE* : boss tués, donjons terminés, raids terminés, morts (le « classement de la honte », assumé).
-  - *PvP* : victoires honorables (gain sur la période), champs de bataille gagnés, taux de victoire (minimum 10 BG).
+  - *PvE* : boss tués, donjons terminés, raids terminés, morts (« Les fragiles », assumé).
+  - *PvP* : victoires honorables (gain sur la période), champs de bataille gagnés et joués, taux de victoire (minimum
+    5 BG sur la période).
   - *Récolte* : minerais, herbes, peaux, poissons ; un classement par ressource et un total.
   - *Artisanat* : objets fabriqués, et **demandes de craft livrées** (donnée du site, déjà disponible).
   - *Guilde* : présence aux événements (inscrit présent / organisé, donnée du site), quêtes rendues.
