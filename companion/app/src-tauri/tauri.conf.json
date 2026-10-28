@@ -22,19 +22,36 @@
         "visible": true
       }
     ],
-    "security": { "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'" }
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'"
+    }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "dmg", "app"],
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
     "createUpdaterArtifacts": true,
-    "windows": { "nsis": { "languages": ["French"], "installMode": "currentUser" } }
+    "windows": {
+      "nsis": {
+        "languages": [
+          "French"
+        ],
+        "installMode": "currentUser"
+      }
+    }
   },
   "plugins": {
     "updater": {
-      "pubkey": "REMPLACER_PAR_LA_CLE_PUBLIQUE_TAURI",
-      "endpoints": ["https://github.com/Jordan-BDS/wow-forever/releases/latest/download/latest.json"]
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMzNjdDNjgwODIyRkM1RDcKUldUWHhTK0NnTVpudzJ0K2MrY0tHKzE0V0E4RlVtZ1FGQytUb1l4cThJYWxEbUV5aVIrTjhxdWIK",
+      "endpoints": [
+        "https://github.com/Jordan-BDS/wow-forever/releases/latest/download/latest.json"
+      ]
     }
   }
 }
