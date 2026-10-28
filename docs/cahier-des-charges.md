@@ -758,20 +758,78 @@ surveillance de fichier et aux appels HTTP, exécutable de quelques Mo, mise à 
 
 ### L'addon
 
-- Un seul fichier `SavedVariables` **au niveau du compte**, une entrée par personnage, pour que le compagnon ne
-  surveille qu'un fichier et retrouve tous les persos.
-- L'addon **sérialise lui-même en JSON** (chaîne dans le fichier Lua) : le compagnon n'a pas besoin d'interpréter
-  du Lua. Chaque export porte une **version de format**, l'horodatage, le royaume et le nom complet (prénom + nom,
-  propre à Forever).
-- Collecte à l'ouverture de session et sur événements : changement d'équipement, de talents, ouverture de la fenêtre
-  d'un métier (seule façon d'obtenir la liste des recettes : l'addon affiche un rappel « ouvre tes métiers une fois »
-  tant qu'un métier n'a jamais été lu), fin de match PvP, entrée en instance, mort de boss, butin reçu après un sort
-  de récolte, mort du personnage, quête rendue, changement de réputation ou d'honneur.
-- Les **compteurs sont cumulés dans le fichier** et envoyés tels quels ; le site garde la dernière valeur, jamais une
-  somme d'envois (pas de double comptage, renvoi inoffensif).
-- Fenêtre en jeu minimale : état de la collecte par catégorie, bouton « Copier la chaîne d'export » (secours sans
-  compagnon), interrupteurs des catégories sensibles.
-- Pas d'écriture pendant un combat, pas de lecture des valeurs secrètes : l'addon ne doit jamais provoquer d'erreur.
+**Rôle** : observer le jeu, accumuler par personnage, produire le code d'export. Il ne connaît ni le site ni le
+réseau. Lua pur plus **LibDeflate** (seule dépendance, pour la compression) : pas de framework (Ace3) afin de
+limiter la surface exposée aux changements d'API du jeu.
+
+**Fichiers**
+
+| Fichier | Rôle |
+|---|---|
+| `WoWForeverGuilde.toc` | `## Interface: 16001`, `## SavedVariables: WoWForeverGuildeDB`, version de l'addon |
+| `Core.lua` | Démarrage, bus d'événements, cycle de vie, protection des collecteurs (`pcall`, hors combat) |
+| `Store.lua` | Schéma de la base, migrations entre versions, bornes (journal 60 j, 500 événements) |
+| `Collectors/*.lua` | Un module par catégorie (identité, équipement, talents, métiers, réputations, accès, verrous, PvP, PvE, récolte et artisanat, quêtes, morts) |
+| `Journal.lua` | Instantanés quotidiens des compteurs, liste d'événements horodatés |
+| `Export.lua` | Encodeur JSON maison, compression, encodage imprimable, somme de contrôle, préfixe de version |
+| `Data.lua` | Tables de référence mises à jour avec les releases : quêtes d'accès, dernier boss par instance, sorts de récolte, cartes de champ de bataille |
+| `UI.lua` | Fenêtre `/wfg` : état par catégorie, rappels, interrupteurs, fenêtre d'export |
+| `Locales/` | Textes FR / EN de l'interface (les données sont des identifiants, jamais des libellés) |
+
+**Base sauvegardée** (`WoWForeverGuildeDB`, au niveau du compte) : `version`, `installId` (généré au premier
+lancement, identifie une installation pour les époques de comptage), `settings` (catégories opt-in, personnages
+exclus), `characters[guid]` = identité, équipement, talents, métiers, réputations, accès, verrous, PvP, compteurs,
+`counting_since`, `journal[date]`, `events[]`, `previous_guids[]`, et `export` (le dernier code produit, lu par le
+compagnon).
+
+**Cycle de vie**
+
+1. `ADDON_LOADED` : chargement de la base, migrations.
+2. `PLAYER_LOGIN` : identification (`UnitGUID`, prénom + nom, royaume), création ou reprise de l'entrée ; si le GUID
+   est inconnu et qu'une entrée de même classe, même race et niveau ≤ existe → question « transfert ? » (fusion,
+   ancien GUID conservé). Quelques secondes plus tard (données du client pas toutes prêtes à l'instant du login) :
+   lecture complète de l'identité, de l'équipement, des talents, des réputations, des accès, demande des verrous
+   (`RequestRaidInfo`) et du temps de jeu ; puis abonnement aux événements.
+3. **En session** : chaque collecteur réagit à ses événements, avec un délai de regroupement d'une seconde ; tout est
+   reporté après le combat (`PLAYER_REGEN_ENABLED`). Un vérificateur toutes les 60 s détecte le passage de minuit
+   pour le journal.
+4. `PLAYER_LOGOUT` (déconnexion **et** `/reload`) : dernière lecture, instantané du jour dans le journal, construction
+   du code d'export, écriture par le jeu. Le fichier n'est écrit qu'à ce moment : un plantage perd la session en
+   cours (limite assumée).
+
+**Collecteurs** (événement déclencheur → lecture)
+
+| Catégorie | Déclencheur | Lecture |
+|---|---|---|
+| Identité | login, `PLAYER_LEVEL_UP` (événement horodaté), `TIME_PLAYED_MSG` | niveau, classe, race, temps de jeu ; or (`GetMoney`) seulement si opt-in |
+| Équipement | `PLAYER_EQUIPMENT_CHANGED` | lien d'objet par emplacement → identifiant d'objet, d'enchantement, suffixe |
+| Talents | `PLAYER_TALENT_UPDATE` / points dépensés | rang par identifiant de talent ; **API exacte à confirmer sur le client Forever** (arbres Classic sur une base moderne) |
+| Métiers | ouverture de la fenêtre (`TRADE_SKILL_SHOW`, `TRADE_SKILL_LIST_UPDATE`) | compétence, maximum, spécialisation, identifiants des recettes apprises (`C_TradeSkillUI`) ; métiers connus détectés dès le login pour signaler ceux jamais lus |
+| Réputations | `UPDATE_FACTION` | faction → valeur |
+| Accès | login, `QUEST_TURNED_IN` | `IsQuestFlaggedCompleted` sur la table des quêtes d'accès de `Data.lua` |
+| Verrous | `UPDATE_INSTANCE_INFO` | instance, réinitialisation, boss tombés |
+| PvP | login, `PVP_MATCH_COMPLETE` / statut de champ de bataille | victoires honorables à vie, rang ; par carte : joué, gagné (vainqueur du match) |
+| PvE | `PLAYER_ENTERING_WORLD` (entrée en instance), `ENCOUNTER_END` (succès), `PLAYER_DEAD` | boss : identifiant de rencontre, date, taille du groupe, GUID des membres du groupe qui sont dans la guilde (règle des 5 pour la progression de guilde) ; donjon terminé = dernier boss de l'instance (`Data.lua`) ; morts |
+| Récolte | `UNIT_SPELLCAST_SUCCEEDED` d'un sort de récolte → fenêtre de 3 s → butin reçu | objets et quantités par identifiant |
+| Artisanat | sort de recette réussi | fabrications par identifiant de recette |
+| Quêtes | `QUEST_TURNED_IN` | nombre, quêtes clés |
+
+**Interface en jeu** (`/wfg`, pas de bouton de minicarte) : état par catégorie avec la date de dernière lecture,
+rappel « ouvre tes métiers une fois » tant qu'un métier n'a jamais été lu (et message discret au login si plus de 7
+jours), interrupteurs opt-in (or, sacs et banque, temps de jeu), « exclure ce personnage du site », bouton
+**Exporter** qui ouvre une zone de texte avec le code présélectionné (Ctrl+C) et le compte WoW concerné.
+
+**Robustesse** : chaque collecteur tourne dans un `pcall` ; les erreurs sont journalisées dans la base (bornées) et
+jointes à l'export pour diagnostic, avec la version de l'addon et le build du client ; aucune lecture de valeur
+secrète (`issecretvalue`) ; aucun travail en combat ; mémoire bornée (journal, événements, erreurs).
+
+**Versions** : version de l'addon (TOC) et version du format d'export distinctes ; `Data.lua` évolue avec les
+releases (nouveaux raids, quêtes d'accès). Le site signale un format trop ancien ; par collage, le message s'affiche
+sur la page ; par compagnon, dans sa fenêtre.
+
+**Tests** : la partie pure (encodeur JSON, journal, export, tables de référence) est testée hors du jeu en Lua 5.1
+dans la CI, avec un test de bout en bout qui décode le code côté Python ; les collecteurs suivent une liste de
+vérification manuelle en jeu à la sortie, puis à chaque mise à jour du client.
 
 ### Le compagnon
 
