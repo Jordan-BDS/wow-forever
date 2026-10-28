@@ -69,7 +69,7 @@ const Skull = (
 );
 
 const THEMES: Record<string, Theme> = {
-  mining: { accent: "#d9b84a", glow: "rgba(217,184,74,.25)", icon: Pickaxe, unit: "minerais" },
+  gathering: { accent: "#d9b84a", glow: "rgba(217,184,74,.25)", icon: Pickaxe, unit: "ressources" },
   bg: { accent: "#e0604a", glow: "rgba(224,96,74,.25)", icon: Swords, unit: "joueurs tués" },
   boss: { accent: "#ff8a3d", glow: "rgba(255,138,61,.25)", icon: Flame, unit: "boss tués" },
   shame: { accent: "#b7b7b7", glow: "rgba(183,183,183,.2)", icon: Skull, unit: "morts" },
@@ -82,7 +82,7 @@ function value(t: WeeklyTitle, unit: string): string {
 }
 
 /** Ordre d'affichage commun aux cartes et aux « Futurs Roxors ». */
-const TITLE_ORDER = ["mining", "bg", "boss", "shame"];
+const TITLE_ORDER = ["gathering", "bg", "boss", "shame"];
 
 /** Cartes des Roxors de la semaine passée : icône, accent, gagnant en grand, personnage à la couleur de classe. */
 export function TitleCards({ titles }: { titles: WeeklyTitle[] }) {

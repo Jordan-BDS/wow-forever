@@ -27,6 +27,7 @@ from .services import PARIS
 SEASON_START = date(2026, 11, 4)
 PERIODS = ("week", "month", "season", "all")
 MIN_BG_FOR_RATE = 1
+GATHERING_KINDS = ("mining", "herbalism", "skinning", "fishing")
 
 
 @dataclass
@@ -57,6 +58,13 @@ CATEGORIES: list[Category] = [
         counter="bg_rate",
         note="Dès le premier champ de bataille joué sur la période.",
     ),
+    Category(
+        "gathering_total",
+        "Ressources récoltées",
+        "gathering",
+        counter="gathering_total",
+        note="Minerais, herbes, peaux et poissons additionnés.",
+    ),
     Category("mining", "Minerais récoltés", "gathering", counter="gathering.mining"),
     Category("herbalism", "Herbes récoltées", "gathering", counter="gathering.herbalism"),
     Category("skinning", "Peaux récoltées", "gathering", counter="gathering.skinning"),
@@ -70,7 +78,7 @@ CATEGORIES: list[Category] = [
 CATEGORY_BY_KEY = {c.key: c for c in CATEGORIES}
 
 WEEKLY_TITLES: list[tuple[str, str, str]] = [
-    ("mining", "Mineur de la semaine", "mining"),
+    ("gathering", "Récolteur de la semaine", "gathering_total"),
     ("bg", "Calamité de la Horde", "hk"),
     ("boss", "Fléau des boss", "boss_kills"),
     ("shame", "Lord Fragilux", "deaths"),
@@ -120,7 +128,15 @@ def _snapshot_values(
     """Valeur de progression par personnage."""
     out = {}
     for character_id, snapshot in snapshots.items():
-        if key == "bg_rate":
+        if key == "gathering_total":
+            total, since = 0.0, None
+            for kind in GATHERING_KINDS:
+                value, kind_since = delta(snapshot, f"gathering.{kind}", start, end)
+                total += value
+                if kind_since and (since is None or kind_since < since):
+                    since = kind_since
+            out[character_id] = (total, since)
+        elif key == "bg_rate":
             won, since = delta(snapshot, "bg_won", start, end)
             played, _ = delta(snapshot, "bg_played", start, end)
             out[character_id] = ((round(100 * won / played) if played >= MIN_BG_FOR_RATE else 0.0), since)
@@ -289,7 +305,7 @@ def compute_rankings(
     week_start, week_end = period_bounds("week", now)
     totals = {
         key: sum(v for v, _ in _snapshot_values(snapshots, key, week_start, week_end).values())
-        for key in ("boss_kills", "dungeons_done", "bg_played", "gathering.mining", "crafted_total", "deaths")
+        for key in ("boss_kills", "dungeons_done", "bg_played", "gathering_total", "crafted_total", "deaths")
     }
     return {
         "period": period,

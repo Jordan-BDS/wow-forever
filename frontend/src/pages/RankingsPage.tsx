@@ -358,7 +358,7 @@ const TOTAL_LABELS: Record<string, string> = {
   boss_kills: "Boss tués",
   dungeons_done: "Donjons terminés",
   bg_played: "BG joués",
-  "gathering.mining": "Minerais récoltés",
+  gathering_total: "Ressources récoltées",
   crafted_total: "Objets fabriqués",
   deaths: "Morts",
 };

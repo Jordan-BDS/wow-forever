@@ -5,7 +5,7 @@ import { Card } from "@/components/ui";
 
 /** Les quatre catégories qui donnent un Roxor, avec le nom du titre en jeu. */
 const RACES: { key: string; title: string }[] = [
-  { key: "mining", title: "Mineur de la semaine" },
+  { key: "gathering_total", title: "Récolteur de la semaine" },
   { key: "hk", title: "Calamité de la Horde" },
   { key: "boss_kills", title: "Fléau des boss" },
   { key: "deaths", title: "Lord Fragilux" },
