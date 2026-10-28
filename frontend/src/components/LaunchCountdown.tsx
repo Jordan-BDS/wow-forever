@@ -30,7 +30,7 @@ export function LaunchCountdown() {
   if (phase === "launched") {
     return (
       <section
-        className="mb-6 rounded-lg border border-gold bg-surface p-6 text-center"
+        className="flex h-full flex-col justify-center rounded-lg border border-gold bg-surface p-6 text-center"
         style={{
           backgroundImage: "radial-gradient(circle at 50% 0%, rgba(217,184,74,.28), transparent 65%)",
         }}
@@ -47,7 +47,7 @@ export function LaunchCountdown() {
   const parts = splitCountdown(LAUNCH_AT, now);
   return (
     <section
-      className="mb-6 overflow-hidden rounded-lg border border-gold/70 bg-surface p-5 sm:p-6"
+      className="flex h-full flex-col justify-center overflow-hidden rounded-lg border border-gold/70 bg-surface p-5 sm:p-6"
       style={{
         backgroundImage: "radial-gradient(circle at 50% -20%, rgba(217,184,74,.28), transparent 60%)",
       }}

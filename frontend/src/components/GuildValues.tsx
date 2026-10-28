@@ -18,7 +18,7 @@ export function GuildValues({ text, author }: { text: string; author?: string })
   if (stanzas.length === 0) return null;
 
   return (
-    <figure className="relative mb-8 overflow-hidden rounded-md border border-gold-dark/50 bg-surface/80 px-6 py-6 sm:px-10 sm:py-8">
+    <figure className="relative flex h-full flex-col justify-center overflow-hidden rounded-md border border-gold-dark/50 bg-surface/80 px-6 py-6 sm:px-10 sm:py-8">
       <div className="rule-gold absolute inset-x-6 top-0 sm:inset-x-10" />
       <QuillIcon className="absolute top-4 right-4 size-7 text-gold sm:top-5 sm:right-5 sm:size-8" />
       {/* Bloc centré à la largeur du vers le plus long, texte aligné à gauche à l'intérieur. */}

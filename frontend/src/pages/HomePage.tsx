@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import { useGuild } from "@/api/guild";
 import { useEvents, usePolls } from "@/api/hooks";
@@ -9,9 +10,11 @@ import { formatRemaining } from "@/lib/game";
 import { PollCard } from "./PollsPage";
 import { WeekWidget } from "@/components/WeekWidget";
 import { LaunchCountdown } from "@/components/LaunchCountdown";
+import { launchPhase } from "@/lib/launch";
 
 export function HomePage() {
   const me = useCurrentUser();
+  const [showCountdown] = useState(() => launchPhase(new Date()) !== "over");
   const guild = useGuild();
   const polls = usePolls();
   const events = useEvents();
@@ -25,9 +28,10 @@ export function HomePage() {
     <>
       <PageTitle>Bienvenue, {me.display_name}</PageTitle>
 
-      <LaunchCountdown />
-
-      {guild.data?.values && <GuildValues text={guild.data.values} author={guild.data.name || undefined} />}
+      <div className={showCountdown ? "mb-8 grid items-stretch gap-4 lg:grid-cols-2" : "mb-8"}>
+        {showCountdown && <LaunchCountdown />}
+        {guild.data?.values && <GuildValues text={guild.data.values} author={guild.data.name || undefined} />}
+      </div>
 
       {toVote.length > 0 && (
         <section className="mb-6 space-y-3">
