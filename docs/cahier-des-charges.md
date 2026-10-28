@@ -898,8 +898,8 @@ joueur sans compagnon le colle lui-même. Mêmes octets, même point d'entrée, 
   inconnue est refusée proprement (« mets à jour l'addon »).
 - **Taille** : 10 à 20 Ko de JSON par personnage 60 (300 recettes, équipement, talents, compteurs), 3 à 5 Ko
   compressés, 4 à 7 Ko de texte ; cinq personnages ≈ 35 Ko. Taille maximale acceptée par le site : 256 Ko.
-- **Contenu par personnage** : identité (prénom, nom, royaume, classe, race, niveau, date d'export, temps de jeu et
-  or si partagés) ; équipement par emplacement (identifiant d'objet et d'enchantement) ; talents (rang par
+- **Contenu par personnage** : identité (prénom, nom, royaume, classe, race, niveau, date d'export, temps de jeu si
+  partagé) ; équipement par emplacement (identifiant d'objet et d'enchantement) ; talents (rang par
   identifiant) ; métiers (identifiant, compétence, maximum, spécialisation, identifiants des recettes connues) ;
   réputations ; quêtes d'accès ; verrous (réinitialisation, boss tombés) ; PvP (victoires honorables à vie, rang,
   joués / gagnés par champ de bataille) ; compteurs cumulés (boss par identifiant avec premier et dernier kill,
