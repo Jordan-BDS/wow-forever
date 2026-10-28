@@ -827,8 +827,13 @@ rappel « ouvre tes métiers une fois » tant qu'un métier n'a jamais été lu 
 jours), interrupteurs opt-in (or, sacs et banque, temps de jeu), « exclure ce personnage du site », bouton
 **Exporter** qui ouvre une zone de texte avec le code présélectionné (Ctrl+C) et le compte WoW concerné.
 
-**Sauvegarde encouragée, jamais forcée** : après 3 h de session sans écriture, message discret « un /reload met tes
-données à l'abri » (un `/reload` écrit le fichier sans se déconnecter) ; jamais de `/reload` automatique.
+**Pourquoi pas d'écriture continue** : un addon n'a **aucun accès au système de fichiers** (verrou volontaire de
+Blizzard). Il déclare des variables sauvegardées et c'est le client qui les écrit, uniquement à la déconnexion et
+au `/reload`. Le seul moyen de forcer une écriture est de provoquer un `/reload` (2 à 5 s d'écran figé) : hors de
+question en automatique. **Sauvegarde encouragée, jamais forcée** : bouton « Sauvegarder maintenant » dans la
+fenêtre (déclenche un `/reload`), et suggestion discrète aux moments calmes seulement (sortie d'instance, retour en
+ville, hors combat et hors groupe actif) quand la session dépasse 3 h sans écriture. Même limite pour tous les
+addons de suivi du jeu ; la perte possible se limite à la session en cours.
 
 **Robustesse** : chaque collecteur tourne dans un `pcall` ; les erreurs sont journalisées dans la base (bornées) et
 jointes à l'export pour diagnostic, avec la version de l'addon et le build du client ; aucune lecture de valeur
