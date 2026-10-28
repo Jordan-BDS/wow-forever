@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#0b1424"/>
+  <path d="M256 64 L416 128 L416 272 C416 352 344 416 256 456 C168 416 96 352 96 272 L96 128 Z" fill="#152238" stroke="#d9b84a" stroke-width="22" stroke-linejoin="round"/>
+  <path d="M256 112 L376 160 L376 272 C376 332 320 384 256 416 C192 384 136 332 136 272 L136 160 Z" fill="none" stroke="#a8862a" stroke-width="8" stroke-linejoin="round"/>
+  <text x="256" y="300" font-family="Georgia, serif" font-size="150" font-weight="bold" fill="#ead27a" text-anchor="middle">WF</text>
+</svg>

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "WoW Forever Guilde",
+  "version": "0.1.0",
+  "identifier": "fr.wowforever.guilde.compagnon",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "WoW Forever Guilde",
+        "label": "main",
+        "width": 720,
+        "height": 560,
+        "minWidth": 600,
+        "minHeight": 420,
+        "resizable": true,
+        "visible": true
+      }
+    ],
+    "security": { "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'" }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "dmg", "app"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "createUpdaterArtifacts": true,
+    "windows": { "nsis": { "languages": ["French"], "installMode": "currentUser" } }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "REMPLACER_PAR_LA_CLE_PUBLIQUE_TAURI",
+      "endpoints": ["https://github.com/Jordan-BDS/wow-forever/releases/latest/download/latest.json"]
+    }
+  }
+}
