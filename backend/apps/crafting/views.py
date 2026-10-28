@@ -126,10 +126,13 @@ class CraftRequestViewSet(
         is_crafter = craft.crafter and craft.crafter.owner_id == request.user.pk
         if not is_crafter and not request.user.is_officer_or_above:
             raise PermissionDenied("Seul le crafteur ou un officier peut rendre la demande.")
+        previous_crafter = craft.crafter
         craft.status = CraftStatus.OPEN
         craft.crafter = None
         craft.taken_at = None
         craft.save()
+        if previous_crafter:
+            notify.craft_released(craft, previous_crafter)
         return Response(self.get_serializer(craft).data)
 
     @extend_schema(request=None, responses=CraftRequestSerializer)

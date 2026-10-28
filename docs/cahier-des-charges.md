@@ -493,7 +493,7 @@ pas d'écriture ni de fils), avec les droits d'écriture pour le bot, et enregis
 
 **Messages privés (MP)** au joueur concerné :
 - Placement dans un événement : confirmé / banc.
-- Demande de craft prise en charge / livrée (pour le demandeur).
+- Demande de craft prise en charge / rendue par le crafteur / livrée (pour le demandeur).
 - Nouvelle demande de craft le ciblant (pour le crafteur).
 - Rappel personnel avant un événement où il est confirmé.
 

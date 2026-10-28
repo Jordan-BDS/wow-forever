@@ -13,7 +13,7 @@ ifeq ($(MODE),nginx)
 COMPOSE += -f deploy/docker-compose.nginx.yml
 endif
 
-.PHONY: help build up down deploy update restart logs ps migrate shell dbshell import-gamedata backup
+.PHONY: help build up down deploy update restart logs ps migrate shell dbshell import-gamedata setup-roles setup-channels backup
 
 help:             ## Liste des commandes
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2 }'
@@ -54,6 +54,12 @@ dbshell:          ## psql sur la base
 
 import-gamedata:  ## Importe objets, talents, recettes depuis le client du jeu (~2 min)
 	$(COMPOSE) exec web python manage.py import_gamedata
+
+setup-roles:      ## Crée les rôles Discord Membre / Officier et les enregistre (rejouable)
+	$(COMPOSE) exec web python manage.py discord_setup_roles
+
+setup-channels:   ## Crée les salons Discord agenda / demande-de-craft en lecture seule et les enregistre (rejouable)
+	$(COMPOSE) exec web python manage.py discord_setup_channels
 
 backup:           ## Dump PostgreSQL dans deploy/backups/
 	deploy/backup.sh

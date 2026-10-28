@@ -122,6 +122,10 @@ class TestCraftRequests:
             == 200
         )
         assert as_user(other_member).post(f"/api/craft-requests/{craft_id}/release/").status_code == 200
+        from apps.notifications.models import Notification
+
+        released = Notification.objects.filter(kind="craft_update", recipient=member).latest("pk")
+        assert "de nouveau ouverte" in released.text and crafter.name in released.text
         assert CraftRequest.objects.get(pk=craft_id).status == "open"
 
     def test_target_must_know_recipe_and_scopes(self, as_user, member, other_member, world):

@@ -322,3 +322,15 @@ def craft_updated(craft) -> Notification | None:
     else:
         return None
     return notify_user(craft.requester, NotificationKind.CRAFT_UPDATE, f"{text}\n{craft_url(craft)}")
+
+
+def craft_released(craft, crafter) -> Notification | None:
+    """Le crafteur a rendu la demande : le demandeur sait qu'elle est de nouveau ouverte."""
+    label = f"**{craft.quantity} × {craft.recipe.name}**"
+    who = f"{crafter.name} ({crafter.owner.display_name})"
+    return notify_user(
+        craft.requester,
+        NotificationKind.CRAFT_UPDATE,
+        f"↩️ {who} ne pourra finalement pas faire ta demande {label} : elle est de nouveau ouverte.\n"
+        f"{craft_url(craft)}",
+    )
