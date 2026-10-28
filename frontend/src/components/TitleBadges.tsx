@@ -81,12 +81,16 @@ function value(t: WeeklyTitle, unit: string): string {
   return unit ? `${n} ${unit}` : String(n);
 }
 
+/** Ordre d'affichage commun aux cartes et aux « Futurs Roxors ». */
+const TITLE_ORDER = ["mining", "bg", "boss", "shame"];
+
 /** Cartes des Roxors de la semaine passée : icône, accent, gagnant en grand, personnage à la couleur de classe. */
 export function TitleCards({ titles }: { titles: WeeklyTitle[] }) {
   const gamedata = useGameData();
+  const ordered = [...titles].sort((a, b) => TITLE_ORDER.indexOf(a.key) - TITLE_ORDER.indexOf(b.key));
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {titles.map((t) => {
+      {ordered.map((t) => {
         const theme = THEMES[t.key] ?? DEFAULT_THEME;
         return (
           <div
