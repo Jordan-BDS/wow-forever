@@ -704,7 +704,7 @@ périmètre a été réduit pour s'appuyer sur Wowhead.
 | **6 — Catalogue et crafts** | — | Catalogue de recettes, recettes connues, « qui sait crafter ? », demandes de craft | 6 |
 | **7 — Appairage et import** | **livré le 28 oct. 2026** | Code d'appairage, jeton de compagnon, point d'import versionné, stockage brut par personnage, mise à jour des champs du personnage, badge « synchronisé », import de secours par collage de chaîne | 11 |
 | **8 — Addon** | dès le client du 4 nov. 2026 | Collecte en jeu (personnage, équipement, talents, métiers et recettes, accès, verrous, réputations), puis compteurs d'activité | 11 |
-| **9 — Compagnon** | déc. 2026 | Application Tauri : appairage, dossier WoW, installation et mise à jour de l'addon embarqué, surveillance du fichier, envoi, mise à jour automatique ; release GitHub par CI ; page « Compagnon » du profil | 11 |
+| **9 — Compagnon** | déc. 2026 | Application Tauri : appairage, dossier WoW, installation et mise à jour de l'addon embarqué, surveillance du fichier, envoi, mise à jour automatique ; release GitHub par CI ; page « Compagnon » du profil ; extension : annonces de mort en direct via le journal de combat | 11 |
 | **10 — Fiche vivante et classements** | — | Onglets « En jeu », comparaisons porté / planifié, progression de guilde, classements par période, récap hebdomadaire Discord | 11 |
 
 **État au 27 octobre 2026 : les six lots sont livrés et fusionnés dans `main`.** Reste la mise en ligne (VPS,
@@ -916,6 +916,27 @@ joueur sans compagnon le colle lui-même. Mêmes octets, même point d'entrée, 
   de collage comme dans le compagnon.
 - **Répartition des responsabilités** : seul l'addon connaît le jeu, seul le site connaît le format, le compagnon est
   trivial et interchangeable. Un changement d'API Lua ne touche que l'addon.
+
+### Annonces de mort en direct (idée du 28 octobre 2026, extension du lot 9)
+
+Proposé par un membre : à chaque mort d'un joueur équipé de l'addon, un message troll (« Gul'dan s'est fait saucer
+par un Sanglier des Tarides, quel noob »). Le fichier de l'addon n'étant écrit qu'à la déconnexion, le direct
+passe par deux voies complémentaires, celles du premier addon Hardcore :
+
+- **En jeu** : à `PLAYER_DEAD`, l'addon diffuse l'événement par **message d'addon sur le canal de guilde** ; les addons
+  des guildiens connectés affichent le message troll dans leur chat. Instantané, sans infrastructure, visible en jeu
+  seulement.
+- **Vers Discord** : l'addon active le **journal de combat** à la connexion (`LoggingCombat(true)`, autorisé), que le
+  client écrit en continu ; le **compagnon** lit le fichier au fil de l'eau, repère la mort du joueur et remonte au
+  dernier coup porté (PNJ, joueur, chute, noyade, lave…), puis envoie l'événement au site → outbox → le bot poste
+  dans un salon dédié (`#cimetière`). Latence de quelques secondes (tampon du client).
+
+Règles : gabarits de messages tirés au hasard, modifiables par le GM (variables : personnage, tueur, niveau) ; une
+annonce par mort, dédoublonnée côté site ; opt-out par joueur (« mes morts restent privées ») ; la zone n'est pas
+dans le journal de combat (déduite du PNJ tueur via l'index quand c'est possible) ; le compagnon archive et vide le
+journal de combat quand le jeu n'est pas lancé (il grossit de plusieurs dizaines de Mo par soirée) ; les morts ainsi
+captées alimentent le compteur et le classement de la honte à la seconde. Prend tout son sens si Forever ouvre des
+serveurs Hardcore.
 
 ### Appairage et import côté site
 
