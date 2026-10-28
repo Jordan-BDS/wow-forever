@@ -331,7 +331,9 @@ class TestRelease:
                     {"tag_name": "v1.2.0", "draft": False, "prerelease": False, "assets": []},
                     {"tag_name": "companion-v0.3.1", "draft": False, "prerelease": False, "html_url": "https://github.com/x",
                      "published_at": "2026-12-01T10:00:00Z", "assets": [
+                         {"name": "WoWForeverGuilde_0.3.1_x64_en-US.msi", "browser_download_url": "https://dl/x.msi"},
                          {"name": "WoWForeverGuilde_0.3.1_x64-setup.exe", "browser_download_url": "https://dl/x.exe"},
+                         {"name": "WoWForeverGuilde_0.3.1_x64_en-US.msi.sig", "browser_download_url": "https://dl/x.msi.sig"},
                          {"name": "WoWForeverGuilde_0.3.1.dmg", "browser_download_url": "https://dl/x.dmg"},
                          {"name": "WoWForeverGuilde-addon-0.3.1.zip", "browser_download_url": "https://dl/addon.zip"},
                      ]},

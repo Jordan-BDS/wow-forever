@@ -518,8 +518,8 @@ def latest_release(force: bool = False) -> dict | None:
                     url = asset.get("browser_download_url")
                     if "addon" in name and name.endswith(".zip"):
                         assets["addon"] = url
-                    elif name.endswith((".msi", ".exe")):
-                        assets["windows"] = url
+                    elif name.endswith(".exe") or (name.endswith(".msi") and "windows" not in assets):
+                        assets["windows"] = url  # l'installeur exe (NSIS) a la priorité sur le msi
                     elif name.endswith(".dmg"):
                         assets["macos"] = url
                 release = {
