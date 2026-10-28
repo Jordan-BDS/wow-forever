@@ -22,7 +22,7 @@ class PollViewSet(viewsets.ModelViewSet):
     queryset = Poll.objects.select_related("created_by", "validated_by")
 
     def get_permissions(self):
-        if self.action in ("create", "update", "partial_update", "destroy"):
+        if self.action in ("create", "update", "partial_update", "destroy", "cancel"):
             return [permissions.IsAuthenticated(), IsOfficerOrAbove()]
         if self.action == "validate":
             return [permissions.IsAuthenticated(), IsGM()]
@@ -33,14 +33,30 @@ class PollViewSet(viewsets.ModelViewSet):
         notify.poll_opened(poll)
 
     def perform_update(self, serializer):
-        if serializer.instance.status == PollStatus.VALIDATED:
-            raise PermissionDenied("Un sondage validé ne se modifie plus.")
+        if serializer.instance.status in (PollStatus.VALIDATED, PollStatus.CANCELLED):
+            raise PermissionDenied("Un sondage validé ou annulé ne se modifie plus.")
         serializer.save()
 
     def perform_destroy(self, instance: Poll):
         if instance.proposals.exists():
-            raise PermissionDenied("Un sondage ne peut être supprimé qu'avant sa première proposition.")
+            raise PermissionDenied(
+                "Un sondage ne peut être supprimé qu'avant sa première proposition : annule-le plutôt."
+            )
         instance.delete()
+
+    @extend_schema(request=None, responses=PollSerializer)
+    @action(detail=True, methods=["post"])
+    def cancel(self, request: Request, pk=None) -> Response:
+        """Annule un sondage : il reste consultable, propositions et votes conservés, sans résultat."""
+        poll: Poll = self.get_object()
+        if poll.status == PollStatus.VALIDATED:
+            raise PermissionDenied("Un sondage validé ne peut plus être annulé.")
+        if poll.status != PollStatus.CANCELLED:
+            poll.cancelled_at = timezone.now()
+            poll.cancelled_by = request.user
+            poll.save(update_fields=["cancelled_at", "cancelled_by"])
+            notify.poll_cancelled(poll)
+        return Response(self.get_serializer(poll).data)
 
     @extend_schema(request=ProposalCreateSerializer, responses={201: ProposalSerializer})
     @action(detail=True, methods=["post"])

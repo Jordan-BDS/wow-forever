@@ -277,6 +277,13 @@ def poll_validated(poll: Poll) -> Notification:
     return notify_channel(NotificationKind.POLL_VALIDATED, text)
 
 
+def poll_cancelled(poll: Poll) -> Notification:
+    text = f"❌ Sondage annulé : **{poll.title}**"
+    if poll.cancelled_by:
+        text += f" (par {poll.cancelled_by.display_name})"
+    return notify_channel(NotificationKind.POLL_CANCELLED, f"{text}\n{poll_url(poll)}")
+
+
 # --- demandes de craft ------------------------------------------------------------
 
 

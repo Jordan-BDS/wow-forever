@@ -43,7 +43,9 @@ class ProposalCreateSerializer(serializers.ModelSerializer):
 
 
 class PollSerializer(serializers.ModelSerializer):
-    status = serializers.ChoiceField(choices=["proposals", "votes", "closed", "validated"], read_only=True)
+    status = serializers.ChoiceField(
+        choices=["proposals", "votes", "closed", "validated", "cancelled"], read_only=True
+    )
     created_by = OwnerSerializer(read_only=True)
     validated_by = OwnerSerializer(read_only=True)
     proposals = serializers.SerializerMethodField()
@@ -66,6 +68,7 @@ class PollSerializer(serializers.ModelSerializer):
             "validated_proposal",
             "validation_note",
             "validated_at",
+            "cancelled_at",
             "validated_by",
             "created_by",
             "created_at",
@@ -73,7 +76,13 @@ class PollSerializer(serializers.ModelSerializer):
             "my_proposal_count",
             "my_vote_count",
         ]
-        read_only_fields = ["validated_proposal", "validation_note", "validated_at", "created_at"]
+        read_only_fields = [
+            "validated_proposal",
+            "validation_note",
+            "validated_at",
+            "cancelled_at",
+            "created_at",
+        ]
         extra_kwargs = {"max_proposals_per_user": {"min_value": 1}, "max_votes_per_user": {"min_value": 1}}
 
     def validate(self, attrs):

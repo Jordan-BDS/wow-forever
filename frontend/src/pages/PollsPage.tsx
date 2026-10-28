@@ -16,7 +16,9 @@ export function PollsPage() {
 
   const list = polls.data ?? [];
   const open = list.filter((p) => p.status === "proposals" || p.status === "votes");
-  const done = list.filter((p) => p.status === "closed" || p.status === "validated");
+  const done = list.filter(
+    (p) => p.status === "closed" || p.status === "validated" || p.status === "cancelled",
+  );
 
   return (
     <>
@@ -69,7 +71,7 @@ export function PollCard({ poll }: { poll: Poll }) {
           <div>
             {poll.proposals.length} proposition{poll.proposals.length > 1 && "s"}
           </div>
-          {poll.my_vote_count === 0 && poll.status !== "validated" && poll.status !== "closed" && (
+          {poll.my_vote_count === 0 && (poll.status === "proposals" || poll.status === "votes") && (
             <div className="text-gold">Tu n'as pas encore voté</div>
           )}
         </div>

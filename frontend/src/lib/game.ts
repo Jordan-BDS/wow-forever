@@ -18,6 +18,7 @@ export const POLL_STATUS_LABEL: Record<PollStatus, string> = {
   votes: "Vote en cours",
   closed: "Clos, en attente de validation",
   validated: "Validé",
+  cancelled: "Annulé",
 };
 
 export function findClass(gamedata: GameData | undefined, slug: string): PlayerClass | undefined {

@@ -527,7 +527,7 @@ guilde** avant la sortie du jeu. Réutilisable ensuite (jour de raid, logo, nom 
 | Votes max par personne | ❌ | Vide = **illimité** (défaut) |
 | Règle de format | ❌ | `libre` (défaut) ou `nom de guilde WoW` : 2–24 caractères, lettres (accents acceptés) et espaces simples, ni chiffres ni caractères spéciaux |
 | Définit le nom de guilde | ❌ | Booléen : à la validation, la proposition gagnante devient le **nom de guilde** (paramètre de guilde, cf. étape 3) |
-| Statut | ✅ | `Propositions` → `Votes` → `Clos` → `Validé` (transitions automatiques aux dates, sauf la validation) |
+| Statut | ✅ | `Propositions` → `Votes` → `Clos` → `Validé` (transitions automatiques aux dates, sauf la validation), ou `Annulé` |
 
 **Déroulement :**
 
@@ -549,7 +549,9 @@ guilde** avant la sortie du jeu. Réutilisable ensuite (jour de raid, logo, nom 
 votants, en temps réel pendant toute la durée du sondage.
 
 **Modération :** les officiers et le GM peuvent supprimer n'importe quelle proposition et modifier les dates d'un
-sondage en cours (prolongation). Un sondage ne peut être supprimé qu'avant sa première proposition.
+sondage en cours (prolongation). Un sondage ne peut être **supprimé** qu'avant sa première proposition ; ensuite
+il peut être **annulé** à tout moment avant validation : il passe en `Annulé`, reste consultable avec ses
+propositions et ses votes, et aucun résultat ne sera validé. L'annulation est annoncée dans le salon des sondages.
 
 **Vues :**
 - Liste des sondages (en cours, puis clos / validés).

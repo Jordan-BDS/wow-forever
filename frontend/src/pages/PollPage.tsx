@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import clsx from "clsx";
 import { useState } from "react";
-import { Navigate, useParams } from "react-router";
+import { Navigate, useNavigate, useParams } from "react-router";
 import { api, errorMessage, type Poll, type Proposal } from "@/api/client";
 import { GUILD_KEY } from "@/api/guild";
 import { KEYS, useInvalidate, usePoll } from "@/api/hooks";
@@ -20,9 +20,31 @@ export function PollPage() {
 
 function PollDetail({ poll }: { poll: Poll }) {
   const me = useCurrentUser();
+  const navigate = useNavigate();
   const invalidate = useInvalidate();
   const [error, setError] = useState<string | null>(null);
   const refresh = () => invalidate(KEYS.poll(poll.id), KEYS.polls);
+
+  const remove = useMutation({
+    mutationFn: async () => {
+      const { error } = await api.DELETE("/api/polls/{id}/", { params: { path: { id: poll.id } } });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await invalidate(KEYS.polls);
+      navigate("/sondages");
+    },
+    onError: (e) => setError(errorMessage(e)),
+  });
+
+  const cancel = useMutation({
+    mutationFn: async () => {
+      const { error } = await api.POST("/api/polls/{id}/cancel/", { params: { path: { id: poll.id } } });
+      if (error) throw error;
+    },
+    onSuccess: refresh,
+    onError: (e) => setError(errorMessage(e)),
+  });
 
   const vote = useMutation({
     mutationFn: async ({ proposal, on }: { proposal: Proposal; on: boolean }) => {
@@ -50,10 +72,51 @@ function PollDetail({ poll }: { poll: Poll }) {
   const voteLimitReached = poll.max_votes_per_user != null && poll.my_vote_count >= poll.max_votes_per_user;
   const winner = poll.proposals.find((p) => p.id === poll.validated_proposal);
   const topVotes = poll.proposals[0]?.vote_count ?? 0;
+  const canDelete = isOfficer && poll.proposals.length === 0 && poll.status !== "validated";
+  const canCancel = isOfficer && poll.status !== "validated" && poll.status !== "cancelled";
 
   return (
     <>
-      <PageTitle>{poll.title}</PageTitle>
+      <PageTitle
+        actions={
+          (canDelete || canCancel) && (
+            <div className="flex flex-wrap gap-2">
+              {canCancel && (
+                <Button
+                  variant="danger"
+                  disabled={cancel.isPending}
+                  onClick={() => {
+                    if (window.confirm("Annuler ce sondage ? Il restera consultable, sans résultat.")) {
+                      cancel.mutate();
+                    }
+                  }}
+                >
+                  Annuler le sondage
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="ghost"
+                  disabled={remove.isPending}
+                  onClick={() => {
+                    if (window.confirm("Supprimer définitivement ce sondage ?")) remove.mutate();
+                  }}
+                >
+                  Supprimer
+                </Button>
+              )}
+            </div>
+          )
+        }
+      >
+        {poll.title}
+      </PageTitle>
+      {poll.status === "cancelled" && (
+        <Card className="mb-4 border-danger/50 text-sm">
+          Sondage annulé{poll.cancelled_at && ` le ${formatDateTime(poll.cancelled_at)}`}. Les propositions et
+          les votes restent visibles, aucun résultat ne sera validé.
+        </Card>
+      )}
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
           {poll.status === "validated" && winner && (

@@ -15,6 +15,7 @@ class PollStatus(models.TextChoices):
     VOTES = "votes", "Votes"
     CLOSED = "closed", "Clos"
     VALIDATED = "validated", "Validé"
+    CANCELLED = "cancelled", "Annulé"
 
 
 # 2 à 24 caractères, lettres (accents compris) séparées par des espaces simples.
@@ -46,6 +47,10 @@ class Poll(models.Model):
     validated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
+    cancelled_at = models.DateTimeField("Annulé le", null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="polls_created"
     )
@@ -62,6 +67,8 @@ class Poll(models.Model):
 
     @property
     def status(self) -> str:
+        if self.cancelled_at:
+            return PollStatus.CANCELLED
         if self.validated_proposal_id:
             return PollStatus.VALIDATED
         now = timezone.now()

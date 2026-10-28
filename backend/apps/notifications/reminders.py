@@ -36,7 +36,7 @@ def scan_due_reminders(now=None) -> int:
             event.reminder_sent_at = now
             event.save(update_fields=["reminder_sent_at"])
 
-    open_polls = Poll.objects.filter(validated_proposal__isnull=True)
+    open_polls = Poll.objects.filter(validated_proposal__isnull=True, cancelled_at__isnull=True)
     for poll in open_polls.filter(
         proposals_reminder_sent=False, proposals_end__gt=now, proposals_end__lte=now + POLL_REMINDER_LEAD
     ):

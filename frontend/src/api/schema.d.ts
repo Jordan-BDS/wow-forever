@@ -794,6 +794,23 @@ export interface paths {
         patch: operations["polls_partial_update"];
         trace?: never;
     };
+    "/api/polls/{id}/cancel/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Annule un sondage : il reste consultable, propositions et votes conservés, sans résultat. */
+        post: operations["polls_cancel_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/polls/{id}/propose/": {
         parameters: {
             query?: never;
@@ -1863,6 +1880,11 @@ export interface components {
             readonly validation_note: string;
             /** Format: date-time */
             readonly validated_at: string | null;
+            /**
+             * Annulé le
+             * Format: date-time
+             */
+            readonly cancelled_at: string | null;
             readonly validated_by: components["schemas"]["Owner"];
             readonly created_by: components["schemas"]["Owner"];
             /** Format: date-time */
@@ -1906,9 +1928,10 @@ export interface components {
          *     * `votes` - votes
          *     * `closed` - closed
          *     * `validated` - validated
+         *     * `cancelled` - cancelled
          * @enum {string}
          */
-        PollStatusEnum: "proposals" | "votes" | "closed" | "validated";
+        PollStatusEnum: "proposals" | "votes" | "closed" | "validated" | "cancelled";
         Profession: {
             readonly id: number;
             slug: string;
@@ -3977,6 +4000,28 @@ export interface operations {
                 "multipart/form-data": components["schemas"]["PatchedPollRequest"];
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Poll"];
+                };
+            };
+        };
+    };
+    polls_cancel_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) valeur entière unique identifiant ce(cette) sondage. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {

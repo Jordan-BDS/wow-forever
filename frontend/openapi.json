@@ -3119,6 +3119,43 @@
                 }
             }
         },
+        "/api/polls/{id}/cancel/": {
+            "post": {
+                "operationId": "polls_cancel_create",
+                "description": "Annule un sondage : il reste consultable, propositions et votes conservés, sans résultat.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Un(une) valeur entière unique identifiant ce(cette) sondage.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "polls"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Poll"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/polls/{id}/propose/": {
             "post": {
                 "operationId": "polls_propose_create",
@@ -6025,6 +6062,13 @@
                         "readOnly": true,
                         "nullable": true
                     },
+                    "cancelled_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true,
+                        "title": "Annulé le"
+                    },
                     "validated_by": {
                         "allOf": [
                             {
@@ -6063,6 +6107,7 @@
                     }
                 },
                 "required": [
+                    "cancelled_at",
                     "created_at",
                     "created_by",
                     "id",
@@ -6141,10 +6186,11 @@
                     "proposals",
                     "votes",
                     "closed",
-                    "validated"
+                    "validated",
+                    "cancelled"
                 ],
                 "type": "string",
-                "description": "* `proposals` - proposals\n* `votes` - votes\n* `closed` - closed\n* `validated` - validated"
+                "description": "* `proposals` - proposals\n* `votes` - votes\n* `closed` - closed\n* `validated` - validated\n* `cancelled` - cancelled"
             },
             "Profession": {
                 "type": "object",

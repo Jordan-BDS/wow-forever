@@ -75,6 +75,43 @@ class TestPollManagement:
         propose(as_user(member), poll, "Les Potes")
         assert as_user(officer).delete(f"/api/polls/{poll.pk}/").status_code == 403
 
+    def test_officer_cancels_poll_which_freezes_it(self, as_user, officer, member, gm):
+        from apps.notifications.models import Notification
+
+        poll = make_poll(officer)
+        propose(as_user(member), poll, "Les Potes")
+        assert as_user(member).post(f"/api/polls/{poll.pk}/cancel/").status_code == 403
+        response = as_user(officer).post(f"/api/polls/{poll.pk}/cancel/")
+        assert response.status_code == 200 and response.data["status"] == "cancelled"
+        assert len(response.data["proposals"]) == 1  # propositions conservées
+        assert Notification.objects.filter(kind="poll_cancelled").count() == 1
+        assert as_user(officer).post(f"/api/polls/{poll.pk}/cancel/").status_code == 200  # idempotent
+        assert Notification.objects.filter(kind="poll_cancelled").count() == 1
+        # Plus rien ne bouge : ni proposition, ni vote, ni modification, ni validation.
+        assert propose(as_user(member), poll, "Autre").status_code == 400
+        proposal_id = response.data["proposals"][0]["id"]
+        assert as_user(member).post(f"/api/proposals/{proposal_id}/vote/").status_code == 400
+        assert (
+            as_user(officer).patch(f"/api/polls/{poll.pk}/", {"title": "x"}, format="json").status_code == 403
+        )
+        assert as_user(gm).post(f"/api/polls/{poll.pk}/validate/", {}, format="json").status_code in (
+            400,
+            403,
+        )
+        # Un sondage validé ne peut pas être annulé.
+        done = make_poll(officer)
+        winner = propose(as_user(member), done, "Gagnant").data["id"]
+        Poll.objects.filter(pk=done.pk).update(
+            proposals_end=NOW - timedelta(days=2), votes_end=NOW - timedelta(hours=1)
+        )
+        assert (
+            as_user(gm)
+            .post(f"/api/polls/{done.pk}/validate/", {"proposal": winner}, format="json")
+            .status_code
+            == 200
+        )
+        assert as_user(officer).post(f"/api/polls/{done.pk}/cancel/").status_code == 403
+
 
 class TestProposals:
     def test_member_proposes_up_to_the_limit(self, as_user, officer, member):

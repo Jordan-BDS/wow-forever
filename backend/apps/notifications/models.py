@@ -18,6 +18,7 @@ class NotificationKind(models.TextChoices):
     POLL_OPENED = "poll_opened", "Sondage ouvert"
     POLL_REMINDER = "poll_reminder", "Rappel de sondage"
     POLL_VALIDATED = "poll_validated", "Sondage validé"
+    POLL_CANCELLED = "poll_cancelled", "Sondage annulé"
     CRAFT_REQUEST = "craft_request", "Demande de craft"
     CRAFT_UPDATE = "craft_update", "Suivi de demande de craft"
 
@@ -49,6 +50,7 @@ CHANNEL_FIELD_FOR_KIND = {
     NotificationKind.POLL_OPENED: "discord_polls_channel_id",
     NotificationKind.POLL_REMINDER: "discord_polls_channel_id",
     NotificationKind.POLL_VALIDATED: "discord_polls_channel_id",
+    NotificationKind.POLL_CANCELLED: "discord_polls_channel_id",
     NotificationKind.CRAFT_REQUEST: "discord_crafts_channel_id",
 }
 
