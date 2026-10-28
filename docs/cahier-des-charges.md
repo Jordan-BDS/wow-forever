@@ -704,7 +704,7 @@ périmètre a été réduit pour s'appuyer sur Wowhead.
 | **6 — Catalogue et crafts** | — | Catalogue de recettes, recettes connues, « qui sait crafter ? », demandes de craft | 6 |
 | **7 — Appairage et import** | nov. 2026 | Code d'appairage, jeton de compagnon, point d'import versionné, stockage brut par personnage, mise à jour des champs du personnage, badge « synchronisé », import de secours par collage de chaîne | 11 |
 | **8 — Addon** | dès le client du 4 nov. 2026 | Collecte en jeu (personnage, équipement, talents, métiers et recettes, accès, verrous, réputations), puis compteurs d'activité | 11 |
-| **9 — Compagnon** | déc. 2026 | Application Tauri : appairage, dossier WoW, surveillance du fichier, envoi, mise à jour automatique | 11 |
+| **9 — Compagnon** | déc. 2026 | Application Tauri : appairage, dossier WoW, installation et mise à jour de l'addon embarqué, surveillance du fichier, envoi, mise à jour automatique ; release GitHub par CI ; page « Compagnon » du profil | 11 |
 | **10 — Fiche vivante et classements** | — | Onglets « En jeu », comparaisons porté / planifié, progression de guilde, classements par période, récap hebdomadaire Discord | 11 |
 
 **État au 27 octobre 2026 : les six lots sont livrés et fusionnés dans `main`.** Reste la mise en ligne (VPS,
@@ -787,6 +787,29 @@ surveillance de fichier et aux appels HTTP, exécutable de quelques Mo, mise à 
 - Distribution : GitHub Releases, mise à jour automatique Tauri. Sans certificat de signature, Windows affiche
   l'avertissement SmartScreen au premier lancement (acceptable pour la guilde ; Azure Trusted Signing en option) ;
   macOS demande un compte développeur Apple (99 $/an), à décider selon la demande.
+
+### Distribution et installation (décisions du 28 octobre 2026)
+
+**Un seul téléchargement pour le joueur : l'exécutable du compagnon, qui installe et met à jour l'addon.**
+
+- **Dépôt** : `companion/` (Tauri) et `addon/WoWForeverGuilde/` (Lua) rejoignent le monorepo. Le dossier de l'addon
+  est **embarqué dans l'exécutable** comme ressource à la compilation : une seule version pour les deux.
+- **Compilation par GitHub Actions**, jamais sur le VPS (`make update` ne change pas) : un tag `companion-vX.Y.Z`
+  déclenche la construction sur des machines Windows et macOS, la signature du mécanisme de mise à jour Tauri et
+  la publication d'une **release GitHub** (exe, dmg, fichier de mise à jour, et l'addon seul en zip pour le secours).
+- **Installation de l'addon par le compagnon** : au lancement, il compare la version présente dans
+  `Interface/AddOns/WoWForeverGuilde/` avec la sienne et copie la bonne ; si le jeu tourne, il demande une
+  reconnexion ou un `/reload`. Le joueur ne touche jamais au dossier WoW.
+- **Mise à jour** : le compagnon se met à jour tout seul (updater Tauri sur la release GitHub) puis met l'addon à
+  jour dans la foulée.
+- **Page « Compagnon » du profil** : boutons de téléchargement Windows / macOS pointant vers la dernière release
+  (version et date affichées), génération du code d'appairage, état du lien (machine, version de l'addon, dernier
+  envoi), lien de secours vers l'addon seul et vers l'import par collage de chaîne.
+- **Backend** : un point d'API lit la dernière release GitHub (cache d'une heure) pour la page et pour signaler
+  un compagnon trop ancien à l'import.
+- **Limites acceptées** : avertissement SmartScreen au premier lancement sans certificat (les mises à jour
+  suivantes passent grâce à la signature Tauri) ; macOS exige un clic droit « Ouvrir » sans compte développeur ;
+  détection du dossier WoW pour les installations standard, choix manuel sinon.
 
 ### Appairage et import côté site
 
