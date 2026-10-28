@@ -289,7 +289,7 @@ def craft_requested(craft) -> list[Notification]:
     created = [
         notify_channel(
             NotificationKind.CRAFT_REQUEST,
-            f"🔨 Demande de craft : {label} pour {craft.requester.display_name}"
+            f"🔨 {craft.recipe.profession.name} : {label} pour {craft.requester.display_name}"
             + (f" (cible : {craft.target_character.name})" if craft.target_character else "")
             + f"\n{craft_url(craft)}",
         )

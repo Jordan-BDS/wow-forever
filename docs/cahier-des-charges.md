@@ -488,7 +488,7 @@ pas d'écriture ni de fils), avec les droits d'écriture pour le bot, et enregis
   chaque placement).
 - Rappel avant un événement (délai configurable, ex. 1 h avant).
 - Événement annulé ou modifié (date/heure).
-- Nouvelle demande de craft.
+- Nouvelle demande de craft, titrée par le métier (ex. « Forge : 2 × Épée pour Koj »).
 - Sondage ouvert, rappel 24 h avant la fin des propositions et avant la fin des votes, résultat validé.
 
 **Messages privés (MP)** au joueur concerné :
