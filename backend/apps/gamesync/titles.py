@@ -66,9 +66,8 @@ def award_weekly_titles(now: datetime | None = None) -> list[WeeklyTitle]:
             key: CATEGORY_BY_KEY[category].counter or category for key, _, category in WEEKLY_TITLES
         }
         week_end = week_start + timedelta(days=6)
-        lines = [
-            f"🏆 **Roxors de la semaine passée** ({week_start.strftime('%d/%m')} → {week_end.strftime('%d/%m')})"
-        ]
+        span = f"{week_start.strftime('%d/%m')} → {week_end.strftime('%d/%m')}"
+        lines = [f"🏆 **Roxors de la semaine passée** ({span})"]
         for title in created:
             perso = f" ({title.character.name})" if title.character else ""
             value = format_value(counter_by_title[title.key], title.value)
