@@ -703,7 +703,7 @@ périmètre a été réduit pour s'appuyer sur Wowhead.
 | **5 — Fiche de personnage** | — | Sets d'équipement, calculateur de talents et builds, projection, somme des stats brutes | 4 |
 | **6 — Catalogue et crafts** | — | Catalogue de recettes, recettes connues, « qui sait crafter ? », demandes de craft | 6 |
 | **7 — Appairage et import** | **livré le 28 oct. 2026** | Code d'appairage, jeton de compagnon, point d'import versionné, stockage brut par personnage, mise à jour des champs du personnage, badge « synchronisé », import de secours par collage de chaîne | 11 |
-| **8 — Addon** | dès le client du 4 nov. 2026 | Collecte en jeu (personnage, équipement, talents, métiers et recettes, accès, verrous, réputations), puis compteurs d'activité | 11 |
+| **8 — Addon** | **cœur livré le 28 oct. 2026**, collecteurs à valider sur le client du 4 nov. | Collecte en jeu (personnage, équipement, talents, métiers et recettes, accès, verrous, réputations), puis compteurs d'activité | 11 |
 | **9 — Compagnon** | déc. 2026 | Application Tauri : appairage, dossier WoW, installation et mise à jour de l'addon embarqué, surveillance du fichier, envoi, mise à jour automatique ; release GitHub par CI ; page « Compagnon » du profil ; extension : annonces de mort en direct via le journal de chat | 11 |
 | **10 — Fiche vivante et classements** | — | Onglets « En jeu », comparaisons porté / planifié, progression de guilde, classements par période, récap hebdomadaire Discord | 11 |
 

@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from apps.characters import services as character_services
 from apps.characters.models import Character, CharacterProfession, CharacterSource, KnownRecipe
-from apps.gamedata.models import PlayerClass, Profession, Race, Recipe, Specialization
+from apps.gamedata.models import PlayerClass, Profession, Race, Recipe
 from apps.guild.models import GuildSettings
 
 from .format import ExportError, decode_export
@@ -151,6 +151,7 @@ class ParsedCharacter:
     level: int
     exported_at: datetime
     spec: str
+    spec_tab: int | None
     raw: dict[str, Any]
 
 
@@ -180,6 +181,7 @@ def parse_character(raw: Any) -> ParsedCharacter:
         level=level,
         exported_at=_to_datetime(raw.get("exported_at")),
         spec=str(raw.get("spec") or "").strip().lower(),
+        spec_tab=raw.get("spec_tab") if isinstance(raw.get("spec_tab"), int) else None,
         raw=raw,
     )
 
@@ -193,14 +195,16 @@ def race_slug(token: str) -> str:
     return token.lower()
 
 
-def default_role(player_class: PlayerClass, spec_slug: str) -> str:
+def default_role(player_class: PlayerClass, spec_slug: str, spec_tab: int | None = None) -> str:
+    """Rôle par défaut d'un personnage créé par l'import : celui de sa spécialisation (slug ou arbre)."""
+    specs = list(player_class.specializations.order_by("order"))
     spec = None
     if spec_slug:
-        spec = Specialization.objects.filter(
-            player_class=player_class, slug=f"{player_class.slug}-{spec_slug}"
-        ).first()
-    if spec is None:
-        spec = player_class.specializations.order_by("order").first()
+        spec = next((s for s in specs if s.slug == f"{player_class.slug}-{spec_slug}"), None)
+    if spec is None and spec_tab and 1 <= spec_tab <= len(specs):
+        spec = specs[spec_tab - 1]  # l'ordre des arbres de talents suit celui des spécialisations du site
+    if spec is None and specs:
+        spec = specs[0]
     roles = spec.roles if spec else []
     return roles[0] if roles else "dps"
 
@@ -336,7 +340,7 @@ def _create(
         player_class=player_class,
         race=race,
         level=parsed.level,
-        main_role=default_role(player_class, parsed.spec),
+        main_role=default_role(player_class, parsed.spec, parsed.spec_tab),
         source=CharacterSource.ADDON,
         roles_confirmed=False,
     )
