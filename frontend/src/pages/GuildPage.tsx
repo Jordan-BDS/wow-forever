@@ -27,6 +27,9 @@ type Form = {
   realm: string;
   values: string;
   discord_channel_id: string;
+  discord_agenda_channel_id: string;
+  discord_crafts_channel_id: string;
+  discord_polls_channel_id: string;
   reminder_minutes: number;
   discord_client_id: string;
   discord_client_secret: string;
@@ -41,7 +44,29 @@ type Check = {
   detail: string;
   guild_name: string;
   roles: { id: string; name: string; allowed: boolean }[];
+  channels: { id: string; name: string; category: string }[];
 };
+
+type ChannelField =
+  | "discord_agenda_channel_id"
+  | "discord_crafts_channel_id"
+  | "discord_polls_channel_id"
+  | "discord_channel_id";
+
+const CHANNEL_FIELDS: { field: ChannelField; label: string; hint: string }[] = [
+  {
+    field: "discord_agenda_channel_id",
+    label: "Agenda",
+    hint: "Messages d'inscription à boutons, déplacements, annulations, rappels, compositions",
+  },
+  { field: "discord_crafts_channel_id", label: "Demandes de craft", hint: "Nouvelles demandes" },
+  { field: "discord_polls_channel_id", label: "Sondages", hint: "Ouverture, rappels, résultat" },
+  {
+    field: "discord_channel_id",
+    label: "Général (secours)",
+    hint: "Reçoit les annonces dont le salon dédié n'est pas renseigné",
+  },
+];
 
 function GuildForm({ initial }: { initial: GuildSettings }) {
   const queryClient = useQueryClient();
@@ -51,6 +76,9 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
     realm: initial.realm ?? "",
     values: initial.values ?? "",
     discord_channel_id: initial.discord_channel_id ?? "",
+    discord_agenda_channel_id: initial.discord_agenda_channel_id ?? "",
+    discord_crafts_channel_id: initial.discord_crafts_channel_id ?? "",
+    discord_polls_channel_id: initial.discord_polls_channel_id ?? "",
     reminder_minutes: initial.reminder_minutes ?? 60,
     discord_client_id: initial.discord_client_id ?? "",
     discord_client_secret: "",
@@ -87,7 +115,7 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
       return data as Check;
     },
     onSuccess: setCheck,
-    onError: (e) => setCheck({ ok: false, detail: errorMessage(e), guild_name: "", roles: [] }),
+    onError: (e) => setCheck({ ok: false, detail: errorMessage(e), guild_name: "", roles: [], channels: [] }),
   });
 
   const update = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
@@ -143,17 +171,39 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
       </Card>
 
       <Card className="space-y-4">
-        <h2 className="font-display text-lg">Annonces du bot</h2>
-        <Field label="ID du salon des annonces">
-          <Input
-            value={form.discord_channel_id}
-            maxLength={32}
-            inputMode="numeric"
-            placeholder="Clic droit sur le salon → Copier l'identifiant"
-            onChange={(e) => update({ discord_channel_id: e.target.value.trim() })}
-          />
-          {Err("discord_channel_id")}
-        </Field>
+        <h2 className="font-display text-lg">Salons du bot</h2>
+        {CHANNEL_FIELDS.map(({ field, label, hint }) => (
+          <Field key={field} label={label}>
+            {check && check.channels.length > 0 ? (
+              <Select
+                className="w-full"
+                value={form[field]}
+                onChange={(e) => update({ [field]: e.target.value } as Partial<Form>)}
+              >
+                <option value="">— aucun —</option>
+                {check.channels.map((channel) => (
+                  <option key={channel.id} value={channel.id}>
+                    #{channel.name}
+                    {channel.category && ` (${channel.category})`}
+                  </option>
+                ))}
+                {form[field] && !check.channels.some((c) => c.id === form[field]) && (
+                  <option value={form[field]}>ID {form[field]} (salon introuvable)</option>
+                )}
+              </Select>
+            ) : (
+              <Input
+                value={form[field]}
+                maxLength={32}
+                inputMode="numeric"
+                placeholder="ID du salon, ou « Vérifier le serveur » pour choisir dans une liste"
+                onChange={(e) => update({ [field]: e.target.value.trim() } as Partial<Form>)}
+              />
+            )}
+            <p className="text-xs text-muted">{hint}</p>
+            {Err(field)}
+          </Field>
+        ))}
         <Field label="Rappel avant un événement (minutes, 0 = aucun)">
           <Input
             type="number"
@@ -164,8 +214,9 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
           />
         </Field>
         <p className="text-xs text-muted">
-          Le bot publie dans ce salon les nouveaux événements, les annulations, les compositions, les rappels
-          et les sondages.
+          Les salons agenda et demande-de-craft se créent en lecture seule (réactions et boutons autorisés)
+          avec la commande <code className="rounded bg-bg px-1">discord_setup_channels</code>, qui les
+          enregistre ici. Clique « Vérifier le serveur » ci-dessous pour choisir les salons dans une liste.
         </p>
       </Card>
 
@@ -252,7 +303,7 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Button type="button" variant="ghost" disabled={verify.isPending} onClick={() => verify.mutate()}>
-            Vérifier le serveur et les rôles
+            Vérifier le serveur, les rôles et les salons
           </Button>
           <span className="text-xs text-muted">Utilise les valeurs enregistrées : enregistre d'abord.</span>
         </div>

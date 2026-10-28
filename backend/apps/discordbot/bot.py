@@ -71,9 +71,9 @@ class GuildBot(commands.Bot):
                     user = await self.fetch_user(int(notification.recipient.discord_id))
                     await user.send(notification.text)
                 else:
-                    channel_id = await db(services.announcement_channel_id)()
+                    channel_id = await db(services.channel_id_for)(notification.kind)
                     if channel_id is None:
-                        await db(services.mark_skipped)(notification, "Aucun salon d'annonces configuré.")
+                        await db(services.mark_skipped)(notification, "Aucun salon configuré pour ce type.")
                         continue
                     channel = self.get_channel(channel_id) or await self.fetch_channel(channel_id)
                     await channel.send(notification.text)

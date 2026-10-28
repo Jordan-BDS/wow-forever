@@ -462,11 +462,18 @@ Un **bot Discord** dédié à la guilde.
   (suppression = annulation sur le site, l'historique reste). Un créateur sans compte est ignoré.
 - Le bouton « Intéressé » de Discord n'est pas une inscription : il ne porte ni personnage ni rôle.
 
-**Message d'inscription dans le salon** (salon configurable) :
+**Salons** : quatre réglages dans Guilde › Paramètres, choisis dans la liste des salons texte du serveur après
+« Vérifier le serveur » : `#agenda` (messages d'inscription, déplacements, annulations, rappels, compositions),
+`#demande-de-craft` (nouvelles demandes), `#sondages` (ouverture, rappels, résultat) et un salon général de
+secours qui reçoit ce dont le salon dédié n'est pas renseigné. La commande `discord_setup_channels` crée
+`#agenda` et `#demande-de-craft` en **lecture seule** pour les membres (voir, réagir, utiliser les boutons ;
+pas d'écriture ni de fils), avec les droits d'écriture et d'épinglage pour le bot, et enregistre les IDs.
+
+**Message d'inscription dans `#agenda`** :
 - À la création d'un événement, le bot publie un message avec l'état de l'événement, les inscrits par rôle
   (✅ = confirmé) et des boutons Présent / Peut-être / En retard / Absent / Me désinscrire. Il est réédité à
   chaque changement (inscription sur le site ou via les boutons, placement, date, annulation), et les boutons
-  disparaissent quand les inscriptions ferment.
+  disparaissent quand les inscriptions ferment. Il reste **épinglé** tant que l'événement est à venir.
 - Un clic inscrit le joueur avec son unique combinaison perso / rôle possible, sinon un menu éphémère lui fait
   choisir ; une inscription existante ne change que de statut.
 - Le site écrit une demande `event_sync` dédupliquée dans l'outbox ; le bot la dépile et aligne Discord. Les
@@ -494,7 +501,8 @@ Un **bot Discord** dédié à la guilde.
 **Préférences** : chaque joueur peut désactiver les MP (globalement ou par type : placement, rappels, crafts)
 depuis son profil.
 
-**Réglages** (GM, page Paramètres) : ID du salon des annonces, délai de rappel avant un événement (défaut 60 min).
+**Réglages** (GM, page Paramètres) : salons (agenda, crafts, sondages, général), délai de rappel avant un
+événement (défaut 60 min).
 Les rappels de sondage partent 24 h avant chaque échéance. Une notification en échec est retentée trois fois puis
 marquée en erreur, visible dans l'admin.
 

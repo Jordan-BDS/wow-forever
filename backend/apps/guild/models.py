@@ -24,7 +24,25 @@ class GuildSettings(models.Model):
         ),
     )
     discord_channel_id = models.CharField(
-        "Salon Discord des annonces", max_length=32, blank=True, help_text="Le bot y publie les annonces."
+        "Salon Discord général",
+        max_length=32,
+        blank=True,
+        help_text="Secours : reçoit les annonces dont le salon dédié n'est pas renseigné.",
+    )
+    discord_agenda_channel_id = models.CharField(
+        "Salon Discord de l'agenda",
+        max_length=32,
+        blank=True,
+        help_text="Messages d'inscription des événements, déplacements, annulations, rappels, compositions.",
+    )
+    discord_crafts_channel_id = models.CharField(
+        "Salon Discord des demandes de craft",
+        max_length=32,
+        blank=True,
+        help_text="Nouvelles demandes de craft.",
+    )
+    discord_polls_channel_id = models.CharField(
+        "Salon Discord des sondages", max_length=32, blank=True, help_text="Ouverture, rappels et résultats."
     )
     reminder_minutes = models.PositiveSmallIntegerField(
         "Rappel avant un événement (minutes)", default=60, help_text="0 = pas de rappel."

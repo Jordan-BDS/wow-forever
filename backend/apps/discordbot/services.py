@@ -19,7 +19,12 @@ from apps.events.models import Event, EventKind, EventStatus, SignupStatus
 from apps.gamedata.models import Role
 from apps.guild.models import GuildSettings
 from apps.notifications import services as notify
-from apps.notifications.models import Notification, NotificationKind, NotificationStatus
+from apps.notifications.models import (
+    CHANNEL_FIELD_FOR_KIND,
+    Notification,
+    NotificationKind,
+    NotificationStatus,
+)
 from apps.notifications.services import discord_time, event_url
 
 logger = logging.getLogger(__name__)
@@ -62,9 +67,21 @@ def mark_skipped(notification: Notification, reason: str) -> None:
     notification.save(update_fields=["status", "error"])
 
 
+def _channel_id(raw: str) -> int | None:
+    return int(raw) if raw and raw.isdigit() else None
+
+
 def announcement_channel_id() -> int | None:
-    raw = GuildSettings.load().discord_channel_id
-    return int(raw) if raw.isdigit() else None
+    """Le salon général (secours)."""
+    return _channel_id(GuildSettings.load().discord_channel_id)
+
+
+def channel_id_for(kind: str) -> int | None:
+    """Salon où publier ce type de message : le salon dédié s'il est renseigné, sinon le salon général."""
+    stored = GuildSettings.load()
+    field = CHANNEL_FIELD_FOR_KIND.get(kind)
+    dedicated = _channel_id(getattr(stored, field)) if field else None
+    return dedicated if dedicated is not None else _channel_id(stored.discord_channel_id)
 
 
 # --- accès -----------------------------------------------------------------------------
