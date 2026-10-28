@@ -1,12 +1,11 @@
 """
 Prépare les salons Discord liés au site : crée « agenda » et « demande-de-craft » s'ils manquent, en lecture
 seule pour les membres (réactions et boutons autorisés, pas de messages), avec les droits nécessaires au bot
-(envoyer, intégrer des liens, épingler). Enregistre les IDs dans Guilde › Paramètres, et retient le salon
+(envoyer, intégrer des liens). Enregistre les IDs dans Guilde › Paramètres, et retient le salon
 « sondages » existant pour les sondages s'il y en a un.
 
-Prérequis : le bot invité avec « Gérer les salons », « Gérer les rôles » (indispensable pour poser des
-permissions par salon) et « Épingler les messages » (permission distincte de « Gérer les messages » : un bot
-ne peut accorder par salon que les droits qu'il possède lui-même). Rejouable sans effet si tout est en place.
+Prérequis : le bot invité avec « Gérer les salons » et « Gérer les rôles » (indispensable pour poser des
+permissions par salon). Rejouable sans effet si tout est déjà en place.
 """
 
 from django.core.management.base import BaseCommand, CommandError
@@ -32,21 +31,12 @@ USE_APPLICATION_COMMANDS = 1 << 31
 CREATE_PUBLIC_THREADS = 1 << 35
 CREATE_PRIVATE_THREADS = 1 << 36
 SEND_MESSAGES_IN_THREADS = 1 << 38
-PIN_MESSAGES = 1 << 51  # permission séparée de « Gérer les messages » depuis 2025
 
 EVERYONE_ALLOW = VIEW_CHANNEL | READ_MESSAGE_HISTORY | ADD_REACTIONS | USE_APPLICATION_COMMANDS
 EVERYONE_DENY = (
     SEND_MESSAGES | ATTACH_FILES | CREATE_PUBLIC_THREADS | CREATE_PRIVATE_THREADS | SEND_MESSAGES_IN_THREADS
 )
-BOT_ALLOW = (
-    VIEW_CHANNEL
-    | SEND_MESSAGES
-    | EMBED_LINKS
-    | ATTACH_FILES
-    | MANAGE_MESSAGES
-    | PIN_MESSAGES
-    | READ_MESSAGE_HISTORY
-)
+BOT_ALLOW = VIEW_CHANNEL | SEND_MESSAGES | EMBED_LINKS | ATTACH_FILES | MANAGE_MESSAGES | READ_MESSAGE_HISTORY
 
 # (option de nom, champ de GuildSettings, sujet du salon)
 MANAGED = [

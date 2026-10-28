@@ -467,13 +467,13 @@ Un **bot Discord** dédié à la guilde.
 `#demande-de-craft` (nouvelles demandes), `#sondages` (ouverture, rappels, résultat) et un salon général de
 secours qui reçoit ce dont le salon dédié n'est pas renseigné. La commande `discord_setup_channels` crée
 `#agenda` et `#demande-de-craft` en **lecture seule** pour les membres (voir, réagir, utiliser les boutons ;
-pas d'écriture ni de fils), avec les droits d'écriture et d'épinglage pour le bot, et enregistre les IDs.
+pas d'écriture ni de fils), avec les droits d'écriture pour le bot, et enregistre les IDs.
 
 **Message d'inscription dans `#agenda`** :
 - À la création d'un événement, le bot publie un message avec l'état de l'événement, les inscrits par rôle
   (✅ = confirmé) et des boutons Présent / Peut-être / En retard / Absent / Me désinscrire. Il est réédité à
   chaque changement (inscription sur le site ou via les boutons, placement, date, annulation), et les boutons
-  disparaissent quand les inscriptions ferment. Il reste **épinglé** tant que l'événement est à venir.
+  disparaissent quand les inscriptions ferment.
 - Un clic inscrit le joueur avec son unique combinaison perso / rôle possible, sinon un menu éphémère lui fait
   choisir ; une inscription existante ne change que de statut.
 - Le site écrit une demande `event_sync` dédupliquée dans l'outbox ; le bot la dépile et aligne Discord. Les

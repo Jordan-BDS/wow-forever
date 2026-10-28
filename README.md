@@ -64,7 +64,7 @@ Dans le [Discord Developer Portal](https://discord.com/developers/applications),
 1. **OAuth2** : récupérer *Client ID* et *Client Secret*, ajouter l'URL de retour dans *Redirects*.
 2. **Bot** : créer le bot, copier son token, activer l'intent privilégié *Server Members*. Inviter le bot sur le
    serveur avec les scopes `bot` et `applications.commands`, et les permissions *Voir les salons*, *Envoyer des
-   messages*, *Gérer les messages*, *Épingler les messages*, *Intégrer des liens*, *Lire l'historique*, *Gérer les événements*
+   messages*, *Gérer les messages*, *Intégrer des liens*, *Lire l'historique*, *Gérer les événements*
    (onglet Événements synchronisé avec l'agenda), *Gérer les salons* et *Gérer les rôles* (commandes de
    configuration). Puis `manage.py discord_setup_roles` et `manage.py discord_setup_channels` créent les rôles
    et les salons `#agenda` / `#demande-de-craft` (lecture seule pour les membres) et les enregistrent dans

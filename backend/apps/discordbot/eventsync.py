@@ -184,19 +184,3 @@ async def _sync_signup_message(bot: discord.Client, snap: services.EventSnapshot
         await db(services.store_discord_ids)(snap.id, discord_message_id=str(message.id))
     elif message.content != snap.message_text or bool(message.components) != bool(view):
         await message.edit(content=snap.message_text, view=view)
-    await _sync_pin(message, pinned=snap.planned)
-
-
-async def _sync_pin(message: discord.Message, *, pinned: bool) -> None:
-    """Le message d'inscription reste épinglé tant que l'événement est à venir (50 épingles max par salon)."""
-    if message.pinned == pinned:
-        return
-    try:
-        if pinned:
-            await message.pin(reason="Événement à venir")
-        else:
-            await message.unpin(reason="Événement passé ou annulé")
-    except discord.Forbidden:
-        logger.warning("Le bot n'a pas la permission « Épingler les messages » dans ce salon.")
-    except discord.HTTPException as exc:
-        logger.warning("Épinglage refusé par Discord : %s", exc)

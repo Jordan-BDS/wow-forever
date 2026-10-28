@@ -209,7 +209,7 @@ class TestSetupChannelsCommand:
         assert int(everyone["allow"]) & cmd.ADD_REACTIONS and int(everyone["allow"]) & cmd.VIEW_CHANNEL
         assert (
             bot["id"] == "bot"
-            and int(bot["allow"]) & cmd.PIN_MESSAGES
+            and int(bot["allow"]) & cmd.MANAGE_MESSAGES
             and int(bot["allow"]) & cmd.SEND_MESSAGES
         )
         stored = GuildSettings.load()
