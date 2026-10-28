@@ -809,7 +809,7 @@ journées de la différence (limite acceptée, les horodatages d'événements re
 
 | Catégorie | Déclencheur | Lecture |
 |---|---|---|
-| Identité | login, `PLAYER_LEVEL_UP` (événement horodaté), `TIME_PLAYED_MSG` | niveau, classe, race, temps de jeu ; or (`GetMoney`) seulement si opt-in |
+| Identité | login, `PLAYER_LEVEL_UP` (événement horodaté), `TIME_PLAYED_MSG` | niveau, classe, race, temps de jeu |
 | Équipement | `PLAYER_EQUIPMENT_CHANGED` | lien d'objet par emplacement → identifiant d'objet, d'enchantement, suffixe |
 | Talents | `PLAYER_TALENT_UPDATE` / points dépensés | rang par identifiant de talent ; **API exacte à confirmer sur le client Forever** (arbres Classic sur une base moderne) |
 | Métiers | ouverture de la fenêtre (`TRADE_SKILL_SHOW`, `TRADE_SKILL_LIST_UPDATE`) | compétence, maximum, spécialisation, identifiants des recettes apprises (`C_TradeSkillUI`) ; métiers connus détectés dès le login pour signaler ceux jamais lus |
@@ -824,7 +824,7 @@ journées de la différence (limite acceptée, les horodatages d'événements re
 
 **Interface en jeu** (`/wfg`, pas de bouton de minicarte) : état par catégorie avec la date de dernière lecture,
 rappel « ouvre tes métiers une fois » tant qu'un métier n'a jamais été lu (et message discret au login si plus de 7
-jours), interrupteurs opt-in (or, sacs et banque, temps de jeu), « exclure ce personnage du site », bouton
+jours), interrupteur opt-in du temps de jeu, « exclure ce personnage du site », bouton
 **Exporter** qui ouvre une zone de texte avec le code présélectionné (Ctrl+C) et le compte WoW concerné.
 
 **Pourquoi pas d'écriture continue** : un addon n'a **aucun accès au système de fichiers** (verrou volontaire de
@@ -853,7 +853,7 @@ vérification manuelle en jeu à la sortie, puis à chaque mise à jour du clien
 |---|---|
 | Appairage | Saisie du code à 6 caractères obtenu sur le site (Profil › « Lier le compagnon »), échangé contre un jeton longue durée propre à cette machine, stocké dans le coffre du système |
 | Dossier WoW | Détection automatique du dossier `_forever_` (chemins habituels, registre), confirmation ; gestion de plusieurs comptes WoW |
-| Catégories | Interrupteurs par catégorie (sacs/banque/or désactivés par défaut), repris de l'addon |
+| Catégories | Interrupteurs par catégorie (temps de jeu désactivé par défaut), repris de l'addon |
 | État | Dernier envoi, personnages reconnus, erreurs ; icône de barre des tâches ; démarrage avec Windows optionnel |
 
 - Déclenchement : modification du fichier (donc à chaque déconnexion ou `/reload`), **empreinte** comparée au dernier
@@ -1010,7 +1010,7 @@ restent exacts mais le détail quotidien est perdu.
 
 | Catégorie | Contenu | Fiabilité | Par défaut |
 |---|---|---|---|
-| Identité | Nom complet, royaume, classe, race, niveau, temps de jeu, or | Exacte (jeu) ; or et temps de jeu opt-in | ✅ (or ❌) |
+| Identité | Nom complet, royaume, classe, race, niveau, temps de jeu | Exacte (jeu) ; temps de jeu opt-in | ✅ (temps de jeu ❌) |
 | Équipement | 19 emplacements : objet, enchantement, qualité, niveau d'objet | Exacte | ✅ |
 | Talents | Points par talent, ordre non connu (le build « en jeu » est figé) | Exacte | ✅ |
 | Métiers | Compétence, spécialisation, **recettes connues** | Exacte quand la fenêtre a été ouverte | ✅ |
@@ -1020,16 +1020,15 @@ restent exacts mais le détail quotidien est perdu.
 | PvE | Donjons et raids entrés / terminés (dernier boss), boss tués par nom et date, morts | Comptés depuis l'installation | ✅ |
 | Récolte et artisanat | Minerais, herbes, peaux, poissons ramassés ; objets fabriqués par recette | Approximatif (sort de récolte + butin suivant) | ✅ |
 | Quêtes | Quêtes rendues (nombre), quêtes clés marquées | Comptées depuis l'installation ; clés exactes | ✅ |
-| Sacs et banque | Matériaux de craft en stock | Exacte | ❌ opt-in |
 
 **Ordre de sûreté** (certitude de pouvoir lire la donnée, et exactitude de la valeur), qui fixe aussi l'ordre de
 livraison des collecteurs :
 
 1. *Lecture directe, exacte, à tout moment* : identité (GUID, nom complet, royaume, classe, race, niveau),
-   équipement porté, or, temps de jeu, réputations, verrous de raid, montées de niveau horodatées, victoires
+   équipement porté, temps de jeu, réputations, verrous de raid, montées de niveau horodatées, victoires
    honorables à vie et rang (fonction de rang propre à Classic, à confirmer).
 2. *Exact mais conditionnel* : quêtes d'accès (table d'identifiants à constituer à la sortie), métiers et
-   compétence, recettes connues (fenêtre ouverte une fois), sacs (banque : fenêtre ouverte), **talents (API à
+   compétence, recettes connues (fenêtre ouverte une fois), **talents (API à
    confirmer, principal point d'interrogation)**.
 3. *Compté par événements, exact par événement, depuis l'installation* : morts, quêtes rendues, boss tués
    (événement de fin de rencontre, à vérifier sur tous les boss de donjon vanilla), champs de bataille joués /
@@ -1081,7 +1080,7 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
   - *Récolte* : minerais, herbes, peaux, poissons ; un classement par ressource et un total.
   - *Artisanat* : objets fabriqués, et **demandes de craft livrées** (donnée du site, déjà disponible).
   - *Guilde* : présence aux événements (inscrit présent / organisé, donnée du site), quêtes rendues.
-  - *Opt-in* : or, temps de jeu, affichés seulement pour ceux qui l'ont activé.
+  - *Opt-in* : temps de jeu, affiché seulement pour ceux qui l'ont activé.
 - **Tableau** : podium des trois premiers, top 10, puis **ta ligne** mise en évidence avec ton rang même hors
   top 10 ; variation par rapport à la période précédente (▲ ▼) ; clic vers la fiche du personnage.
 - **Titres de la semaine** (« Mineur de la semaine », « Boucher des BG », « Mort le plus souvent »…) calculés le
@@ -1098,8 +1097,10 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
 
 - Les données viennent du client du joueur : elles ne sont pas vérifiables et ne servent qu'à la vie de la guilde
   (pas de classement public). Le GM peut **remettre à zéro** les compteurs d'un personnage en cas d'anomalie.
-- Catégories sensibles (or, sacs, banque, temps de jeu) désactivées par défaut, activables par le joueur dans
-  l'addon ou le compagnon, et masquables des classements.
+- **Jamais collectés** (décision du 28 octobre 2026) : l'or, le contenu des sacs et de la banque. L'addon ne les lit
+  pas, le format ne les prévoit pas.
+- Catégorie sensible (temps de jeu) désactivée par défaut, activable par le joueur dans l'addon ou le compagnon, et
+  masquable des classements.
 - Suppression d'un personnage ou du compte : exports bruts et compteurs supprimés avec.
 
 ### Points ouverts
