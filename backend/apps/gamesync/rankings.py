@@ -71,7 +71,7 @@ CATEGORY_BY_KEY = {c.key: c for c in CATEGORIES}
 
 WEEKLY_TITLES: list[tuple[str, str, str]] = [
     ("mining", "Mineur de la semaine", "mining"),
-    ("bg", "Boucher des champs de bataille", "bg_won"),
+    ("bg", "Calamité de la Horde", "hk"),
     ("boss", "Fléau des boss", "boss_kills"),
     ("shame", "Mort le plus souvent", "deaths"),
 ]

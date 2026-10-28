@@ -71,7 +71,7 @@ const Skull = (
 
 const THEMES: Record<string, Theme> = {
   mining: { accent: "#d9b84a", glow: "rgba(217,184,74,.25)", icon: Pickaxe, unit: "minerais" },
-  bg: { accent: "#e0604a", glow: "rgba(224,96,74,.25)", icon: Swords, unit: "BG gagnés" },
+  bg: { accent: "#e0604a", glow: "rgba(224,96,74,.25)", icon: Swords, unit: "joueurs tués" },
   boss: { accent: "#ff8a3d", glow: "rgba(255,138,61,.25)", icon: Flame, unit: "boss tués" },
   shame: { accent: "#b7b7b7", glow: "rgba(183,183,183,.2)", icon: Skull, unit: "morts" },
 };

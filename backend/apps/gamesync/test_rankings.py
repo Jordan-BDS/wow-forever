@@ -42,12 +42,12 @@ def thrall():
     return character(
         "Player-1-T", "Thrall",
         counters={
-            "deaths": 14, "boss_kills": 3, "gathering": {"mining": 310}, "bg_played": 12, "bg_won": 9, "quests": 50,
+            "deaths": 14, "boss_kills": 3, "gathering": {"mining": 310}, "bg_played": 12, "bg_won": 9, "quests": 50, "hk": 100,
             "bosses": {"672": {"n": 1, "name": "Ragnaros", "first": KILL_TIME, "last": KILL_TIME}},
         },
         journal={
-            "2026-12-13": {"deaths": 2, "gathering": {"mining": 20}, "bg_played": 0, "bg_won": 0},
-            "2026-12-20": {"deaths": 10, "boss_kills": 3, "gathering": {"mining": 100}, "bg_played": 10, "bg_won": 8},
+            "2026-12-13": {"deaths": 2, "gathering": {"mining": 20}, "bg_played": 0, "bg_won": 0, "hk": 10},
+            "2026-12-20": {"deaths": 10, "boss_kills": 3, "gathering": {"mining": 100}, "bg_played": 10, "bg_won": 8, "hk": 60},
         },
         events=[
             {"k": "boss", "id": 672, "name": "Ragnaros", "t": KILL_TIME, "guild": 6},
@@ -154,7 +154,7 @@ class TestTitles:
             by_key["shame"].user == member and by_key["shame"].value == 8.0
         )  # Garona : pas de valeur avant le 20
         assert by_key["boss"].user == member and by_key["boss"].value == 3.0
-        assert by_key["bg"].value == 8.0  # 8 − 0 BG gagnés sur la semaine close
+        assert by_key["bg"].value == 50.0  # 60 − 10 joueurs tués sur la semaine close
         recap = Notification.objects.get(kind="weekly_recap")
         assert (
             "Mineur de la semaine" in recap.text
