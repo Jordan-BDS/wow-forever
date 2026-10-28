@@ -13,6 +13,7 @@ import {
 } from "@/api/sync";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ClassName } from "@/components/game";
+import { TitleCards } from "@/components/TitleBadges";
 import { Card, PageTitle, Spinner } from "@/components/ui";
 import { findClass, formatDateTime } from "@/lib/game";
 
@@ -143,7 +144,6 @@ export function RankingsPage() {
 }
 
 function TitlesRow({ titles }: { titles: Rankings["titles"] }) {
-  const gamedata = useGameData();
   return (
     <section className="mb-6">
       <div className="mb-2 flex flex-wrap items-baseline gap-3">
@@ -152,34 +152,7 @@ function TitlesRow({ titles }: { titles: Rankings["titles"] }) {
           semaine du {shortDate(titles[0].week_start)} · attribués le lundi à 10h, figés ensuite
         </span>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {titles.map((t) => (
-          <Card
-            key={t.key}
-            className={clsx("space-y-1", t.key === "shame" ? "border-danger/50" : "border-gold/50")}
-          >
-            <div className="text-xs text-muted">{t.label}</div>
-            <div
-              className={clsx("font-display text-lg", t.key === "shame" ? "text-danger" : "text-gold-light")}
-            >
-              <Link to={`/membres/${t.user.id}`} className={t.key === "shame" ? "text-danger" : undefined}>
-                {t.user.display_name}
-              </Link>
-            </div>
-            {t.character && (
-              <div className="text-sm">
-                <ClassName playerClass={findClass(gamedata.data, t.character.player_class)}>
-                  {t.character.name}
-                </ClassName>
-                <span className="text-muted">
-                  {" "}
-                  · {Number.isInteger(t.value) ? t.value : t.value.toFixed(1)}
-                </span>
-              </div>
-            )}
-          </Card>
-        ))}
-      </div>
+      <TitleCards titles={titles} />
     </section>
   );
 }

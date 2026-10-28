@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { formatValue, useRankings } from "@/api/sync";
+import { TitleChips } from "@/components/TitleBadges";
 import { Card } from "@/components/ui";
 
 const KEYS = ["boss_kills", "mining", "bg_won", "deaths"];
@@ -20,9 +21,9 @@ export function WeekWidget() {
         </Link>
       </div>
       {data.titles.length > 0 && (
-        <p className="mt-2 text-sm text-muted">
-          Titres de la semaine : {data.titles.map((t) => `${t.label} — ${t.user.display_name}`).join(" · ")}
-        </p>
+        <div className="mt-3">
+          <TitleChips titles={data.titles} />
+        </div>
       )}
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {categories.map((c) => (
