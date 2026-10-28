@@ -12,4 +12,4 @@ transporte le code jusqu'au site.
 - `Phrases.lua` : gabarits des annonces de mort (liste à fournir par Jordan).
 - `UI.lua` : fenêtre principale, export, dialogues, texte flottant des morts.
 
-Tests : `cd backend && uv run pytest apps/gamesync/tests_addon.py` (environnement WoW simulé, Lua 5.1 via lupa).
+Tests : `cd backend && uv run pytest apps/gamesync/test_addon.py` (environnement WoW simulé, Lua 5.1 via lupa).
