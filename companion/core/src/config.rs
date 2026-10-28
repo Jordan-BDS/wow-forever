@@ -20,7 +20,6 @@ pub struct Config {
     pub token: Option<String>,
     pub display_name: Option<String>,
     pub autostart: bool,
-    pub relay_deaths: bool,
     /// Empreinte du dernier code envoyé, par compte WoW.
     pub last_fingerprints: std::collections::BTreeMap<String, String>,
 }
@@ -34,7 +33,6 @@ impl Default for Config {
             token: None,
             display_name: None,
             autostart: true,
-            relay_deaths: true,
             last_fingerprints: Default::default(),
         }
     }

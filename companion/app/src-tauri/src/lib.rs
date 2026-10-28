@@ -1,5 +1,5 @@
 //! Application Tauri : fine couche au-dessus de `companion-core`. État partagé, commandes pour l'interface,
-//! surveillance du fichier SavedVariables, lecture du journal de chat, icône de barre des tâches, mise à jour.
+//! surveillance du fichier SavedVariables, icône de barre des tâches, mise à jour.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -7,7 +7,6 @@ use std::time::{Duration, Instant};
 
 use companion_core::api::SiteClient;
 use companion_core::config::{default_dir, Config};
-use companion_core::deaths::ChatLogTail;
 use companion_core::sync::{sync_once, SyncOutcome};
 use companion_core::{addon, savedvars, wowdir};
 use notify::{RecursiveMode, Watcher};
@@ -35,7 +34,6 @@ struct AppState {
     paired: bool,
     display_name: Option<String>,
     autostart: bool,
-    relay_deaths: bool,
     accounts: Vec<String>,
     installed_addon_version: Option<String>,
     last_sync: Option<Vec<SyncOutcome>>,
@@ -63,7 +61,6 @@ fn snapshot(inner: &Inner) -> AppState {
         paired: config.is_paired(),
         display_name: config.display_name.clone(),
         autostart: config.autostart,
-        relay_deaths: config.relay_deaths,
         accounts: game_dir
             .as_deref()
             .map(|g| {
@@ -137,8 +134,9 @@ fn set_game_dir(app: AppHandle, shared: State<Shared>, path: String) -> Result<A
     if path.is_empty() {
         inner.config.game_dir = None;
     } else {
+        log::info!("dossier choisi : {path}");
         let dir = wowdir::normalize(Path::new(&path)).ok_or_else(|| {
-            "Ce dossier ne ressemble pas à une installation de World of Warcraft.".to_string()
+            format!("« {path} » ne ressemble pas à une installation de World of Warcraft (ni ce dossier, ni _forever_ dedans).")
         })?;
         addon::install(&wowdir::addons_dir(&dir), false)
             .map_err(|e| format!("Installation de l'addon : {e}"))?;
@@ -223,7 +221,6 @@ fn install_addon(shared: State<Shared>) -> Result<String, String> {
 #[derive(Deserialize)]
 struct Settings {
     autostart: Option<bool>,
-    relay_deaths: Option<bool>,
     site_url: Option<String>,
 }
 
@@ -237,9 +234,6 @@ fn set_settings(
     if let Some(on) = settings.autostart {
         inner.config.autostart = on;
         apply_autostart(&app, on);
-    }
-    if let Some(on) = settings.relay_deaths {
-        inner.config.relay_deaths = on;
     }
     if let Some(url) = settings.site_url {
         inner.config.site_url = url.trim().trim_end_matches('/').to_string();
@@ -322,36 +316,6 @@ fn restart_watcher(app: &AppHandle, shared: Shared) {
     }
 }
 
-/// Journal de chat : seules les lignes de l'addon sont lues ; les morts sont émises à l'interface
-/// (l'envoi au site arrivera avec le point d'API des annonces, lot 9 bis).
-fn start_chat_log_tail(app: AppHandle, shared: Shared) {
-    std::thread::spawn(move || {
-        let mut tail: Option<(PathBuf, ChatLogTail)> = None;
-        loop {
-            std::thread::sleep(Duration::from_secs(3));
-            let (game_dir, relay) = {
-                let inner = shared.lock().unwrap();
-                (inner.config.game_dir.clone(), inner.config.relay_deaths)
-            };
-            let Some(game_dir) = game_dir else { continue };
-            if !relay {
-                continue;
-            }
-            let path = wowdir::chat_log_path(&game_dir);
-            if tail.as_ref().map(|(p, _)| p != &path).unwrap_or(true) {
-                tail = Some((path.clone(), ChatLogTail::new(&path, true)));
-            }
-            if let Some((_, t)) = tail.as_mut() {
-                if let Ok(deaths) = t.poll() {
-                    for death in deaths {
-                        let _ = app.emit("death", &death);
-                    }
-                }
-            }
-        }
-    });
-}
-
 // --- démarrage ---------------------------------------------------------------------------------------
 
 pub fn run() {
@@ -431,7 +395,6 @@ pub fn run() {
             let autostart = shared.lock().unwrap().config.autostart;
             apply_autostart(&handle, autostart);
             restart_watcher(&handle, shared.clone());
-            start_chat_log_tail(handle.clone(), shared.clone());
             // Premier passage au démarrage : on rattrape ce qui a été écrit pendant que le compagnon était fermé.
             let shared_boot = shared.clone();
             let boot = handle.clone();

@@ -5,13 +5,11 @@
 //! - `addon` : installer et mettre à jour l'addon embarqué dans l'exécutable ;
 //! - `api` : appairage, import, état, auprès du site ;
 //! - `sync` : la boucle « fichier changé → code → site », avec l'empreinte anti-doublon ;
-//! - `deaths` : lecture des lignes de mort dans le journal de chat (extension du lot 9) ;
 //! - `config` : réglages et jeton sur le disque.
 
 pub mod addon;
 pub mod api;
 pub mod config;
-pub mod deaths;
 pub mod error;
 pub mod savedvars;
 pub mod sync;

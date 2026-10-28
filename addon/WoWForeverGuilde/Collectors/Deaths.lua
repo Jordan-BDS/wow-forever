@@ -1,5 +1,5 @@
--- Annonces de mort : ligne balisée dans un canal caché (lue par les autres addons et par le journal de chat
--- pour le compagnon), popup flottant 5 s avec son chez ceux qui l'affichent. Rien dans le canal de guilde.
+-- Annonces de mort, en jeu seulement : ligne balisée dans un canal caché lue par les autres addons, popup flottant
+-- 5 s avec son chez ceux qui l'affichent. Rien dans le canal de guilde, rien vers Discord.
 local ADDON, ns = ...
 
 local channelName = ns.Data.DEATH_CHANNEL
@@ -76,7 +76,6 @@ ns.RegisterCollector({
   name = "deaths",
   events = { CHAT_MSG_CHANNEL = true, CHANNEL_UI_UPDATE = true, PLAYER_ENTERING_WORLD = true },
   onLogin = function()
-    if ns.db.settings.announceDeaths and LoggingChat then pcall(LoggingChat, true) end -- journal de chat pour le compagnon
     C_Timer.After(5, join)
   end,
   onEvent = function(char, event, ...)
