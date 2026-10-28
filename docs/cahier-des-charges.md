@@ -468,8 +468,8 @@ Un **bot Discord** dédié à la guilde.
 
 **Salons** : quatre réglages dans Guilde › Paramètres, choisis dans la liste des salons texte du serveur après
 « Vérifier le serveur » : `#agenda` (messages d'inscription, déplacements, annulations, rappels, compositions),
-`#demande-de-craft` (nouvelles demandes), `#sondages` (ouverture, rappels, résultat) et un salon général de
-secours qui reçoit ce dont le salon dédié n'est pas renseigné. La commande `discord_setup_channels` crée
+`#demande-de-craft` (nouvelles demandes), `#sondages` (message de suivi de chaque sondage, rappels, résultat,
+annulation) et un salon général de secours qui reçoit ce dont le salon dédié n'est pas renseigné. La commande `discord_setup_channels` crée
 `#agenda` et `#demande-de-craft` en **lecture seule** pour les membres (voir, réagir, utiliser les boutons ;
 pas d'écriture ni de fils), avec les droits d'écriture pour le bot, et enregistre les IDs.
 
@@ -483,13 +483,20 @@ pas d'écriture ni de fils), avec les droits d'écriture pour le bot, et enregis
 - Le site écrit une demande `event_sync` dédupliquée dans l'outbox ; le bot la dépile et aligne Discord. Les
   échos de ses propres écritures (identiques à l'état en base) sont ignorés, ce qui évite les boucles.
 
+**Message de suivi d'un sondage dans `#sondages`** (lecture seule) : publié à la création, il affiche la
+phase en cours et ses échéances, les règles, et le classement en direct (votes et votants, 15 premières
+propositions, le reste renvoie au site), puis le résultat validé. Il est réédité à chaque proposition, retrait,
+vote, modification, validation ou annulation, et quand une phase se termine toute seule. Propositions et votes
+se font sur le site uniquement (pas de vote par réaction) ; la fiche du sondage renvoie vers ce message.
+
 **Autres messages dans le salon** :
 - Composition publiée par l'organisateur (bouton « Publier sur Discord » sur la fiche, pour éviter un message à
   chaque placement).
 - Rappel avant un événement (délai configurable, ex. 1 h avant).
 - Événement annulé ou modifié (date/heure).
 - Nouvelle demande de craft, titrée par le métier (ex. « Forge : 2 × Épée pour Koj »).
-- Sondage ouvert, rappel 24 h avant la fin des propositions et avant la fin des votes, résultat validé.
+- Sondage : rappel 24 h avant la fin des propositions et avant la fin des votes, résultat validé, annulation
+  (l'ouverture est portée par le message de suivi).
 
 **Messages privés (MP)** au joueur concerné :
 - Placement dans un événement : confirmé / banc.

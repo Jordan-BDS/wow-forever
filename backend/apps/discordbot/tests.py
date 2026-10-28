@@ -297,3 +297,28 @@ class TestQuickSignup:
         )
         Event.objects.filter(pk=event.pk).update(min_level=20)
         assert "niveau 20" in services.quick_signup(member.discord_id, event.pk, "present")[0]
+
+
+class TestPollSync:
+    def test_snapshot_store_and_complete(self, officer):
+        from apps.polls.models import Poll
+
+        poll = Poll.objects.create(
+            title="Nom de guilde",
+            proposals_end=NOW + timedelta(days=1),
+            votes_end=NOW + timedelta(days=2),
+            created_by=officer,
+        )
+        snap = services.poll_snapshot(poll.pk)
+        assert (
+            snap.status == "proposals"
+            and snap.discord_message_id == ""
+            and "Nom de guilde" in snap.message_text
+        )
+        assert services.poll_snapshot(10_000) is None
+        services.store_poll_message(poll.pk, "123", snap.status)
+        poll.refresh_from_db()
+        assert (poll.discord_message_id, poll.discord_synced_status) == ("123", "proposals")
+        Notification.objects.create(kind="poll_sync", poll=poll, text="x")
+        assert services.complete_poll_syncs(poll.pk) == 1
+        assert services.channel_id_for("poll_sync") is None  # aucun salon configuré en test

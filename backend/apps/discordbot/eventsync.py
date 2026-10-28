@@ -184,3 +184,30 @@ async def _sync_signup_message(bot: discord.Client, snap: services.EventSnapshot
         await db(services.store_discord_ids)(snap.id, discord_message_id=str(message.id))
     elif message.content != snap.message_text or bool(message.components) != bool(view):
         await message.edit(content=snap.message_text, view=view)
+
+
+# --- sondages (message en lecture seule, réédité à chaque changement) ----------------------------
+
+
+async def sync_poll(bot: discord.Client, poll_id: int) -> None:
+    snapshot = await db(services.poll_snapshot)(poll_id)
+    if snapshot is None:
+        await db(services.complete_poll_syncs)(poll_id)
+        return
+    channel_id = await db(services.channel_id_for)("poll_sync")
+    if channel_id is None:
+        await db(services.complete_poll_syncs)(poll_id)
+        return
+    channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
+    message = None
+    if snapshot.discord_message_id.isdigit():
+        try:
+            message = await channel.fetch_message(int(snapshot.discord_message_id))
+        except discord.NotFound:
+            message = None
+    if message is None:
+        message = await channel.send(snapshot.message_text)
+    elif message.content != snapshot.message_text:
+        await message.edit(content=snapshot.message_text)
+    await db(services.store_poll_message)(poll_id, str(message.id), snapshot.status)
+    await db(services.complete_poll_syncs)(poll_id)

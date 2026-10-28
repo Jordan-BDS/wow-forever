@@ -19,6 +19,7 @@ class NotificationKind(models.TextChoices):
     POLL_REMINDER = "poll_reminder", "Rappel de sondage"
     POLL_VALIDATED = "poll_validated", "Sondage validé"
     POLL_CANCELLED = "poll_cancelled", "Sondage annulé"
+    POLL_SYNC = "poll_sync", "Synchronisation Discord d'un sondage"
     CRAFT_REQUEST = "craft_request", "Demande de craft"
     CRAFT_UPDATE = "craft_update", "Suivi de demande de craft"
 
@@ -51,6 +52,7 @@ CHANNEL_FIELD_FOR_KIND = {
     NotificationKind.POLL_REMINDER: "discord_polls_channel_id",
     NotificationKind.POLL_VALIDATED: "discord_polls_channel_id",
     NotificationKind.POLL_CANCELLED: "discord_polls_channel_id",
+    NotificationKind.POLL_SYNC: "discord_polls_channel_id",
     NotificationKind.CRAFT_REQUEST: "discord_crafts_channel_id",
 }
 
@@ -80,6 +82,14 @@ class Notification(models.Model):
         blank=True,
         related_name="sync_notifications",
         help_text="Événement à synchroniser avec Discord (kind = event_sync).",
+    )
+    poll = models.ForeignKey(
+        "polls.Poll",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="sync_notifications",
+        help_text="Sondage à synchroniser avec Discord (kind = poll_sync).",
     )
     status = models.CharField(
         max_length=10, choices=NotificationStatus.choices, default=NotificationStatus.PENDING

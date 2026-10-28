@@ -6069,6 +6069,13 @@
                         "nullable": true,
                         "title": "Annulé le"
                     },
+                    "discord_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Lien vers le message de suivi dans le salon Discord."
+                    },
                     "validated_by": {
                         "allOf": [
                             {
@@ -6110,6 +6117,7 @@
                     "cancelled_at",
                     "created_at",
                     "created_by",
+                    "discord_url",
                     "id",
                     "my_proposal_count",
                     "my_vote_count",

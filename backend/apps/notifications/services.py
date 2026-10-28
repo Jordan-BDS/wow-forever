@@ -277,6 +277,87 @@ def poll_validated(poll: Poll) -> Notification:
     return notify_channel(NotificationKind.POLL_VALIDATED, text)
 
 
+def poll_sync(poll: Poll) -> Notification:
+    """Demande au bot de rafraîchir le message de suivi du sondage dans son salon (une seule en attente)."""
+    pending = Notification.objects.filter(
+        kind=NotificationKind.POLL_SYNC, poll=poll, status="pending"
+    ).first()
+    if pending:
+        return pending
+    return Notification.objects.create(
+        kind=NotificationKind.POLL_SYNC, poll=poll, text=f"Synchronisation Discord de « {poll.title} »"
+    )
+
+
+POLL_MESSAGE_MAX_PROPOSALS = 15
+
+
+def poll_message_text(poll: Poll) -> str:
+    """Message de suivi d'un sondage, en lecture seule : phase, échéances, classement en direct, lien."""
+    status = poll.status
+    if status == "proposals":
+        header = f"🗳️ **{poll.title}** — propositions ouvertes"
+        when = (
+            f"Propositions jusqu'au {discord_time(poll.proposals_end, 'f')} "
+            f"({discord_time(poll.proposals_end, 'R')}), votes jusqu'au {discord_time(poll.votes_end, 'f')}."
+        )
+    elif status == "votes":
+        header = f"🗳️ **{poll.title}** — vote en cours"
+        when = f"Votes jusqu'au {discord_time(poll.votes_end, 'f')} ({discord_time(poll.votes_end, 'R')})."
+    elif status == "closed":
+        header = f"🔒 **{poll.title}** — votes clos"
+        when = "En attente de validation par le GM."
+    elif status == "validated":
+        header = f"🏆 **{poll.title}** — résultat validé"
+        when = ""
+    else:
+        header = f"❌ ~~{poll.title}~~ — **Annulé**"
+        when = ""
+
+    lines = [header]
+    if when:
+        lines.append(when)
+    if poll.description.strip():
+        description = poll.description.strip()
+        lines.append(description[:300].rstrip() + ("…" if len(description) > 300 else ""))
+    rules = [f"{poll.max_proposals_per_user} proposition(s) par personne"]
+    rules.append(
+        "votes illimités" if poll.max_votes_per_user is None else f"{poll.max_votes_per_user} vote(s)"
+    )
+    if poll.sets_guild_name:
+        rules.append("le gagnant devient le nom de la guilde")
+    lines.append("_" + ", ".join(rules) + "_")
+    lines.append("")
+
+    ranked = list(poll.ranked_proposals().select_related("author").prefetch_related("votes__user"))
+    if status == "validated" and poll.validated_proposal_id:
+        winner = next((p for p in ranked if p.pk == poll.validated_proposal_id), None)
+        if winner:
+            lines.append(f"🏆 **{winner.text}** ({winner.vote_count} vote(s))")
+            if poll.validation_note:
+                lines.append(f"_{poll.validation_note}_")
+            lines.append("")
+    if not ranked:
+        lines.append("Aucune proposition pour l'instant.")
+    for rank, proposal in enumerate(ranked[:POLL_MESSAGE_MAX_PROPOSALS], start=1):
+        voters = ", ".join(v.user.display_name for v in proposal.votes.all())
+        line = f"{rank}. **{proposal.text}** — {proposal.vote_count} vote(s)"
+        if voters:
+            line += f" · {voters}"
+        lines.append(line)
+    if len(ranked) > POLL_MESSAGE_MAX_PROPOSALS:
+        lines.append(f"… et {len(ranked) - POLL_MESSAGE_MAX_PROPOSALS} autre(s) proposition(s) sur le site.")
+    lines.append("")
+    if status in ("proposals", "votes"):
+        lines.append(f"Proposer et voter : {poll_url(poll)}")
+    else:
+        lines.append(poll_url(poll))
+    text = "\n".join(lines)
+    if len(text) > DISCORD_MESSAGE_MAX:
+        text = text[: DISCORD_MESSAGE_MAX - 1] + "…"
+    return text
+
+
 def poll_cancelled(poll: Poll) -> Notification:
     text = f"❌ Sondage annulé : **{poll.title}**"
     if poll.cancelled_by:

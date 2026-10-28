@@ -67,6 +67,12 @@ class GuildBot(commands.Bot):
                         continue
                     await eventsync.sync_event(self, notification.event_id)
                     continue  # acquittée par sync_event
+                if notification.kind == NotificationKind.POLL_SYNC:
+                    if notification.poll_id is None:
+                        await db(services.mark_skipped)(notification, "Sondage supprimé.")
+                        continue
+                    await eventsync.sync_poll(self, notification.poll_id)
+                    continue  # acquittée par sync_poll
                 if notification.is_dm:
                     user = await self.fetch_user(int(notification.recipient.discord_id))
                     await user.send(notification.text)

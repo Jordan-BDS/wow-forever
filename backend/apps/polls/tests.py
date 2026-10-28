@@ -301,7 +301,8 @@ def test_poll_lifecycle_enqueues_channel_notifications(as_user, officer, gm, mem
         },
         format="json",
     )
-    assert Notification.objects.get().kind == "poll_opened"
+    # L'annonce, c'est le message de suivi synchronisé dans le salon des sondages.
+    assert Notification.objects.get().kind == "poll_sync"
     poll = Poll.objects.get(pk=response.data["id"])
     proposal = Proposal.objects.create(poll=poll, author=member, text="Les Potes")
     poll.proposals_end, poll.votes_end = NOW - timedelta(days=2), NOW - timedelta(hours=1)
@@ -309,3 +310,102 @@ def test_poll_lifecycle_enqueues_channel_notifications(as_user, officer, gm, mem
     as_user(gm).post(f"/api/polls/{poll.pk}/validate/", {"proposal": proposal.pk}, format="json")
     validated = Notification.objects.get(kind="poll_validated")
     assert "Les Potes" in validated.text and "nouveau nom" in validated.text
+    assert (
+        Notification.objects.filter(kind="poll_sync").count() == 1
+    )  # dédupliquée tant qu'elle est en attente
+
+
+class TestDiscordPollSync:
+    def test_every_change_requests_a_refresh_once(self, as_user, officer, member, other_member):
+        from apps.notifications.models import Notification
+
+        def pending():
+            return Notification.objects.filter(kind="poll_sync", status="pending").count()
+
+        def acknowledge():
+            Notification.objects.update(status="sent")
+
+        poll = make_poll(officer)
+        acknowledge()
+        proposal_id = propose(as_user(member), poll, "Les Potes").data["id"]
+        assert pending() == 1
+        propose(as_user(other_member), poll, "Les Zouaves")
+        assert pending() == 1  # toujours une seule demande en attente
+        acknowledge()
+        assert as_user(other_member).post(f"/api/proposals/{proposal_id}/vote/").status_code == 200
+        assert pending() == 1
+        acknowledge()
+        as_user(other_member).post(f"/api/proposals/{proposal_id}/vote/")  # déjà voté : rien ne change
+        assert pending() == 0
+        as_user(other_member).post(f"/api/proposals/{proposal_id}/unvote/")
+        assert pending() == 1
+        acknowledge()
+        as_user(other_member).post(f"/api/proposals/{proposal_id}/unvote/")  # déjà retiré
+        assert pending() == 0
+        as_user(officer).patch(
+            f"/api/polls/{poll.pk}/", {"votes_end": (NOW + timedelta(days=9)).isoformat()}, format="json"
+        )
+        assert pending() == 1
+        acknowledge()
+        assert as_user(member).delete(f"/api/proposals/{proposal_id}/").status_code == 204
+        assert pending() == 1
+        acknowledge()
+        as_user(officer).post(f"/api/polls/{poll.pk}/cancel/")
+        assert pending() == 1
+
+    def test_message_text_follows_the_phases(self, as_user, officer, member, other_member, gm):
+        from apps.notifications import services
+
+        poll = make_poll(officer, sets_guild_name=True, max_votes_per_user=2)
+        text = services.poll_message_text(poll)
+        assert "propositions ouvertes" in text and "Aucune proposition" in text
+        assert "2 vote(s)" in text and "nom de la guilde" in text and f"/sondages/{poll.pk}" in text
+        first = propose(as_user(member), poll, "Les Potes").data["id"]
+        propose(as_user(other_member), poll, "Les Zouaves")
+        as_user(other_member).post(f"/api/proposals/{first}/vote/")
+        poll.refresh_from_db()
+        text = services.poll_message_text(poll)
+        assert text.index("1. **Les Potes** — 1 vote(s) · User 101") < text.index(
+            "2. **Les Zouaves** — 0 vote(s)"
+        )
+        Poll.objects.filter(pk=poll.pk).update(proposals_end=NOW - timedelta(hours=1))
+        poll.refresh_from_db()
+        assert "vote en cours" in services.poll_message_text(poll)
+        Poll.objects.filter(pk=poll.pk).update(votes_end=NOW - timedelta(minutes=1))
+        poll.refresh_from_db()
+        assert "votes clos" in services.poll_message_text(poll)
+        as_user(gm).post(f"/api/polls/{poll.pk}/validate/", {"proposal": first}, format="json")
+        poll.refresh_from_db()
+        text = services.poll_message_text(poll)
+        assert text.startswith("🏆") and "🏆 **Les Potes**" in text
+        poll.cancelled_at = NOW
+        assert services.poll_message_text(poll).startswith("❌")
+
+    def test_phase_change_without_action_refreshes_the_message(self, officer):
+        from apps.notifications.models import Notification
+        from apps.notifications.reminders import scan_due_reminders
+
+        poll = make_poll(officer, proposals_in=timedelta(days=3), votes_in=timedelta(days=6))
+        Notification.objects.all().delete()
+        Poll.objects.filter(pk=poll.pk).update(discord_message_id="42", discord_synced_status="proposals")
+        assert scan_due_reminders(NOW) == 0  # toujours en phase de propositions : rien à faire
+        Poll.objects.filter(pk=poll.pk).update(proposals_end=NOW - timedelta(hours=1))
+        assert scan_due_reminders(NOW) == 1
+        assert Notification.objects.get(kind="poll_sync").poll_id == poll.pk
+        # Un sondage jamais publié sur Discord (pas de message) n'est pas concerné.
+        other = make_poll(officer, proposals_in=timedelta(days=-1), votes_in=timedelta(days=6))
+        Notification.objects.all().delete()
+        assert scan_due_reminders(NOW) == 0 or Notification.objects.filter(poll=other).count() == 0
+
+    def test_discord_url_when_mirrored(self, as_user, officer, settings):
+        from apps.guild.models import GuildSettings
+
+        settings.DISCORD_GUILD_ID = "4242"
+        poll = make_poll(officer)
+        assert as_user(officer).get(f"/api/polls/{poll.pk}/").data["discord_url"] is None
+        Poll.objects.filter(pk=poll.pk).update(discord_message_id="77")
+        stored = GuildSettings.load()
+        stored.discord_polls_channel_id = "55"
+        stored.save()
+        url = as_user(officer).get(f"/api/polls/{poll.pk}/").data["discord_url"]
+        assert url == "https://discord.com/channels/4242/55/77"

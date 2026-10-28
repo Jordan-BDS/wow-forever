@@ -234,7 +234,17 @@ function PollDetail({ poll }: { poll: Poll }) {
             {poll.description && (
               <p className="whitespace-pre-wrap border-t border-border pt-2">{poll.description}</p>
             )}
-            <p className="text-xs text-muted">Créé par {poll.created_by?.display_name}</p>
+            <p className="text-xs text-muted">
+              Créé par {poll.created_by?.display_name}
+              {poll.discord_url && (
+                <>
+                  {" · "}
+                  <a href={poll.discord_url} target="_blank" rel="noreferrer" className="underline">
+                    Suivi sur Discord
+                  </a>
+                </>
+              )}
+            </p>
           </Card>
           {poll.status === "closed" && me.site_role === "gm" && <ValidateForm poll={poll} />}
           {poll.status === "closed" && me.site_role !== "gm" && (

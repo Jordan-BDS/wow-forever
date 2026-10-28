@@ -1885,6 +1885,11 @@ export interface components {
              * Format: date-time
              */
             readonly cancelled_at: string | null;
+            /**
+             * Format: uri
+             * @description Lien vers le message de suivi dans le salon Discord.
+             */
+            readonly discord_url: string | null;
             readonly validated_by: components["schemas"]["Owner"];
             readonly created_by: components["schemas"]["Owner"];
             /** Format: date-time */

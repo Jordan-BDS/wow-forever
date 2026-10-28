@@ -30,12 +30,12 @@ class PollViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         poll = serializer.save(created_by=self.request.user)
-        notify.poll_opened(poll)
+        notify.poll_sync(poll)  # le message de suivi dans le salon des sondages fait office d'annonce
 
     def perform_update(self, serializer):
         if serializer.instance.status in (PollStatus.VALIDATED, PollStatus.CANCELLED):
             raise PermissionDenied("Un sondage validé ou annulé ne se modifie plus.")
-        serializer.save()
+        notify.poll_sync(serializer.save())
 
     def perform_destroy(self, instance: Poll):
         if instance.proposals.exists():
@@ -56,6 +56,7 @@ class PollViewSet(viewsets.ModelViewSet):
             poll.cancelled_by = request.user
             poll.save(update_fields=["cancelled_at", "cancelled_by"])
             notify.poll_cancelled(poll)
+            notify.poll_sync(poll)
         return Response(self.get_serializer(poll).data)
 
     @extend_schema(request=ProposalCreateSerializer, responses={201: ProposalSerializer})
@@ -78,6 +79,7 @@ class PollViewSet(viewsets.ModelViewSet):
         proposal = Proposal.objects.create(
             poll=poll, author=request.user, text=text, note=serializer.validated_data.get("note", "")
         )
+        notify.poll_sync(poll)
         proposal = (
             poll.ranked_proposals()
             .select_related("author")
@@ -117,6 +119,7 @@ class PollViewSet(viewsets.ModelViewSet):
                 settings.name = proposal.text[:24]
                 settings.save()
             notify.poll_validated(poll)
+            notify.poll_sync(poll)
         return Response(self.get_serializer(poll).data)
 
 
@@ -137,6 +140,7 @@ class ProposalViewSet(mixins.DestroyModelMixin, viewsets.GenericViewSet):
         elif not user.is_officer_or_above:
             raise PermissionDenied("Tu ne peux retirer que tes propres propositions.")
         instance.delete()
+        notify.poll_sync(poll)
 
     def _refreshed(self, proposal: Proposal) -> Response:
         proposal = (
@@ -161,6 +165,7 @@ class ProposalViewSet(mixins.DestroyModelMixin, viewsets.GenericViewSet):
             if count >= poll.max_votes_per_user:
                 raise ValidationError({"detail": f"Tu as déjà utilisé tes {poll.max_votes_per_user} votes."})
         Vote.objects.create(proposal=proposal, user=request.user)
+        notify.poll_sync(poll)
         return self._refreshed(proposal)
 
     @extend_schema(request=None, responses=ProposalSerializer)
@@ -169,5 +174,7 @@ class ProposalViewSet(mixins.DestroyModelMixin, viewsets.GenericViewSet):
         proposal: Proposal = self.get_object()
         if not proposal.poll.accepts_votes:
             raise ValidationError({"detail": "Les votes sont clos."})
-        Vote.objects.filter(proposal=proposal, user=request.user).delete()
+        deleted, _ = Vote.objects.filter(proposal=proposal, user=request.user).delete()
+        if deleted:
+            notify.poll_sync(proposal.poll)
         return self._refreshed(proposal)

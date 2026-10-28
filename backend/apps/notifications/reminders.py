@@ -53,4 +53,9 @@ def scan_due_reminders(now=None) -> int:
             poll.votes_reminder_sent = True
             poll.save(update_fields=["votes_reminder_sent"])
             created += 1
+    # Les phases d'un sondage changent avec l'heure, sans action de personne : le message Discord doit suivre.
+    for poll in Poll.objects.exclude(discord_message_id=""):
+        if poll.status != poll.discord_synced_status and poll.status not in ("validated", "cancelled"):
+            services.poll_sync(poll)
+            created += 1
     return created

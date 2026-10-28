@@ -51,6 +51,9 @@ class PollSerializer(serializers.ModelSerializer):
     proposals = serializers.SerializerMethodField()
     my_proposal_count = serializers.SerializerMethodField()
     my_vote_count = serializers.SerializerMethodField()
+    discord_url = serializers.URLField(
+        read_only=True, allow_null=True, help_text="Lien vers le message de suivi dans le salon Discord."
+    )
 
     class Meta:
         model = Poll
@@ -69,6 +72,7 @@ class PollSerializer(serializers.ModelSerializer):
             "validation_note",
             "validated_at",
             "cancelled_at",
+            "discord_url",
             "validated_by",
             "created_by",
             "created_at",

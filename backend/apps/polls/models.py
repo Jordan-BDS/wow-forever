@@ -57,6 +57,10 @@ class Poll(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     proposals_reminder_sent = models.BooleanField(default=False, editable=False)
     votes_reminder_sent = models.BooleanField(default=False, editable=False)
+    # Miroir Discord : message de suivi dans le salon des sondages, et statut qu'il affichait à sa
+    # dernière mise à jour (pour le rafraîchir quand une phase se termine sans action de personne).
+    discord_message_id = models.CharField("Message Discord", max_length=32, blank=True, editable=False)
+    discord_synced_status = models.CharField(max_length=16, blank=True, editable=False)
 
     class Meta:
         verbose_name = "sondage"
@@ -85,6 +89,21 @@ class Poll(models.Model):
     @property
     def accepts_votes(self) -> bool:
         return self.status in (PollStatus.PROPOSALS, PollStatus.VOTES)
+
+    @property
+    def discord_url(self) -> str | None:
+        """Lien vers le message de suivi dans le salon Discord des sondages, s'il existe."""
+        if not self.discord_message_id:
+            return None
+        from apps.guild.config import discord_config
+        from apps.guild.models import GuildSettings
+
+        stored = GuildSettings.load()
+        channel = stored.discord_polls_channel_id or stored.discord_channel_id
+        guild = discord_config().guild_id
+        if not (guild and channel):
+            return None
+        return f"https://discord.com/channels/{guild}/{channel}/{self.discord_message_id}"
 
     def ranked_proposals(self):
         return self.proposals.annotate(vote_count=models.Count("votes")).order_by("-vote_count", "created_at")

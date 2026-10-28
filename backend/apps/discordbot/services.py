@@ -26,6 +26,7 @@ from apps.notifications.models import (
     NotificationStatus,
 )
 from apps.notifications.services import discord_time, event_url
+from apps.polls.models import Poll
 
 logger = logging.getLogger(__name__)
 
@@ -498,3 +499,36 @@ def signup_with_choice(discord_id: str, event_id: int, status: str, choice: str)
     except ValueError:
         return "Choix invalide."
     return signup_from_discord(discord_id, event_id, character_id, role, status)
+
+
+# --- synchronisation des sondages -------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PollSnapshot:
+    id: int
+    status: str
+    discord_message_id: str
+    message_text: str
+
+
+def poll_snapshot(poll_id: int) -> PollSnapshot | None:
+    poll = Poll.objects.filter(pk=poll_id).select_related("validated_proposal", "cancelled_by").first()
+    if poll is None:
+        return None
+    return PollSnapshot(
+        id=poll.pk,
+        status=poll.status,
+        discord_message_id=poll.discord_message_id,
+        message_text=notify.poll_message_text(poll),
+    )
+
+
+def store_poll_message(poll_id: int, message_id: str, status: str) -> None:
+    Poll.objects.filter(pk=poll_id).update(discord_message_id=message_id, discord_synced_status=status)
+
+
+def complete_poll_syncs(poll_id: int) -> int:
+    return Notification.objects.filter(
+        kind=NotificationKind.POLL_SYNC, poll_id=poll_id, status=NotificationStatus.PENDING
+    ).update(status=NotificationStatus.SENT, sent_at=timezone.now())
