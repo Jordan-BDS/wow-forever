@@ -22,7 +22,7 @@ AWARD_HOUR = 10
 
 def format_value(key: str, value: float) -> str:
     unit = {
-        "gathering.mining": "minerais",
+        "gathering_total": "ressources",
         "bg_won": "BG gagnés",
         "boss_kills": "boss",
         "deaths": "morts",

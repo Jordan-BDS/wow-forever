@@ -157,9 +157,9 @@ class TestTitles:
         assert by_key["bg"].value == 50.0  # 60 − 10 joueurs tués sur la semaine close
         recap = Notification.objects.get(kind="weekly_recap")
         assert (
-            "Mineur de la semaine" in recap.text
+            "Récolteur de la semaine" in recap.text
             and member.display_name in recap.text
-            and "80 minerais" in recap.text
+            and "80 ressources" in recap.text
         )
         assert titles.award_weekly_titles(NOW) == [] and WeeklyTitle.objects.count() == len(created)
         shown = rankings.current_titles(NOW)
