@@ -1022,6 +1022,24 @@ restent exacts mais le détail quotidien est perdu.
 | Quêtes | Quêtes rendues (nombre), quêtes clés marquées | Comptées depuis l'installation ; clés exactes | ✅ |
 | Sacs et banque | Matériaux de craft en stock | Exacte | ❌ opt-in |
 
+**Ordre de sûreté** (certitude de pouvoir lire la donnée, et exactitude de la valeur), qui fixe aussi l'ordre de
+livraison des collecteurs :
+
+1. *Lecture directe, exacte, à tout moment* : identité (GUID, nom complet, royaume, classe, race, niveau),
+   équipement porté, or, temps de jeu, réputations, verrous de raid, montées de niveau horodatées, victoires
+   honorables à vie et rang (fonction de rang propre à Classic, à confirmer).
+2. *Exact mais conditionnel* : quêtes d'accès (table d'identifiants à constituer à la sortie), métiers et
+   compétence, recettes connues (fenêtre ouverte une fois), sacs (banque : fenêtre ouverte), **talents (API à
+   confirmer, principal point d'interrogation)**.
+3. *Compté par événements, exact par événement, depuis l'installation* : morts, quêtes rendues, boss tués
+   (événement de fin de rencontre, à vérifier sur tous les boss de donjon vanilla), champs de bataille joués /
+   gagnés (API mobile côté moderne), objets fabriqués, donjons terminés (dérivé du dernier boss).
+4. *Heuristique ou incertain* : récolte (sort + butin dans les 3 s, juste à quelques %), kills PvP par adversaire
+   (journal de combat partiellement secret : non promis).
+
+Les niveaux 1 et 2 hors talents couvrent le roster et les crafts ; les talents se testent le premier jour sur le
+client ; le niveau 4 ne bloque jamais une release.
+
 Les compteurs « depuis l'installation » sont toujours affichés avec la date de début de comptage. Les kills PvP
 détaillés par adversaire dépendent du journal de combat, en partie secret sur Forever : à vérifier en jeu.
 
