@@ -148,7 +148,7 @@ class TestTitles:
         created = titles.award_weekly_titles(datetime(2026, 12, 21, 10, 0, tzinfo=PARIS))
         by_key = {t.key: t for t in created}
         assert (
-            by_key["mining"].user == member and by_key["mining"].value == 80.0
+            by_key["gathering"].user == member and by_key["gathering"].value == 80.0
         )  # 100 − 20 sur la semaine close
         assert (
             by_key["shame"].user == member and by_key["shame"].value == 8.0
