@@ -17,7 +17,8 @@ export type CharacterProgress = {
     | "bg_played"
     | "bg_won"
     | "quests"
-    | "crafted_total",
+    | "crafted_total"
+    | "hk",
     Tile
   >;
   gathering?: Record<"mining" | "herbalism" | "skinning" | "fishing", number>;
