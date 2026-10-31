@@ -320,7 +320,7 @@ class TestSession:
 FAKE_PINS = """
 _PINS = { added = {}, removed = {} }
 _NS.MapUI.UsePins({
-  AddWorldMapIconMap = function(self, ref, icon, map, x, y, flag) _PINS.added[icon] = { map = map, x = x, y = y, flag = flag, icon = icon } end,
+  AddWorldMapIconMap = function(self, ref, icon, map, x, y, flag) _PINS.added[icon] = { map = map, x = x, y = y, flag = flag, icon = icon } return true end,
   RemoveWorldMapIcon = function(self, ref, icon) _PINS.added[icon] = nil table.insert(_PINS.removed, icon) end,
 })
 """
@@ -465,7 +465,7 @@ class TestPositions:
         g._ADVANCE(170)
         assert g._NS.Positions.peers["Player-1-00000JAI"] is not None
         g._ADVANCE(20)
-        assert g._NS.Positions.peers["Player-1-00000JAI"] is None and len(list(g._PINS.removed.values())) == 2
+        assert g._NS.Positions.peers["Player-1-00000JAI"] is None and list(g._PINS.added.items()) == []
         # Message d'un autre préfixe ou mal formé : ignoré sans erreur.
         g._FIRE("CHAT_MSG_ADDON", "AUTRE", JAINA, "GUILD", "Jaina-Forever")
         receive(lua, "P\t2\tnope")
@@ -567,9 +567,24 @@ class TestPositions:
         g._FIRE("DUEL_REQUESTED")
         g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
         g._FIRE("DUEL_FINISHED")
-        lua.execute("_CLEU[6] = 0x548 - 0x400")  # pas un joueur
+        lua.execute("_CLEU[6] = 0xa48")  # un monstre (TYPE_NPC + CONTROL_NPC), pas un joueur
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        lua.execute("_CLEU[6] = 0x548; _CLEU[2] = 'DAMAGE_SHIELD'")  # Épines : c'est moi qui frappe
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        lua.execute("_CLEU[2] = 'SPELL_DAMAGE'")
+        g.StartDuel("Garrosh")  # lanceur du duel : pas de DUEL_REQUESTED, mais le hook
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        g._FIRE("DUEL_FINISHED")
+        lua.execute("_CLEU[6] = 0xa48")
         g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
         assert len(list(g._ADDON_SENT.values())) == len(sent) + 1  # le battement de cœur des 60 s seulement
+        # Le familier d'un joueur hostile compte (contrôlé par un joueur), même sans classe connue.
+        g._ADVANCE(61)
+        lua.execute(
+            "_CLEU = { 0, 'SWING_DAMAGE', false, 'Pet-0-0000PET', 'Loup', 0x1148, 0, 'Player-1-000ABC01', 'Thrall', 0x511, 0, 40 }"
+        )
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        assert list(g._ADDON_SENT.values())[-1].text.endswith("\tLoup\t")
         # /wfg sos manuel, puis refusé sans partage.
         g._ADVANCE(61)
         g.SlashCmdList.WOWFOREVERGUILDE("sos")
@@ -629,7 +644,7 @@ class TestPositions:
 _PINS.mini = {}
 local lib = _NS.MapUI
 _NS.MapUI.UsePins({
-  AddWorldMapIconMap = function(self, ref, icon, map, x, y, flag) _PINS.added[icon] = { map = map, x = x, y = y, flag = flag } end,
+  AddWorldMapIconMap = function(self, ref, icon, map, x, y, flag) _PINS.added[icon] = { map = map, x = x, y = y, flag = flag } return true end,
   RemoveWorldMapIcon = function(self, ref, icon) _PINS.added[icon] = nil end,
   AddMinimapIconMap = function(self, ref, icon, map, x, y, parent, edge) _PINS.mini[icon] = { map = map, x = x, y = y, edge = edge } end,
   RemoveMinimapIcon = function(self, ref, icon) _PINS.mini[icon] = nil end,
@@ -647,6 +662,72 @@ _NS.MapUI.UsePins({
         assert len(list(g._PINS.mini.items())) == 1
         g._NS.Positions.SetSharing(False)
         assert list(g._PINS.mini.items()) == [] and list(g._PINS.added.items()) == []
+
+    def test_review_fixes_empty_fields_untrusted_channels_and_library_refusals(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        # Un message chuchoté avec le bon préfixe est ignoré ; le canal caché est accepté.
+        g._FIRE("CHAT_MSG_ADDON", "WFG", JAINA, "WHISPER", "Jaina-Forever")
+        assert list(g._NS.Positions.peers.items()) == []
+        g._FIRE("CHAT_MSG_ADDON", "WFG", JAINA, "CHANNEL", "Jaina-Forever", "", 0, 5, "wfgdeaths")
+        assert (
+            g._NS.Positions.peers["Player-1-00000JAI"] is not None and len(list(g._PINS.added.items())) == 1
+        )
+        g._FIRE(
+            "CHAT_MSG_ADDON",
+            "WFG",
+            "L\t1\tPlayer-1-00000JAI",
+            "CHANNEL",
+            "Jaina-Forever",
+            "",
+            0,
+            7,
+            "autrecanal",
+        )
+        assert g._NS.Positions.peers["Player-1-00000JAI"] is not None
+        # Carte sans coordonnées après une position complète : le point disparaît, la zone reste.
+        receive(
+            lua,
+            JAINA.replace("\t0.6100\t0.4200\t", "\t\t\t").replace(
+                "Forêt d'Elwynn\tHurlevent", "Gnomeregan\t"
+            ),
+        )
+        peer = g._NS.Positions.peers["Player-1-00000JAI"]
+        assert peer.x is None and peer.zone == "Gnomeregan" and list(g._PINS.added.items()) == []
+        # La bibliothèque refuse la carte : l'ancien point est retiré.
+        receive(lua, JAINA)
+        assert len(list(g._PINS.added.items())) == 1
+        lua.execute("""
+local lib = { AddWorldMapIconMap = function() return false end, RemoveWorldMapIcon = function(self, ref, icon) _PINS.added[icon] = nil end }
+_NS.MapUI.UsePins(lib)
+""")
+        receive(lua, JAINA.replace("1429", "9999"))
+        assert list(g._PINS.added.items()) == []
+        # Recherche de groupe accentuée : coupée sur une frontière UTF-8, ligne valide et ≤ 255 octets.
+        g._NS.Positions.SetLFG("é" * 70)
+        assert g._NS.Positions.lfg == "é" * 40
+        line = g._NS.Positions.Encode(g._NS.char, 1429, 0.5, 0.5)
+        assert len(line.encode("utf-8")) <= 255
+        assert g._NS.Positions.Cut("ab" + "é" * 3, 5) == "abé" and g._NS.Positions.Cut("abc", 5) == "abc"
+        # Roster sans GUID : rapprochement par prénom seulement si la classe concorde.
+        lua.execute("_ROSTER[2].guid = nil")
+        receive(
+            lua,
+            JAINA.replace("Player-1-00000JAI", "Player-1-00000JA2").replace("MAGE", "WARRIOR"),
+            "Jaina-Forever",
+        )
+        members = list(g._NS.Positions.Members().values())
+        jainas = [m for m in members if m.name.startswith("Jaina")]
+        assert len(jainas) == 2 and sorted(m["class"] for m in jainas) == ["MAGE", "WARRIOR"]
+        receive(lua, "L\t1\tPlayer-1-00000JA2")
+        members = list(g._NS.Positions.Members().values())
+        jainas = [m for m in members if m.name.startswith("Jaina")]
+        assert len(jainas) == 1 and jainas[0].peer is not None and jainas[0].sender == "Jaina-Forever"
+        assert len(list(g.WoWForeverGuildeDB.errors.values())) == 0, list(
+            g.WoWForeverGuildeDB.errors.values()
+        )
 
     def test_position_line_stays_under_255_bytes_and_still_decodes(self):
         lua = boot()

@@ -79,7 +79,6 @@ local function paint(icon, peer)
   icon.peer = peer
   icon.dot:SetVertexColor(classColor(peer.class))
   if alerting(peer) then icon.ring:SetVertexColor(1, 0.15, 0.15, 1) else icon.ring:SetVertexColor(0, 0, 0, 0.85) end
-  icon:Show()
 end
 
 local function minimapWanted()
@@ -98,14 +97,20 @@ function MapUI.Update(peer)
     pair = table.remove(pool) or { map = newIcon(14), mini = newIcon(10) }
     icons[peer.guid] = pair
   end
+  -- La bibliothèque n'enlève pas d'elle-même un point ré-ajouté (pin accumulé tant que la carte reste ouverte), et
+  -- refuse une carte inconnue en laissant l'ancien point : on retire toujours avant de reposer. C'est elle qui montre
+  -- et cache les icônes (surtout sur la minimap, selon la distance), on ne force pas Show().
   paint(pair.map, peer)
-  lib:AddWorldMapIconMap(ns, pair.map, peer.map, peer.x, peer.y, HBD_PINS_WORLDMAP_SHOW_WORLD or 3)
+  lib:RemoveWorldMapIcon(ns, pair.map)
+  if not lib:AddWorldMapIconMap(ns, pair.map, peer.map, peer.x, peer.y, HBD_PINS_WORLDMAP_SHOW_WORLD or 3) then
+    MapUI.Remove(peer.guid)
+    return
+  end
+  if lib.RemoveMinimapIcon then lib:RemoveMinimapIcon(ns, pair.mini) end
+  pair.mini:Hide()
   if minimapWanted() and lib.AddMinimapIconMap then
     paint(pair.mini, peer)
-    lib:AddMinimapIconMap(ns, pair.mini, peer.map, peer.x, peer.y, false, true)
-  elseif lib.RemoveMinimapIcon then
-    lib:RemoveMinimapIcon(ns, pair.mini)
-    pair.mini:Hide()
+    lib:AddMinimapIconMap(ns, pair.mini, peer.map, peer.x, peer.y, true, true)
   end
 end
 

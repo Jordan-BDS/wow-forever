@@ -146,6 +146,11 @@ C_GuildInfo = { GuildRoster = function() _ROSTER_REQUESTED = (_ROSTER_REQUESTED 
 _PLAYER_INFO = { ["Player-1-00000EVIL"] = { "Guerrier", "WARRIOR" } }
 function GetPlayerInfoByGUID(guid) local p = _PLAYER_INFO[guid] if p then return p[1], p[2] end end
 function UnitIsPlayer() return false end
+function StartDuel() end
+function hooksecurefunc(name, fn)
+  local orig = _G[name]
+  _G[name] = function(...) local r = { orig(...) } fn(...) return unpack(r) end
+end
 ChatFrame1 = {}
 
 -- Frames factices : enregistrent les événements et le script OnEvent.

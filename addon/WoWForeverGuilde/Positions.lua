@@ -66,6 +66,15 @@ local function field(s)
   return (tostring(s or ""):gsub("[\t\n]", " "))
 end
 
+--- Coupe à `n` octets sans casser un caractère UTF-8 (on recule devant les octets de continuation 0x80-0xBF).
+local function cut(s, n)
+  if #s <= n then return s end
+  local i = n
+  while i > 0 and s:byte(i + 1) and s:byte(i + 1) >= 0x80 and s:byte(i + 1) < 0xC0 do i = i - 1 end
+  return s:sub(1, i)
+end
+Positions.Cut = cut
+
 -- Nom affiché : prénom et nom de famille (Forever), comme le lit le collecteur d'identité.
 local function displayName(char)
   local full = UnitFullName and ns.plain((UnitFullName("player")))
@@ -93,7 +102,7 @@ local function pack(fields)
     fields[i] = ""
     line = table.concat(fields, "\t")
   end
-  return line:sub(1, 255)
+  return cut(line, 255)
 end
 
 --- Ligne « P » : position, résumé de talents, recherche de groupe.
@@ -138,13 +147,20 @@ end
 
 -- --- transport ----------------------------------------------------------------------------------------
 
+-- C_ChatInfo.SendAddonMessage renvoie un Enum.SendAddonMessageResult (0 = envoyé) sur les clients récents, rien ou
+-- true sur les anciens : on ne tient l'envoi pour fait que dans ces cas, sinon la position sera renvoyée au prochain tick.
 local function send(text)
   local api = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
   if not api then return false end
-  if IsInGuild and IsInGuild() then return (pcall(api, PREFIX, text, "GUILD")) end
-  local index = ns.HiddenChannelIndex and ns.HiddenChannelIndex()
-  if index then return (pcall(api, PREFIX, text, "CHANNEL", index)) end
-  return false
+  local ok, result
+  if IsInGuild and IsInGuild() then
+    ok, result = pcall(api, PREFIX, text, "GUILD")
+  else
+    local index = ns.HiddenChannelIndex and ns.HiddenChannelIndex()
+    if not index then return false end
+    ok, result = pcall(api, PREFIX, text, "CHANNEL", index)
+  end
+  return ok and (result == nil or result == true or result == 0)
 end
 
 local function moved(map, x, y, zone)
@@ -179,7 +195,7 @@ end
 --- /wfg lfg <texte> : recherche de groupe diffusée avec la position ; vide pour retirer.
 function Positions.SetLFG(text)
   text = (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-  Positions.lfg = text ~= "" and text:sub(1, 60) or nil
+  Positions.lfg = text ~= "" and cut(text, 80) or nil
   if enabled() then
     last.at = 0
     broadcast(true)
@@ -190,10 +206,13 @@ end
 
 -- --- appel à l'aide ----------------------------------------------------------------------------------------
 
-local TYPE_PLAYER, REACTION_HOSTILE = 0x400, 0x40
+-- Drapeaux du journal de combat : contrôlé par un joueur (lui-même ou son familier) et hostile.
+local CONTROL_PLAYER, REACTION_HOSTILE = 0x100, 0x40
 local function hasFlag(flags, flag)
   return type(flags) == "number" and math.floor(flags / flag) % 2 == 1
 end
+-- Coups reçus seulement : DAMAGE_SHIELD (Épines…) a pour source la victime de *mes* coups, on l'exclut.
+local HIT = { SWING_DAMAGE = true, RANGE_DAMAGE = true, SPELL_DAMAGE = true, SPELL_PERIODIC_DAMAGE = true }
 
 --- Envoie l'appel. `attacker`/`attackerGUID` viennent du journal de combat ; en manuel (/wfg sos), la cible si
 --- c'est un joueur. Un envoi par GANK_COOLDOWN s.
@@ -225,10 +244,9 @@ local function onCombatLog()
   if not CombatLogGetCurrentEventInfo or not ns.char or dueling then return end
   local _, subevent, _, sourceGUID, sourceName, sourceFlags, _, destGUID = CombatLogGetCurrentEventInfo()
   if ns.plain(destGUID) ~= ns.char.guid then return end
-  subevent = ns.plain(subevent)
-  if type(subevent) ~= "string" or not subevent:find("_DAMAGE$") then return end
+  if not HIT[ns.plain(subevent)] then return end
   sourceGUID, sourceFlags = ns.plain(sourceGUID), ns.plain(sourceFlags)
-  if sourceGUID == ns.char.guid or not (hasFlag(sourceFlags, TYPE_PLAYER) and hasFlag(sourceFlags, REACTION_HOSTILE)) then
+  if sourceGUID == ns.char.guid or not (hasFlag(sourceFlags, CONTROL_PLAYER) and hasFlag(sourceFlags, REACTION_HOSTILE)) then
     return
   end
   if IsInInstance and IsInInstance() then return end -- champs de bataille, arènes, donjons
@@ -260,24 +278,34 @@ function Positions.ForgetAll()
   if ns.RosterUI then ns.RosterUI.Refresh() end
 end
 
-local function onAddonMessage(prefix, text, _, sender)
-  if prefix ~= PREFIX or not enabled() then return end
+-- Seuls le canal de guilde et le canal caché font foi : un message addon chuchoté par n'importe qui est ignoré.
+local function trusted(channel, channelName)
+  channel = ns.plain(channel)
+  if channel == "GUILD" then return true end
+  if channel == "CHANNEL" then
+    channelName = ns.plain(channelName)
+    return type(channelName) == "string" and channelName:lower() == ns.Data.DEATH_CHANNEL
+  end
+  return false
+end
+
+local function onAddonMessage(prefix, text, channel, sender, _, _, _, channelName)
+  if prefix ~= PREFIX or not enabled() or not trusted(channel, channelName) then return end
   text, sender = ns.plain(text), ns.plain(sender)
   if type(text) ~= "string" then return end
   local msg = Positions.Decode(text)
   if not msg or (ns.char and msg.guid == ns.char.guid) then return end
   if msg.kind == "L" then Positions.Forget(msg.guid) return end
-  local peer = Positions.peers[msg.guid] or {}
-  local previous = peer.alert
-  for key, value in pairs(msg) do peer[key] = value end
-  peer.kind = nil
+  local peer = Positions.peers[msg.guid] or { guid = msg.guid }
+  -- Chaque champ est réécrit, y compris à vide : une carte sans coordonnées (instance, chargement) retire le point.
+  peer.name, peer.class, peer.level = msg.name, msg.class, msg.level
+  peer.map, peer.x, peer.y, peer.zone, peer.sub = msg.map, msg.x, msg.y, msg.zone, msg.sub
   peer.sender = type(sender) == "string" and sender ~= "" and sender or msg.name
   peer.at = ns.now()
   if msg.kind == "G" then
     peer.alert = { at = peer.at, attacker = msg.attacker or "", class = msg.attackerClass or "" }
-    peer.attacker, peer.attackerClass = nil, nil
   else
-    peer.alert = previous
+    peer.spec, peer.lfg = msg.spec, msg.lfg
   end
   Positions.peers[msg.guid] = peer
   if ns.MapUI then ns.MapUI.Update(peer) end
@@ -341,12 +369,17 @@ function Positions.Members()
         }
         list[#list + 1] = m
         if m.guid then byGuid[m.guid] = m end
-        byName[shortName(name)] = m
+        if byName[shortName(name)] then byName[shortName(name)] = false else byName[shortName(name)] = m end -- homonymes : ambigu
       end
     end
   end
   for guid, peer in pairs(Positions.peers) do
-    local m = byGuid[guid] or byName[shortName(peer.sender)] or byName[shortName(peer.name)]
+    local m = byGuid[guid]
+    if not m then
+      -- Repli par prénom (roster sans GUID) : refusé si la classe diffère, pour ne pas fusionner deux homonymes.
+      local candidate = byName[shortName(peer.sender)] or byName[shortName(peer.name)]
+      if candidate and not candidate.peer and (not candidate.class or candidate.class == peer.class) then m = candidate end
+    end
     if m then
       m.peer = peer
       m.name = peer.name ~= "" and peer.name or m.name
@@ -372,6 +405,8 @@ ns.RegisterCollector({
   },
   onLogin = function()
     registerPrefix()
+    -- Celui qui lance le duel ne reçoit pas DUEL_REQUESTED : on observe l'appel lui-même.
+    if hooksecurefunc and StartDuel then pcall(hooksecurefunc, "StartDuel", function() dueling = true end) end
     C_Timer.After(6, function() ns.Safe("positions.broadcast", broadcast, true) end) -- après le canal caché (5 s)
     C_Timer.NewTicker(ns.Data.POSITION_TICK, function() ns.Safe("positions.tick", tick) end)
   end,
