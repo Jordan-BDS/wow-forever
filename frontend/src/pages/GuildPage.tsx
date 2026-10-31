@@ -31,6 +31,7 @@ type Form = {
   discord_crafts_channel_id: string;
   discord_polls_channel_id: string;
   reminder_minutes: number;
+  accepted_interface_versions: string;
   discord_client_id: string;
   discord_client_secret: string;
   discord_bot_token: string;
@@ -80,6 +81,7 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
     discord_crafts_channel_id: initial.discord_crafts_channel_id ?? "",
     discord_polls_channel_id: initial.discord_polls_channel_id ?? "",
     reminder_minutes: initial.reminder_minutes ?? 60,
+    accepted_interface_versions: initial.accepted_interface_versions ?? "",
     discord_client_id: initial.discord_client_id ?? "",
     discord_client_secret: "",
     discord_bot_token: "",
@@ -155,6 +157,18 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
         </Field>
         <Field label="Royaume">
           <Input value={form.realm} maxLength={64} onChange={(e) => update({ realm: e.target.value })} />
+        </Field>
+        <Field label="Versions d'interface acceptées à l'import">
+          <Input
+            value={form.accepted_interface_versions}
+            maxLength={64}
+            onChange={(e) => update({ accepted_interface_versions: e.target.value })}
+          />
+          <p className="text-xs text-muted">
+            Numéro renvoyé par le client de jeu (WoW Forever : 16001). Les exports d'un autre client (Retail,
+            Classic) sont refusés. Vide : tout accepter, utile pour les tests.
+          </p>
+          {Err("accepted_interface_versions")}
         </Field>
         <Field label="Valeurs de la guilde (affichées en citation sur l'accueil)">
           <Textarea

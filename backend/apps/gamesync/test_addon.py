@@ -300,6 +300,20 @@ class TestSession:
         payload = decode_export(logout_code(lua))
         assert payload["characters"] == [] and payload["addon"] == toc_version()
 
+    def test_export_embeds_game_client_identity(self):
+        # Le site refuse les exports venant de Retail ou Classic : seul Forever (interface 16001) passe.
+        lua = boot()
+        login(lua)
+        payload = decode_export(logout_code(lua))
+        assert payload["client"] == {"version": "1.60.1", "build": "12345", "toc": 16001, "project": 1}
+        assert set(payload) == {"v", "addon", "install", "exported_at", "client", "characters", "errors"}
+
+    def test_export_omits_client_when_build_info_is_unavailable(self):
+        lua = boot()
+        login(lua)
+        lua.execute("GetBuildInfo = nil")
+        assert "client" not in decode_export(logout_code(lua))
+
 
 class TestPureModules:
     @pytest.fixture

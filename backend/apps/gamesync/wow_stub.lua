@@ -8,6 +8,10 @@ _TIMERS = {}
 _SOUNDS = {}
 
 C_AddOns = { GetAddOnMetadata = function(addon, key) if key == "Version" then return _ADDON_VERSION or "0.0.0" end end }
+-- Client de jeu : version, build, date, version d'interface (Forever = 16001) ; projet 1 = WoW.
+_BUILD = { version = "1.60.1", build = "12345", date = "Oct 31 2026", toc = 16001 }
+function GetBuildInfo() return _BUILD.version, _BUILD.build, _BUILD.date, _BUILD.toc end
+WOW_PROJECT_ID = 1
 function GetServerTime() return _CLOCK.now end
 function time() return _CLOCK.now end
 function date(fmt, ts) return os.date(fmt, ts or _CLOCK.now) end

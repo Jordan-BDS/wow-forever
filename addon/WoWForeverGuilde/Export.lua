@@ -62,6 +62,18 @@ function Export.Character(entry, settings)
   return c
 end
 
+--- Identité du client de jeu, pour que le site refuse les exports venant de Retail ou Classic :
+--- seul WoW Forever (interface 16001) est accepté. Lecture sous pcall : l'API peut manquer hors du jeu.
+--- Sans GetBuildInfo, le champ est omis.
+local function clientInfo()
+  if type(GetBuildInfo) ~= "function" then return nil end
+  local ok, version, build, _, toc = pcall(GetBuildInfo)
+  if not ok then return nil end
+  local client = { version = version, build = build, toc = toc }
+  if type(WOW_PROJECT_ID) == "number" then client.project = WOW_PROJECT_ID end
+  return client
+end
+
 function Export.BuildPayload(db, ts)
   local characters = ns.Json.array()
   local guids = {}
@@ -77,6 +89,7 @@ function Export.BuildPayload(db, ts)
     addon = ns.VERSION,
     install = db.installId,
     exported_at = ts or ns.now(),
+    client = clientInfo(),
     characters = characters,
     errors = arrayOf(db.errors),
   }

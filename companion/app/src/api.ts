@@ -16,6 +16,7 @@ export type AppState = {
   last_sync: SyncOutcome[] | null;
   last_sync_at: number | null; // secondes epoch
   candidates: string[];
+  game_dir_warning: string | null;
 };
 
 export type SyncOutcome =

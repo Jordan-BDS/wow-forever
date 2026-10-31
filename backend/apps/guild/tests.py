@@ -45,6 +45,21 @@ def test_singleton_never_duplicates(db):
     assert GuildSettings.load().name == "B"
 
 
+def test_accepted_interface_versions_read_and_written_by_gm(as_user, gm, member):
+    client = as_user(gm)
+    assert client.get("/api/guild/").data["accepted_interface_versions"] == "16001"
+    assert GuildSettings.load().accepted_interface_set == {16001}
+    response = client.patch("/api/guild/", {"accepted_interface_versions": "16001, 16002"}, format="json")
+    assert response.status_code == 200, response.data
+    assert response.data["accepted_interface_versions"] == "16001,16002"
+    assert GuildSettings.load().accepted_interface_set == {16001, 16002}
+    bad = client.patch("/api/guild/", {"accepted_interface_versions": "abc"}, format="json")
+    assert bad.status_code == 400
+    response = client.patch("/api/guild/", {"accepted_interface_versions": ""}, format="json")
+    assert response.status_code == 200 and GuildSettings.load().accepted_interface_set == set()
+    assert "accepted_interface_versions" not in as_user(member).get("/api/guild/").data
+
+
 class TestDiscordSettings:
     def test_site_values_override_environment_and_secrets_are_hidden(self, as_user, gm, member):
         client = as_user(gm)

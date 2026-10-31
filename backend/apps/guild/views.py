@@ -40,6 +40,7 @@ class GuildSettingsSerializer(serializers.ModelSerializer):
             "discord_crafts_channel_id",
             "discord_polls_channel_id",
             "reminder_minutes",
+            "accepted_interface_versions",
             "discord_client_id",
             "discord_client_secret",
             "discord_client_secret_set",
@@ -86,6 +87,14 @@ class GuildSettingsSerializer(serializers.ModelSerializer):
                     {"discord_allowed_role_ids": "Des IDs numériques séparés par des virgules."}
                 )
             attrs["discord_allowed_role_ids"] = ",".join(ids)
+        if "accepted_interface_versions" in attrs:
+            raw = attrs["accepted_interface_versions"].replace(";", ",")
+            versions = [v.strip() for v in raw.split(",") if v.strip()]
+            if any(not v.isdigit() for v in versions):
+                raise serializers.ValidationError(
+                    {"accepted_interface_versions": "Des numéros d'interface séparés par des virgules."}
+                )
+            attrs["accepted_interface_versions"] = ",".join(versions)
         for field in (*ID_FIELDS, *CHANNEL_FIELDS):
             value = attrs.get(field)
             if value and not value.isdigit():

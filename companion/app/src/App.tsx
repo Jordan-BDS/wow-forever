@@ -39,6 +39,7 @@ export function App() {
       </header>
       <main className="main">
         {updating && <div className="card">Mise à jour vers la version {updating} en cours, le compagnon va redémarrer…</div>}
+        {state.game_dir_warning && <div className="card warn">{state.game_dir_warning}</div>}
         {error && <div className="card ko">{error}</div>}
         {step === "gamedir" && <GameDirStep state={state} onDone={refresh} onError={setError} />}
         {step === "pair" && <PairStep state={state} onDone={refresh} onError={setError} />}

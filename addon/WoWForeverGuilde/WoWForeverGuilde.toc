@@ -2,7 +2,7 @@
 ## Title: WoW Forever Guilde
 ## Notes: Remonte la progression de tes personnages sur le site de la guilde (export ou compagnon).
 ## Author: WoW Forever
-## Version: 0.1.1
+## Version: 0.1.2
 ## SavedVariables: WoWForeverGuildeDB
 ## X-Category: Guild
 ## X-Website: https://github.com/Jordan-BDS/wow-forever

@@ -39,6 +39,8 @@ struct AppState {
     last_sync: Option<Vec<SyncOutcome>>,
     last_sync_at: Option<u64>,
     candidates: Vec<String>,
+    /// Dossier d'un autre client que Forever (Retail, Classic…) : le site refusera ses exports.
+    game_dir_warning: Option<String>,
 }
 
 /// Secondes depuis l'epoch : le front en fait une date locale.
@@ -73,6 +75,11 @@ fn snapshot(inner: &Inner) -> AppState {
         installed_addon_version: game_dir
             .as_deref()
             .and_then(|g| addon::installed_version(&wowdir::addons_dir(g))),
+        game_dir_warning: game_dir.as_deref().and_then(wowdir::other_client_name).map(|client| {
+            format!(
+                "Ce dossier est celui du client {client}, pas de WoW Forever : le site refusera les personnages qui en viennent. Choisis le dossier _forever_ pour la guilde."
+            )
+        }),
         last_sync: inner.last_sync.clone(),
         last_sync_at: inner.last_sync_at,
         candidates: if game_dir.is_none() {

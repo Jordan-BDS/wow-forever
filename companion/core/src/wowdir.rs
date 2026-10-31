@@ -5,6 +5,23 @@ use std::path::{Path, PathBuf};
 /// Nom du sous-dossier de version de WoW Forever (comme `_classic_era_` ou `_retail_`).
 pub const FOREVER_DIR: &str = "_forever_";
 
+/// Nom lisible du client si le dossier de version n'est pas celui de WoW Forever (`_retail_` → « Retail »).
+/// Sert à prévenir le joueur : le site refuse les exports venant d'un autre client.
+pub fn other_client_name(game_dir: &Path) -> Option<String> {
+    let name = game_dir.file_name()?.to_str()?;
+    if !(name.len() > 2 && name.starts_with('_') && name.ends_with('_')) || name == FOREVER_DIR {
+        return None;
+    }
+    Some(match name {
+        "_retail_" => "Retail".to_string(),
+        "_classic_era_" => "Classic Era".to_string(),
+        "_classic_" => "Classic (extension)".to_string(),
+        "_ptr_" | "_xptr_" => "PTR".to_string(),
+        "_beta_" => "Bêta".to_string(),
+        other => other.trim_matches('_').replace('_', " "),
+    })
+}
+
 /// Le dossier passé est-il un dossier de version WoW (celui qui contient `Interface/` et `WTF/`) ?
 pub fn is_game_dir(path: &Path) -> bool {
     if !path.is_dir() {
@@ -120,5 +137,19 @@ mod tests {
         fs::write(exe.join("Wow.exe"), b"").unwrap();
         assert!(is_game_dir(&exe));
         assert!(!is_game_dir(&tmp.path().join("nope")));
+    }
+}
+
+#[cfg(test)]
+mod other_client_tests {
+    use super::*;
+
+    #[test]
+    fn warns_for_other_clients_only() {
+        assert_eq!(other_client_name(Path::new("/wow/_retail_")).as_deref(), Some("Retail"));
+        assert_eq!(other_client_name(Path::new("/wow/_classic_era_")).as_deref(), Some("Classic Era"));
+        assert_eq!(other_client_name(Path::new("/wow/_xyz_")).as_deref(), Some("xyz"));
+        assert!(other_client_name(Path::new("/wow/_forever_")).is_none());
+        assert!(other_client_name(Path::new("/wow")).is_none());
     }
 }

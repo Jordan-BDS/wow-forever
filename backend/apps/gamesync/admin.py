@@ -23,9 +23,9 @@ class CompanionDeviceAdmin(admin.ModelAdmin):
 
 @admin.register(ImportBatch)
 class ImportBatchAdmin(admin.ModelAdmin):
-    list_display = ["received_at", "user", "source", "addon_version", "summary"]
+    list_display = ["received_at", "user", "source", "addon_version", "client", "summary"]
     list_filter = ["source"]
-    readonly_fields = ["code", "fingerprint"]
+    readonly_fields = ["code", "fingerprint", "client"]
 
 
 @admin.register(CharacterSnapshot)

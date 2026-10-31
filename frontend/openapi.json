@@ -5561,6 +5561,12 @@
                         "title": "Rappel avant un événement (minutes)",
                         "description": "0 = pas de rappel."
                     },
+                    "accepted_interface_versions": {
+                        "type": "string",
+                        "title": "Versions d'interface acceptées",
+                        "description": "Numéros d'interface du client de jeu acceptés à l'import (WoW Forever : 16001), séparés par des virgules. Vide : tout accepter.",
+                        "maxLength": 64
+                    },
                     "discord_client_id": {
                         "type": "string",
                         "title": "Client ID de l'application Discord",
@@ -6574,6 +6580,12 @@
                         "format": "int64",
                         "title": "Rappel avant un événement (minutes)",
                         "description": "0 = pas de rappel."
+                    },
+                    "accepted_interface_versions": {
+                        "type": "string",
+                        "title": "Versions d'interface acceptées",
+                        "description": "Numéros d'interface du client de jeu acceptés à l'import (WoW Forever : 16001), séparés par des virgules. Vide : tout accepter.",
+                        "maxLength": 64
                     },
                     "discord_client_id": {
                         "type": "string",

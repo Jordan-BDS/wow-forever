@@ -47,6 +47,16 @@ class GuildSettings(models.Model):
     reminder_minutes = models.PositiveSmallIntegerField(
         "Rappel avant un événement (minutes)", default=60, help_text="0 = pas de rappel."
     )
+    accepted_interface_versions = models.CharField(
+        "Versions d'interface acceptées",
+        max_length=64,
+        blank=True,
+        default="16001",
+        help_text=(
+            "Numéros d'interface du client de jeu acceptés à l'import (WoW Forever : 16001), "
+            "séparés par des virgules. Vide : tout accepter."
+        ),
+    )
     # Connexion Discord, saisie par le GM sur le site (les variables d'environnement servent de secours).
     discord_client_id = models.CharField("Client ID de l'application Discord", max_length=32, blank=True)
     discord_client_secret = models.CharField("Client secret", max_length=128, blank=True)
@@ -73,3 +83,12 @@ class GuildSettings(models.Model):
     def load(cls) -> "GuildSettings":
         obj, _ = cls.objects.get_or_create(pk=cls.SINGLETON_PK)
         return obj
+
+    @property
+    def accepted_interface_set(self) -> set[int]:
+        """Numéros d'interface acceptés à l'import ; vide = tout accepter (non numériques ignorés)."""
+        return {
+            int(part)
+            for part in self.accepted_interface_versions.replace(";", ",").split(",")
+            if part.strip().isdigit()
+        }

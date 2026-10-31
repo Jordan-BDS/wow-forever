@@ -6,6 +6,7 @@ from django.utils import timezone
 from apps.characters.models import Character, CharacterProfession
 from apps.gamedata.models import PlayerClass, Profession, Race, Recipe
 from apps.gamedata.seed import seed
+from apps.guild.models import GuildSettings
 
 from . import services
 from .format import ExportError, decode_export, encode_export
@@ -345,6 +346,45 @@ class TestImport:
     def test_unreadable_code_is_a_400(self, as_user, member):
         response = do_import(as_user(member), "WFG1:deadbeef:AAAA")
         assert response.status_code == 400 and "incomplet" in str(response.data["code"])
+
+
+RETAIL_CLIENT = {"version": "12.1.5", "build": "64567", "toc": 120105, "project": 1}
+FOREVER_CLIENT = {"version": "1.15.0", "build": "60000", "toc": 16001, "project": 1}
+
+
+class TestForeignClient:
+    def test_other_client_is_refused_without_touching_characters(self, as_user, member):
+        response = do_import(as_user(member), export_code(character_payload(), client=RETAIL_CLIENT))
+        assert response.status_code == 201, response.data
+        (line,) = response.data["snapshots"]
+        assert line["status"] == "refused"
+        assert line["note"] == (
+            "Export d'un autre client (12.1.5, interface 120105) : seul WoW Forever est accepté."
+        )
+        assert response.data["summary"]["refused"] == 1 and response.data["summary"]["created"] == 0
+        assert not Character.objects.filter(guid="Player-1-000ABC01").exists()
+        assert ImportBatch.objects.get().client == "12.1.5 (120105)"
+        assert CharacterSnapshot.objects.get().name == "Thrall"
+
+    def test_forever_client_is_imported(self, as_user, member):
+        response = do_import(as_user(member), export_code(character_payload(), client=FOREVER_CLIENT))
+        assert response.status_code == 201, response.data
+        assert response.data["summary"]["created"] == 1
+        assert ImportBatch.objects.get().client == "1.15.0 (16001)"
+
+    def test_old_addon_without_client_block_is_imported(self, as_user, member):
+        response = do_import(as_user(member), export_code(character_payload()))
+        assert response.status_code == 201, response.data
+        assert response.data["summary"]["created"] == 1
+        assert ImportBatch.objects.get().client == ""
+
+    def test_empty_setting_accepts_everything(self, as_user, member):
+        settings = GuildSettings.load()
+        settings.accepted_interface_versions = ""
+        settings.save()
+        response = do_import(as_user(member), export_code(character_payload(), client=RETAIL_CLIENT))
+        assert response.status_code == 201, response.data
+        assert response.data["summary"]["created"] == 1
 
 
 class TestRelease:

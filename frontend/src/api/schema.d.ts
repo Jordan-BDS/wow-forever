@@ -1699,6 +1699,11 @@ export interface components {
              * @description 0 = pas de rappel.
              */
             reminder_minutes?: number;
+            /**
+             * Versions d'interface acceptées
+             * @description Numéros d'interface du client de jeu acceptés à l'import (WoW Forever : 16001), séparés par des virgules. Vide : tout accepter.
+             */
+            accepted_interface_versions?: string;
             /** Client ID de l'application Discord */
             discord_client_id?: string;
             readonly discord_client_secret_set: boolean;
@@ -2081,6 +2086,11 @@ export interface components {
              * @description 0 = pas de rappel.
              */
             reminder_minutes?: number;
+            /**
+             * Versions d'interface acceptées
+             * @description Numéros d'interface du client de jeu acceptés à l'import (WoW Forever : 16001), séparés par des virgules. Vide : tout accepter.
+             */
+            accepted_interface_versions?: string;
             /** Client ID de l'application Discord */
             discord_client_id?: string;
             discord_client_secret?: string;

@@ -227,12 +227,36 @@ def default_role(player_class: PlayerClass, spec_slug: str, spec_tab: int | None
     return roles[0] if roles else "dps"
 
 
+def _client_label(client: dict | None) -> str:
+    """« 12.1.5 (120105) » d'après le bloc `client` de l'export ; vide pour les anciens addons."""
+    if not client:
+        return ""
+    version = str(client.get("version") or "").strip()
+    toc = client.get("toc")
+    if isinstance(toc, int) and not isinstance(toc, bool):
+        return f"{version or '?'} ({toc})"[:64]
+    return version[:64]
+
+
+def _client_refusal(client: dict | None) -> str:
+    """Note de refus si l'export vient d'un autre client que ceux acceptés (Retail, Classic…), sinon vide."""
+    if not client:
+        return ""  # ancien addon sans bloc client : on accepte
+    accepted = GuildSettings.load().accepted_interface_set
+    toc = client.get("toc")
+    if not accepted or isinstance(toc, bool) or not isinstance(toc, int) or toc in accepted:
+        return ""
+    version = str(client.get("version") or "").strip() or "?"
+    return f"Export d'un autre client ({version}, interface {toc}) : seul WoW Forever est accepté."
+
+
 @transaction.atomic
 def import_code(user, code: str, *, source: str, device: CompanionDevice | None = None) -> ImportBatch:
     payload = decode_export(code)
     fingerprint = hashlib.sha256("".join(code.split()).encode()).hexdigest()
     if ImportBatch.objects.filter(user=user, fingerprint=fingerprint).exists():
         raise DuplicateImport("Ce code a déjà été importé : rien de nouveau.")
+    client = payload.get("client") if isinstance(payload.get("client"), dict) else None
     batch = ImportBatch.objects.create(
         user=user,
         device=device,
@@ -241,12 +265,18 @@ def import_code(user, code: str, *, source: str, device: CompanionDevice | None 
         format_version=int(payload.get("v") or 1),
         addon_version=str(payload.get("addon") or "")[:32],
         install_id=str(payload.get("install") or "")[:64],
+        client=_client_label(client),
         code="".join(code.split()),
     )
     summary: dict[str, int] = {status: 0 for status in SnapshotStatus.values}
     summary["new_recipes"] = 0
+    # Le lot est créé même refusé (empreinte mémorisée) : le compagnon ne renvoie pas le code en boucle.
+    refusal = _client_refusal(client)
     for raw in payload["characters"]:
-        snapshot = _process_character(batch, raw, summary)
+        if refusal:
+            snapshot = _refuse_foreign_client(batch, raw, refusal)
+        else:
+            snapshot = _process_character(batch, raw, summary)
         summary[snapshot.status] += 1
     batch.summary = summary
     batch.save(update_fields=["summary"])
@@ -276,6 +306,15 @@ def _snapshot(batch: ImportBatch, parsed: ParsedCharacter | None, raw: Any, **fi
         data=raw if isinstance(raw, dict) else {},
         **fields,
     )
+
+
+def _refuse_foreign_client(batch: ImportBatch, raw: Any, note: str) -> CharacterSnapshot:
+    """Export d'un autre client : instantané refusé, sans création ni mise en attente ni mise à jour."""
+    try:
+        parsed = parse_character(raw)
+    except ValueError:
+        parsed = None
+    return _snapshot(batch, parsed, raw, status=SnapshotStatus.REFUSED, note=note)
 
 
 def _process_character(batch: ImportBatch, raw: Any, summary: dict[str, int]) -> CharacterSnapshot:

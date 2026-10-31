@@ -68,6 +68,12 @@ class ImportBatch(models.Model):
     format_version = models.PositiveSmallIntegerField()
     addon_version = models.CharField(max_length=32, blank=True)
     install_id = models.CharField(max_length=64, blank=True)
+    client = models.CharField(
+        "Client de jeu",
+        max_length=64,
+        blank=True,
+        help_text="Version et numéro d'interface du client, ex. « 12.1.5 (120105) ».",
+    )
     code = models.TextField(help_text="Le code d'export tel que reçu.")
     summary = models.JSONField(default=dict)
 
