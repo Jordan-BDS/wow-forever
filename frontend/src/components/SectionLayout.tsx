@@ -14,7 +14,7 @@ export function SectionLayout() {
     <>
       {tabs.length > 0 && (
         <nav
-          className="nav-scroll -mt-3 mb-6 flex gap-1 overflow-x-auto border-b border-border text-sm"
+          className="nav-scroll -mx-4 -mt-3 mb-6 flex gap-1 overflow-x-auto border-b border-border px-4 text-sm sm:mx-0 sm:px-0"
           aria-label={section?.label}
         >
           {tabs.map((tab) => (

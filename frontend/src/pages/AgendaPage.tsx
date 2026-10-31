@@ -19,7 +19,7 @@ export function AgendaPage() {
     <>
       <PageTitle
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex rounded-md border border-border text-sm">
               {(["month", "list"] as View[]).map((v) => (
                 <button
@@ -135,7 +135,7 @@ function MonthView({ mineOnly }: { mineOnly: boolean }) {
             <div
               key={key}
               className={clsx(
-                "min-h-20 rounded-md border p-1 text-xs",
+                "min-h-14 rounded-md border p-1 text-xs sm:min-h-20",
                 inMonth ? "border-border bg-bg/60" : "border-transparent text-muted/50",
                 key === todayKey && "border-gold/60",
               )}
@@ -150,13 +150,14 @@ function MonthView({ mineOnly }: { mineOnly: boolean }) {
                     to={`/agenda/${event.id}`}
                     title={`${formatTime(event.starts_at)} ${event.title}`}
                     className={clsx(
-                      "block truncate rounded px-1 py-0.5 hover:opacity-90",
+                      // Sur mobile, une simple barre de couleur par événement ; le titre revient dès sm.
+                      "block h-1.5 rounded hover:opacity-90 sm:h-auto sm:truncate sm:px-1 sm:py-0.5",
                       EVENT_KIND_COLOR[event.kind],
                       event.effective_status !== "planned" && "line-through opacity-50",
                     )}
                   >
                     <span className="hidden font-mono sm:inline">{formatTime(event.starts_at)} </span>
-                    {event.title}
+                    <span className="sr-only sm:not-sr-only">{event.title}</span>
                   </Link>
                 ))}
               </div>

@@ -344,21 +344,23 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
                     onChange={(e) => setProfession(index, { skill: Number(e.target.value) })}
                   />
                 </Field>
-                <Field label="Spécialisation">
-                  <Select
-                    className="w-full"
-                    value={row.specialization}
-                    disabled={!profession?.specializations.length}
-                    onChange={(e) => setProfession(index, { specialization: e.target.value })}
-                  >
-                    <option value="">—</option>
-                    {profession?.specializations.map((s) => (
-                      <option key={s.slug} value={s.slug}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
+                <div className="order-last col-span-full sm:order-none sm:col-auto">
+                  <Field label="Spécialisation">
+                    <Select
+                      className="w-full"
+                      value={row.specialization}
+                      disabled={!profession?.specializations.length}
+                      onChange={(e) => setProfession(index, { specialization: e.target.value })}
+                    >
+                      <option value="">—</option>
+                      {profession?.specializations.map((s) => (
+                        <option key={s.slug} value={s.slug}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
                 <Button
                   type="button"
                   variant="ghost"

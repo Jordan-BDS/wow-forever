@@ -84,6 +84,21 @@
     font-weight: 500;
     color: var(--color-muted);
   }
+
+  /*
+    Mobile : un enfant de grille a par défaut min-width:auto, donc un tableau ou un <select> trop
+    large élargit la colonne au lieu de défiler dans sa carte, et toute la page part sur le côté.
+    On remet le minimum à zéro partout ; le contenu large défile dans son conteneur overflow-x-auto.
+  */
+  .grid > * {
+    min-width: 0;
+  }
+
+  /* Filet de sécurité : aucun élément ne doit faire défiler la page horizontalement. */
+  html,
+  body {
+    overflow-x: clip;
+  }
 }
 
 /* Barres de navigation : défilement possible sur mobile, sans barre visible. */

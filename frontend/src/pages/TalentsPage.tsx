@@ -99,7 +99,8 @@ export function TalentsPage() {
         {dominant && ` · ${dominant.name}`}
         {trees.map((t) => ` · ${t.name} ${pointsInTree(t, build)}`)}
         <span className="block text-xs">
-          Clic gauche : + 1 point. Clic droit : − 1 point. Survole un talent pour sa description Wowhead.
+          Clic gauche : + 1 point. Clic droit (ou le petit − sur mobile) : − 1 point. Survole un talent pour
+          sa description Wowhead.
         </span>
       </p>
 

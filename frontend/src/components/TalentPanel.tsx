@@ -218,7 +218,8 @@ export function TalentPanel({ character, builds, canEdit }: Props) {
           <p className="text-xs text-muted">
             Les {acquiredAtLevel(character.level ?? 1)} premiers points sont acquis au niveau{" "}
             {character.level}, les suivants sont projetés (pointillés).
-            {canEdit && " Clic gauche : + 1, clic droit : − 1. Enregistré automatiquement."}
+            {canEdit &&
+              " Clic gauche : + 1, clic droit (ou le petit − sur mobile) : − 1. Enregistré automatiquement."}
           </p>
           <TalentTrees
             trees={trees}

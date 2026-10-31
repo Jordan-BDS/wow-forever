@@ -114,7 +114,17 @@ function TalentCell({
   const full = points === talent.max_rank;
   const projected = points > acquiredPoints;
   return (
-    <div className="flex flex-col items-center gap-0.5">
+    <div className="relative flex flex-col items-center gap-0.5">
+      {removable && (
+        <button
+          type="button"
+          aria-label={`Retirer un point de ${talent.name}`}
+          onClick={onRemove}
+          className="absolute -top-1 -left-0.5 z-10 hidden size-5 items-center justify-center rounded-full border border-border bg-bg font-mono text-xs leading-none text-muted pointer-coarse:flex"
+        >
+          −
+        </button>
+      )}
       <button
         type="button"
         aria-label={`${talent.name} ${points}/${talent.max_rank}`}

@@ -143,14 +143,14 @@ export function CraftsPage() {
       <section>
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h2 className="text-sm text-muted">Demandes</h2>
-          <div className="ml-auto flex rounded-md border border-border text-xs">
+          <div className="nav-scroll ml-auto flex max-w-full overflow-x-auto rounded-md border border-border text-xs">
             {SCOPES.map((s) => (
               <button
                 key={s.value}
                 type="button"
                 onClick={() => setScope(s.value)}
                 className={clsx(
-                  "px-3 py-1.5",
+                  "whitespace-nowrap px-3 py-1.5",
                   scope === s.value ? "bg-surface-2 text-text" : "text-muted hover:text-text",
                 )}
               >
@@ -362,10 +362,10 @@ function RequestForm({ onDone }: { onDone: () => void }) {
     <Card className="mb-6 space-y-3">
       <h3 className="font-display text-lg">Nouvelle demande de craft</h3>
       {recipe ? (
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
           <img src={recipe.icon_url} alt="" className="size-8 rounded border border-border" />
           <span className="font-medium">{recipe.name}</span>
-          <span className="text-muted">
+          <span className="min-w-0 text-muted">
             {gamedata.data?.professions.find((p) => p.slug === recipe.profession)?.name} {recipe.min_skill} ·{" "}
             {recipe.crafters.length} crafteur{recipe.crafters.length > 1 && "s"} dans la guilde
           </span>

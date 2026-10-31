@@ -71,11 +71,11 @@ export function MembersPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-border text-left text-xs text-muted">
               <tr>
-                <th className="px-4 py-3">Membre</th>
-                <th className="px-4 py-3">Discord</th>
-                <th className="px-4 py-3">Rôle</th>
-                <th className="px-4 py-3">Statut</th>
-                {canManage && <th className="px-4 py-3 text-right">Actions</th>}
+                <th className="px-3 py-3 sm:px-4">Membre</th>
+                <th className="hidden px-3 py-3 sm:table-cell sm:px-4">Discord</th>
+                <th className="px-3 py-3 sm:px-4">Rôle</th>
+                <th className="px-3 py-3 sm:px-4">Statut</th>
+                {canManage && <th className="px-3 py-3 text-right sm:px-4">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -87,15 +87,17 @@ export function MembersPage() {
                     key={member.id}
                     className={clsx("border-b border-border/60", !member.is_active && "opacity-60")}
                   >
-                    <td className="px-4 py-2">
+                    <td className="px-3 py-2 sm:px-4">
                       <div className="flex items-center gap-3">
-                        <img src={member.avatar_url} alt="" className="size-8 rounded-full" />
+                        <img src={member.avatar_url} alt="" className="size-8 shrink-0 rounded-full" />
                         <span className="font-medium">{member.display_name}</span>
                         {isMe && <span className="text-xs text-muted">(toi)</span>}
                       </div>
                     </td>
-                    <td className="px-4 py-2 text-muted">{member.discord_username}</td>
-                    <td className="px-4 py-2">
+                    <td className="hidden px-3 py-2 text-muted sm:table-cell sm:px-4">
+                      {member.discord_username}
+                    </td>
+                    <td className="px-3 py-2 sm:px-4">
                       {me.site_role === "gm" && !isMe ? (
                         <Select
                           value={member.site_role}
@@ -113,7 +115,7 @@ export function MembersPage() {
                         <RoleBadge role={member.site_role} />
                       )}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="whitespace-nowrap px-3 py-2 sm:px-4">
                       {member.is_active ? (
                         <span className="text-success">Actif</span>
                       ) : (
@@ -124,7 +126,7 @@ export function MembersPage() {
                       )}
                     </td>
                     {canManage && (
-                      <td className="px-4 py-2 text-right">
+                      <td className="whitespace-nowrap px-3 py-2 text-right sm:px-4">
                         {manageable && (
                           <Button
                             variant={member.is_active ? "danger" : "ghost"}

@@ -78,7 +78,7 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
   return (
     <select
       className={clsx(
-        "rounded-sm border border-border bg-bg px-2 py-1.5 text-sm text-text focus:border-gold focus:outline-none",
+        "max-w-full rounded-sm border border-border bg-bg px-2 py-1.5 text-sm text-text focus:border-gold focus:outline-none",
         className,
       )}
       {...props}
@@ -123,7 +123,7 @@ export function Spinner() {
 export function PageTitle({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <h1 className="font-display text-3xl text-text after:mt-2 after:block after:h-px after:w-14 after:bg-gold">
+      <h1 className="min-w-0 font-display text-3xl text-text after:mt-2 after:block after:h-px after:w-14 after:bg-gold">
         {children}
       </h1>
       {actions}

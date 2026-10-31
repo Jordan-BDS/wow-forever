@@ -25,25 +25,30 @@ export function Layout() {
     <div className="flex min-h-screen flex-col">
       <header className="banner pb-1.5">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 pt-3">
-          <NavLink to="/" className="flex items-center gap-3 text-text hover:text-text">
-            <Emblem className="size-11" />
-            <span>
-              <span className="block font-display text-xl leading-tight text-gold">{title}</span>
-              <span className="block text-xs text-muted">{subtitle}</span>
+          <NavLink to="/" className="flex min-w-0 items-center gap-3 text-text hover:text-text">
+            <Emblem className="size-11 shrink-0" />
+            <span className="min-w-0">
+              <span className="block truncate font-display text-xl leading-tight text-gold">{title}</span>
+              <span className="block truncate text-xs text-muted">{subtitle}</span>
             </span>
           </NavLink>
-          <div className="ml-auto flex items-center gap-3 text-sm">
+          <div className="ml-auto flex items-center gap-2 text-sm sm:gap-3">
             <NavLink to="/profil" className="flex items-center gap-2 text-text hover:text-gold">
               <img src={me.avatar_url} alt="" className="size-8 rounded-full border border-gold-dark/60" />
               <span className="hidden sm:inline">{me.display_name}</span>
             </NavLink>
-            <RoleBadge role={me.site_role} />
+            <span className="hidden sm:inline">
+              <RoleBadge role={me.site_role} />
+            </span>
             <Button
               variant="ghost"
               disabled={logout.isPending}
               onClick={() => logout.mutate(undefined, { onSettled: () => navigate("/login") })}
+              aria-label="Déconnexion"
+              title="Déconnexion"
             >
-              Déconnexion
+              <LogoutIcon />
+              <span className="hidden sm:inline">Déconnexion</span>
             </Button>
           </div>
           <nav className="nav-scroll -mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-4 text-sm sm:mx-0 sm:w-auto sm:basis-full sm:px-0">
@@ -67,10 +72,30 @@ export function Layout() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">
         <Outlet context={me} />
       </main>
       <Footer />
     </div>
+  );
+}
+
+/** Porte entrouverte avec une flèche (tracé Lucide « log-out »). */
+function LogoutIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-4"
+      aria-hidden="true"
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
+    </svg>
   );
 }

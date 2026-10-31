@@ -181,7 +181,7 @@ function ProgressContent({ character, p }: { character: Character; p: CharacterP
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="space-y-2">
-          <div className="flex items-baseline justify-between">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h3 className="font-display text-lg">Récolte</h3>
             <span className="text-xs text-muted">approximatif : sort de récolte + butin</span>
           </div>
@@ -212,7 +212,7 @@ function ProgressContent({ character, p }: { character: Character; p: CharacterP
           </table>
         </Card>
         <Card className="space-y-2">
-          <div className="flex items-baseline justify-between">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h3 className="font-display text-lg">PvP</h3>
             <span className="text-xs text-muted">
               {p.pvp?.hk_lifetime != null ? `${p.pvp.hk_lifetime} victoires honorables` : "pas encore lu"}
@@ -244,8 +244,8 @@ function ProgressContent({ character, p }: { character: Character; p: CharacterP
       {(p.bosses ?? []).length > 0 && (
         <Card className="space-y-2">
           <h3 className="font-display text-lg">Boss tués</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="nav-scroll -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-[30rem] whitespace-nowrap text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-muted">
                   <th className="py-1 pr-3">Boss</th>
@@ -271,7 +271,7 @@ function ProgressContent({ character, p }: { character: Character; p: CharacterP
 
       {gear.length > 0 && (
         <Card className="space-y-2">
-          <div className="flex items-baseline justify-between">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h3 className="font-display text-lg">Porté en jeu</h3>
             <span className="text-xs text-muted">lecture seule, tel que reçu de l'addon</span>
           </div>

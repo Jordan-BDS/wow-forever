@@ -67,7 +67,7 @@ export function PollCard({ poll }: { poll: Poll }) {
             {poll.status === "validated" && winner && ` · ${winner.text}`}
           </p>
         </div>
-        <div className="text-right text-sm text-muted">
+        <div className="ml-auto text-right text-sm text-muted">
           <div>
             {poll.proposals.length} proposition{poll.proposals.length > 1 && "s"}
           </div>

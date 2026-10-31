@@ -232,7 +232,7 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
         <p className="text-sm text-muted">
           Depuis le portail développeur Discord, crée une application : l'onglet OAuth2 donne le Client ID et
           le secret, l'onglet Bot donne le token. Ajoute l'URL de retour{" "}
-          <code className="rounded bg-bg px-1">{`${window.location.origin.replace(":3001", ":8001")}/api/auth/discord/callback/`}</code>{" "}
+          <code className="rounded bg-bg px-1 break-all">{`${window.location.origin.replace(":3001", ":8001")}/api/auth/discord/callback/`}</code>{" "}
           dans « Redirects », puis invite le bot sur le serveur. Les identifiants se copient dans Discord avec
           le mode développeur.
         </p>

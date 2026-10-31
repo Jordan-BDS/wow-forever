@@ -42,7 +42,7 @@ export function EventRow({ event }: { event: GuildEvent }) {
     <Link to={`/agenda/${event.id}`} className="block text-text hover:text-text">
       <Card
         className={clsx(
-          "flex flex-wrap items-center gap-3 py-3 transition hover:border-gold/50",
+          "flex flex-wrap items-center gap-x-3 gap-y-1 py-3 transition hover:border-gold/50",
           event.effective_status !== "planned" && "opacity-60",
         )}
       >
@@ -50,7 +50,7 @@ export function EventRow({ event }: { event: GuildEvent }) {
           <div className="capitalize text-muted">{formatLongDate(event.starts_at)}</div>
           <div className="font-mono text-lg">{formatTime(event.starts_at)}</div>
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 grow basis-40">
           <div className="flex flex-wrap items-center gap-2">
             <KindBadge kind={event.kind} />
             <span className="truncate font-display text-lg">{event.title}</span>
@@ -62,7 +62,7 @@ export function EventRow({ event }: { event: GuildEvent }) {
             {event.min_level && ` · niveau ${event.min_level}+`}
           </div>
         </div>
-        <div className="text-right text-sm">
+        <div className="ml-auto text-right text-sm">
           <div>
             {total} inscrit{total > 1 && "s"}
             {event.max_size && <span className="text-muted"> / {event.max_size}</span>}

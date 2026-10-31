@@ -66,7 +66,7 @@ export function CharacterPage() {
       <PageTitle
         actions={
           canEdit && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {!character.is_main && (
                 <Button variant="ghost" disabled={setMain.isPending} onClick={() => setMain.mutate()}>
                   Définir comme main
@@ -164,14 +164,14 @@ export function CharacterPage() {
           )}
         </Card>
         <div className="md:col-span-2">
-          <div className="mb-3 flex gap-1 border-b border-border text-sm">
+          <div className="nav-scroll -mx-4 mb-3 flex gap-1 overflow-x-auto border-b border-border px-4 text-sm sm:mx-0 sm:px-0">
             {(["equipment", "talents", "recipes", "progress"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setTab(tab)}
                 className={clsx(
-                  "-mb-px border-b-2 px-3 py-2",
+                  "-mb-px whitespace-nowrap border-b-2 px-3 py-2",
                   activeTab === tab
                     ? "border-gold text-gold"
                     : "border-transparent text-muted hover:text-text",

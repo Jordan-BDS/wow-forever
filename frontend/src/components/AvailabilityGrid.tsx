@@ -19,7 +19,7 @@ type Props = EditableProps | HeatmapProps;
 /** Grille jour × heure, cliquable (mes dispos) ou en chaleur (dispos de la guilde). */
 export function AvailabilityGrid(props: Props) {
   return (
-    <div className="overflow-x-auto">
+    <div className="nav-scroll -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
       <table className="w-full min-w-[520px] table-fixed border-separate border-spacing-0.5 text-xs">
         <thead>
           <tr>

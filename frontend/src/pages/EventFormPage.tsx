@@ -218,7 +218,7 @@ function EventForm({ eventId, initial }: { eventId?: number; initial: FormState 
 
         <Card className="space-y-4">
           <h2 className="font-display text-lg">Quand et combien</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Début">
               <Input
                 type="datetime-local"

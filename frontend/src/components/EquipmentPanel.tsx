@@ -277,7 +277,11 @@ export function EquipmentPanel({ character, sets, canEdit }: Props) {
                           id={entry.item.id}
                           quality={entry.item.quality}
                           className="block truncate font-medium"
-                          onClick={(e) => e.preventDefault()}
+                          onClick={(e) => {
+                            // Pas de survol sur écran tactile : le nom ouvre le choix d'objet.
+                            e.preventDefault();
+                            if (canEdit) setPicking(slot.key);
+                          }}
                         >
                           {entry.item.name}
                         </WowheadLink>

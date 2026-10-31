@@ -221,7 +221,9 @@ function RankingCard({ category, by, meId }: { category: RankingCategory; by: Ra
                       <span className="ml-1 text-[11px] text-muted">depuis le {shortDate(e.since)}</span>
                     )}
                   </td>
-                  <td className="py-1.5 text-right font-mono">{formatValue(category, e.value)}</td>
+                  <td className="whitespace-nowrap py-1.5 pl-2 text-right font-mono">
+                    {formatValue(category, e.value)}
+                  </td>
                   <td
                     className={clsx(
                       "w-14 py-1.5 text-right text-xs",
@@ -271,8 +273,8 @@ function GuildProgression({ data }: { data: Rankings }) {
       </div>
       <Card className="space-y-3">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="min-w-60 flex-1 space-y-1">
-            <div className="flex justify-between text-sm">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap justify-between gap-x-3 text-sm">
               <span>
                 {current.killed} boss sur {current.total} tués par la guilde
               </span>
@@ -288,8 +290,8 @@ function GuildProgression({ data }: { data: Rankings }) {
             </div>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="nav-scroll -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[36rem] whitespace-nowrap text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-muted">
                 <th className="py-1.5 pr-3">Boss</th>
@@ -367,7 +369,7 @@ function TotalsCard({ totals }: { totals: Record<string, number> }) {
   return (
     <Card className="space-y-3">
       <h2 className="font-display text-lg">Totaux de la guilde cette semaine</h2>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+      <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         {Object.entries(TOTAL_LABELS).map(([key, label]) => (
           <div key={key} className="flex justify-between border-b border-border/60 py-1">
             <dt className="text-muted">{label}</dt>
