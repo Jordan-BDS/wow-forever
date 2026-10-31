@@ -24,6 +24,7 @@ local function channelIndex()
   local id = GetChannelName(channelName)
   return id and id > 0 and id or nil
 end
+ns.HiddenChannelIndex = channelIndex -- repli du partage de position avant la création de la guilde
 
 local function describeKiller(death)
   if death.env and ns.Data.ENVIRONMENTAL[death.env] then return ns.L[ns.Data.ENVIRONMENTAL[death.env]] end

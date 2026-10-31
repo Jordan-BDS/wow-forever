@@ -38,6 +38,7 @@ function Store.Init()
   if s.showDeaths == nil then s.showDeaths = true end
   if s.soundDeaths == nil then s.soundDeaths = true end
   if s.reloadReminder == nil then s.reloadReminder = true end
+  if s.sharePosition == nil then s.sharePosition = true end
   s.excluded = s.excluded or {}
   -- Migrations futures : if db.version < 2 then ... end
   db.version = Store.DB_VERSION

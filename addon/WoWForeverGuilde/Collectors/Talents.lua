@@ -29,6 +29,28 @@ local function scan(char)
   available = false
 end
 
+--- Résumé lisible « Amélioration 31/20/0 » (arbre dominant, puis points par arbre), "" si indisponible.
+function ns.TalentSummary()
+  if not (GetNumTalentTabs and GetTalentInfo and GetNumTalents) then return "" end
+  local spent, best, bestPoints, total = {}, nil, 0, 0
+  for tab = 1, GetNumTalentTabs() do
+    local points = 0
+    for index = 1, GetNumTalents(tab) do
+      points = points + (ns.plain(select(5, GetTalentInfo(tab, index))) or 0)
+    end
+    spent[#spent + 1] = tostring(points)
+    total = total + points
+    if points > bestPoints then best, bestPoints = tab, points end
+  end
+  if total == 0 then return "" end
+  local name
+  if GetTalentTabInfo and best then
+    local first, second = GetTalentTabInfo(best) -- Classic Era : id, nom… ; vanilla : nom, icône…
+    name = ns.plain(type(first) == "number" and second or first)
+  end
+  return (type(name) == "string" and (name .. " ") or "") .. table.concat(spent, "/")
+end
+
 ns.RegisterCollector({
   name = "talents",
   events = { PLAYER_TALENT_UPDATE = true, CHARACTER_POINTS_CHANGED = true, SPELLS_CHANGED = true },

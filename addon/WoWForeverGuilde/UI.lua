@@ -61,6 +61,7 @@ local function makeButton(parent, text, width)
   b:SetText(text)
   return b
 end
+UI.MakeButton = makeButton
 
 local function makeCheck(parent, label, get, set)
   local c = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
@@ -112,7 +113,11 @@ local function buildMain()
   main.sendCheck = makeCheck(main, L.SEND_CHARACTER,
     function() return ns.char and not ns.Store.IsExcluded(ns.char.guid) end,
     function(on) if ns.char then ns.db.settings.excluded[ns.char.guid] = (not on) and true or nil end UI.Refresh() end)
-  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 104)
+  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 128)
+  main.positionCheck = makeCheck(main, L.SHARE_POSITION,
+    function() return ns.db.settings.sharePosition end,
+    function(on) ns.Positions.SetSharing(on) end)
+  main.positionCheck:SetPoint("BOTTOMLEFT", 12, 104)
   main.playCheck = makeCheck(main, L.SHARE_PLAYTIME,
     function() return ns.db.settings.sharePlaytime end,
     function(on) ns.db.settings.sharePlaytime = on end)

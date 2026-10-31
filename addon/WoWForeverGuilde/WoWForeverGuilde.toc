@@ -2,13 +2,16 @@
 ## Title: WoW Forever Guilde
 ## Notes: Remonte la progression de tes personnages sur le site de la guilde (export ou compagnon).
 ## Author: WoW Forever
-## Version: 0.1.2
+## Version: 0.2.0
 ## SavedVariables: WoWForeverGuildeDB
 ## X-Category: Guild
 ## X-Website: https://github.com/Jordan-BDS/wow-forever
 
 Libs\LibStub\LibStub.lua
 Libs\LibDeflate\LibDeflate.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\HereBeDragons\HereBeDragons-2.0.lua
+Libs\HereBeDragons\HereBeDragons-Pins-2.0.lua
 
 Locales\frFR.lua
 Data.lua
@@ -32,5 +35,7 @@ Collectors\PvE.lua
 Collectors\Gathering.lua
 Collectors\Quests.lua
 Collectors\Deaths.lua
+Positions.lua
 
 UI.lua
+MapUI.lua

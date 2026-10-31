@@ -17,11 +17,11 @@ function time() return _CLOCK.now end
 function date(fmt, ts) return os.date(fmt, ts or _CLOCK.now) end
 function tinsert(t, v) table.insert(t, v) end
 UISpecialFrames = {}
-UIParent = {}
+UIParent = { GetEffectiveScale = function() return 1 end }
 NUM_CHAT_WINDOWS = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
-RAID_CLASS_COLORS = { SHAMAN = { colorStr = "ff0070dd" } }
+RAID_CLASS_COLORS = { SHAMAN = { r = 0, g = 0.44, b = 0.87, colorStr = "ff0070dd" }, MAGE = { r = 0.41, g = 0.8, b = 0.94, colorStr = "ff69ccf0" } }
 SOUNDKIT = { RAID_WARNING = 8959 }
 function PlaySound(id) table.insert(_SOUNDS, id) end
 function StaticPopup_Show(which, text) _POPUP = { which = which, text = text } return { data = nil } end
@@ -32,7 +32,7 @@ function InCombatLockdown() return _COMBAT == true end
 function UnitAffectingCombat() return _COMBAT == true end
 function IsInInstance() return _INSTANCE ~= nil, _INSTANCE end
 function GetInstanceInfo() return _INSTANCE_NAME or "", _INSTANCE or "none", 0, "", 5, 0, false, _INSTANCE_ID or 0 end
-function IsInGroup() return false end
+function IsInGroup() return _IN_GROUP == true end
 function IsInRaid() return false end
 function GetNumGroupMembers() return 0 end
 function UnitExists() return false end
@@ -64,6 +64,7 @@ _TALENTS = { tabs = 3, per_tab = 2, ranks = { ["1-1"] = 0, ["1-2"] = 0, ["2-1"] 
 function GetNumTalentTabs() return _TALENTS.tabs end
 function GetNumTalents(tab) return _TALENTS.per_tab end
 function GetTalentInfo(tab, index) return "Talent", "icon", 1, 1, _TALENTS.ranks[tab .. "-" .. index] or 0, 5 end
+function GetTalentTabInfo(tab) return ({ "Élémentaire", "Amélioration", "Restauration" })[tab], "icon", 0 end
 
 -- Métiers.
 _PROFESSIONS = { { name = "Minage", skill = 300, max = 300, line = 186 }, { name = "Alchimie", skill = 290, max = 300, line = 171 } }
@@ -105,6 +106,30 @@ function JoinChannelByName() return 1 end
 function GetChannelName(name) return 5, name end
 function ChatFrame_RemoveChannel() end
 function SendChatMessage(text, kind, lang, target) table.insert(_SENT, { text = text, kind = kind, target = target }) end
+
+-- Messages addon, guilde, carte, groupe (partage de position).
+_ADDON_SENT = {}
+_PREFIXES = {}
+C_ChatInfo = {
+  RegisterAddonMessagePrefix = function(prefix) _PREFIXES[prefix] = true return true end,
+  SendAddonMessage = function(prefix, text, kind, target) table.insert(_ADDON_SENT, { prefix = prefix, text = text, kind = kind, target = target }) return 0 end,
+}
+function IsInGuild() return _GUILD == true end
+_MAP = { id = 1429, x = 0.5, y = 0.5 }
+C_Map = {
+  GetBestMapForUnit = function() return _MAP.id end,
+  GetPlayerMapPosition = function(map) if _MAP.x then return { x = _MAP.x, y = _MAP.y } end end,
+  GetMapInfo = function(id) return { mapID = id, name = "Forêt d'Elwynn" } end,
+}
+_INVITED = {}
+_PARTY = {}
+C_PartyInfo = { InviteUnit = function(name) table.insert(_INVITED, name) end }
+function ChatFrame_OpenChat(text) _OPEN_CHAT = text end
+function UnitIsGroupLeader() return _LEADER == true end
+function UnitIsGroupAssistant() return false end
+function UnitInParty(name) return _PARTY[name] == true end
+function UnitInRaid() return nil end
+function GetCursorPosition() return 100, 100 end
 ChatFrame1 = {}
 
 -- Frames factices : enregistrent les événements et le script OnEvent.
@@ -119,21 +144,31 @@ local function newFrame(kind, name)
   function f:Hide() self.shown = false end
   function f:IsShown() return self.shown end
   function f:CreateFontString() local s = newFrame("FontString") s.SetText = function(self, t) self.text = t end s.GetText = function(self) return self.text end return s end
+  function f:CreateTexture() local s = newFrame("Texture") s.SetVertexColor = function(self, r, g, b) self.color = { r, g, b } end return s end
+  function f:IsMouseOver() return self.mouseOver == true end
   local noop = function() end
   for _, m in ipairs({ "SetSize", "SetPoint", "SetMovable", "EnableMouse", "RegisterForDrag", "SetFrameStrata", "SetBackdrop",
       "SetWidth", "SetJustifyH", "SetTextColor", "SetShadowOffset", "SetAlpha", "SetMultiLine", "SetAutoFocus", "SetFontObject",
-      "SetScrollChild", "SetFocus", "HighlightText", "ClearFocus", "SetChecked", "StartMoving", "StopMovingOrSizing" }) do
+      "SetScrollChild", "SetFocus", "HighlightText", "ClearFocus", "SetChecked", "StartMoving", "StopMovingOrSizing",
+      "SetAllPoints", "SetTexture", "SetClampedToScreen", "ClearAllPoints" }) do
     f[m] = noop
   end
   function f:SetText(t) self.text = t end
   function f:GetText() return self.text end
   function f:GetChecked() return self.checked end
+  function f:SetEnabled(on) self.enabled = on end
   if name then _G[name] = f end
   table.insert(_FRAMES, f)
   return f
 end
 function CreateFrame(kind, name) return newFrame(kind, name) end
 DEFAULT_CHAT_FRAME = { AddMessage = function(self, msg) table.insert(_CHAT, msg) end }
+GameTooltip = newFrame("GameTooltip")
+GameTooltip.lines = {}
+function GameTooltip:SetOwner() end
+function GameTooltip:ClearLines() self.lines = {} end
+function GameTooltip:AddLine(text) table.insert(self.lines, text) end
+function GameTooltip:AddDoubleLine(left, right) table.insert(self.lines, left .. "  " .. right) end
 
 -- Minuteries : exécutées à la demande par _RUN_TIMERS().
 C_Timer = {

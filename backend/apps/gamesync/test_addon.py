@@ -41,6 +41,8 @@ def boot(files: list[str] | None = None) -> LuaRuntime:
     lua.globals()._ADDON_VERSION = toc_version()
     load = lua.globals()._LOAD
     for rel in files or toc_files():
+        if rel.startswith("Libs/HereBeDragons/"):
+            continue  # exige la carte du client (C_Map, WorldMapFrame) ; MapUI reçoit un faux module de pins
         load(rel, (ADDON_DIR / rel).read_text(encoding="utf-8"))
     return lua
 
@@ -68,7 +70,7 @@ class TestLoading:
         ns = lua.globals()._NS
         names = sorted(ns.collectors[i].name for i in range(1, len(ns.collectors) + 1))
         assert names == sorted(
-            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "gathering", "quests", "deaths"]
+            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "gathering", "quests", "deaths", "positions"]
         )  # fmt: skip
         assert lua.globals().SlashCmdList.WOWFOREVERGUILDE is not None
 
@@ -313,6 +315,201 @@ class TestSession:
         login(lua)
         lua.execute("GetBuildInfo = nil")
         assert "client" not in decode_export(logout_code(lua))
+
+
+FAKE_PINS = """
+_PINS = { added = {}, removed = {} }
+_NS.MapUI.UsePins({
+  AddWorldMapIconMap = function(self, ref, icon, map, x, y, flag) _PINS.added[icon] = { map = map, x = x, y = y, flag = flag, icon = icon } end,
+  RemoveWorldMapIcon = function(self, ref, icon) _PINS.added[icon] = nil table.insert(_PINS.removed, icon) end,
+})
+"""
+
+JAINA = "P\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\t60\t1429\t0.6100\t0.4200\tForêt d'Elwynn\tHurlevent\tGivre 0/31/20"
+
+
+def receive(lua: LuaRuntime, line: str, sender: str = "Jaina-Forever") -> None:
+    lua.globals()._FIRE("CHAT_MSG_ADDON", "WFG", line, "GUILD", sender)
+
+
+class TestPositions:
+    """Partage de position : émission, réception sur la carte, infobulle, menu, règle symétrique."""
+
+    def test_position_is_broadcast_at_login_then_on_move_zone_change_and_heartbeat(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        assert g._PREFIXES["WFG"] is True
+        (first,) = list(g._ADDON_SENT.values())
+        # Sans guilde encore : canal caché. Nom complet, classe, niveau, carte, coordonnées, zone, talents.
+        assert (first.prefix, first.kind, first.target) == ("WFG", "CHANNEL", 5)
+        assert (
+            first.text
+            == "P\t1\tPlayer-1-000ABC01\tThrall Fils-de-Durotan\tSHAMAN\t60\t1429\t0.5000\t0.5000\tForêt d'Elwynn\t\tAmélioration 0/8/1"
+        )
+        # Immobile : rien de plus à la lecture suivante.
+        g._ADVANCE(10)
+        assert len(list(g._ADDON_SENT.values())) == 1
+        # Dans la guilde et déplacé : canal de guilde.
+        lua.execute("_GUILD = true; _MAP.x = 0.52")
+        g._ADVANCE(10)
+        second = list(g._ADDON_SENT.values())[-1]
+        assert second.kind == "GUILD" and "\t0.5200\t" in second.text
+        # Changement de zone : envoi 2 s plus tard, même en combat.
+        lua.execute("_COMBAT = true; _ZONE = 'Marais des Chagrins'")
+        g._FIRE("ZONE_CHANGED_NEW_AREA")
+        g._FIRE("ZONE_CHANGED")
+        g._ADVANCE(2)
+        assert (
+            len(list(g._ADDON_SENT.values())) == 3
+            and "Marais des Chagrins" in list(g._ADDON_SENT.values())[-1].text
+        )
+        lua.execute("_COMBAT = false")
+        # Immobile : battement de cœur au bout de 60 s.
+        g._ADVANCE(50)
+        assert len(list(g._ADDON_SENT.values())) == 3
+        g._ADVANCE(10)
+        assert len(list(g._ADDON_SENT.values())) == 4
+        # En instance (pas de coordonnées) : carte seule.
+        lua.execute("_MAP.x = nil; _INSTANCE = 'party'")
+        g._ADVANCE(10)
+        assert list(g._ADDON_SENT.values())[-1].text.split("\t")[6:9] == ["1429", "", ""]
+        assert len(list(g.WoWForeverGuildeDB.errors.values())) == 0, list(
+            g.WoWForeverGuildeDB.errors.values()
+        )
+
+    def test_received_position_becomes_a_class_colored_pin_with_tooltip_and_menu(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        receive(lua, JAINA)
+        peer = g._NS.Positions.peers["Player-1-00000JAI"]
+        assert (peer.name, peer["class"], peer.level, peer.sender, peer.spec) == (
+            "Jaina Portvaillant",
+            "MAGE",
+            60,
+            "Jaina-Forever",
+            "Givre 0/31/20",
+        )
+        ((icon, pin),) = list(g._PINS.added.items())
+        assert (pin.map, pin.x, pin.y, pin.flag) == (1429, 0.61, 0.42, 3)
+        assert list(icon.dot.color.values()) == [0.41, 0.8, 0.94]
+        # Survol : nom coloré, niveau, zone · sous-zone, talents, âge.
+        g._NS.MapUI.ShowTooltip(peer, icon)
+        lines = list(g.GameTooltip.lines.values())
+        assert lines[0] == "|cff69ccf0Jaina Portvaillant|r  niveau 60"
+        assert lines[1:4] == ["Forêt d'Elwynn · Hurlevent", "Givre 0/31/20", "à l'instant"]
+        # Clic : menu Inviter / Chuchoter.
+        g._NS.MapUI.OpenMenu(peer)
+        menu = g.WoWForeverGuildeMenu
+        row = menu.rows[1]
+        assert menu.shown is True and row.invite.text == "Inviter" and row.whisper.text == "Chuchoter"
+        row.invite.scripts.OnClick(row.invite)
+        assert list(g._INVITED.values()) == ["Jaina-Forever"] and menu.shown is False
+        g._NS.MapUI.OpenMenu(peer)
+        row.whisper.scripts.OnClick(row.whisper)
+        assert g._OPEN_CHAT == "/w Jaina-Forever "
+        # Membre d'un groupe sans en être le chef : on suggère ; chef : on invite ; déjà ensemble : grisé.
+        lua.execute("_IN_GROUP = true")
+        g._NS.MapUI.OpenMenu(peer)
+        assert row.invite.text == "Suggérer l'invitation" and row.invite.enabled is True
+        lua.execute("_LEADER = true")
+        g._NS.MapUI.OpenMenu(peer)
+        assert row.invite.text == "Inviter"
+        lua.execute("_PARTY['Jaina-Forever'] = true")
+        g._NS.MapUI.OpenMenu(peer)
+        assert row.invite.text == "Déjà dans le groupe" and row.invite.enabled is False
+
+    def test_stacked_members_share_tooltip_and_menu_rows(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        receive(lua, JAINA)
+        receive(
+            lua,
+            JAINA.replace("Player-1-00000JAI", "Player-1-00000ART")
+            .replace("Jaina Portvaillant", "Arthas Menethil")
+            .replace("MAGE", "PALADIN")
+            .replace("0.6100", "0.6150"),
+            "Arthas-Forever",
+        )
+        receive(
+            lua,
+            JAINA.replace("Player-1-00000JAI", "Player-1-00000FAR")
+            .replace("Jaina Portvaillant", "Loin Ailleurs")
+            .replace("0.6100", "0.9000"),
+            "Loin-Forever",
+        )
+        jaina = g._NS.Positions.peers["Player-1-00000JAI"]
+        stacked = list(g._NS.MapUI.Stacked(jaina).values())
+        assert [p.name for p in stacked] == ["Arthas Menethil", "Jaina Portvaillant"]
+        g._NS.MapUI.OpenMenu(jaina)
+        menu = g.WoWForeverGuildeMenu
+        assert (menu.rows[1].invite.peer.name, menu.rows[2].invite.peer.name) == (
+            "Arthas Menethil",
+            "Jaina Portvaillant",
+        )
+        assert menu.rows[3].invite.shown is False
+
+    def test_leave_message_and_silence_remove_the_pin(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        receive(lua, JAINA)
+        receive(lua, "L\t1\tPlayer-1-00000JAI")
+        assert g._NS.Positions.peers["Player-1-00000JAI"] is None and list(g._PINS.added.items()) == []
+        receive(lua, JAINA)
+        g._ADVANCE(170)
+        assert g._NS.Positions.peers["Player-1-00000JAI"] is not None
+        g._ADVANCE(20)
+        assert g._NS.Positions.peers["Player-1-00000JAI"] is None and len(list(g._PINS.removed.values())) == 2
+        # Message d'un autre préfixe ou mal formé : ignoré sans erreur.
+        g._FIRE("CHAT_MSG_ADDON", "AUTRE", JAINA, "GUILD", "Jaina-Forever")
+        receive(lua, "P\t2\tnope")
+        receive(lua, "P\t1\t\t")
+        assert list(g._NS.Positions.peers.items()) == []
+        assert len(list(g.WoWForeverGuildeDB.errors.values())) == 0, list(
+            g.WoWForeverGuildeDB.errors.values()
+        )
+
+    def test_not_sharing_means_not_seeing(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        receive(lua, JAINA)
+        g._NS.Positions.SetSharing(False)
+        assert g.WoWForeverGuildeDB.settings.sharePosition is False
+        assert list(g._ADDON_SENT.values())[-1].text == "L\t1\tPlayer-1-000ABC01"
+        assert list(g._NS.Positions.peers.items()) == [] and list(g._PINS.added.items()) == []
+        assert any("Position masquée" in m for m in list(g._CHAT.values()))
+        receive(lua, JAINA)
+        g._ADVANCE(60)
+        assert list(g._NS.Positions.peers.items()) == [] and len(list(g._ADDON_SENT.values())) == 2
+        g._NS.Positions.SetSharing(True)
+        assert list(g._ADDON_SENT.values())[-1].text.startswith("P\t1\tPlayer-1-000ABC01\t")
+        # Déconnexion : on prévient les autres.
+        g._FIRE("PLAYER_LOGOUT")
+        assert list(g._ADDON_SENT.values())[-1].text == "L\t1\tPlayer-1-000ABC01"
+
+    def test_position_line_stays_under_255_bytes_and_still_decodes(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_SUBZONE = string.rep('Sous-zone interminable ', 12)")
+        line = g._NS.Positions.Encode(g._NS.char, 1429, 0.123456, 0.5)
+        assert len(line.encode("utf-8")) <= 255
+        msg = g._NS.Positions.Decode(line)
+        assert (msg.guid, msg.map, msg.x, msg.sub, msg.spec) == (
+            "Player-1-000ABC01",
+            1429,
+            0.1235,
+            "",
+            "Amélioration 0/8/1",
+        )
 
 
 class TestPureModules:

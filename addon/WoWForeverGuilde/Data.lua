@@ -56,6 +56,14 @@ ns.Data.DEATH_CHANNEL = "wfgdeaths"
 ns.Data.DEATH_CHANNEL_PASSWORD = "forever"
 ns.Data.DEATH_PREFIX = "WFG\tDEATH\t1\t"
 
+-- Partage de position (messages addon, préfixe enregistré auprès du client).
+ns.Data.ADDON_PREFIX = "WFG"
+ns.Data.POSITION_TICK = 10 -- s entre deux lectures de la position
+ns.Data.POSITION_HEARTBEAT = 60 -- s : envoi même immobile
+ns.Data.POSITION_TTL = 180 -- s sans nouvelle : le membre disparaît de la carte
+ns.Data.POSITION_MOVE_THRESHOLD = 0.005 -- fraction de la carte : en dessous, on ne renvoie pas
+ns.Data.POSITION_STACK = 0.01 -- fraction de la carte : points considérés superposés (infobulle et menu groupés)
+
 -- Bornes.
 ns.Data.JOURNAL_DAYS = 60
 ns.Data.MAX_EVENTS = 500
