@@ -83,7 +83,9 @@ seul. Cahier des charges, étape 11.
   `World of Warcraft/_forever_/Interface/AddOns/`, puis `/wfg` en jeu.
 - **Carte de la guilde** : chaque membre qui coche « Partager ma position » dans `/wfg` apparaît en point couleur de
   classe sur la carte du monde des autres (survol : nom, niveau, zone, talents ; clic : inviter ou chuchoter). Les
-  positions circulent par messages addon dans le canal de guilde, jamais hors du jeu.
+  positions circulent par messages addon dans le canal de guilde, jamais hors du jeu. Avec : points sur la minimap,
+  liste « Guilde en jeu » par zone (`/wfg qui`, roster + positions), recherche de groupe (`/wfg lfg texte`) et appel à
+  l'aide quand un joueur hostile attaque (automatique ou `/wfg sos`).
 - **Tests hors du jeu** : l'addon tourne dans un environnement WoW simulé (`backend/apps/gamesync/wow_stub.lua`)
   via `lupa` (Lua 5.1, comme le client) : `cd backend && uv run pytest apps/gamesync/test_addon.py`. Une session
   complète y est jouée et le code produit est décodé puis importé par le site.

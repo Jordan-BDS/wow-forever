@@ -182,9 +182,13 @@ frame:RegisterEvent("PLAYER_LOGOUT")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
 SLASH_WOWFOREVERGUILDE1 = "/wfg" -- provisoire : acronyme du nom de la guilde à venir (cahier des charges)
-SlashCmdList.WOWFOREVERGUILDE = function(msg)
-  msg = (msg or ""):lower()
+SlashCmdList.WOWFOREVERGUILDE = function(raw)
+  raw = raw or ""
+  local msg = raw:lower():gsub("^%s+", "")
   if msg == "export" and ns.UI then ns.UI.ShowExport()
   elseif msg == "save" or msg == "reload" then ReloadUI()
+  elseif msg == "qui" or msg == "who" then ns.RosterUI.Toggle()
+  elseif msg == "sos" then ns.Positions.SOS(nil, nil, true)
+  elseif msg:match("^lfg") then ns.Positions.SetLFG(raw:gsub("^%s*[Ll][Ff][Gg]", ""))
   elseif ns.UI then ns.UI.Toggle() end
 end

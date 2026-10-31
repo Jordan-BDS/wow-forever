@@ -345,7 +345,7 @@ class TestPositions:
         assert (first.prefix, first.kind, first.target) == ("WFG", "CHANNEL", 5)
         assert (
             first.text
-            == "P\t1\tPlayer-1-000ABC01\tThrall Fils-de-Durotan\tSHAMAN\t60\t1429\t0.5000\t0.5000\tForêt d'Elwynn\t\tAmélioration 0/8/1"
+            == "P\t1\tPlayer-1-000ABC01\tThrall Fils-de-Durotan\tSHAMAN\t60\t1429\t0.5000\t0.5000\tForêt d'Elwynn\t\tAmélioration 0/8/1\t"
         )
         # Immobile : rien de plus à la lecture suivante.
         g._ADVANCE(10)
@@ -494,6 +494,159 @@ class TestPositions:
         # Déconnexion : on prévient les autres.
         g._FIRE("PLAYER_LOGOUT")
         assert list(g._ADDON_SENT.values())[-1].text == "L\t1\tPlayer-1-000ABC01"
+
+    def test_lfg_flag_travels_with_the_position_and_shows_in_tooltip_and_list(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        g.SlashCmdList.WOWFOREVERGUILDE("lfg Gnomeregan ce soir")
+        assert list(g._ADDON_SENT.values())[-1].text.endswith("\tAmélioration 0/8/1\tGnomeregan ce soir")
+        assert any("Gnomeregan ce soir" in m for m in list(g._CHAT.values()))
+        receive(lua, JAINA + "\tStratholme")
+        peer = g._NS.Positions.peers["Player-1-00000JAI"]
+        assert peer.lfg == "Stratholme"
+        g._NS.MapUI.ShowTooltip(peer, None)
+        assert "cherche groupe : Stratholme" in list(g.GameTooltip.lines.values())
+        g.SlashCmdList.WOWFOREVERGUILDE("lfg")
+        assert g._NS.Positions.lfg is None and list(g._ADDON_SENT.values())[-1].text.endswith(
+            "\tAmélioration 0/8/1\t"
+        )
+        # Liste : section « Cherchent un groupe » en tête, puis les zones (la mienne d'abord), sans les hors-ligne ni moi.
+        g.SlashCmdList.WOWFOREVERGUILDE("qui")
+        frame = g.WoWForeverGuildeRoster
+        assert frame.shown is True and g._ROSTER_REQUESTED == 1
+        lines = [line.text for line in list(g._NS.RosterUI.Lines().values())]
+        assert lines[0].startswith("|cffffd100Cherchent un groupe|r")
+        assert "Jaina Portvaillant" in lines[1] and "Stratholme" in lines[1]
+        assert lines[2].startswith("|cffffd100Forêt d'Elwynn|r |cff9a9a9a(1)|r")
+        assert "Hurlevent" in lines[3] and "Givre 0/31/20" in lines[3]
+        assert lines[4].startswith("|cffffd100Marais des Chagrins|r") and "Uther" in lines[5]
+        assert len(lines) == 6 and not any("Absent" in line or "Thrall" in line for line in lines)
+        # Ma zone seulement.
+        lua.execute("WoWForeverGuildeDB.settings.rosterMyZone = true")
+        lines = [line.text for line in list(g._NS.RosterUI.Lines().values())]
+        assert len(lines) == 4 and not any("Uther" in line for line in lines)
+        # Clic sur Uther (sans addon) : menu avec son nom de roster pour inviter.
+        lua.execute("WoWForeverGuildeDB.settings.rosterMyZone = false")
+        g._NS.RosterUI.Render()
+        rows = [
+            r for r in list(g._FRAMES.values()) if getattr(r, "member", None) and r.member.name == "Uther"
+        ]
+        rows[0].scripts.OnClick(rows[0])
+        menu = g.WoWForeverGuildeMenu
+        assert (
+            menu.shown is True
+            and menu.rows[1].invite.peer.sender == "Uther-Forever"
+            and menu.rows[2].invite.shown is False
+        )
+
+    def test_gank_is_detected_in_the_combat_log_and_alerts_members_nearby(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        sent_before = len(list(g._ADDON_SENT.values()))
+        # Un joueur hostile me frappe hors instance : appel à l'aide avec sa classe.
+        lua.execute(
+            "_CLEU = { 0, 'SWING_DAMAGE', false, 'Player-1-00000EVIL', 'Garrosh', 0x548, 0, 'Player-1-000ABC01', 'Thrall', 0x511, 0, 120 }"
+        )
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        sent = list(g._ADDON_SENT.values())
+        assert len(sent) == sent_before + 1
+        assert (
+            sent[-1].text
+            == "G\t1\tPlayer-1-000ABC01\tThrall Fils-de-Durotan\tSHAMAN\t60\t1429\t0.5000\t0.5000\tForêt d'Elwynn\t\tGarrosh\tWARRIOR"
+        )
+        # Un seul appel par minute ; rien en instance, en duel, ni contre un monstre.
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        g._ADVANCE(61)
+        lua.execute("_INSTANCE = 'pvp'")
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        lua.execute("_INSTANCE = nil")
+        g._FIRE("DUEL_REQUESTED")
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        g._FIRE("DUEL_FINISHED")
+        lua.execute("_CLEU[6] = 0x548 - 0x400")  # pas un joueur
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        assert len(list(g._ADDON_SENT.values())) == len(sent) + 1  # le battement de cœur des 60 s seulement
+        # /wfg sos manuel, puis refusé sans partage.
+        g._ADVANCE(61)
+        g.SlashCmdList.WOWFOREVERGUILDE("sos")
+        assert list(g._ADDON_SENT.values())[-1].text.startswith("G\t1\tPlayer-1-000ABC01\t") and any(
+            "Appel à l'aide envoyé" in m for m in list(g._CHAT.values())
+        )
+        g._NS.Positions.SetSharing(False)
+        g.SlashCmdList.WOWFOREVERGUILDE("sos")
+        assert any("Partager ma position" in m for m in list(g._CHAT.values()))
+        g._NS.Positions.SetSharing(True)
+        # Réception : même zone → toast + son + anneau rouge ; autre zone → ligne de chat seulement.
+        sounds = len(list(g._SOUNDS.values()))
+        receive(lua, JAINA.replace("\tGivre 0/31/20", "\tGarrosh\tWARRIOR").replace("P\t1", "G\t1"))
+        peer = g._NS.Positions.peers["Player-1-00000JAI"]
+        assert peer.alert.attacker == "Garrosh" and peer.alert["class"] == "WARRIOR"
+        toast = g.WoWForeverGuildeDeath
+        assert (
+            toast.shown is True
+            and "Jaina" in toast.text.text
+            and "Garrosh" in toast.text.text
+            and toast.header.text == "⚔ Appel à l'aide ⚔"
+        )
+        assert len(list(g._SOUNDS.values())) == sounds + 1
+        ((icon, _),) = list(g._PINS.added.items())
+        assert list(icon.ring.color.values()) == [1, 0.15, 0.15]
+        g._NS.MapUI.ShowTooltip(peer, None)
+        assert any("attaqué par" in line and "Garrosh" in line for line in list(g.GameTooltip.lines.values()))
+        toast.shown = False
+        receive(
+            lua,
+            JAINA.replace("Player-1-00000JAI", "Player-1-00000UTH")
+            .replace("1429", "1431")
+            .replace("\tGivre 0/31/20", "\t\t")
+            .replace("P\t1", "G\t1"),
+            "Uther-Forever",
+        )
+        assert toast.shown is False and any("Jaina" in m and "Garrosh" in m for m in list(g._CHAT.values()))
+        assert any("un joueur" in m for m in list(g._CHAT.values()))
+        # Alertes désactivées : silence.
+        lua.execute("WoWForeverGuildeDB.settings.gankAlerts = false")
+        chat = len(list(g._CHAT.values()))
+        receive(lua, JAINA.replace("\tGivre 0/31/20", "\tGarrosh\tWARRIOR").replace("P\t1", "G\t1"))
+        assert len(list(g._CHAT.values())) == chat
+        # L'anneau redevient noir au bout de 2 min.
+        g._ADVANCE(130)
+        assert list(icon.ring.color.values()) == [0, 0, 0]
+        assert len(list(g.WoWForeverGuildeDB.errors.values())) == 0, list(
+            g.WoWForeverGuildeDB.errors.values()
+        )
+
+    def test_minimap_dots_follow_their_setting(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        lua.execute("""
+_PINS.mini = {}
+local lib = _NS.MapUI
+_NS.MapUI.UsePins({
+  AddWorldMapIconMap = function(self, ref, icon, map, x, y, flag) _PINS.added[icon] = { map = map, x = x, y = y, flag = flag } end,
+  RemoveWorldMapIcon = function(self, ref, icon) _PINS.added[icon] = nil end,
+  AddMinimapIconMap = function(self, ref, icon, map, x, y, parent, edge) _PINS.mini[icon] = { map = map, x = x, y = y, edge = edge } end,
+  RemoveMinimapIcon = function(self, ref, icon) _PINS.mini[icon] = nil end,
+})
+""")
+        receive(lua, JAINA)
+        assert len(list(g._PINS.added.items())) == 1 and len(list(g._PINS.mini.items())) == 1
+        ((mini, pin),) = list(g._PINS.mini.items())
+        assert (pin.map, pin.x, pin.y, pin.edge) == (1429, 0.61, 0.42, True) and list(
+            mini.dot.color.values()
+        ) == [0.41, 0.8, 0.94]
+        g._NS.MapUI.SetMinimap(False)
+        assert list(g._PINS.mini.items()) == [] and len(list(g._PINS.added.items())) == 1
+        g._NS.MapUI.SetMinimap(True)
+        assert len(list(g._PINS.mini.items())) == 1
+        g._NS.Positions.SetSharing(False)
+        assert list(g._PINS.mini.items()) == [] and list(g._PINS.added.items()) == []
 
     def test_position_line_stays_under_255_bytes_and_still_decodes(self):
         lua = boot()

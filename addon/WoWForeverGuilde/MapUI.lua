@@ -1,6 +1,7 @@
--- Carte du monde : un point couleur de classe par membre qui partage sa position (HereBeDragons-Pins : cartes de
--- zone, de continent et du monde). Survol → infobulle (nom, niveau, zone, talents, âge) ; clic gauche → menu
--- Inviter / Chuchoter. Les points superposés (même endroit) sont regroupés dans l'infobulle et le menu.
+-- Carte du monde et minimap : un point couleur de classe par membre qui partage sa position (HereBeDragons-Pins :
+-- cartes de zone, de continent et du monde ; minimap avec flottement au bord). Survol → infobulle (nom, niveau,
+-- zone, talents, recherche de groupe, attaque en cours, âge) ; clic gauche → menu Inviter / Chuchoter. Les points
+-- superposés (même endroit) sont regroupés dans l'infobulle et le menu. Anneau rouge pendant un appel à l'aide.
 local ADDON, ns = ...
 
 local MapUI = {}
@@ -18,19 +19,18 @@ local function pins()
 end
 function MapUI.UsePins(lib) pinsLib = lib end -- tests
 
-local icons = {} -- guid → cadre du point
+local icons = {} -- guid → { map = cadre carte, mini = cadre minimap }
 local pool = {}
 local menu
 
 local function classColor(token)
   local c = RAID_CLASS_COLORS and token and RAID_CLASS_COLORS[token]
-  if c then return c.r or 1, c.g or 1, c.b or 1, c.colorStr or "ffffffff" end
-  return 1, 1, 1, "ffffffff"
+  if c then return c.r or 1, c.g or 1, c.b or 1 end
+  return 1, 1, 1
 end
 
 local function coloredName(peer)
-  local _, _, _, hex = classColor(peer.class)
-  return "|c" .. hex .. (peer.name or "?") .. "|r"
+  return ns.ClassColored(peer.name, peer.class)
 end
 
 --- Membres au même endroit que `peer` (lui compris), triés par nom.
@@ -48,18 +48,22 @@ local function stacked(peer)
 end
 MapUI.Stacked = stacked
 
+local function alerting(peer)
+  return peer.alert ~= nil and peer.alert.at >= ns.now() - ns.Data.ALERT_TTL
+end
+
 -- --- points --------------------------------------------------------------------------------------------
 
-local function newIcon()
+local function newIcon(size)
   local f = CreateFrame("Button", nil, UIParent)
-  f:SetSize(14, 14)
+  f:SetSize(size, size)
   f.ring = f:CreateTexture(nil, "BACKGROUND")
   f.ring:SetAllPoints()
   f.ring:SetTexture(DOT)
   f.ring:SetVertexColor(0, 0, 0, 0.85)
   f.dot = f:CreateTexture(nil, "ARTWORK")
   f.dot:SetPoint("CENTER")
-  f.dot:SetSize(10, 10)
+  f.dot:SetSize(size - 4, size - 4)
   f.dot:SetTexture(DOT)
   f:EnableMouse(true)
   if f.SetPassThroughButtons then pcall(f.SetPassThroughButtons, f, "RightButton") end -- clic droit : la carte
@@ -71,6 +75,17 @@ local function newIcon()
   return f
 end
 
+local function paint(icon, peer)
+  icon.peer = peer
+  icon.dot:SetVertexColor(classColor(peer.class))
+  if alerting(peer) then icon.ring:SetVertexColor(1, 0.15, 0.15, 1) else icon.ring:SetVertexColor(0, 0, 0, 0.85) end
+  icon:Show()
+end
+
+local function minimapWanted()
+  return ns.db and ns.db.settings.minimapDots == true
+end
+
 function MapUI.Update(peer)
   local lib = pins()
   if not lib then return end
@@ -78,27 +93,35 @@ function MapUI.Update(peer)
     MapUI.Remove(peer.guid)
     return
   end
-  local icon = icons[peer.guid]
-  if not icon then
-    icon = table.remove(pool) or newIcon()
-    icons[peer.guid] = icon
+  local pair = icons[peer.guid]
+  if not pair then
+    pair = table.remove(pool) or { map = newIcon(14), mini = newIcon(10) }
+    icons[peer.guid] = pair
   end
-  icon.peer = peer
-  local r, g, b = classColor(peer.class)
-  icon.dot:SetVertexColor(r, g, b)
-  icon:Show()
-  lib:AddWorldMapIconMap(ns, icon, peer.map, peer.x, peer.y, HBD_PINS_WORLDMAP_SHOW_WORLD or 3)
+  paint(pair.map, peer)
+  lib:AddWorldMapIconMap(ns, pair.map, peer.map, peer.x, peer.y, HBD_PINS_WORLDMAP_SHOW_WORLD or 3)
+  if minimapWanted() and lib.AddMinimapIconMap then
+    paint(pair.mini, peer)
+    lib:AddMinimapIconMap(ns, pair.mini, peer.map, peer.x, peer.y, false, true)
+  elseif lib.RemoveMinimapIcon then
+    lib:RemoveMinimapIcon(ns, pair.mini)
+    pair.mini:Hide()
+  end
 end
 
 function MapUI.Remove(guid)
-  local icon = icons[guid]
-  if not icon then return end
+  local pair = icons[guid]
+  if not pair then return end
   icons[guid] = nil
   local lib = pins()
-  if lib then lib:RemoveWorldMapIcon(ns, icon) end
-  icon.peer = nil
-  icon:Hide()
-  pool[#pool + 1] = icon
+  if lib then
+    lib:RemoveWorldMapIcon(ns, pair.map)
+    if lib.RemoveMinimapIcon then lib:RemoveMinimapIcon(ns, pair.mini) end
+  end
+  pair.map.peer, pair.mini.peer = nil, nil
+  pair.map:Hide()
+  pair.mini:Hide()
+  pool[#pool + 1] = pair
 end
 
 function MapUI.Clear()
@@ -106,27 +129,38 @@ function MapUI.Clear()
   if menu then menu:Hide() end
 end
 
+--- Case « Points aussi sur la minimap » : ajoute ou retire les points de la minimap sans toucher à la carte.
+function MapUI.SetMinimap(on)
+  ns.db.settings.minimapDots = on and true or false
+  for guid, pair in pairs(icons) do
+    if pair.map.peer then MapUI.Update(pair.map.peer) end
+  end
+end
+
 -- --- infobulle --------------------------------------------------------------------------------------------
 
-local function where(peer)
-  local text = peer.zone or ""
-  if peer.sub and peer.sub ~= "" and peer.sub ~= peer.zone then
-    text = text ~= "" and (text .. " · " .. peer.sub) or peer.sub
+local function describe(tooltip, p)
+  tooltip:AddDoubleLine(coloredName(p), string.format(L.LEVEL_SHORT, p.level or 0), 1, 1, 1, 0.8, 0.8, 0.8)
+  local place = ns.Positions.Where(p)
+  if place ~= "" then tooltip:AddLine(place, 0.85, 0.85, 0.85) end
+  if p.spec and p.spec ~= "" then tooltip:AddLine(p.spec, 0.6, 0.8, 1) end
+  if p.lfg and p.lfg ~= "" then tooltip:AddLine(string.format(L.LFG_SHORT, p.lfg), 1, 0.82, 0) end
+  if alerting(p) then
+    local attacker = p.alert.attacker ~= "" and ns.ClassColored(p.alert.attacker, p.alert.class) or L.ATTACKER_UNKNOWN
+    tooltip:AddLine(string.format(L.ALERT_SHORT, attacker) .. " · " .. ns.UI.Ago(p.alert.at), 1, 0.3, 0.3)
   end
-  return text
+  tooltip:AddLine(ns.UI.Ago(p.at), 0.6, 0.6, 0.6)
 end
 
 function MapUI.ShowTooltip(peer, owner)
   if not peer or not GameTooltip then return end
   GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
   GameTooltip:ClearLines()
-  for i, p in ipairs(stacked(peer)) do
+  local list = stacked(peer)
+  if #list == 0 then list = { peer } end
+  for i, p in ipairs(list) do
     if i > 1 then GameTooltip:AddLine(" ") end
-    GameTooltip:AddDoubleLine(coloredName(p), string.format(L.LEVEL_SHORT, p.level or 0), 1, 1, 1, 0.8, 0.8, 0.8)
-    local place = where(p)
-    if place ~= "" then GameTooltip:AddLine(place, 0.85, 0.85, 0.85) end
-    if p.spec and p.spec ~= "" then GameTooltip:AddLine(p.spec, 0.6, 0.8, 1) end
-    GameTooltip:AddLine(ns.UI.Ago(p.at), 0.6, 0.6, 0.6)
+    describe(GameTooltip, p)
   end
   GameTooltip:AddLine(L.MAP_CLICK_HINT, 0.5, 0.5, 0.5)
   GameTooltip:Show()
@@ -199,9 +233,10 @@ local function buildMenu()
   menu:Hide()
 end
 
+--- Ouvre le menu pour `peer` (position reçue, ou membre de la liste : { name, sender, level, class }).
 function MapUI.OpenMenu(peer)
   if not menu then buildMenu() end
-  local list = stacked(peer)
+  local list = peer.map and stacked(peer) or {}
   if #list == 0 then list = { peer } end
   for i, row in ipairs(menu.rows) do
     local p = list[i]

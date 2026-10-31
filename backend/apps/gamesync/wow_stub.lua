@@ -130,6 +130,22 @@ function UnitIsGroupAssistant() return false end
 function UnitInParty(name) return _PARTY[name] == true end
 function UnitInRaid() return nil end
 function GetCursorPosition() return 100, 100 end
+_ROSTER = {
+  { name = "Thrall-Forever", level = 60, class = "SHAMAN", zone = "Forêt d'Elwynn", online = true, guid = "Player-1-000ABC01" },
+  { name = "Jaina-Forever", level = 60, class = "MAGE", zone = "Forêt d'Elwynn", online = true, guid = "Player-1-00000JAI" },
+  { name = "Uther-Forever", level = 58, class = "PALADIN", zone = "Marais des Chagrins", online = true, guid = "Player-1-00000UTH" },
+  { name = "Absent-Forever", level = 12, class = "ROGUE", zone = "", online = false, guid = "Player-1-00000ABS" },
+}
+function GetNumGuildMembers() return #_ROSTER, 3 end
+function GetGuildRosterInfo(i)
+  local m = _ROSTER[i]
+  if not m then return nil end
+  return m.name, "Membre", 1, m.level, "Classe", m.zone, "", "", m.online, 0, m.class, 0, 0, false, false, 0, m.guid
+end
+C_GuildInfo = { GuildRoster = function() _ROSTER_REQUESTED = (_ROSTER_REQUESTED or 0) + 1 end }
+_PLAYER_INFO = { ["Player-1-00000EVIL"] = { "Guerrier", "WARRIOR" } }
+function GetPlayerInfoByGUID(guid) local p = _PLAYER_INFO[guid] if p then return p[1], p[2] end end
+function UnitIsPlayer() return false end
 ChatFrame1 = {}
 
 -- Frames factices : enregistrent les événements et le script OnEvent.
@@ -150,7 +166,7 @@ local function newFrame(kind, name)
   for _, m in ipairs({ "SetSize", "SetPoint", "SetMovable", "EnableMouse", "RegisterForDrag", "SetFrameStrata", "SetBackdrop",
       "SetWidth", "SetJustifyH", "SetTextColor", "SetShadowOffset", "SetAlpha", "SetMultiLine", "SetAutoFocus", "SetFontObject",
       "SetScrollChild", "SetFocus", "HighlightText", "ClearFocus", "SetChecked", "StartMoving", "StopMovingOrSizing",
-      "SetAllPoints", "SetTexture", "SetClampedToScreen", "ClearAllPoints" }) do
+      "SetAllPoints", "SetTexture", "SetClampedToScreen", "ClearAllPoints", "SetHeight", "SetMaxLetters", "SetTextInsets" }) do
     f[m] = noop
   end
   function f:SetText(t) self.text = t end

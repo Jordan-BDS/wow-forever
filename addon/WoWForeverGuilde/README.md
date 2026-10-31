@@ -16,7 +16,13 @@ transporte le code jusqu'au site.
   caché tant que la guilde n'existe pas) au changement de zone, au déplacement et toutes les 60 s ; les autres
   apparaissent en points couleur de classe sur la carte du monde (HereBeDragons-Pins : zone, continent, monde).
   Survol : nom, niveau, zone, talents, âge ; clic gauche : menu Inviter (ou Suggérer l'invitation quand on n'est
-  pas chef) / Chuchoter. Ne pas partager = ne pas voir. Un membre silencieux depuis 3 min disparaît.
+  pas chef) / Chuchoter. Ne pas partager = ne pas voir. Un membre silencieux depuis 3 min disparaît. Points aussi
+  sur la minimap (flottant au bord vers les membres proches), réglage à part. Recherche de groupe (`/wfg lfg texte`
+  ou le champ de la liste) diffusée avec la position. Appel à l'aide : détecté dans le journal de combat (joueur
+  hostile qui me frappe, hors instance et hors duel) ou `/wfg sos`, un envoi par minute ; chez les autres, toast et
+  son dans la même zone, ligne de chat ailleurs, anneau rouge sur le point 2 min.
+- `RosterUI.lua` : liste « Guilde en jeu » (`/wfg qui`) : membres en ligne par zone d'après le roster de guilde (même
+  sans addon), enrichis des positions reçues ; section « Cherchent un groupe » ; clic → même menu que la carte.
 - `Libs/` : LibStub, LibDeflate (export), CallbackHandler-1.0 et HereBeDragons-2.0 (+ Pins) pour la carte ;
   HereBeDragons connaît le client Forever (`WOW_PROJECT_CAMELOT`).
 

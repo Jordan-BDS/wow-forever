@@ -63,6 +63,9 @@ ns.Data.POSITION_HEARTBEAT = 60 -- s : envoi même immobile
 ns.Data.POSITION_TTL = 180 -- s sans nouvelle : le membre disparaît de la carte
 ns.Data.POSITION_MOVE_THRESHOLD = 0.005 -- fraction de la carte : en dessous, on ne renvoie pas
 ns.Data.POSITION_STACK = 0.01 -- fraction de la carte : points considérés superposés (infobulle et menu groupés)
+ns.Data.GANK_COOLDOWN = 60 -- s entre deux appels à l'aide
+ns.Data.ALERT_TTL = 120 -- s d'anneau rouge et de mention « attaqué » après un appel
+ns.Data.ROSTER_REFRESH = 2 -- s de regroupement des rafraîchissements de la liste
 
 -- Bornes.
 ns.Data.JOURNAL_DAYS = 60

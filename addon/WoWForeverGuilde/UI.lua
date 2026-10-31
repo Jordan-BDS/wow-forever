@@ -54,6 +54,7 @@ local function makeFrame(name, width, height, title)
   tinsert(UISpecialFrames, name) -- Échap ferme
   return f
 end
+UI.MakeFrame = makeFrame
 
 local function makeButton(parent, text, width)
   local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
@@ -73,6 +74,7 @@ local function makeCheck(parent, label, get, set)
   c:SetScript("OnClick", function(self) set(self:GetChecked() and true or false) end)
   return c
 end
+UI.MakeCheck = makeCheck
 
 -- --- fenêtre principale ---------------------------------------------------------------------------
 
@@ -113,11 +115,19 @@ local function buildMain()
   main.sendCheck = makeCheck(main, L.SEND_CHARACTER,
     function() return ns.char and not ns.Store.IsExcluded(ns.char.guid) end,
     function(on) if ns.char then ns.db.settings.excluded[ns.char.guid] = (not on) and true or nil end UI.Refresh() end)
-  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 128)
+  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 176)
   main.positionCheck = makeCheck(main, L.SHARE_POSITION,
     function() return ns.db.settings.sharePosition end,
     function(on) ns.Positions.SetSharing(on) end)
-  main.positionCheck:SetPoint("BOTTOMLEFT", 12, 104)
+  main.positionCheck:SetPoint("BOTTOMLEFT", 12, 152)
+  main.minimapCheck = makeCheck(main, L.SHARE_MINIMAP,
+    function() return ns.db.settings.minimapDots end,
+    function(on) ns.MapUI.SetMinimap(on) end)
+  main.minimapCheck:SetPoint("BOTTOMLEFT", 12, 128)
+  main.gankCheck = makeCheck(main, L.GANK_ALERTS,
+    function() return ns.db.settings.gankAlerts end,
+    function(on) ns.db.settings.gankAlerts = on end)
+  main.gankCheck:SetPoint("BOTTOMLEFT", 12, 104)
   main.playCheck = makeCheck(main, L.SHARE_PLAYTIME,
     function() return ns.db.settings.sharePlaytime end,
     function(on) ns.db.settings.sharePlaytime = on end)
@@ -161,6 +171,9 @@ local function buildMain()
   main.saveButton = makeButton(main, L.SAVE_NOW, 230)
   main.saveButton:SetPoint("LEFT", main.exportButton, "RIGHT", 8, 0)
   main.saveButton:SetScript("OnClick", function() ReloadUI() end)
+  main.rosterButton = makeButton(main, L.ROSTER_BUTTON, 200)
+  main.rosterButton:SetPoint("BOTTOMLEFT", 12, 8)
+  main.rosterButton:SetScript("OnClick", function() ns.RosterUI.Toggle() end)
   main.hint = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   main.hint:SetPoint("BOTTOMRIGHT", -16, 18)
   main.hint:SetText(L.REOPEN)
@@ -338,21 +351,32 @@ local function buildToast()
   toast:Hide()
 end
 
-function UI.ShowDeath(info, phrase)
+--- Texte flottant 5 s : en-tête, phrase colorée, pied, et son d'avertissement si demandé.
+function UI.ShowToast(headerText, text, footer, color, sound)
   if not toast then buildToast() end
-  local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[(info.class or ""):upper()]
-  local coloredName = color and ("|c" .. (color.colorStr or "ffffffff") .. info.name .. "|r") or info.name
-  toast.text:SetText((phrase:gsub(info.name, coloredName, 1)))
-  toast.footer:SetText(string.format(L.DEATH_FOOTER, info.level or 0, info.class or ""))
+  toast.header:SetText(headerText)
+  toast.text:SetText(text)
+  toast.text:SetTextColor(color[1], color[2], color[3])
+  toast.footer:SetText(footer or "")
   if toast.timer then toast.timer:Cancel() end
   toast:SetAlpha(0)
   toast:Show()
   UIFrameFadeIn(toast, 0.3, 0, 1)
-  if ns.db.settings.soundDeaths then
-    if PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then PlaySound(SOUNDKIT.RAID_WARNING, "Master") end
-  end
+  if sound and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then PlaySound(SOUNDKIT.RAID_WARNING, "Master") end
   toast.timer = C_Timer.NewTimer(5, function()
     UIFrameFadeOut(toast, 1, 1, 0)
     C_Timer.After(1, function() toast:Hide() end)
   end)
+end
+
+function UI.ShowDeath(info, phrase)
+  local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[(info.class or ""):upper()]
+  local coloredName = color and ("|c" .. (color.colorStr or "ffffffff") .. info.name .. "|r") or info.name
+  UI.ShowToast(L.DEATH_HEADER, (phrase:gsub(info.name, coloredName, 1)),
+    string.format(L.DEATH_FOOTER, info.level or 0, info.class or ""), { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths)
+end
+
+--- Appel à l'aide d'un membre dans ma zone.
+function UI.ShowAlert(peer, text)
+  UI.ShowToast(L.ALERT_HEADER, text, ns.Positions.Where(peer), { 1, 0.62, 0.2 }, true)
 end
