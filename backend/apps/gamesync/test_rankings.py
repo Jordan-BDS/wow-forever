@@ -11,17 +11,18 @@ from apps.gamedata.models import Item, PlayerClass, Race
 from apps.gamedata.seed import seed
 from apps.notifications.models import Notification
 
-from . import rankings, services, titles
+from . import progress, rankings, services, titles
 from .format import encode_export
 from .models import WeeklyTitle
 
 pytestmark = pytest.mark.django_db
 
 PARIS = ZoneInfo("Europe/Paris")
-# Lundi 21 décembre 2026, 20h à Paris : la semaine en cours a commencé ce matin.
-NOW = datetime(2026, 12, 21, 20, 0, tzinfo=PARIS)
-EXPORTED = int(datetime(2026, 12, 21, 19, 0, tzinfo=PARIS).timestamp())
-KILL_TIME = int(datetime(2026, 12, 20, 21, 30, tzinfo=PARIS).timestamp())
+# Lundi 21 septembre 2026, 20h à Paris : la semaine en cours a commencé ce matin. Dates passées : un export
+# daté dans le futur est ramené à maintenant à l'import.
+NOW = datetime(2026, 9, 21, 20, 0, tzinfo=PARIS)
+EXPORTED = int(datetime(2026, 9, 21, 19, 0, tzinfo=PARIS).timestamp())
+KILL_TIME = int(datetime(2026, 9, 20, 21, 30, tzinfo=PARIS).timestamp())
 
 
 @pytest.fixture(autouse=True)
@@ -46,8 +47,8 @@ def thrall():
             "bosses": {"672": {"n": 1, "name": "Ragnaros", "first": KILL_TIME, "last": KILL_TIME}},
         },
         journal={
-            "2026-12-13": {"deaths": 2, "gathering": {"mining": 20}, "bg_played": 0, "bg_won": 0, "hk": 10},
-            "2026-12-20": {"deaths": 10, "boss_kills": 3, "gathering": {"mining": 100}, "bg_played": 10, "bg_won": 8, "hk": 60},
+            "2026-09-13": {"deaths": 2, "gathering": {"mining": 20}, "bg_played": 0, "bg_won": 0, "hk": 10},
+            "2026-09-20": {"deaths": 10, "boss_kills": 3, "gathering": {"mining": 100}, "bg_played": 10, "bg_won": 8, "hk": 60},
         },
         events=[
             {"k": "boss", "id": 672, "name": "Ragnaros", "t": KILL_TIME, "guild": 6},
@@ -66,7 +67,7 @@ def garona():
     return character(
         "Player-1-G", "Garona",
         counters={"deaths": 30, "gathering": {"mining": 50}},
-        journal={"2026-12-20": {"deaths": 25, "gathering": {"mining": 50}}},
+        journal={"2026-09-20": {"deaths": 25, "gathering": {"mining": 50}}},
         events=[{"k": "boss", "id": 672, "name": "Ragnaros", "t": KILL_TIME + 60, "guild": 6}],
     )  # fmt: skip
 
@@ -80,7 +81,7 @@ class TestRankings:
         import_for(
             member,
             thrall(),
-            character("Player-1-A", "Alt", counters={"deaths": 1}, journal={"2026-12-20": {"deaths": 0}}),
+            character("Player-1-A", "Alt", counters={"deaths": 1}, journal={"2026-09-20": {"deaths": 0}}),
         )
         import_for(other_member, garona())
         result = rankings.compute_rankings("week", "player", now=NOW)
@@ -112,10 +113,33 @@ class TestRankings:
         total = rankings.compute_rankings("all", "player", now=NOW)
         deaths = {c["key"]: c for c in total["categories"]}["deaths"]["entries"][0]
         assert deaths["value"] == 14.0 and deaths["previous_rank"] is None
-        # Mois : pas de valeur connue avant le 1er décembre → base = plus ancienne connue (13/12), marquée
+        # Mois : pas de valeur connue avant le 1er septembre → base = plus ancienne connue (13/09), marquée
         month = rankings.compute_rankings("month", "player", now=NOW)
         deaths_m = {c["key"]: c for c in month["categories"]}["deaths"]["entries"][0]
-        assert deaths_m["value"] == 12.0 and deaths_m["since"] == "2026-12-13"
+        assert deaths_m["value"] == 12.0 and deaths_m["since"] == "2026-09-13"
+
+    def test_first_week_counts_from_counting_since(self, member):
+        # Addon installé mardi 22/09 (compteurs à zéro), seule entrée du journal mardi soir (3 boss), 5 boss
+        # au total jeudi : la semaine doit donner 5, pas 5 − 3.
+        thursday = datetime(2026, 9, 24, 20, 0, tzinfo=PARIS)
+        tuesday = int(datetime(2026, 9, 22, 10, 0, tzinfo=PARIS).timestamp())
+        import_for(
+            member,
+            character(
+                "Player-1-N",
+                "Nouveau",
+                counters={"boss_kills": 5},
+                journal={"2026-09-22": {"boss_kills": 3}},
+                exported_at=int(datetime(2026, 9, 24, 19, 0, tzinfo=PARIS).timestamp()),
+                counting_since=tuesday,
+            ),  # fmt: skip
+        )
+        week = rankings.compute_rankings("week", "character", now=thursday)
+        (entry,) = {c["key"]: c for c in week["categories"]}["boss_kills"]["entries"]
+        assert entry["value"] == 5.0 and entry["since"] == "2026-09-22"
+        # Même chose pour la tuile « cette semaine » de la fiche
+        tiles = progress.character_progress(Character.objects.get(guid="Player-1-N"), now=thursday)
+        assert tiles["tiles"]["boss_kills"] == {"total": 5.0, "week": 5.0}
 
     def test_guild_progression_dedupes_group_kills(self, member, other_member):
         import_for(member, thrall())
@@ -124,7 +148,7 @@ class TestRankings:
         assert (molten["slug"], molten["killed"], molten["total"]) == ("molten-core", 1, 10)
         bosses = {b["name"]: b for b in molten["bosses"]}
         assert bosses["Ragnaros"]["kills"] == 1 and bosses["Ragnaros"]["first_kill"].startswith(
-            "2026-12-20T20:30"
+            "2026-09-20T19:30"
         )
         assert (
             bosses["Lucifron"]["kills"] == 0 and bosses["Lucifron"]["best_group"] == 2
@@ -143,9 +167,9 @@ class TestTitles:
     def test_awarded_monday_after_ten_then_frozen(self, member, other_member):
         import_for(member, thrall())
         import_for(other_member, garona())
-        early = datetime(2026, 12, 21, 9, 59, tzinfo=PARIS)
+        early = datetime(2026, 9, 21, 9, 59, tzinfo=PARIS)
         assert titles.award_weekly_titles(early) == []
-        created = titles.award_weekly_titles(datetime(2026, 12, 21, 10, 0, tzinfo=PARIS))
+        created = titles.award_weekly_titles(datetime(2026, 9, 21, 10, 0, tzinfo=PARIS))
         by_key = {t.key: t for t in created}
         assert (
             by_key["gathering"].user == member and by_key["gathering"].value == 80.0
@@ -163,14 +187,14 @@ class TestTitles:
         )
         assert titles.award_weekly_titles(NOW) == [] and WeeklyTitle.objects.count() == len(created)
         shown = rankings.current_titles(NOW)
-        assert {t["key"] for t in shown} == set(by_key) and shown[0]["week_start"] == "2026-12-14"
+        assert {t["key"] for t in shown} == set(by_key) and shown[0]["week_start"] == "2026-09-14"
 
     def test_scan_reminders_calls_the_award(self, member):
         from apps.notifications.reminders import scan_due_reminders
 
         import_for(member, thrall())
-        scan_due_reminders(datetime(2026, 12, 21, 11, 0, tzinfo=PARIS))
-        assert WeeklyTitle.objects.filter(week_start="2026-12-14").exists()
+        scan_due_reminders(datetime(2026, 9, 21, 11, 0, tzinfo=PARIS))
+        assert WeeklyTitle.objects.filter(week_start="2026-09-14").exists()
 
 
 class TestProgress:
@@ -186,12 +210,12 @@ class TestProgress:
         assert data["lockouts"][0]["killed"] == 7 and data["lockouts"][0]["reset_at"]
         assert data["reputations"][0]["name"] == "Cercle cénarien"
         assert [(b["id"], b["name"], b["kills"]) for b in data["bosses"]] == [(672, "Ragnaros", 1)]
-        assert data["bosses"][0]["first"].startswith("2026-12-20T20:30")
+        assert data["bosses"][0]["first"].startswith("2026-09-20T19:30")
         gear = {g["slot"]: g for g in data["gear"]}
         assert gear["head"]["name"] == "Couronne de la Terre" and gear["head"]["enchant_id"] == 2583
         assert gear["mainhand"]["name"] is None  # objet absent de l'index : identifiant seul
         assert data["pvp"]["battlegrounds"] == [{"map": "Goulet", "played": 12, "won": 9}]
-        assert [s["day"] for s in data["series"]] == ["2026-12-13", "2026-12-20"]
+        assert [s["day"] for s in data["series"]] == ["2026-09-13", "2026-09-20"]
         assert data["levels"][0]["level"] == 60 and len(data["syncs"]) == 1
 
     def test_never_synced_character(self, as_user, member):

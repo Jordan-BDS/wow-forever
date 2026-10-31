@@ -27,3 +27,10 @@ Avant la première release : générer la paire de clés de mise à jour (`npm r
 publique dans `app/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`) et la clé privée dans les secrets GitHub
 `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Le même numéro de version doit figurer dans
 `app/package.json`, `app/src-tauri/Cargo.toml`, `app/src-tauri/tauri.conf.json` et le tag.
+
+## Mise à jour automatique
+
+À chaque lancement, le compagnon lit `latest.json` de la dernière release GitHub (`plugins.updater.endpoints`) ;
+s'il existe une version plus récente, il la télécharge, l'installe et redémarre. L'addon embarqué suit, puisqu'il
+est compilé dans l'exécutable. Exception : la 0.1.0 ne contenait pas cette vérification, il faut la remplacer à la
+main par un installeur plus récent. L'adresse du site est `https://wow.koj.dev` par défaut, modifiable dans la fenêtre.

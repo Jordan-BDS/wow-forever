@@ -86,13 +86,26 @@ def earliest_known(snapshot: CharacterSnapshot) -> tuple[dict, date]:
     return (data.get("counters") if isinstance(data.get("counters"), dict) else {}), day_of(snapshot)
 
 
+def counting_since_day(snapshot: CharacterSnapshot) -> date | None:
+    """Jour (Paris) où l'addon a commencé à compter ce personnage : ses compteurs étaient alors à zéro."""
+    data = snapshot.data if isinstance(snapshot.data, dict) else {}
+    value = data.get("counting_since")
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or not value > 0:
+        return None
+    try:
+        return datetime.fromtimestamp(value, tz=UTC).astimezone(PARIS).date()
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
 def delta(
     snapshot: CharacterSnapshot, key: str, start: date | None, end_day: date
 ) -> tuple[float, date | None]:
     """Progression d'un compteur entre la veille de `start` et la fin de `end_day`.
 
-    Sans valeur connue avant `start`, la plus ancienne connue sert de base et son jour est renvoyé
-    (« depuis le »)."""
+    Sans valeur connue avant `start` : si l'addon a commencé à compter pendant la période (`counting_since`),
+    la base est zéro ; sinon la plus ancienne valeur connue sert de base. Dans les deux cas le jour de départ
+    réel est renvoyé quand il est postérieur à `start` (« depuis le »)."""
     current, _ = counters_at(snapshot, end_day)
     if current is None:
         return 0.0, None
@@ -101,7 +114,11 @@ def delta(
     baseline, _ = counters_at(snapshot, start - timedelta(days=1))
     since = None
     if baseline is None:
-        baseline, since_day = earliest_known(snapshot)
+        counting_since = counting_since_day(snapshot)
+        if counting_since is not None and counting_since >= start:
+            baseline, since_day = {}, counting_since
+        else:
+            baseline, since_day = earliest_known(snapshot)
         since = since_day if since_day > start else None
     return max(0.0, counter(current, key) - counter(baseline, key)), since
 

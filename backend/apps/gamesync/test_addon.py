@@ -249,6 +249,50 @@ class TestSession:
         assert g.WoWForeverGuildeDB.characters["Player-1-OLD"] is None
         assert char.counting_since == 1
 
+    def test_professions_with_gaps_are_all_collected(self):
+        # Sans deuxième métier principal ni archéologie : pêche et cuisine restent lues malgré les nil.
+        lua = boot()
+        lua.execute("""
+          _PROFESSIONS[4] = { name = "Pêche", skill = 150, max = 225, line = 356 }
+          _PROFESSIONS[5] = { name = "Cuisine", skill = 75, max = 150, line = 185 }
+          _PROFESSION_SLOTS = { 1, nil, nil, 4, 5, nil }
+        """)
+        login(lua)
+        payload = decode_export(logout_code(lua))
+        (character,) = payload["characters"]
+        assert sorted(p["id"] for p in character["professions"]) == [185, 186, 356]
+        assert {p["id"]: p["skill"] for p in character["professions"]} == {185: 75, 186: 300, 356: 150}
+
+    @pytest.mark.parametrize("modern", [False, True], ids=["battlefield_winner", "pvp_match_complete"])
+    def test_two_consecutive_battlegrounds_on_the_same_map_are_both_counted(self, modern):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+
+        def play_one(winner: int) -> None:
+            lua.execute("_INSTANCE = 'pvp'; _INSTANCE_NAME = 'Goulet des Chanteguerres'")
+            lua.execute("_BG = { status = 'active', map = 'Goulet des Chanteguerres' }")
+            g._FIRE("PLAYER_ENTERING_WORLD")
+            g._FIRE("UPDATE_BATTLEFIELD_STATUS", 1)
+            if modern:
+                g._FIRE("PVP_MATCH_COMPLETE", winner, 900)
+            else:
+                lua.execute(f"_BG.winner = {winner}")
+                g._FIRE("UPDATE_BATTLEFIELD_STATUS", 1)
+                g._FIRE("UPDATE_BATTLEFIELD_STATUS", 1)  # l'écran des scores rafraîchit plusieurs fois
+            # Sortie du BG.
+            lua.execute("_INSTANCE = nil; _INSTANCE_NAME = nil; _BG = { status = 'none' }")
+            g._FIRE("UPDATE_BATTLEFIELD_STATUS", 1)
+            g._FIRE("PLAYER_ENTERING_WORLD")
+
+        play_one(0)  # Horde gagne
+        play_one(1)  # Alliance gagne
+        char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
+        assert char.counters.bg_played == 2 and char.counters.bg_won == 1
+        bucket = char.pvp.bg["Goulet des Chanteguerres"]
+        assert bucket.played == 2 and bucket.won == 1
+        assert [e.k for e in char.events.values()] == ["bg", "bg"]
+
     def test_excluded_character_is_not_exported(self):
         lua = boot()
         login(lua)

@@ -1,6 +1,6 @@
 [package]
 name = "wow-forever-guilde-companion"
-version = "0.1.0"
+version = "0.1.1"
 description = "Compagnon WoW Forever Guilde : installe l'addon et envoie tes données au site à chaque déconnexion."
 authors = ["WoW Forever"]
 edition = "2021"

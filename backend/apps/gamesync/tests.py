@@ -74,6 +74,14 @@ class TestFormat:
         with pytest.raises(ExportError, match="aucun personnage"):
             decode_export(encode_export({"v": 1}))
 
+    def test_zlib_bomb_is_refused_but_normal_export_passes(self):
+        # 20 Mo de « a » tiennent dans quelques Ko compressés : sans borne, le serveur gonflerait en mémoire.
+        bomb = encode_export({"v": 1, "characters": [{"blob": "a" * 20_000_000}]})
+        assert len(bomb) < 256 * 1024
+        with pytest.raises(ExportError, match="trop volumineux"):
+            decode_export(bomb)
+        assert decode_export(export_code(character_payload()))["characters"][0]["name"] == "Thrall"
+
 
 class TestPairing:
     def test_code_then_token_then_import(self, as_user, member, api_client):
@@ -203,6 +211,27 @@ class TestImport:
         )
         assert older.data["snapshots"][0]["status"] == "stale"
         assert Character.objects.get(guid="Player-1-000ABC01").level == 60
+
+    def test_future_export_date_is_capped_to_now(self, as_user, member):
+        client = as_user(member)
+        future = int((timezone.now() + timedelta(days=2)).timestamp())
+        response = do_import(client, export_code(character_payload(exported_at=future)))
+        assert response.data["snapshots"][0]["status"] == "created"
+        character = Character.objects.get(guid="Player-1-000ABC01")
+        assert abs(character.last_synced_at - timezone.now()) < timedelta(minutes=1)
+        # Un export normal postérieur n'est pas « stale » : l'horloge en avance n'a pas bloqué les imports
+        later = do_import(
+            client, export_code(character_payload(level=59, exported_at=int(timezone.now().timestamp()) + 60))
+        )
+        assert later.data["snapshots"][0]["status"] == "applied"
+        assert Character.objects.get(guid="Player-1-000ABC01").level == 59
+
+    def test_absurd_export_date_is_refused_not_fatal(self, as_user, member):
+        response = do_import(as_user(member), export_code(character_payload(exported_at=1e20)))
+        assert response.status_code == 201
+        (line,) = response.data["snapshots"]
+        assert line["status"] == "refused" and "date d'export invalide" in line["note"]
+        assert not Character.objects.filter(guid="Player-1-000ABC01").exists()
 
     def test_refuses_character_of_another_player_and_homonyms(self, as_user, member, other_member):
         do_import(as_user(other_member), export_code(character_payload()))

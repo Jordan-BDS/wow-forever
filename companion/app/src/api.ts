@@ -14,7 +14,7 @@ export type AppState = {
   accounts: string[];
   installed_addon_version: string | null;
   last_sync: SyncOutcome[] | null;
-  last_sync_at: string | null;
+  last_sync_at: number | null; // secondes epoch
   candidates: string[];
 };
 
@@ -36,4 +36,8 @@ export const api = {
   openSite: (path: string) => invoke<void>("open_site", { path }),
   onSync: (handler: (outcomes: SyncOutcome[]) => void): Promise<UnlistenFn> =>
     listen<SyncOutcome[]>("sync-result", (e) => handler(e.payload)),
+  onUpdateAvailable: (handler: (version: string) => void): Promise<UnlistenFn> =>
+    listen<string>("update-available", (e) => handler(e.payload)),
+  onUpdateFailed: (handler: (error: string) => void): Promise<UnlistenFn> =>
+    listen<string>("update-failed", (e) => handler(e.payload)),
 };

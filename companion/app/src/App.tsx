@@ -5,14 +5,22 @@ import { api, type AppState, type SyncOutcome } from "./api";
 export function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [updating, setUpdating] = useState<string | null>(null);
 
   const refresh = () => api.getState().then(setState).catch((e) => setError(String(e)));
 
   useEffect(() => {
     void refresh();
-    const unlisten = api.onSync((outcomes) => setState((s) => (s ? { ...s, last_sync: outcomes, last_sync_at: new Date().toISOString() } : s)));
+    const unlisteners = [
+      api.onSync((outcomes) => setState((s) => (s ? { ...s, last_sync: outcomes, last_sync_at: Math.floor(Date.now() / 1000) } : s))),
+      api.onUpdateAvailable((version) => setUpdating(version)),
+      api.onUpdateFailed((e) => {
+        setUpdating(null);
+        setError(`Mise à jour impossible : ${e}`);
+      }),
+    ];
     return () => {
-      void unlisten.then((fn) => fn());
+      for (const u of unlisteners) void u.then((fn) => fn());
     };
   }, []);
 
@@ -30,6 +38,7 @@ export function App() {
         {state.display_name && <div className="muted">Lié à {state.display_name}</div>}
       </header>
       <main className="main">
+        {updating && <div className="card">Mise à jour vers la version {updating} en cours, le compagnon va redémarrer…</div>}
         {error && <div className="card ko">{error}</div>}
         {step === "gamedir" && <GameDirStep state={state} onDone={refresh} onError={setError} />}
         {step === "pair" && <PairStep state={state} onDone={refresh} onError={setError} />}
@@ -167,7 +176,7 @@ function StatusView({ state, onChange, onError }: { state: AppState; onChange: (
       <section className="card">
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h2>Synchronisation</h2>
-          <span className="muted">{state.last_sync_at ? `dernier passage ${new Date(state.last_sync_at).toLocaleTimeString()}` : "en attente du premier fichier"}</span>
+          <span className="muted">{state.last_sync_at ? `dernier passage ${new Date(state.last_sync_at * 1000).toLocaleTimeString()}` : "en attente du premier fichier"}</span>
         </div>
         <p className="muted">
           Comptes WoW surveillés : {state.accounts.length ? state.accounts.join(", ") : "aucun fichier de l'addon pour l'instant (connecte un personnage puis déconnecte-toi)"}.

@@ -18,6 +18,9 @@ import zlib
 PREFIX = "WFG"
 FORMAT_VERSION = 1
 MAX_CODE_LENGTH = 256 * 1024
+# Borne du JSON décompressé : un code de 256 Kio très compressible pourrait sinon gonfler à plusieurs
+# centaines de Mo en mémoire (« bombe zlib »).
+MAX_RAW_LENGTH = 8 * 1024 * 1024
 
 _CODE_RE = re.compile(r"^WFG(?P<version>\d+):(?P<checksum>[0-9a-f]{8}):(?P<data>[A-Za-z0-9+/=]+)$")
 
@@ -54,11 +57,16 @@ def decode_export(code: str) -> dict:
         raise ExportError("Ce code vient d'une ancienne version de l'addon : mets l'addon à jour.")
     try:
         compressed = base64.b64decode(match["data"], validate=True)
-        raw = zlib.decompress(compressed, wbits=-15)
+        decompressor = zlib.decompressobj(wbits=-15)
+        raw = decompressor.decompress(compressed, MAX_RAW_LENGTH)
     except (binascii.Error, zlib.error) as exc:
         raise ExportError(
             "Code incomplet ou altéré : recopie-le entièrement depuis la fenêtre de l'addon."
         ) from exc
+    if decompressor.unconsumed_tail or len(raw) >= MAX_RAW_LENGTH:
+        raise ExportError("Ce code est trop volumineux pour être un export de l'addon.")
+    if not decompressor.eof:
+        raise ExportError("Code incomplet ou altéré : recopie-le entièrement depuis la fenêtre de l'addon.")
     if (zlib.adler32(raw) & 0xFFFFFFFF) != int(match["checksum"], 16):
         raise ExportError("Code incomplet : la somme de contrôle ne correspond pas, recopie-le.")
     try:

@@ -22,6 +22,12 @@ end
 local currentMap = nil
 local counted = false
 
+--- Sortie du champ de bataille : le prochain match (même sur la même carte) doit être compté.
+local function leaveBattlefield()
+  currentMap = nil
+  counted = false
+end
+
 local function recordMatch(char, won)
   local map = currentMap or "unknown"
   char.pvp = char.pvp or {}
@@ -39,14 +45,20 @@ ns.RegisterCollector({
   name = "pvp",
   events = {
     PVP_MATCH_COMPLETE = true, UPDATE_BATTLEFIELD_STATUS = true, HONOR_XP_UPDATE = true, PLAYER_PVP_KILLS_CHANGED = true,
+    PLAYER_ENTERING_WORLD = true,
   },
   scanOn = { HONOR_XP_UPDATE = true, PLAYER_PVP_KILLS_CHANGED = true },
   scan = scan,
   onEvent = function(char, event, ...)
-    if event == "UPDATE_BATTLEFIELD_STATUS" and GetMaxBattlefieldID and GetBattlefieldStatus then
+    if event == "PLAYER_ENTERING_WORLD" then
+      local inside, kind = IsInInstance()
+      if not (inside and kind == "pvp") then leaveBattlefield() end
+    elseif event == "UPDATE_BATTLEFIELD_STATUS" and GetMaxBattlefieldID and GetBattlefieldStatus then
+      local active = false
       for i = 1, GetMaxBattlefieldID() do
         local status, mapName = GetBattlefieldStatus(i)
         if status == "active" then
+          active = true
           if currentMap ~= mapName then counted = false end
           currentMap = mapName
           -- Fin de match détectée par l'écran des scores (vainqueur connu), si PVP_MATCH_COMPLETE n'existe pas.
@@ -61,6 +73,8 @@ ns.RegisterCollector({
           end
         end
       end
+      -- Plus aucun champ de bataille actif : on a quitté le BG.
+      if not active then leaveBattlefield() end
     elseif event == "PVP_MATCH_COMPLETE" then
       PVP_MATCH_COMPLETE_SUPPORTED = true
       local winner = ...

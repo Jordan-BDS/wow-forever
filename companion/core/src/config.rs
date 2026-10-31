@@ -27,7 +27,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            site_url: "https://wow-forever.example".to_string(),
+            site_url: "https://wow.koj.dev".to_string(),
             game_dir: None,
             device_name: hostname(),
             token: None,

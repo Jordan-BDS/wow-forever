@@ -12,16 +12,22 @@ end
 local function scanKnown(char)
   if not (GetProfessions and GetProfessionInfo) then return end
   local seen = {}
-  for _, index in ipairs({ GetProfessions() }) do
-    if type(index) == "number" then
-      local name, _, skill, max, _, _, skillLine = GetProfessionInfo(index)
-      if skillLine then
-        local prof = entryFor(char, skillLine)
-        prof.name, prof.skill, prof.max = name, ns.plain(skill), ns.plain(max)
-        seen[tostring(skillLine)] = true
+  -- GetProfessions renvoie 6 emplacements (métier 1, métier 2, archéologie, pêche, cuisine, secourisme) avec des
+  -- trous : ipairs s'arrêterait au premier nil, on parcourt donc par select en ignorant les emplacements vides.
+  local function scanSlots(...)
+    for i = 1, select("#", ...) do
+      local index = select(i, ...)
+      if type(index) == "number" then
+        local name, _, skill, max, _, _, skillLine = GetProfessionInfo(index)
+        if skillLine then
+          local prof = entryFor(char, skillLine)
+          prof.name, prof.skill, prof.max = name, ns.plain(skill), ns.plain(max)
+          seen[tostring(skillLine)] = true
+        end
       end
     end
   end
+  scanSlots(GetProfessions())
   -- Un métier abandonné disparaît.
   for key in pairs(char.professions or {}) do
     if not seen[key] then char.professions[key] = nil end

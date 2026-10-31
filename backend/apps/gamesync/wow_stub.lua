@@ -63,8 +63,10 @@ function GetTalentInfo(tab, index) return "Talent", "icon", 1, 1, _TALENTS.ranks
 
 -- Métiers.
 _PROFESSIONS = { { name = "Minage", skill = 300, max = 300, line = 186 }, { name = "Alchimie", skill = 290, max = 300, line = 171 } }
-function GetProfessions() return 1, 2 end
-function GetProfessionInfo(i) local p = _PROFESSIONS[i] return p.name, "icon", p.skill, p.max, 0, 0, p.line end
+-- Six emplacements (métier 1, métier 2, archéologie, pêche, cuisine, secourisme), avec des trous (nil) possibles.
+_PROFESSION_SLOTS = { 1, 2 }
+function GetProfessions() return unpack(_PROFESSION_SLOTS, 1, 6) end
+function GetProfessionInfo(i) local p = _PROFESSIONS[i] if not p then return nil end return p.name, "icon", p.skill, p.max, 0, 0, p.line end
 _OPEN_TRADESKILL = nil
 C_TradeSkillUI = {
   GetBaseProfessionInfo = function() return _OPEN_TRADESKILL end,
@@ -86,6 +88,11 @@ C_QuestLog = { IsQuestFlaggedCompleted = function(id) return _QUESTS_DONE[id] ==
 function GetNumSavedInstances() return 1 end
 function GetSavedInstanceInfo() return "Cœur du Magma", 409, 300000, 9, true, false, 0, true, 40, "Normal", 10, 7 end
 function GetPVPLifetimeStats() return 2340, 12 end
+-- Champ de bataille : _BG = { status = "none"|"queued"|"confirm"|"active", map = "...", winner = nil|0|1 }.
+_BG = { status = "none" }
+function GetMaxBattlefieldID() return 1 end
+function GetBattlefieldStatus(i) return _BG.status, _BG.map end
+function GetBattlefieldWinner() return _BG.winner end
 function UnitPVPRank() return 12 end
 C_Spell = { GetSpellName = function(id) return "Sort" end }
 _CLEU = nil

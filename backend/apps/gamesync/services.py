@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import math
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -39,6 +40,12 @@ PARIS = ZoneInfo("Europe/Paris")
 MIN_LEVEL_BY_DEFAULT = 10
 SNAPSHOT_RETENTION_DAYS = 90
 LOW_LEVEL_NOTE = "low_level"
+# Bornes de `exported_at` : avant 2020 ou au-delà d'un siècle, la valeur est aberrante ; au-delà de quelques
+# minutes dans le futur, c'est l'horloge du PC qui avance et la date est ramenée à maintenant (sinon tous
+# les imports suivants seraient « stale » jusqu'à cette date).
+EXPORTED_AT_MIN = datetime(2020, 1, 1, tzinfo=UTC)
+EXPORTED_AT_MAX_AHEAD = timedelta(days=100 * 365)
+CLOCK_TOLERANCE = timedelta(minutes=5)
 
 # Jetons envoyés par l'addon (seconde valeur de UnitClass / UnitRace) → slugs de l'index du site.
 RACE_TOKENS = {
@@ -158,7 +165,18 @@ class ParsedCharacter:
 def _to_datetime(value) -> datetime:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("date d'export manquante")
-    return datetime.fromtimestamp(value, tz=UTC)
+    if not math.isfinite(value):
+        raise ValueError("date d'export invalide")
+    now = timezone.now()
+    try:
+        exported_at = datetime.fromtimestamp(value, tz=UTC)
+    except (OverflowError, OSError, ValueError) as exc:
+        raise ValueError("date d'export invalide") from exc
+    if not EXPORTED_AT_MIN <= exported_at <= now + EXPORTED_AT_MAX_AHEAD:
+        raise ValueError("date d'export invalide")
+    if exported_at > now + CLOCK_TOLERANCE:
+        return now
+    return exported_at
 
 
 def parse_character(raw: Any) -> ParsedCharacter:

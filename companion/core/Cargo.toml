@@ -1,6 +1,6 @@
 [package]
 name = "companion-core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Cœur du compagnon WoW Forever Guilde : SavedVariables, dossier WoW, addon embarqué, API du site. Sans interface."
 license = "MIT"

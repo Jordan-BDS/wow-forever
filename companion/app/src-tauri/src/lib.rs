@@ -19,7 +19,7 @@ struct Inner {
     config_dir: PathBuf,
     config: Config,
     last_sync: Option<Vec<SyncOutcome>>,
-    last_sync_at: Option<String>,
+    last_sync_at: Option<u64>,
 }
 
 type Shared = Arc<Mutex<Inner>>;
@@ -37,16 +37,16 @@ struct AppState {
     accounts: Vec<String>,
     installed_addon_version: Option<String>,
     last_sync: Option<Vec<SyncOutcome>>,
-    last_sync_at: Option<String>,
+    last_sync_at: Option<u64>,
     candidates: Vec<String>,
 }
 
-fn now_iso() -> String {
-    let secs = std::time::SystemTime::now()
+/// Secondes depuis l'epoch : le front en fait une date locale.
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
-        .unwrap_or(0);
-    format!("{secs}")
+        .unwrap_or(0)
 }
 
 fn snapshot(inner: &Inner) -> AppState {
@@ -74,7 +74,7 @@ fn snapshot(inner: &Inner) -> AppState {
             .as_deref()
             .and_then(|g| addon::installed_version(&wowdir::addons_dir(g))),
         last_sync: inner.last_sync.clone(),
-        last_sync_at: inner.last_sync_at.clone(),
+        last_sync_at: inner.last_sync_at,
         candidates: if game_dir.is_none() {
             wowdir::candidates()
                 .iter()
@@ -114,7 +114,7 @@ fn run_sync(app: &AppHandle, shared: &Shared) -> Vec<SyncOutcome> {
         let mut inner = shared.lock().unwrap();
         inner.config.last_fingerprints = config.last_fingerprints;
         inner.last_sync = Some(outcomes.clone());
-        inner.last_sync_at = Some(now_iso());
+        inner.last_sync_at = Some(now_secs());
         let _ = save(&inner);
     }
     let _ = app.emit("sync-result", &outcomes);
@@ -316,6 +316,39 @@ fn restart_watcher(app: &AppHandle, shared: Shared) {
     }
 }
 
+// --- mise à jour -------------------------------------------------------------------------------------
+
+/// Vérifie `latest.json` de la dernière release GitHub ; s'il y a plus récent, télécharge, installe et
+/// redémarre. Les échecs (hors ligne, signature) sont seulement journalisés : le compagnon reste utilisable.
+async fn check_for_update(app: AppHandle) {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = match app.updater() {
+        Ok(updater) => updater,
+        Err(e) => {
+            log::warn!("mise à jour indisponible : {e}");
+            return;
+        }
+    };
+    match updater.check().await {
+        Ok(Some(update)) => {
+            log::info!("mise à jour {} disponible", update.version);
+            let _ = app.emit("update-available", &update.version);
+            match update.download_and_install(|_, _| {}, || {}).await {
+                Ok(()) => {
+                    log::info!("mise à jour installée, redémarrage");
+                    app.restart();
+                }
+                Err(e) => {
+                    log::warn!("mise à jour impossible : {e}");
+                    let _ = app.emit("update-failed", e.to_string());
+                }
+            }
+        }
+        Ok(None) => log::info!("compagnon à jour"),
+        Err(e) => log::warn!("vérification des mises à jour : {e}"),
+    }
+}
+
 // --- démarrage ---------------------------------------------------------------------------------------
 
 pub fn run() {
@@ -395,6 +428,8 @@ pub fn run() {
             let autostart = shared.lock().unwrap().config.autostart;
             apply_autostart(&handle, autostart);
             restart_watcher(&handle, shared.clone());
+            // Mise à jour du compagnon lui-même (et donc de l'addon embarqué) en arrière-plan.
+            tauri::async_runtime::spawn(check_for_update(handle.clone()));
             // Premier passage au démarrage : on rattrape ce qui a été écrit pendant que le compagnon était fermé.
             let shared_boot = shared.clone();
             let boot = handle.clone();
