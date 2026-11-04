@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import { api, errorMessage, type Member, type SiteRole } from "@/api/client";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { Button, Card, PageTitle, RoleBadge, Select, Spinner } from "@/components/ui";
+import { formatAgo } from "@/lib/game";
 import { isOfficerOrAbove, outranks, ROLE_LABELS, ROLES } from "@/lib/roles";
 
 const MEMBERS_KEY = ["members"] as const;
@@ -76,6 +77,7 @@ export function MembersPage() {
                 <th className="hidden px-3 py-3 sm:table-cell sm:px-4">Discord</th>
                 <th className="px-3 py-3 sm:px-4">Rôle</th>
                 <th className="px-3 py-3 sm:px-4">Statut</th>
+                <th className="hidden px-3 py-3 md:table-cell sm:px-4">Compagnon</th>
                 {canManage && <th className="px-3 py-3 text-right sm:px-4">Actions</th>}
               </tr>
             </thead>
@@ -129,6 +131,21 @@ export function MembersPage() {
                           Désactivé
                           {member.deactivation_reason === "discord" && " (Discord)"}
                         </span>
+                      )}
+                    </td>
+                    <td className="hidden whitespace-nowrap px-3 py-2 md:table-cell sm:px-4">
+                      {member.companion ? (
+                        <span className="text-success">
+                          Lié
+                          <span className="text-xs text-muted">
+                            {member.companion.devices > 1 ? ` · ${member.companion.devices} PC` : ""}
+                            {member.companion.last_seen_at
+                              ? ` · vu ${formatAgo(member.companion.last_seen_at)}`
+                              : " · jamais connecté"}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-muted">—</span>
                       )}
                     </td>
                     {canManage && (

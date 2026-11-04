@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.notifications.models import DM_PREFERENCE_KINDS
@@ -7,6 +8,7 @@ from .models import Availability, SiteRole, User
 
 class MemberSerializer(serializers.ModelSerializer):
     avatar_url = serializers.CharField(read_only=True)
+    companion = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -24,10 +26,35 @@ class MemberSerializer(serializers.ModelSerializer):
             "last_login",
             "dm_enabled",
             "dm_muted_kinds",
+            "companion",
         ]
         read_only_fields = fields
 
     dm_muted_kinds = serializers.ListField(child=serializers.CharField(), read_only=True)
+
+    @extend_schema_field(
+        {
+            "type": "object",
+            "nullable": True,
+            "properties": {
+                "devices": {"type": "integer"},
+                "last_seen_at": {"type": "string", "format": "date-time", "nullable": True},
+            },
+            "required": ["devices", "last_seen_at"],
+        }
+    )
+    def get_companion(self, user: User) -> dict | None:
+        """Compagnon lié : nombre de machines actives et dernier passage. Annoté par la liste des membres ;
+        calculé à la demande ailleurs (fiche, /me)."""
+        linked = getattr(user, "companion_linked", None)
+        seen = getattr(user, "companion_seen_at", None)
+        if linked is None:
+            devices = user.companions.filter(revoked_at__isnull=True)
+            linked = devices.count()
+            seen = max((d.last_seen_at for d in devices if d.last_seen_at), default=None)
+        if not linked:
+            return None
+        return {"devices": linked, "last_seen_at": seen.isoformat() if seen else None}
 
 
 class MeUpdateSerializer(serializers.ModelSerializer):

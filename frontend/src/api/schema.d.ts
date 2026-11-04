@@ -1967,6 +1967,11 @@ export interface components {
             /** Accepte les messages privés du bot */
             readonly dm_enabled: boolean;
             readonly dm_muted_kinds: string[];
+            readonly companion: {
+                devices: number;
+                /** Format: date-time */
+                last_seen_at: string | null;
+            } | null;
         };
         Owner: {
             readonly id: number;

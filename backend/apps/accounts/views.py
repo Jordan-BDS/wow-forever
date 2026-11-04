@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Count, Max, Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from drf_spectacular.utils import extend_schema
@@ -70,7 +71,10 @@ class MeView(APIView):
 class MemberViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """Les membres de la guilde (lecture pour tous, actions réservées aux officiers / GM)."""
 
-    queryset = User.objects.all()
+    queryset = User.objects.annotate(
+        companion_linked=Count("companions", filter=Q(companions__revoked_at__isnull=True)),
+        companion_seen_at=Max("companions__last_seen_at", filter=Q(companions__revoked_at__isnull=True)),
+    )
     serializer_class = MemberSerializer
 
     def _ensure_can_manage(self, target: User) -> None:

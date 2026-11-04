@@ -1,3 +1,5 @@
+from datetime import UTC
+
 import pytest
 from django.contrib.auth import SESSION_KEY
 from django.contrib.sessions.backends.db import SessionStore
@@ -37,6 +39,26 @@ def test_members_list_visible_to_everyone(as_user, member, officer, gm):
     response = as_user(member).get("/api/members/")
     assert response.status_code == 200
     assert {m["discord_id"] for m in response.data} == {"100", "200", "300"}
+
+
+def test_members_list_shows_who_linked_the_companion(as_user, member, officer, gm):
+    from datetime import datetime
+
+    from apps.gamesync.models import CompanionDevice
+
+    seen = datetime(2026, 11, 4, 21, 0, tzinfo=UTC)
+    CompanionDevice.objects.create(
+        user=member, name="PC", token_hash="h1", token_prefix="a", last_seen_at=seen
+    )
+    CompanionDevice.objects.create(user=member, name="Portable", token_hash="h2", token_prefix="b")
+    CompanionDevice.objects.create(
+        user=officer, name="Ancien", token_hash="h3", token_prefix="c", revoked_at=seen
+    )
+    by_id = {m["discord_id"]: m["companion"] for m in as_user(gm).get("/api/members/").data}
+    assert by_id["100"] == {"devices": 2, "last_seen_at": "2026-11-04T21:00:00+00:00"}
+    assert by_id["200"] is None and by_id["300"] is None
+    # Même information hors liste (fiche d'un membre, /me), calculée à la demande.
+    assert as_user(member).get("/api/auth/me/").data["companion"]["devices"] == 2
 
 
 class TestRoleChange:

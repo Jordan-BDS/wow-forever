@@ -6279,11 +6279,31 @@
                             "type": "string"
                         },
                         "readOnly": true
+                    },
+                    "companion": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "devices": {
+                                "type": "integer"
+                            },
+                            "last_seen_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "devices",
+                            "last_seen_at"
+                        ],
+                        "readOnly": true
                     }
                 },
                 "required": [
                     "avatar_url",
                     "bio",
+                    "companion",
                     "date_joined",
                     "deactivation_reason",
                     "discord_id",
