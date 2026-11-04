@@ -3,11 +3,12 @@ import { formatValue, useRankings } from "@/api/sync";
 import { TitleCards } from "@/components/TitleBadges";
 import { Card } from "@/components/ui";
 
-/** Les quatre catégories qui donnent un Roxor, avec le nom du titre en jeu. */
+/** Les cinq catégories qui donnent un Roxor, avec le nom du titre en jeu. */
 const RACES: { key: string; title: string }[] = [
   { key: "gathering_total", title: "Farmeur chinois" },
   { key: "hk", title: "Calamité de la Horde" },
   { key: "boss_kills", title: "Fléau des boss" },
+  { key: "kills", title: "Machine à tuer" },
   { key: "deaths", title: "Lord Fragilux" },
 ];
 
@@ -41,7 +42,7 @@ export function WeekWidget() {
               semaine en cours, depuis lundi · provisoire, clos dimanche minuit
             </span>
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {races.map(({ key, title, category }) => (
               <div key={key} className="text-sm">
                 <div className={category!.shame ? "text-danger" : "text-gold-light"}>{title}</div>

@@ -2,7 +2,7 @@
 ## Title: WoW Forever Guilde
 ## Notes: Remonte la progression de tes personnages sur le site de la guilde (export ou compagnon).
 ## Author: WoW Forever
-## Version: 0.2.0
+## Version: 0.3.0
 ## SavedVariables: WoWForeverGuildeDB
 ## X-Category: Guild
 ## X-Website: https://github.com/Jordan-BDS/wow-forever
@@ -32,6 +32,7 @@ Collectors\Attunements.lua
 Collectors\Lockouts.lua
 Collectors\PvP.lua
 Collectors\PvE.lua
+Collectors\Kills.lua
 Collectors\Gathering.lua
 Collectors\Quests.lua
 Collectors\Deaths.lua

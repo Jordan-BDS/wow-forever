@@ -46,6 +46,13 @@ CATEGORIES: list[Category] = [
     Category("boss_kills", "Boss tués", "pve", counter="boss_kills"),
     Category("dungeons_done", "Donjons terminés", "pve", counter="dungeons_done"),
     Category("raids_done", "Raids terminés", "pve", counter="raids_done"),
+    Category(
+        "kills",
+        "Créatures tuées",
+        "pve",
+        counter="kills",
+        note="Toute créature frappée par toi ou ton familier dans les 15 s avant sa mort.",
+    ),
     Category("deaths", "Morts", "pve", counter="deaths", shame=True),
     Category("hk", "Victoires honorables", "pvp", counter="hk"),
     Category("bg_won", "Champs de bataille gagnés", "pvp", counter="bg_won"),
@@ -81,6 +88,7 @@ WEEKLY_TITLES: list[tuple[str, str, str]] = [
     ("gathering", "Farmeur chinois", "gathering_total"),
     ("bg", "Calamité de la Horde", "hk"),
     ("boss", "Fléau des boss", "boss_kills"),
+    ("kills", "Machine à tuer", "kills"),
     ("shame", "Lord Fragilux", "deaths"),
 ]
 
@@ -305,7 +313,15 @@ def compute_rankings(
     week_start, week_end = period_bounds("week", now)
     totals = {
         key: sum(v for v, _ in _snapshot_values(snapshots, key, week_start, week_end).values())
-        for key in ("boss_kills", "dungeons_done", "bg_played", "gathering_total", "crafted_total", "deaths")
+        for key in (
+            "boss_kills",
+            "dungeons_done",
+            "kills",
+            "bg_played",
+            "gathering_total",
+            "crafted_total",
+            "deaths",
+        )
     }
     return {
         "period": period,
@@ -317,6 +333,7 @@ def compute_rankings(
         "categories": categories,
         "titles": current_titles(now),
         "progression": guild_progression(snapshots),
+        "mobs": guild_mobs(snapshots),
         "levels": level_distribution(),
         "week_totals": totals,
     }
@@ -444,6 +461,60 @@ def guild_progression(snapshots: dict[int, CharacterSnapshot] | None = None) -> 
             }
         )
     return result
+
+
+# --- tableau de chasse ---------------------------------------------------------------------------------
+
+MOBS_LIMIT = 40
+
+
+def guild_mobs(snapshots: dict[int, CharacterSnapshot] | None = None, limit: int = MOBS_LIMIT) -> list[dict]:
+    """Créatures les plus tuées par la guilde (totaux depuis l'installation de l'addon), avec le meilleur
+    chasseur de chacune. Les noms viennent de l'addon, dans la langue du client du premier à l'avoir tuée."""
+    snapshots = snapshots if snapshots is not None else latest_snapshots()
+    totals: dict[int, dict] = {}
+    for snapshot in snapshots.values():
+        data = snapshot.data if isinstance(snapshot.data, dict) else {}
+        mobs = data.get("mobs") if isinstance(data.get("mobs"), dict) else {}
+        character = snapshot.character
+        for key, record in mobs.items():
+            if not isinstance(record, dict) or not str(key).isdigit():
+                continue
+            n = int(number(record.get("n")))
+            if n <= 0:
+                continue
+            mob = totals.setdefault(
+                int(key),
+                {"id": int(key), "name": None, "kills": 0, "hunters": set(), "last": 0.0, "top": None},
+            )
+            mob["kills"] += n
+            mob["hunters"].add(character.owner_id)
+            mob["last"] = max(mob["last"], number(record.get("last")))
+            name = record.get("name")
+            if isinstance(name, str) and name and not mob["name"]:
+                mob["name"] = name
+            if mob["top"] is None or n > mob["top"]["kills"]:
+                mob["top"] = {
+                    "kills": n,
+                    "user": {"id": character.owner_id, "display_name": character.owner.display_name},
+                    "character": {
+                        "id": character.pk,
+                        "name": character.name,
+                        "player_class": character.player_class.slug,
+                    },
+                }
+    ordered = sorted(totals.values(), key=lambda m: (-m["kills"], (m["name"] or "").lower(), m["id"]))
+    return [
+        {
+            "id": m["id"],
+            "name": m["name"] or f"Créature {m['id']}",
+            "kills": m["kills"],
+            "hunters": len(m["hunters"]),
+            "last_kill": datetime.fromtimestamp(m["last"], tz=UTC).isoformat() if m["last"] > 0 else None,
+            "top": m["top"],
+        }
+        for m in ordered[:limit]
+    ]
 
 
 def level_distribution() -> list[dict]:

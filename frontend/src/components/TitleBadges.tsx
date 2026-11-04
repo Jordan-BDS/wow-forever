@@ -68,10 +68,28 @@ const Skull = (
   </svg>
 );
 
+const Claw = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M5 3c2 4 2 9 1 18" />
+    <path d="M10 3c2 4 2.5 9 1.5 18" />
+    <path d="M15 4c2 4 2 9 1 17" />
+    <path d="M20 6c1 4 .5 8-1 15" />
+  </svg>
+);
+
 const THEMES: Record<string, Theme> = {
   gathering: { accent: "#d9b84a", glow: "rgba(217,184,74,.25)", icon: Pickaxe, unit: "ressources" },
   bg: { accent: "#e0604a", glow: "rgba(224,96,74,.25)", icon: Swords, unit: "joueurs tués" },
   boss: { accent: "#ff8a3d", glow: "rgba(255,138,61,.25)", icon: Flame, unit: "boss tués" },
+  kills: { accent: "#8fd14f", glow: "rgba(143,209,79,.25)", icon: Claw, unit: "créatures tuées" },
   shame: { accent: "#b7b7b7", glow: "rgba(183,183,183,.2)", icon: Skull, unit: "morts" },
 };
 const DEFAULT_THEME: Theme = { accent: "#d9b84a", glow: "rgba(217,184,74,.25)", icon: Flame, unit: "" };
@@ -82,14 +100,14 @@ function value(t: WeeklyTitle, unit: string): string {
 }
 
 /** Ordre d'affichage commun aux cartes et aux « Futurs Roxors ». */
-const TITLE_ORDER = ["gathering", "bg", "boss", "shame"];
+const TITLE_ORDER = ["gathering", "bg", "boss", "kills", "shame"];
 
 /** Cartes des Roxors de la semaine passée : icône, accent, gagnant en grand, personnage à la couleur de classe. */
 export function TitleCards({ titles }: { titles: WeeklyTitle[] }) {
   const gamedata = useGameData();
   const ordered = [...titles].sort((a, b) => TITLE_ORDER.indexOf(a.key) - TITLE_ORDER.indexOf(b.key));
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       {ordered.map((t) => {
         const theme = THEMES[t.key] ?? DEFAULT_THEME;
         return (

@@ -14,6 +14,7 @@ export type CharacterProgress = {
     | "dungeons_done"
     | "raids_done"
     | "deaths"
+    | "kills"
     | "bg_played"
     | "bg_won"
     | "quests"
@@ -32,6 +33,8 @@ export type CharacterProgress = {
   lockouts?: { name: string; reset_at: string | null; raid: boolean; killed: number; bosses: number }[];
   reputations?: { id: number | null; name: string; value: number; reaction: number | null }[];
   bosses?: { id: number | null; name: string; kills: number; first: string | null; last: string | null }[];
+  mobs?: { id: number | null; name: string; kills: number; last: string | null }[];
+  mobs_distinct?: number;
   gear?: {
     slot: string;
     item_id: number;
@@ -47,6 +50,7 @@ export type CharacterProgress = {
     day: string;
     deaths: number;
     boss_kills: number;
+    kills: number;
     bg_played: number;
     mining: number;
     herbalism: number;
@@ -100,6 +104,19 @@ export type ProgressionBoss = {
   best_group: number;
 };
 
+export type GuildMob = {
+  id: number;
+  name: string;
+  kills: number;
+  hunters: number;
+  last_kill: string | null;
+  top: {
+    kills: number;
+    user: { id: number; display_name: string };
+    character: { id: number; name: string; player_class: string };
+  } | null;
+};
+
 export type Rankings = {
   period: RankingPeriod;
   by: RankingBy;
@@ -117,6 +134,7 @@ export type Rankings = {
     first_clear: string | null;
     bosses: ProgressionBoss[];
   }[];
+  mobs: GuildMob[];
   levels: { label: string; count: number }[];
   week_totals: Record<string, number>;
 };

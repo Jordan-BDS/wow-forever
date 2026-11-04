@@ -57,7 +57,7 @@ function Store.Character(guid)
     local t = now()
     entry = {
       guid = guid, created_at = t, counting_since = t, updated_at = t,
-      counters = {}, journal = {}, events = {}, previous_guids = {},
+      counters = {}, journal = {}, events = {}, previous_guids = {}, mobs = {},
       professions = {}, gear = {}, reputations = {}, attunements = {}, lockouts = {}, pvp = {}, talents = {},
     }
     db.characters[guid] = entry
@@ -66,6 +66,7 @@ function Store.Character(guid)
   entry.journal = entry.journal or {}
   entry.events = entry.events or {}
   entry.previous_guids = entry.previous_guids or {}
+  entry.mobs = entry.mobs or {}
   return entry
 end
 
@@ -87,6 +88,18 @@ function Store.Merge(newEntry, oldEntry)
   end
   for day, snapshot in pairs(oldEntry.journal or {}) do
     if newEntry.journal[day] == nil then newEntry.journal[day] = snapshot end
+  end
+  newEntry.mobs = newEntry.mobs or {}
+  for key, old in pairs(oldEntry.mobs or {}) do
+    local mine = newEntry.mobs[key]
+    if mine then
+      mine.n = (mine.n or 0) + (old.n or 0)
+      mine.first = math.min(mine.first or old.first or 0, old.first or mine.first or 0)
+      mine.last = math.max(mine.last or 0, old.last or 0)
+      mine.name = mine.name or old.name
+    else
+      newEntry.mobs[key] = old
+    end
   end
   for _, event in ipairs(oldEntry.events or {}) do table.insert(newEntry.events, event) end
   table.sort(newEntry.events, function(a, b) return (a.t or 0) < (b.t or 0) end)

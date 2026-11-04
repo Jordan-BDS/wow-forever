@@ -137,6 +137,8 @@ export function RankingsPage() {
 
       <GuildProgression data={data} />
 
+      <HuntingBoard mobs={data.mobs} meId={me.id} />
+
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <LevelsCard levels={data.levels} />
         <TotalsCard totals={data.week_totals} />
@@ -322,6 +324,86 @@ function GuildProgression({ data }: { data: Rankings }) {
   );
 }
 
+function HuntingBoard({ mobs, meId }: { mobs: Rankings["mobs"]; meId: number }) {
+  const gamedata = useGameData();
+  const [expanded, setExpanded] = useState(false);
+  if (mobs.length === 0) return null;
+  const shown = expanded ? mobs : mobs.slice(0, 15);
+  return (
+    <section className="mt-8">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="font-display text-lg">Tableau de chasse de la guilde</h2>
+        <span className="text-xs text-muted">
+          totaux depuis l'installation de l'addon · toute créature frappée dans les 15 s avant sa mort
+        </span>
+      </div>
+      <Card className="space-y-3">
+        <div className="nav-scroll -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[36rem] whitespace-nowrap text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-muted">
+                <th className="w-8 py-1.5 pr-2">#</th>
+                <th className="py-1.5 pr-3">Créature</th>
+                <th className="py-1.5 pr-3 text-right">Kills</th>
+                <th className="py-1.5 pr-3 text-right">Chasseurs</th>
+                <th className="py-1.5 pr-3">Meilleur chasseur</th>
+                <th className="py-1.5">Dernier kill</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((m, i) => {
+                const isMe = m.top?.user.id === meId;
+                return (
+                  <tr key={m.id} className="border-t border-border/60">
+                    <td className={clsx("py-1.5 pr-2", i < 3 ? "text-gold-light" : "text-muted")}>{i + 1}</td>
+                    <td className="py-1.5 pr-3">{m.name}</td>
+                    <td className="py-1.5 pr-3 text-right font-mono">{m.kills}</td>
+                    <td className="py-1.5 pr-3 text-right text-muted">{m.hunters}</td>
+                    <td className="py-1.5 pr-3">
+                      {m.top ? (
+                        <>
+                          <Link
+                            to={`/membres/${m.top.user.id}`}
+                            className={clsx(isMe && "font-medium text-gold-light")}
+                          >
+                            {isMe ? "Toi" : m.top.user.display_name}
+                          </Link>
+                          <span className="text-muted">
+                            {" · "}
+                            <Link to={`/personnages/${m.top.character.id}`}>
+                              <ClassName playerClass={findClass(gamedata.data, m.top.character.player_class)}>
+                                {m.top.character.name}
+                              </ClassName>
+                            </Link>
+                            {" · "}
+                            <span className="font-mono">{m.top.kills}</span>
+                          </span>
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="py-1.5 text-muted">{m.last_kill ? formatDateTime(m.last_kill) : "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {mobs.length > 15 && (
+          <button
+            type="button"
+            className="text-sm text-muted hover:text-text"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? "Voir moins" : `Voir les ${mobs.length} créatures`}
+          </button>
+        )}
+      </Card>
+    </section>
+  );
+}
+
 function LevelsCard({ levels }: { levels: Rankings["levels"] }) {
   const max = Math.max(1, ...levels.map((l) => l.count));
   const total = levels.reduce((sum, l) => sum + l.count, 0);
@@ -359,6 +441,7 @@ function LevelsCard({ levels }: { levels: Rankings["levels"] }) {
 const TOTAL_LABELS: Record<string, string> = {
   boss_kills: "Boss tués",
   dungeons_done: "Donjons terminés",
+  kills: "Créatures tuées",
   bg_played: "BG joués",
   gathering_total: "Ressources récoltées",
   crafted_total: "Objets fabriqués",

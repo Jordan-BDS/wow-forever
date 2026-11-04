@@ -43,13 +43,14 @@ def thrall():
     return character(
         "Player-1-T", "Thrall",
         counters={
-            "deaths": 14, "boss_kills": 3, "gathering": {"mining": 310}, "bg_played": 12, "bg_won": 9, "quests": 50, "hk": 100,
+            "deaths": 14, "boss_kills": 3, "gathering": {"mining": 310}, "bg_played": 12, "bg_won": 9, "quests": 50, "hk": 100, "kills": 120,
             "bosses": {"672": {"n": 1, "name": "Ragnaros", "first": KILL_TIME, "last": KILL_TIME}},
         },
         journal={
             "2026-09-13": {"deaths": 2, "gathering": {"mining": 20}, "bg_played": 0, "bg_won": 0, "hk": 10},
-            "2026-09-20": {"deaths": 10, "boss_kills": 3, "gathering": {"mining": 100}, "bg_played": 10, "bg_won": 8, "hk": 60},
+            "2026-09-20": {"deaths": 10, "boss_kills": 3, "gathering": {"mining": 100}, "bg_played": 10, "bg_won": 8, "hk": 60, "kills": 100},
         },
+        mobs={"299": {"n": 70, "name": "Loup des Tarides", "first": KILL_TIME - 86400, "last": KILL_TIME}, "6": {"n": 50, "name": "Kobold"}},
         events=[
             {"k": "boss", "id": 672, "name": "Ragnaros", "t": KILL_TIME, "guild": 6},
             {"k": "boss", "id": 663, "name": "Lucifron", "t": KILL_TIME - 3600, "guild": 2},
@@ -66,8 +67,9 @@ def thrall():
 def garona():
     return character(
         "Player-1-G", "Garona",
-        counters={"deaths": 30, "gathering": {"mining": 50}},
-        journal={"2026-09-20": {"deaths": 25, "gathering": {"mining": 50}}},
+        counters={"deaths": 30, "gathering": {"mining": 50}, "kills": 90},
+        journal={"2026-09-20": {"deaths": 25, "gathering": {"mining": 50}, "kills": 10}},
+        mobs={"299": {"n": 90, "name": "Loup", "last": KILL_TIME + 60}, "0": {"n": 3}, "7": {"n": 0}},
         events=[{"k": "boss", "id": 672, "name": "Ragnaros", "t": KILL_TIME + 60, "guild": 6}],
     )  # fmt: skip
 
@@ -141,6 +143,29 @@ class TestRankings:
         tiles = progress.character_progress(Character.objects.get(guid="Player-1-N"), now=thursday)
         assert tiles["tiles"]["boss_kills"] == {"total": 5.0, "week": 5.0}
 
+    def test_kills_category_and_guild_hunting_board(self, member, other_member):
+        import_for(member, thrall())
+        import_for(other_member, garona())
+        result = rankings.compute_rankings("week", "player", now=NOW)
+        kills = {c["key"]: c for c in result["categories"]}["kills"]
+        assert kills["group"] == "pve" and [(e["user"]["id"], e["value"]) for e in kills["entries"]] == [
+            (other_member.pk, 80.0),
+            (member.pk, 20.0),
+        ]
+        assert result["week_totals"]["kills"] == 100.0
+        # Tableau de chasse : totaux par espèce, nombre de chasseurs, meilleur chasseur ; le nom vient du premier
+        # export qui en a un ; les espèces jamais tuées sont ignorées.
+        board = result["mobs"]
+        assert [(m["id"], m["name"], m["kills"], m["hunters"]) for m in board] == [
+            (299, "Loup des Tarides", 160, 2),
+            (6, "Kobold", 50, 1),
+            (0, "Créature 0", 3, 1),
+        ]
+        assert board[0]["top"]["user"]["id"] == other_member.pk and board[0]["top"]["kills"] == 90
+        assert board[0]["top"]["character"]["name"] == "Garona"
+        assert board[0]["last_kill"].startswith("2026-09-20T19:31")
+        assert board[2]["last_kill"] is None
+
     def test_guild_progression_dedupes_group_kills(self, member, other_member):
         import_for(member, thrall())
         import_for(other_member, garona())
@@ -178,6 +203,9 @@ class TestTitles:
             by_key["shame"].user == member and by_key["shame"].value == 8.0
         )  # Garona : pas de valeur avant le 20
         assert by_key["boss"].user == member and by_key["boss"].value == 3.0
+        assert (
+            by_key["kills"].user == member and by_key["kills"].value == 100.0
+        )  # Garona : 10 sur la semaine close
         assert by_key["bg"].value == 50.0  # 60 − 10 joueurs tués sur la semaine close
         recap = Notification.objects.get(kind="weekly_recap")
         assert (
@@ -211,6 +239,12 @@ class TestProgress:
         assert data["reputations"][0]["name"] == "Cercle cénarien"
         assert [(b["id"], b["name"], b["kills"]) for b in data["bosses"]] == [(672, "Ragnaros", 1)]
         assert data["bosses"][0]["first"].startswith("2026-09-20T19:30")
+        assert data["tiles"]["kills"]["total"] == 120.0
+        assert [(m["id"], m["name"], m["kills"]) for m in data["mobs"]] == [
+            (299, "Loup des Tarides", 70),
+            (6, "Kobold", 50),
+        ]
+        assert data["mobs"][0]["last"].startswith("2026-09-20T19:30") and data["mobs_distinct"] == 2
         gear = {g["slot"]: g for g in data["gear"]}
         assert gear["head"]["name"] == "Couronne de la Terre" and gear["head"]["enchant_id"] == 2583
         assert gear["mainhand"]["name"] is None  # objet absent de l'index : identifiant seul

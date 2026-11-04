@@ -17,6 +17,7 @@ from .models import CharacterSnapshot, ImportBatch, SnapshotStatus
 from .services import PARIS
 
 APPLIED = (SnapshotStatus.APPLIED, SnapshotStatus.CREATED)
+MOBS_PER_CHARACTER = 30
 
 
 def latest_snapshot(character: Character) -> CharacterSnapshot | None:
@@ -162,6 +163,21 @@ def character_progress(character: Character, now: datetime | None = None) -> dic
         key=lambda b: (-b["kills"], b["name"]),
     )
 
+    mobs_raw = data.get("mobs") if isinstance(data.get("mobs"), dict) else {}
+    mobs = sorted(
+        (
+            {
+                "id": int(k) if str(k).isdigit() else None,
+                "name": v["name"] if isinstance(v.get("name"), str) and v["name"] else f"Créature {k}",
+                "kills": int(number(v.get("n"))),
+                "last": _iso(v.get("last")),
+            }
+            for k, v in mobs_raw.items()
+            if isinstance(v, dict) and number(v.get("n")) > 0
+        ),
+        key=lambda m: (-m["kills"], m["name"]),
+    )
+
     gear_raw = data.get("gear") if isinstance(data.get("gear"), dict) else {}
     item_ids = [p["id"] for p in gear_raw.values() if isinstance(p, dict) and isinstance(p.get("id"), int)]
     items = {i.id: i for i in Item.objects.filter(id__in=item_ids)}
@@ -233,6 +249,7 @@ def character_progress(character: Character, now: datetime | None = None) -> dic
             "day": day,
             "deaths": counter(c, "deaths"),
             "boss_kills": counter(c, "boss_kills"),
+            "kills": counter(c, "kills"),
             "bg_played": counter(c, "bg_played"),
             "mining": counter(c, "gathering.mining"),
             "herbalism": counter(c, "gathering.herbalism"),
@@ -266,6 +283,7 @@ def character_progress(character: Character, now: datetime | None = None) -> dic
             "dungeons_done": tile("dungeons_done"),
             "raids_done": tile("raids_done"),
             "deaths": tile("deaths"),
+            "kills": tile("kills"),
             "bg_played": tile("bg_played"),
             "bg_won": tile("bg_won"),
             "quests": tile("quests"),
@@ -292,6 +310,8 @@ def character_progress(character: Character, now: datetime | None = None) -> dic
         "lockouts": lockouts,
         "reputations": reputations,
         "bosses": boss_list,
+        "mobs": mobs[:MOBS_PER_CHARACTER],
+        "mobs_distinct": len(mobs),
         "gear": gear,
         "spec_tab": data.get("spec_tab") if isinstance(data.get("spec_tab"), int) else None,
         "levels": levels,

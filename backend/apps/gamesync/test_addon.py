@@ -70,7 +70,7 @@ class TestLoading:
         ns = lua.globals()._NS
         names = sorted(ns.collectors[i].name for i in range(1, len(ns.collectors) + 1))
         assert names == sorted(
-            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "gathering", "quests", "deaths", "positions"]
+            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions"]
         )  # fmt: skip
         assert lua.globals().SlashCmdList.WOWFOREVERGUILDE is not None
 
@@ -133,6 +133,15 @@ class TestSession:
         )
         g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
         g._FIRE("PLAYER_DEAD")
+        # Un loup frappé puis mort : créature tuée.
+        lua.execute(
+            "_CLEU = { 0, 'SWING_DAMAGE', false, 'Player-1-000ABC01', 'Thrall', 0x511, 0, 'Creature-0-1-2-3-299-ABC', 'Loup des Tarides', 0xa48 }"
+        )
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        lua.execute(
+            "_CLEU = { 0, 'UNIT_DIED', false, nil, nil, 0, 0, 'Creature-0-1-2-3-299-ABC', 'Loup des Tarides', 0xa48 }"
+        )
+        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
         g._FIRE("QUEST_TURNED_IN", 1234)
         g._FIRE("PVP_MATCH_COMPLETE", 0, 900)
         g._FIRE("PLAYER_LEVEL_UP", 60)
@@ -153,6 +162,9 @@ class TestSession:
         assert counters["boss_kills"] == 1 and counters["raids_done"] == 1 and counters["raids_entered"] == 1
         assert counters["bosses"]["672"]["n"] == 1 and counters["gathering"]["mining"] == 3
         assert counters["gathered_items"]["2770"] == 3 and counters["crafted"]["17580"] == 1
+        assert counters["kills"] == 1 and character["mobs"] == {
+            "299": {"n": 1, "name": "Loup des Tarides", "first": g.time(), "last": g.time()}
+        }
         assert (
             counters["deaths"] == 1
             and counters["quests"] == 1
@@ -166,6 +178,10 @@ class TestSession:
         assert "played" not in character  # temps de jeu opt-in
         assert list(character["journal"].keys()) == [g.date("%Y-%m-%d")]
         assert character["journal"][g.date("%Y-%m-%d")]["deaths"] == 1
+        assert (
+            character["journal"][g.date("%Y-%m-%d")]["kills"] == 1
+            and "mobs" not in character["journal"][g.date("%Y-%m-%d")]
+        )
 
         # Et le site l'importe tel quel.
         batch = services.import_code(member, code, source="paste")
@@ -182,6 +198,60 @@ class TestSession:
             ("mining", 300),
         ]
         assert set(created.known_recipes.values_list("recipe_id", flat=True)) == {17580, 11448}
+        assert created.snapshots.get().data["mobs"]["299"]["n"] == 1
+
+    def test_creature_kills_count_when_i_or_my_pet_hit_them_before_they_die(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        me, mine = (
+            "'Player-1-000ABC01', 'Thrall', 0x511",
+            "0x1111",
+        )  # mes drapeaux ; familier : affiliation « mine »
+
+        def cleu(subevent, source, dest, dest_name, dest_flags=0xA48):
+            lua.execute(
+                f"_CLEU = {{ 0, '{subevent}', false, {source}, 0, {dest}, '{dest_name}', {dest_flags} }}"
+            )
+            g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+
+        wolf, wolf2, kobold, boar, totem = (
+            "'Creature-0-1-2-3-299-A1'", "'Creature-0-1-2-3-299-A2'", "'Creature-0-1-2-3-6-B1'",
+            "'Creature-0-1-2-3-113-C1'", "'Creature-0-1-2-3-2630-T1'",
+        )  # fmt: skip
+        # Frappé par moi puis mort : compté. Deux spawns du même PNJ : même espèce.
+        cleu("SPELL_DAMAGE", me, wolf, "Loup")
+        cleu("UNIT_DIED", "nil, nil, 0", wolf, "Loup")
+        cleu("SWING_DAMAGE", me, wolf2, "Loup")
+        cleu("UNIT_DIED", "nil, nil, 0", wolf2, "Loup")
+        # Mort sans que je l'aie touché : pas compté.
+        cleu("UNIT_DIED", "nil, nil, 0", kobold, "Kobold")
+        # Frappé par mon familier (drapeau « mine ») puis coup fatal porté par lui : compté une seule fois.
+        cleu("SPELL_DAMAGE", f"'Pet-0-1-2-3-4-P1', 'Grognon', {mine}", kobold, "Kobold")
+        cleu("PARTY_KILL", f"'Pet-0-1-2-3-4-P1', 'Grognon', {mine}", kobold, "Kobold")
+        cleu("UNIT_DIED", "nil, nil, 0", kobold, "Kobold")
+        # Frappé par un autre joueur : pas compté. Un joueur qui meurt : pas une créature.
+        cleu("SWING_DAMAGE", "'Player-1-0000FFFF', 'Garona', 0x548", boar, "Sanglier")
+        cleu("UNIT_DIED", "nil, nil, 0", boar, "Sanglier")
+        cleu("SWING_DAMAGE", me, "'Player-1-0000FFFF'", "Garona", 0x548)
+        cleu("UNIT_DIED", "nil, nil, 0", "'Player-1-0000FFFF'", "Garona", 0x548)
+        # Totem d'un joueur (contrôlé par un joueur) : pas compté.
+        cleu("SWING_DAMAGE", me, totem, "Totem", 0x1148)
+        cleu("UNIT_DIED", "nil, nil, 0", totem, "Totem", 0x1148)
+        # Frappé il y a trop longtemps : pas compté.
+        cleu("SWING_DAMAGE", me, "'Creature-0-1-2-3-113-C2'", "Sanglier")
+        g._ADVANCE(20)
+        cleu("UNIT_DIED", "nil, nil, 0", "'Creature-0-1-2-3-113-C2'", "Sanglier")
+
+        char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
+        assert char.counters.kills == 3
+        assert {k: (m.n, m.name) for k, m in dict(char.mobs).items()} == {
+            "299": (2, "Loup"),
+            "6": (1, "Kobold"),
+        }
+        status = next(d for d in dict(g._NS.collectors).values() if d.name == "kills").status(char)
+        assert status == "3 créatures tuées · 2 espèces"
+        assert g._NS.NpcId("Vehicle-0-1-2-3-4567-X") == 4567 and g._NS.NpcId("Pet-0-1-2-3-4-P1") is None
 
     def test_death_is_announced_on_hidden_channel_and_shown_as_toast(self):
         lua = boot()
@@ -240,14 +310,16 @@ class TestSession:
         g = lua.globals()
         lua.execute("""
           WoWForeverGuildeDB = { version = 1, characters = { ["Player-1-OLD"] = { guid = "Player-1-OLD", name = "Thrall", class = "SHAMAN", race = "Orc", level = 58,
-            counters = { deaths = 9 }, journal = {}, events = {}, previous_guids = {}, created_at = 1, updated_at = 2, counting_since = 1 } } }
+            counters = { deaths = 9, kills = 4 }, mobs = { ["299"] = { n = 4, name = "Loup", first = 1, last = 2 } }, journal = {}, events = {}, previous_guids = {}, created_at = 1, updated_at = 2, counting_since = 1 } } }
         """)
         login(lua)
         assert g._POPUP.which == "WFG_TRANSFER" and "Thrall" in g._POPUP.text
         ns = g._NS
+        ns.char.mobs["299"] = lua.table(n=1, name="Loup", first=5, last=6)
         ns.Store.Merge(ns.char, g.WoWForeverGuildeDB.characters["Player-1-OLD"])
         char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
         assert char.counters.deaths == 9 and char.previous_guids[1] == "Player-1-OLD"
+        assert (char.mobs["299"].n, char.mobs["299"].first, char.mobs["299"].last) == (5, 1, 6)
         assert g.WoWForeverGuildeDB.characters["Player-1-OLD"] is None
         assert char.counting_since == 1
 

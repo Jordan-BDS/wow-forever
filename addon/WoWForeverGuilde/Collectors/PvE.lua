@@ -88,6 +88,6 @@ ns.RegisterCollector({
   end,
   status = function(char)
     local c = char.counters or {}
-    return string.format("%d boss · %d donjons · %d morts", c.boss_kills or 0, c.dungeons_done or 0, c.deaths or 0)
+    return string.format("%d boss · %d donjons · %d morts · %d créatures", c.boss_kills or 0, c.dungeons_done or 0, c.deaths or 0, c.kills or 0)
   end,
 })

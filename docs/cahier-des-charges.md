@@ -1035,6 +1035,7 @@ restent exacts mais le détail quotidien est perdu.
 | Réputations | Factions et niveaux | Exacte | ✅ |
 | PvP | **Victoires honorables à vie** et rang (totaux du jeu) ; champs de bataille joués / gagnés / perdus par type | Totaux exacts ; BG comptés depuis l'installation | ✅ |
 | PvE | Donjons et raids entrés / terminés (dernier boss), boss tués par nom et date, morts | Comptés depuis l'installation | ✅ |
+| Créatures tuées | Toute créature frappée par le joueur ou ses unités dans les 15 s avant sa mort (crédit de quête du jeu), ou dont il porte le coup fatal ; total cumulé + détail par PNJ (nom, nombre, dernier kill, 500 espèces au plus, hors journal quotidien) | Comptées depuis l'installation ; un heal pur ne compte rien | ✅ (addon 0.3.0, 4 nov. 2026) |
 | Récolte et artisanat | Minerais, herbes, peaux, poissons ramassés ; objets fabriqués par recette | Approximatif (sort de récolte + butin suivant) | ✅ |
 | Quêtes | Quêtes rendues (nombre), quêtes clés marquées | Comptées depuis l'installation ; clés exactes | ✅ |
 
@@ -1102,7 +1103,7 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
   d'où l'importance de l'historique.
 - **Vue par joueur par défaut** (somme de ses personnages), bascule « par personnage ».
 - **Catégories** et tableaux :
-  - *PvE* : boss tués, donjons terminés, raids terminés, morts (« Morts », assumé).
+  - *PvE* : boss tués, donjons terminés, raids terminés, créatures tuées, morts (« Morts », assumé).
   - *PvP* : victoires honorables (gain sur la période), champs de bataille gagnés et joués, taux de victoire (minimum
     5 BG sur la période).
   - *Récolte* : minerais, herbes, peaux, poissons ; un classement par ressource et un total (« Ressources récoltées »,
@@ -1110,6 +1111,9 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
   - *Artisanat* : objets fabriqués, et **demandes de craft livrées** (donnée du site, déjà disponible).
   - *Guilde* : présence aux événements (inscrit présent / organisé, donnée du site), quêtes rendues.
   - *Opt-in* : temps de jeu, affiché seulement pour ceux qui l'ont activé.
+- **Tableau de chasse de la guilde** (page Classements, addon 0.3.0) : créatures les plus tuées par la guilde depuis
+  l'installation de l'addon (40 au plus), avec le nombre de chasseurs et le meilleur chasseur de chacune ; sur la
+  fiche, tuile « Créatures tuées » et tableau de chasse du personnage (30 espèces). Titre du lundi « Machine à tuer ».
 - **Tableau** : podium des trois premiers, top 10, puis **ta ligne** mise en évidence avec ton rang même hors
   top 10 ; variation par rapport à la période précédente (▲ ▼) ; clic vers la fiche du personnage.
 - **Roxors de la semaine passée** (titres : « Farmeur chinois » pour les ressources récoltées tous métiers confondus, « Calamité de la Horde » pour les joueurs tués, « Lord Fragilux »…) calculés le

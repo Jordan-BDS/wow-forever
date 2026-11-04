@@ -25,6 +25,7 @@ def format_value(key: str, value: float) -> str:
         "gathering_total": "ressources",
         "bg_won": "BG gagnés",
         "boss_kills": "boss",
+        "kills": "créatures",
         "deaths": "morts",
     }.get(key, "")
     number = int(value) if float(value).is_integer() else value

@@ -111,6 +111,7 @@ function ProgressContent({ character, p }: { character: Character; p: CharacterP
           <Tile label="Boss tués" tile={tiles.boss_kills} />
           <Tile label="Donjons terminés" tile={tiles.dungeons_done} />
           <Tile label="Raids terminés" tile={tiles.raids_done} />
+          <Tile label="Créatures tuées" tile={tiles.kills} />
           <Tile label="Morts" tile={tiles.deaths} danger />
           <Tile label="Champs de bataille" tile={tiles.bg_played} />
           <Tile label="BG gagnés" tile={tiles.bg_won} />
@@ -269,6 +270,31 @@ function ProgressContent({ character, p }: { character: Character; p: CharacterP
         </Card>
       )}
 
+      {(p.mobs ?? []).length > 0 && (
+        <Card className="space-y-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <h3 className="font-display text-lg">Tableau de chasse</h3>
+            <span className="text-xs text-muted">
+              {p.mobs_distinct ?? p.mobs!.length} espèces · toute créature frappée dans les 15 s avant sa mort
+            </span>
+          </div>
+          <ol className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+            {p.mobs!.map((m, i) => (
+              <li
+                key={`${m.id}-${m.name}`}
+                className="flex items-baseline justify-between gap-2 border-b border-border/60 py-1"
+              >
+                <span className="truncate">
+                  <span className="text-muted">{i + 1}. </span>
+                  {m.name}
+                </span>
+                <span className="shrink-0 font-mono">{m.kills}</span>
+              </li>
+            ))}
+          </ol>
+        </Card>
+      )}
+
       {gear.length > 0 && (
         <Card className="space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
@@ -334,6 +360,7 @@ function Sparkline({ series }: { series: NonNullable<CharacterProgress["series"]
   const rows = [
     { key: "deaths" as const, label: "Morts", color: "var(--color-danger)" },
     { key: "boss_kills" as const, label: "Boss", color: "var(--color-gold)" },
+    { key: "kills" as const, label: "Créatures", color: "var(--color-text)" },
     { key: "mining" as const, label: "Minerais", color: "var(--color-success)" },
   ];
   return (

@@ -54,6 +54,7 @@ function Export.Character(entry, settings)
     lockouts = arrayOf(entry.lockouts),
     pvp = entry.pvp,
     counters = entry.counters,
+    mobs = entry.mobs,
     journal = entry.journal,
     events = arrayOf(entry.events),
     previous_guids = arrayOf(entry.previous_guids),
