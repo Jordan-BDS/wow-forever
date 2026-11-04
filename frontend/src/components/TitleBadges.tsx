@@ -120,7 +120,7 @@ function value(t: WeeklyTitle, unit: string): string {
 /** Ordre d'affichage commun aux cartes et aux « Futurs Roxors ». */
 const TITLE_ORDER = ["gathering", "bg", "boss", "kills", "shame"];
 
-const MOB_THEME: Theme = { accent: "#c47bff", glow: "rgba(196,123,255,.25)", icon: Paw, unit: "fois tuée" };
+const MOB_THEME: Theme = { accent: "#c47bff", glow: "rgba(196,123,255,.25)", icon: Paw, unit: "fois tué" };
 
 /** Cartes des Roxors de la semaine passée : icône, accent, gagnant en grand, personnage à la couleur de classe.
  *  Avec `mob`, une sixième carte : la créature la plus tuée par la guilde cette semaine-là. */
