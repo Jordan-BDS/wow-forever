@@ -24,7 +24,7 @@ export const SECTIONS: NavSection[] = [
   {
     label: "Guilde",
     to: "/roster",
-    match: ["/roster", "/membres", "/disponibilites", "/sondages", "/classements", "/guilde"],
+    match: ["/roster", "/membres", "/disponibilites", "/sondages", "/classements", "/guilde", "/tests"],
     tabs: [
       { to: "/roster", label: "Roster" },
       { to: "/membres", label: "Membres" },
@@ -32,6 +32,7 @@ export const SECTIONS: NavSection[] = [
       { to: "/sondages", label: "Sondages" },
       { to: "/classements", label: "Classements" },
       { to: "/guilde", label: "Paramètres", gmOnly: true },
+      { to: "/tests", label: "Tests en jeu", gmOnly: true },
     ],
   },
   {
