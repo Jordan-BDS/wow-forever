@@ -45,6 +45,7 @@ l'URL de retour OAuth à déclarer côté Discord est donc `http://localhost:800
 | backend | `uv run python manage.py seed_gamedata` | recharge les données de référence sans toucher aux ajouts manuels |
 | backend | `uv run python manage.py discord_setup_channels` | crée les salons agenda / demande-de-craft en lecture seule et les enregistre (rejouable) |
 | backend | `uv run python manage.py runbot` | lance le bot Discord (outbox, rappels, commandes slash, révocation, synchro de l'onglet Événements) |
+| backend | `uv run python manage.py scan_reminders [--loop]` | balaye une fois (ou en boucle) les tâches dues : titres du lundi, rappels, phases des sondages ; c'est le service `scheduler` du compose, filet de sécurité si le bot est arrêté |
 | backend | `uv run python manage.py import_gamedata` | télécharge les tables du client WoW Forever (wago.tools) et importe objets, sets, enchantements, talents, recettes (~2 min, rejouable) |
 
 En production : `docker compose exec web python manage.py import_gamedata` après la première mise en ligne, puis
@@ -102,6 +103,9 @@ make deploy MODE=caddy
 ```
 
 Caddy obtient le certificat HTTPS tout seul (le domaine doit pointer sur le VPS, ports 80 et 443 ouverts).
+
+Cinq services : `db`, `web`, `bot`, `scheduler` (balayage des tâches dues toutes les 5 min, au cas où le bot tombe ;
+il remplit la file d'envoi, le bot la vide) et `caddy`.
 Mises à jour : `make update` (git pull puis build et redémarrage). Sauvegardes : `make backup`, ou
 `deploy/backup.sh` dans la crontab. `make help` liste les autres commandes (`down`, `logs`, `ps`, `shell`,
 `migrate`, `import-gamedata`…). Le Makefile se lance depuis la racine du dépôt.

@@ -43,6 +43,21 @@ services:
       web:
         condition: service_started
 
+  # Filet de sécurité : le même balayage des tâches dues que le bot, toutes les 5 min, au cas où le bot est arrêté
+  # (titres du lundi, rappels, phases des sondages). Les envois Discord restent à la charge du bot.
+  scheduler:
+    build: ../backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-wow}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-wow}
+    entrypoint: ["python", "manage.py", "scan_reminders", "--loop", "--interval", "300"]
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started
+
   caddy:
     build:
       context: ..

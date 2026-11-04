@@ -101,6 +101,20 @@ class TestReminders:
         event.refresh_from_db()
         assert event.reminder_sent_at is not None
 
+    def test_scan_reminders_command_runs_the_same_scan_once(self, event):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        settings = GuildSettings.load()
+        settings.reminder_minutes = 60
+        settings.save()
+        out = StringIO()
+        call_command("scan_reminders", stdout=out)  # NOW ≈ maintenant : l'événement du fixture est dans l'heure
+        assert "2 tâche(s) traitée(s)" in out.getvalue()
+        event.refresh_from_db()
+        assert event.reminder_sent_at is not None
+
     def test_event_outside_lead_time_or_cancelled_is_skipped(self, event):
         settings = GuildSettings.load()
         settings.reminder_minutes = 30
