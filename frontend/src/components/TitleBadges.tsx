@@ -200,7 +200,11 @@ export function TitleCards({ titles, mob }: { titles: WeeklyTitle[]; mob?: Guild
               {mob.top && (
                 <div className="text-sm">
                   <span className="text-muted">surtout par </span>
-                  <Link to={`/membres/${mob.top.user.id}`}>{mob.top.user.display_name}</Link>
+                  <Link to={`/personnages/${mob.top.character.id}`}>
+                    <ClassName playerClass={findClass(gamedata.data, mob.top.character.player_class)}>
+                      {mob.top.character.name}
+                    </ClassName>
+                  </Link>
                   <span className="text-muted"> ({mob.top.kills})</span>
                 </div>
               )}
