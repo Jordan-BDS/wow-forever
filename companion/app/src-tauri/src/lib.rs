@@ -325,34 +325,60 @@ fn restart_watcher(app: &AppHandle, shared: Shared) {
 
 // --- mise à jour -------------------------------------------------------------------------------------
 
+const UPDATE_CHECK_INTERVAL: Duration = Duration::from_secs(3600);
+
 /// Vérifie `latest.json` de la dernière release GitHub ; s'il y a plus récent, télécharge, installe et
-/// redémarre. Les échecs (hors ligne, signature) sont seulement journalisés : le compagnon reste utilisable.
-async fn check_for_update(app: AppHandle) {
+/// redémarre (la fonction ne revient alors pas). Renvoie `Ok(None)` si le compagnon est à jour,
+/// `Ok(Some(version))` si une mise à jour a été trouvée mais n'a pas pu s'installer (détail dans `Err`).
+async fn try_update(app: &AppHandle) -> Result<Option<String>, String> {
     use tauri_plugin_updater::UpdaterExt;
-    let updater = match app.updater() {
-        Ok(updater) => updater,
-        Err(e) => {
-            log::warn!("mise à jour indisponible : {e}");
-            return;
-        }
+    let updater = app
+        .updater()
+        .map_err(|e| format!("mise à jour indisponible : {e}"))?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| format!("vérification impossible : {e}"))?;
+    let Some(update) = update else {
+        log::info!("compagnon à jour");
+        return Ok(None);
     };
-    match updater.check().await {
-        Ok(Some(update)) => {
-            log::info!("mise à jour {} disponible", update.version);
-            let _ = app.emit("update-available", &update.version);
-            match update.download_and_install(|_, _| {}, || {}).await {
-                Ok(()) => {
-                    log::info!("mise à jour installée, redémarrage");
-                    app.restart();
-                }
-                Err(e) => {
-                    log::warn!("mise à jour impossible : {e}");
-                    let _ = app.emit("update-failed", e.to_string());
-                }
-            }
+    log::info!("mise à jour {} disponible", update.version);
+    let _ = app.emit("update-available", &update.version);
+    match update.download_and_install(|_, _| {}, || {}).await {
+        Ok(()) => {
+            log::info!("mise à jour installée, redémarrage");
+            app.restart();
         }
-        Ok(None) => log::info!("compagnon à jour"),
-        Err(e) => log::warn!("vérification des mises à jour : {e}"),
+        Err(e) => {
+            log::warn!("mise à jour impossible : {e}");
+            let _ = app.emit("update-failed", e.to_string());
+            Err(format!("mise à jour {} impossible : {e}", update.version))
+        }
+    }
+}
+
+/// Au démarrage puis toutes les heures : les échecs (hors ligne, signature) sont journalisés et signalés à
+/// la fenêtre, le compagnon reste utilisable.
+async fn check_for_update(app: AppHandle) {
+    if let Err(e) = try_update(&app).await {
+        log::warn!("{e}");
+    }
+}
+
+async fn update_loop(app: AppHandle) {
+    loop {
+        tokio::time::sleep(UPDATE_CHECK_INTERVAL).await;
+        check_for_update(app.clone()).await;
+    }
+}
+
+/// Bouton « Vérifier les mises à jour » : réponse lisible, ou erreur si la vérification échoue.
+#[tauri::command]
+async fn check_update(app: AppHandle) -> Result<String, String> {
+    match try_update(&app).await? {
+        None => Ok(format!("Compagnon {} à jour.", env!("CARGO_PKG_VERSION"))),
+        Some(version) => Ok(format!("Mise à jour {version} en cours, le compagnon va redémarrer.")),
     }
 }
 
@@ -393,6 +419,7 @@ pub fn run() {
             unpair,
             sync_now,
             install_addon,
+            check_update,
             set_settings,
             open_site
         ])
@@ -437,6 +464,7 @@ pub fn run() {
             restart_watcher(&handle, shared.clone());
             // Mise à jour du compagnon lui-même (et donc de l'addon embarqué) en arrière-plan.
             tauri::async_runtime::spawn(check_for_update(handle.clone()));
+            tauri::async_runtime::spawn(update_loop(handle.clone()));
             // Premier passage au démarrage : on rattrape ce qui a été écrit pendant que le compagnon était fermé.
             let shared_boot = shared.clone();
             let boot = handle.clone();

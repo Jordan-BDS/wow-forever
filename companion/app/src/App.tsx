@@ -160,6 +160,7 @@ function OutcomeLine({ o }: { o: SyncOutcome }) {
 
 function StatusView({ state, onChange, onError }: { state: AppState; onChange: () => void; onError: (e: string) => void }) {
   const [busy, setBusy] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     try {
@@ -202,7 +203,10 @@ function StatusView({ state, onChange, onError }: { state: AppState; onChange: (
         </p>
         <div className="row">
           <button disabled={busy} onClick={() => run(api.installAddon)}>{state.installed_addon_version ? "Réinstaller l'addon" : "Installer l'addon"}</button>
+          <button disabled={busy} onClick={() => run(async () => setUpdateMessage(await api.checkUpdate()))}>Vérifier les mises à jour</button>
+          {updateMessage && <span className="muted">{updateMessage}</span>}
         </div>
+        <p className="muted">Le compagnon se met à jour tout seul au lancement puis toutes les heures ; l'addon suit, puis /reload ou reconnexion.</p>
       </section>
 
       <section className="card">

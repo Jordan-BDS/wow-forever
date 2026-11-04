@@ -32,6 +32,7 @@ export const api = {
   unpair: () => invoke<AppState>("unpair"),
   syncNow: () => invoke<SyncOutcome[]>("sync_now"),
   installAddon: () => invoke<string>("install_addon"),
+  checkUpdate: () => invoke<string>("check_update"),
   setSettings: (settings: { autostart?: boolean; site_url?: string }) =>
     invoke<AppState>("set_settings", { settings }),
   openSite: (path: string) => invoke<void>("open_site", { path }),
