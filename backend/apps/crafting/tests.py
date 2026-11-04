@@ -30,9 +30,9 @@ def world(db, member, other_member):
 
 
 class TestKnownRecipes:
-    def test_put_requires_matching_profession(self, as_user, member, other_member, world):
+    def test_put_requires_matching_profession(self, as_user, member, other_member, officer, world):
         crafter = world["crafter"]
-        client = as_user(other_member)
+        client = as_user(officer)
         url = f"/api/characters/{crafter.pk}/recipes/"
         assert client.get(url).data["recipes"] == [MAJOR_MANA]
         other = Recipe.objects.exclude(pk=MAJOR_MANA).first()
@@ -40,15 +40,18 @@ class TestKnownRecipes:
         assert client.put(url, {"recipes": [999999]}, format="json").status_code == 400
         assert client.put(url, {"recipes": []}, format="json").data["recipes"] == []
         assert as_user(member).put(url, {"recipes": []}, format="json").status_code == 403
+        assert (
+            as_user(other_member).put(url, {"recipes": []}, format="json").status_code == 403
+        )  # propriétaire
 
-    def test_auto_check_trainer_recipes(self, as_user, other_member, world):
+    def test_auto_check_trainer_recipes(self, as_user, officer, world):
         crafter = world["crafter"]
         Recipe.objects.filter(pk=MAJOR_MANA).update(acquire_method=3, min_skill=295)
-        response = as_user(other_member).post(f"/api/characters/{crafter.pk}/recipes/")
+        response = as_user(officer).post(f"/api/characters/{crafter.pk}/recipes/")
         assert response.status_code == 200 and MAJOR_MANA in response.data["recipes"]
         crafter.professions.update(skill=100)
         KnownRecipe.objects.all().delete()
-        response = as_user(other_member).post(f"/api/characters/{crafter.pk}/recipes/")
+        response = as_user(officer).post(f"/api/characters/{crafter.pk}/recipes/")
         assert MAJOR_MANA not in response.data["recipes"]  # 295 > 100
 
     def test_recipe_list_exposes_crafters(self, as_user, member, world):

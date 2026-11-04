@@ -23,8 +23,11 @@ class KnownRecipesView(APIView):
 
     def _character(self, request: Request, pk: int, write: bool = False) -> Character:
         character = get_object_or_404(Character.objects.prefetch_related("professions__profession"), pk=pk)
-        if write and character.owner_id != request.user.pk and not request.user.is_officer_or_above:
-            raise PermissionDenied("Tu ne peux modifier que tes propres personnages.")
+        if write and not request.user.is_officer_or_above:
+            raise PermissionDenied(
+                "Les recettes connues viennent du jeu (fenêtre du métier ouverte une fois, puis envoi de "
+                "l'addon). Seul un officier peut les modifier à la main."
+            )
         return character
 
     @extend_schema(responses=KnownRecipesSerializer)

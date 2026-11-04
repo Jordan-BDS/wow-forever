@@ -59,6 +59,8 @@ export function CharacterPage() {
   const playerClass = findClass(gamedata.data, character.player_class);
   const race = findRace(gamedata.data, character.race);
   const canEdit = character.owner.id === me.id || isOfficerOrAbove(me.site_role);
+  // Équipement, talents et recettes viennent du jeu : seul un officier y touche à la main.
+  const canEditSheet = isOfficerOrAbove(me.site_role);
   const professions = gamedata.data?.professions ?? [];
 
   return (
@@ -191,16 +193,16 @@ export function CharacterPage() {
             sets.isPending ? (
               <Spinner />
             ) : (
-              <EquipmentPanel character={character} sets={sets.data ?? []} canEdit={canEdit} />
+              <EquipmentPanel character={character} sets={sets.data ?? []} canEdit={canEditSheet} />
             )
           ) : activeTab === "talents" ? (
             builds.isPending ? (
               <Spinner />
             ) : (
-              <TalentPanel character={character} builds={builds.data ?? []} canEdit={canEdit} />
+              <TalentPanel character={character} builds={builds.data ?? []} canEdit={canEditSheet} />
             )
           ) : activeTab === "recipes" ? (
-            <RecipesPanel character={character} canEdit={canEdit} />
+            <RecipesPanel character={character} canEdit={canEditSheet} />
           ) : (
             <ProgressPanel character={character} />
           )}

@@ -42,6 +42,12 @@ def stats_payload(character: Character, slots: list[EquipmentSlot | dict]) -> di
     return StatsSerializer(result).data
 
 
+SHEET_LOCKED = (
+    "Équipement, talents et recettes viennent du jeu : ils se mettent à jour à chaque envoi de l'addon. "
+    "Seul un officier peut les modifier à la main."
+)
+
+
 class CharacterSheetMixin:
     permission_classes = [permissions.IsAuthenticated]
 
@@ -53,9 +59,9 @@ class CharacterSheetMixin:
         return character
 
     def check_write(self, character: Character) -> None:
-        user = self.request.user
-        if character.owner_id != user.pk and not user.is_officer_or_above:
-            raise PermissionDenied("Tu ne peux modifier que tes propres personnages.")
+        # Sets et builds viennent du jeu (import de l'addon) ; seul un officier peut encore y toucher.
+        if not self.request.user.is_officer_or_above:
+            raise PermissionDenied(SHEET_LOCKED)
 
 
 class EquipmentSetViewSet(CharacterSheetMixin, viewsets.ModelViewSet):

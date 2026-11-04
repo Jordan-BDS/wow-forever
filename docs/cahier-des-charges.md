@@ -1091,6 +1091,11 @@ le compagnon, cochent « Envoyer ce personnage », et le personnage apparaît su
 de niveau à l'import). Au déploiement suivant, une migration a **effacé tous les personnages** saisis avant la sortie,
 avec leurs métiers, sets, builds, recettes, inscriptions aux événements et l'historique d'import ; les appareils du
 compagnon sont conservés. Restent modifiables à la main : rôles, main, note (le reste est écrasé par l'import).
+Copie conforme du jeu : l'import écrit aussi le set d'équipement **« En jeu »** (porté, set principal) et le build de
+talents **« En jeu »** (actif, fixe la spécialisation affichée), écrasés à chaque envoi ; les sets, builds et recettes
+ne se modifient plus à la main sauf par un officier, et les champs venant du jeu (nom, classe, race, niveau, spé,
+métiers) sont verrouillés pour les membres sur le formulaire. Les API Blizzard disponibles seront examinées après
+la sortie pour soulager l'addon si besoin.
 
 ### Classements
 

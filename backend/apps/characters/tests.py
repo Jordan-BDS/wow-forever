@@ -197,6 +197,21 @@ class TestUpdateAndDelete:
         assert response.data["level"] == 60
         assert len(response.data["professions"]) == 1
 
+    def test_game_fields_are_locked_on_addon_characters(self, as_user, member, officer):
+        created = create(as_user(officer), owner_id=member.pk).data
+        Character.objects.filter(pk=created["id"]).update(source="addon", guid="Player-1-X")
+        client = as_user(member)
+        denied = client.patch(f"/api/characters/{created['id']}/", {"level": 60, "note": "x"}, format="json")
+        assert denied.status_code == 400 and "Vient du jeu" in denied.data["level"][0]
+        ok = client.patch(f"/api/characters/{created['id']}/", {"note": "x", "level": 42}, format="json")
+        assert ok.status_code == 200 and ok.data["note"] == "x"  # niveau inchangé : accepté
+        assert (
+            as_user(officer)
+            .patch(f"/api/characters/{created['id']}/", {"level": 60}, format="json")
+            .status_code
+            == 200
+        )
+
     def test_other_member_cannot_edit_but_officer_can(self, as_user, member, other_member, officer):
         created = create(as_user(officer), owner_id=member.pk).data
         assert (

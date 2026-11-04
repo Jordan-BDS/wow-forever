@@ -45,13 +45,74 @@ def warrior(db, member):
     )
 
 
+class TestSheetLock:
+    def test_members_read_but_cannot_write(self, as_user, member, warrior):
+        client = as_user(member)
+        assert client.get(sets_url(warrior)).status_code == 200
+        denied = client.post(sets_url(warrior), {"name": "Raid"}, format="json")
+        assert denied.status_code == 403 and "viennent du jeu" in denied.data["detail"]
+        assert (
+            client.post(
+                f"/api/characters/{warrior.pk}/talent-builds/", {"name": "x", "points": []}, format="json"
+            ).status_code
+            == 403
+        )
+        assert (
+            client.put(f"/api/characters/{warrior.pk}/recipes/", {"recipes": []}, format="json").status_code
+            == 403
+        )
+
+    def test_import_writes_in_game_set_and_build(self, member, mage):
+        from apps.gamesync import services as sync
+        from apps.gamesync.format import encode_export
+
+        def jaina(exported_at, level, gear, talents):
+            return {
+                "guid": "Player-1-JAINA", "name": "Jaina", "class": "MAGE", "race": "Human", "level": level,
+                "exported_at": exported_at, "gear": gear, "talents": talents,
+            }  # fmt: skip
+
+        trees = list(TalentTree.objects.filter(player_class=mage.player_class).order_by("order"))
+        first = list(Talent.objects.filter(tree=trees[0]).order_by("row", "column"))
+        second = list(Talent.objects.filter(tree=trees[1]).order_by("row", "column"))
+        gear = {"mainhand": {"id": THUNDERFURY}, "finger1": {"id": RING, "ench": 999999}, "head": {"id": 1}}
+        talents = {"tabs": [3, 2, 0], "points": {"1-1": 3, "2-1": 2, "9-9": 1}}
+        code = encode_export({"v": 1, "characters": [jaina(1764000000, 40, gear, talents)]})
+        batch = sync.import_code(member, code, source="paste")
+        assert batch.summary["applied"] == 1
+        mage.refresh_from_db()
+        in_game = mage.equipment_sets.get(name="En jeu")
+        assert in_game.is_primary
+        assert {(s.slot, s.item_id, s.enchantment_id) for s in in_game.slots.all()} == {
+            ("main_hand", THUNDERFURY, None),
+            (
+                "finger1",
+                RING,
+                None,
+            ),  # enchantement inconnu de l'index : ignoré ; objet 1 inconnu : emplacement ignoré
+        }
+        build = mage.talent_builds.get(name="En jeu")
+        assert build.is_active and build.points == [first[0].id] * 3 + [second[0].id] * 2
+        assert mage.specialization and mage.specialization.order == trees[0].order
+        # Second import : le set et le build sont écrasés, pas dupliqués.
+        talents2 = {"tabs": [0, 5, 0], "points": {"2-1": 5}}
+        code2 = encode_export(
+            {"v": 1, "characters": [jaina(1764000100, 41, {"head": {"id": RING}}, talents2)]}
+        )
+        sync.import_code(member, code2, source="paste")
+        assert mage.equipment_sets.count() == 1 and mage.talent_builds.count() == 1
+        # Copie conforme du jeu, sans revalider les types : ce que le jeu dit porté est repris tel quel.
+        assert [(x.slot, x.item_id) for x in mage.equipment_sets.get().slots.all()] == [("head", RING)]
+        assert mage.talent_builds.get().points == [second[0].id] * 5
+
+
 def sets_url(character, suffix=""):
     return f"/api/characters/{character.pk}/equipment-sets/{suffix}"
 
 
 class TestEquipmentSets:
-    def test_first_set_is_primary_and_slots_are_validated(self, as_user, member, warrior):
-        client = as_user(member)
+    def test_first_set_is_primary_and_slots_are_validated(self, as_user, member, officer, warrior):
+        client = as_user(officer)
         created = client.post(sets_url(warrior), {"name": "PvE"}, format="json")
         assert created.status_code == 201, created.data
         assert created.data["is_primary"] is True
@@ -68,8 +129,8 @@ class TestEquipmentSets:
         assert slots["main_hand"]["projected"] is True  # niveau 60 requis, perso niveau 40
         assert slots["finger1"]["projected"] is True
 
-    def test_rejects_wrong_slot_class_and_duplicates(self, as_user, member, warrior, mage):
-        client = as_user(member)
+    def test_rejects_wrong_slot_class_and_duplicates(self, as_user, member, officer, warrior, mage):
+        client = as_user(officer)
         set_id = client.post(sets_url(mage), {"name": "x"}, format="json").data["id"]
         wrong_slot = client.put(
             sets_url(mage, f"{set_id}/slots/"), {"slots": [{"slot": "head", "item": RING}]}, format="json"
@@ -98,8 +159,8 @@ class TestEquipmentSets:
         )
         assert two_hand.status_code == 400 and "off_hand" in two_hand.data
 
-    def test_stats_exclude_projected_items_and_preview_matches(self, as_user, member, warrior):
-        client = as_user(member)
+    def test_stats_exclude_projected_items_and_preview_matches(self, as_user, member, officer, warrior):
+        client = as_user(officer)
         set_id = client.post(sets_url(warrior), {"name": "x"}, format="json").data["id"]
         slots = [{"slot": "main_hand", "item": THUNDERFURY}, {"slot": "finger1", "item": RING}]
         client.put(sets_url(warrior, f"{set_id}/slots/"), {"slots": slots}, format="json")
@@ -114,8 +175,8 @@ class TestEquipmentSets:
         preview = client.post(sets_url(warrior, "preview/"), {"slots": slots}, format="json")
         assert preview.status_code == 200 and preview.data["totals"] == stats["totals"]
 
-    def test_duplicate_primary_and_delete(self, as_user, member, warrior, other_member):
-        client = as_user(member)
+    def test_duplicate_primary_and_delete(self, as_user, member, officer, warrior, other_member):
+        client = as_user(officer)
         first = client.post(sets_url(warrior), {"name": "PvE"}, format="json").data["id"]
         client.put(
             sets_url(warrior, f"{first}/slots/"),
@@ -136,8 +197,8 @@ class TestEquipmentSets:
 
 
 class TestSingleSlot:
-    def test_patch_one_slot_even_if_another_piece_is_now_invalid(self, as_user, member, warrior):
-        client = as_user(member)
+    def test_patch_one_slot_even_if_another_piece_is_now_invalid(self, as_user, member, officer, warrior):
+        client = as_user(officer)
         set_id = client.post(sets_url(warrior), {"name": "x"}, format="json").data["id"]
         client.put(
             sets_url(warrior, f"{set_id}/slots/"),
@@ -165,8 +226,8 @@ class TestSingleSlot:
         )
         assert emptied.status_code == 200 and [s["slot"] for s in emptied.data["slots"]] == ["finger1"]
 
-    def test_patch_keeps_cross_checks(self, as_user, member, warrior):
-        client = as_user(member)
+    def test_patch_keeps_cross_checks(self, as_user, member, officer, warrior):
+        client = as_user(officer)
         set_id = client.post(sets_url(warrior), {"name": "x"}, format="json").data["id"]
         client.patch(sets_url(warrior, f"{set_id}/slot/"), {"slot": "finger1", "item": RING}, format="json")
         twice = client.patch(
@@ -191,8 +252,8 @@ class TestTalentBuilds:
         second = Talent.objects.filter(tree=fire, row=1, prerequisite__isnull=True).order_by("column").first()
         return [first.id] * 5 + [second.id] * (count - 5)
 
-    def test_create_validates_order_and_sets_specialization(self, as_user, member, mage):
-        client = as_user(member)
+    def test_create_validates_order_and_sets_specialization(self, as_user, member, officer, mage):
+        client = as_user(officer)
         url = f"/api/characters/{mage.pk}/talent-builds/"
         bad = client.post(url, {"name": "Raté", "points": self.mage_points()[::-1]}, format="json")
         assert bad.status_code == 400 and "points" in bad.data
@@ -202,10 +263,10 @@ class TestTalentBuilds:
         mage.refresh_from_db()
         assert mage.specialization.slug == "mage-fire"
 
-    def test_projected_points_beyond_level(self, as_user, member, mage):
+    def test_projected_points_beyond_level(self, as_user, member, officer, mage):
         mage.level = 12  # 3 points acquis
         mage.save()
-        client = as_user(member)
+        client = as_user(officer)
         response = client.post(
             f"/api/characters/{mage.pk}/talent-builds/",
             {"name": "Lvl", "points": self.mage_points()},
@@ -214,8 +275,8 @@ class TestTalentBuilds:
         assert response.status_code == 201
         assert response.data["acquired"] == 3 and len(response.data["points"]) == 6
 
-    def test_activate_switches_and_other_class_talent_rejected(self, as_user, member, mage, warrior):
-        client = as_user(member)
+    def test_activate_switches_and_other_class_talent_rejected(self, as_user, member, officer, mage, warrior):
+        client = as_user(officer)
         url = f"/api/characters/{mage.pk}/talent-builds/"
         a = client.post(url, {"name": "A", "points": self.mage_points()}, format="json").data["id"]
         b = client.post(url, {"name": "B", "points": []}, format="json").data
@@ -227,8 +288,8 @@ class TestTalentBuilds:
             assert client.post(url, {"name": "x", "points": [arms.id]}, format="json").status_code == 400
         assert client.post(url, {"name": "x", "points": [999999]}, format="json").status_code == 400
 
-    def test_class_change_resets_builds_and_specialization(self, as_user, member, mage):
-        client = as_user(member)
+    def test_class_change_resets_builds_and_specialization(self, as_user, member, officer, mage):
+        client = as_user(officer)
         url = f"/api/characters/{mage.pk}/talent-builds/"
         client.post(url, {"name": "Feu", "points": self.mage_points()}, format="json")
         mage.refresh_from_db()
@@ -249,8 +310,8 @@ class TestTalentBuilds:
         mage.refresh_from_db()
         assert mage.specialization is None
 
-    def test_too_many_points(self, as_user, member, mage):
-        response = as_user(member).post(
+    def test_too_many_points(self, as_user, member, officer, mage):
+        response = as_user(officer).post(
             f"/api/characters/{mage.pk}/talent-builds/", {"name": "x", "points": [1] * 52}, format="json"
         )
         assert response.status_code == 400

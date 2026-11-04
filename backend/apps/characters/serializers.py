@@ -14,7 +14,7 @@ from apps.gamedata.models import (
 from apps.guild.models import GuildSettings
 
 from . import services
-from .models import Character, CharacterProfession
+from .models import Character, CharacterProfession, CharacterSource
 
 
 class OwnerSerializer(serializers.ModelSerializer):
@@ -44,6 +44,11 @@ class CharacterProfessionSerializer(serializers.ModelSerializer):
                 {"specialization": f"« {spec.name} » n'est pas une spécialisation de ce métier."}
             )
         return attrs
+
+
+# Champs recopiés du jeu à chaque import : un membre ne les modifie pas sur le site.
+GAME_FIELDS = ("name", "surname", "player_class", "race", "level", "specialization")
+GAME_FIELD_LOCKED = "Vient du jeu : se met à jour à chaque envoi de l'addon."
 
 
 class CharacterSerializer(serializers.ModelSerializer):
@@ -123,6 +128,16 @@ class CharacterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         current = self.instance
+        if current is not None and current.source == CharacterSource.ADDON:
+            request = self.context.get("request")
+            if request is not None and not request.user.is_officer_or_above:
+                changed = [
+                    field
+                    for field in GAME_FIELDS
+                    if field in attrs and attrs[field] != getattr(current, field)
+                ] + (["professions"] if "professions" in attrs else [])
+                if changed:
+                    raise serializers.ValidationError({f: GAME_FIELD_LOCKED for f in changed})
         player_class = attrs.get("player_class", current.player_class if current else None)
         race = attrs.get("race", current.race if current else None)
         main_role = attrs.get("main_role", current.main_role if current else None)

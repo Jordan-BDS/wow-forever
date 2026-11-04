@@ -76,14 +76,30 @@ export function CharacterFormPage() {
     if (existing.owner.id !== me.id && !isOfficerOrAbove(me.site_role)) {
       return <Navigate to={`/personnages/${characterId}`} replace />;
     }
-    return <CharacterForm key={existing.id} characterId={characterId} initial={fromCharacter(existing)} />;
+    return (
+      <CharacterForm
+        key={existing.id}
+        characterId={characterId}
+        initial={fromCharacter(existing)}
+        locked={existing.source === "addon" && !isOfficerOrAbove(me.site_role)}
+      />
+    );
   }
   // Création : réservée aux officiers, les personnages des membres arrivent du jeu.
   if (!isOfficerOrAbove(me.site_role)) return <Navigate to="/personnages" replace />;
   return <CharacterForm initial={EMPTY} />;
 }
 
-function CharacterForm({ characterId, initial }: { characterId?: number; initial: FormState }) {
+function CharacterForm({
+  characterId,
+  initial,
+  locked = false,
+}: {
+  characterId?: number;
+  initial: FormState;
+  /** Personnage alimenté par l'addon : identité, niveau, spé et métiers viennent du jeu, en lecture seule. */
+  locked?: boolean;
+}) {
   const navigate = useNavigate();
   const invalidate = useInvalidate();
   const gamedata = useGameData();
@@ -93,7 +109,13 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
 
   const save = useMutation({
     mutationFn: async (state: FormState) => {
-      const body = {
+      const editable = {
+        main_role: state.main_role as GameRole,
+        off_role: state.off_role,
+        is_main: state.is_main,
+        note: state.note,
+      };
+      const full = {
         name: state.name.trim(),
         surname: state.surname.trim(),
         player_class: state.player_class,
@@ -111,13 +133,13 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
         })),
       };
       if (characterId === undefined) {
-        const { data, error } = await api.POST("/api/characters/", { body });
+        const { data, error } = await api.POST("/api/characters/", { body: full });
         if (error || !data) throw error ?? new Error();
         return data;
       }
       const { data, error } = await api.PATCH("/api/characters/{id}/", {
         params: { path: { id: characterId } },
-        body,
+        body: locked ? editable : full,
       });
       if (error || !data) throw error ?? new Error();
       return data;
@@ -172,12 +194,19 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
       >
         <Card className="space-y-4">
           <h2 className="font-display text-lg">Identité</h2>
+          {locked && (
+            <p className="rounded-md border border-gold/40 bg-bg/50 px-3 py-2 text-xs text-muted">
+              Nom, classe, race, niveau, spécialisation et métiers viennent du jeu et se mettent à jour à
+              chaque envoi de l'addon. Ici tu règles seulement tes rôles, ton main et ta note.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Prénom du personnage">
               <Input
                 value={form.name}
                 maxLength={24}
                 required
+                disabled={locked}
                 onChange={(e) => update({ name: e.target.value })}
               />
               <FieldError message={errors.name} />
@@ -187,6 +216,7 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
                 value={form.surname}
                 maxLength={24}
                 placeholder="Rempli par l'addon"
+                disabled={locked}
                 onChange={(e) => update({ surname: e.target.value })}
               />
             </Field>
@@ -197,6 +227,7 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
                 className="w-full"
                 value={form.player_class}
                 required
+                disabled={locked}
                 onChange={(e) => onClassChange(e.target.value)}
               >
                 <option value="">—</option>
@@ -212,7 +243,7 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
                 className="w-full"
                 value={form.race}
                 required
-                disabled={!form.player_class}
+                disabled={locked || !form.player_class}
                 onChange={(e) => update({ race: e.target.value })}
               >
                 <option value="">—</option>
@@ -232,6 +263,7 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
                 min={1}
                 max={60}
                 value={form.level}
+                disabled={locked}
                 onChange={(e) => update({ level: Number(e.target.value) })}
               />
               <FieldError message={errors.level} />
@@ -274,7 +306,7 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
             <Select
               className="w-full"
               value={form.specialization}
-              disabled={!playerClass}
+              disabled={locked || !playerClass}
               onChange={(e) => update({ specialization: e.target.value })}
             >
               <option value="">Pas encore choisie</option>
@@ -309,90 +341,99 @@ function CharacterForm({ characterId, initial }: { characterId?: number; initial
         <Card className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg">Métiers</h2>
-            <span className="text-xs text-muted">{primaryCount}/2 principaux</span>
+            <span className="text-xs text-muted">
+              {locked ? "lus en jeu" : `${primaryCount}/2 principaux`}
+            </span>
           </div>
-          {form.professions.map((row, index) => {
-            const profession = professions.find((p) => p.slug === row.profession);
-            return (
-              <div
-                key={index}
-                className="grid grid-cols-[1fr_80px_auto] items-end gap-2 sm:grid-cols-[1fr_80px_1fr_auto]"
-              >
-                <Field label="Métier">
-                  <Select
-                    className="w-full"
-                    value={row.profession}
-                    onChange={(e) => setProfession(index, { profession: e.target.value, specialization: "" })}
-                  >
-                    {professions.map((p) => {
-                      const taken = form.professions.some((x, i) => i !== index && x.profession === p.slug);
-                      const primaryFull =
-                        p.kind === "primary" && profession?.kind !== "primary" && primaryCount >= 2;
-                      return (
-                        <option key={p.slug} value={p.slug} disabled={taken || primaryFull}>
-                          {p.name}
-                          {p.kind === "secondary" && " (secondaire)"}
-                        </option>
-                      );
-                    })}
-                  </Select>
-                </Field>
-                <Field label="Niveau">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={300}
-                    value={row.skill}
-                    onChange={(e) => setProfession(index, { skill: Number(e.target.value) })}
-                  />
-                </Field>
-                <div className="order-last col-span-full sm:order-none sm:col-auto">
-                  <Field label="Spécialisation">
+          <fieldset disabled={locked} className="contents">
+            {form.professions.map((row, index) => {
+              const profession = professions.find((p) => p.slug === row.profession);
+              return (
+                <div
+                  key={index}
+                  className="grid grid-cols-[1fr_80px_auto] items-end gap-2 sm:grid-cols-[1fr_80px_1fr_auto]"
+                >
+                  <Field label="Métier">
                     <Select
                       className="w-full"
-                      value={row.specialization}
-                      disabled={!profession?.specializations.length}
-                      onChange={(e) => setProfession(index, { specialization: e.target.value })}
+                      value={row.profession}
+                      onChange={(e) =>
+                        setProfession(index, { profession: e.target.value, specialization: "" })
+                      }
                     >
-                      <option value="">—</option>
-                      {profession?.specializations.map((s) => (
-                        <option key={s.slug} value={s.slug}>
-                          {s.name}
-                        </option>
-                      ))}
+                      {professions.map((p) => {
+                        const taken = form.professions.some((x, i) => i !== index && x.profession === p.slug);
+                        const primaryFull =
+                          p.kind === "primary" && profession?.kind !== "primary" && primaryCount >= 2;
+                        return (
+                          <option key={p.slug} value={p.slug} disabled={taken || primaryFull}>
+                            {p.name}
+                            {p.kind === "secondary" && " (secondaire)"}
+                          </option>
+                        );
+                      })}
                     </Select>
                   </Field>
+                  <Field label="Niveau">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={300}
+                      value={row.skill}
+                      onChange={(e) => setProfession(index, { skill: Number(e.target.value) })}
+                    />
+                  </Field>
+                  <div className="order-last col-span-full sm:order-none sm:col-auto">
+                    <Field label="Spécialisation">
+                      <Select
+                        className="w-full"
+                        value={row.specialization}
+                        disabled={!profession?.specializations.length}
+                        onChange={(e) => setProfession(index, { specialization: e.target.value })}
+                      >
+                        <option value="">—</option>
+                        {profession?.specializations.map((s) => (
+                          <option key={s.slug} value={s.slug}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    aria-label="Retirer ce métier"
+                    onClick={() => update({ professions: form.professions.filter((_, i) => i !== index) })}
+                  >
+                    ✕
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  aria-label="Retirer ce métier"
-                  onClick={() => update({ professions: form.professions.filter((_, i) => i !== index) })}
-                >
-                  ✕
-                </Button>
-              </div>
-            );
-          })}
-          <FieldError message={errors.professions} />
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={form.professions.length >= professions.length}
-            onClick={() => {
-              const next = professions.find(
-                (p) =>
-                  !form.professions.some((x) => x.profession === p.slug) &&
-                  (p.kind === "secondary" || primaryCount < 2),
               );
-              if (next)
-                update({
-                  professions: [...form.professions, { profession: next.slug, skill: 1, specialization: "" }],
-                });
-            }}
-          >
-            + Ajouter un métier
-          </Button>
+            })}
+            <FieldError message={errors.professions} />
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={form.professions.length >= professions.length}
+              onClick={() => {
+                const next = professions.find(
+                  (p) =>
+                    !form.professions.some((x) => x.profession === p.slug) &&
+                    (p.kind === "secondary" || primaryCount < 2),
+                );
+                if (next)
+                  update({
+                    professions: [
+                      ...form.professions,
+                      { profession: next.slug, skill: 1, specialization: "" },
+                    ],
+                  });
+              }}
+            >
+              + Ajouter un métier
+            </Button>
+          </fieldset>
         </Card>
 
         <div className="flex items-center gap-3 lg:col-span-2">

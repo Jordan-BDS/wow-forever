@@ -19,9 +19,19 @@ from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 
+from apps.characters import equipment
 from apps.characters import services as character_services
-from apps.characters.models import Character, CharacterProfession, CharacterSource, KnownRecipe
-from apps.gamedata.models import PlayerClass, Profession, Race, Recipe
+from apps.characters.models import (
+    Character,
+    CharacterProfession,
+    CharacterSource,
+    EquipmentSet,
+    EquipmentSlot,
+    KnownRecipe,
+    TalentBuild,
+)
+from apps.characters.sheet_views import sync_specialization
+from apps.gamedata.models import Enchantment, Item, PlayerClass, Profession, Race, Recipe, Talent, TalentTree
 from apps.guild.models import GuildSettings
 
 from .format import ExportError, decode_export
@@ -423,6 +433,8 @@ def _apply(
         update_fields=["level", "surname", "realm", "guid", "source", "last_synced_at", "updated_at"]
     )
     summary["new_recipes"] += _apply_professions(character, raw.get("professions"))
+    _apply_gear(character, raw.get("gear"))
+    _apply_talents(character, raw.get("talents"))
 
     snapshot = _snapshot(batch, parsed, raw, character=character, status=status, note=note)
     CharacterSnapshot.objects.filter(
@@ -474,6 +486,77 @@ def _apply_professions(character: Character, professions) -> int:
     CharacterProfession.objects.filter(character=character).exclude(profession_id__in=kept).delete()
     KnownRecipe.objects.filter(character=character).exclude(recipe__profession_id__in=kept).delete()
     return new_recipes
+
+
+IN_GAME = "En jeu"  # set d'équipement et build de talents écrits par l'import, écrasés à chaque envoi
+# Emplacements de l'addon → emplacements de la fiche (identiques sauf les armes).
+SLOT_ALIASES = {"mainhand": "main_hand", "offhand": "off_hand"}
+
+
+def _apply_gear(character: Character, gear) -> None:
+    """Set « En jeu » = l'équipement porté tel que reçu ; devient le set principal. Objets ou enchantements
+    inconnus de l'index : l'emplacement est ignoré (il reste visible dans l'onglet Progression)."""
+    if not isinstance(gear, dict):
+        return
+    wanted: dict[str, tuple[int, int | None]] = {}
+    for slot, piece in gear.items():
+        if not isinstance(piece, dict) or not isinstance(piece.get("id"), int):
+            continue
+        name = SLOT_ALIASES.get(str(slot), str(slot))
+        if name in equipment.SLOTS:
+            ench = piece.get("ench")
+            wanted[name] = (piece["id"], ench if isinstance(ench, int) else None)
+    items = set(Item.objects.filter(id__in=[i for i, _ in wanted.values()]).values_list("id", flat=True))
+    enchants = set(
+        Enchantment.objects.filter(id__in=[e for _, e in wanted.values() if e]).values_list("id", flat=True)
+    )
+    with transaction.atomic():
+        current, _ = EquipmentSet.objects.get_or_create(character=character, name=IN_GAME)
+        EquipmentSet.objects.filter(character=character).exclude(pk=current.pk).update(is_primary=False)
+        if not current.is_primary:
+            current.is_primary = True
+            current.save(update_fields=["is_primary"])
+        current.slots.all().delete()
+        EquipmentSlot.objects.bulk_create(
+            [
+                EquipmentSlot(
+                    equipment_set=current,
+                    slot=slot,
+                    item_id=item_id,
+                    enchantment_id=ench if ench in enchants else None,
+                )
+                for slot, (item_id, ench) in wanted.items()
+                if item_id in items
+            ]
+        )
+
+
+def _apply_talents(character: Character, talents) -> None:
+    """Build « En jeu » = les points lus en jeu (`points` : « arbre-index » → rang, index dans l'ordre
+    rangée puis colonne de l'arbre) ; devient le build actif et fixe la spécialisation affichée."""
+    points = talents.get("points") if isinstance(talents, dict) else None
+    if not isinstance(points, dict):
+        return
+    trees = list(TalentTree.objects.filter(player_class=character.player_class).order_by("order"))
+    if not trees:
+        return
+    by_tree = {
+        tree.pk: list(Talent.objects.filter(tree=tree).order_by("row", "column").values_list("id", flat=True))
+        for tree in trees
+    }
+    ordered: list[int] = []
+    for tab, tree in enumerate(trees, start=1):
+        for index, talent_id in enumerate(by_tree[tree.pk], start=1):
+            rank = points.get(f"{tab}-{index}")
+            if isinstance(rank, int) and rank > 0:
+                ordered.extend([talent_id] * rank)
+    with transaction.atomic():
+        build, _ = TalentBuild.objects.get_or_create(character=character, name=IN_GAME)
+        TalentBuild.objects.filter(character=character).exclude(pk=build.pk).update(is_active=False)
+        build.points = ordered
+        build.is_active = True
+        build.save(update_fields=["points", "is_active", "updated_at"])
+        sync_specialization(character, build)
 
 
 # --- résolution des personnages en attente ----------------------------------------------------
