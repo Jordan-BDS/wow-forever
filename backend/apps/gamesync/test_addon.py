@@ -73,6 +73,13 @@ class TestLoading:
             ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions"]
         )  # fmt: skip
         assert lua.globals().SlashCmdList.WOWFOREVERGUILDE is not None
+        # Icône de la guilde (portrait de Samwise, « Temp ») sur les fenêtres et dans la liste des addons.
+        assert "## IconTexture: Interface\\Icons\\Temp" in (ADDON_DIR / "WoWForeverGuilde.toc").read_text(
+            encoding="utf-8"
+        )
+        login(lua)
+        lua.globals().SlashCmdList.WOWFOREVERGUILDE("")
+        assert lua.globals().WoWForeverGuildeFrame.icon.texture == 136235
 
     def test_login_registers_events_and_welcomes(self):
         lua = boot()

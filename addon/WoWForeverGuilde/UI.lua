@@ -45,8 +45,12 @@ local function makeFrame(name, width, height, title)
       insets = { left = 6, right = 6, top = 6, bottom = 6 },
     })
   end
+  f.icon = f:CreateTexture(nil, "ARTWORK")
+  f.icon:SetSize(26, 26)
+  f.icon:SetPoint("TOPLEFT", 14, -10)
+  f.icon:SetTexture(ns.Data.ICON)
   f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  f.title:SetPoint("TOPLEFT", 16, -14)
+  f.title:SetPoint("LEFT", f.icon, "RIGHT", 8, 0)
   f.title:SetText(title)
   local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
   close:SetPoint("TOPRIGHT", -4, -4)

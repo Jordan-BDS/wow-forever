@@ -166,7 +166,7 @@ local function newFrame(kind, name)
   function f:Hide() self.shown = false end
   function f:IsShown() return self.shown end
   function f:CreateFontString() local s = newFrame("FontString") s.SetText = function(self, t) self.text = t end s.GetText = function(self) return self.text end return s end
-  function f:CreateTexture() local s = newFrame("Texture") s.SetVertexColor = function(self, r, g, b) self.color = { r, g, b } end return s end
+  function f:CreateTexture() local s = newFrame("Texture") s.SetVertexColor = function(self, r, g, b) self.color = { r, g, b } end s.SetTexture = function(self, t) self.texture = t end return s end
   function f:IsMouseOver() return self.mouseOver == true end
   local noop = function() end
   for _, m in ipairs({ "SetSize", "SetPoint", "SetMovable", "EnableMouse", "RegisterForDrag", "SetFrameStrata", "SetBackdrop",
