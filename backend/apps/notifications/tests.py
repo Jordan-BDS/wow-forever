@@ -110,7 +110,7 @@ class TestReminders:
         settings.reminder_minutes = 60
         settings.save()
         out = StringIO()
-        call_command("scan_reminders", stdout=out)  # NOW ≈ maintenant : l'événement du fixture est dans l'heure
+        call_command("scan_reminders", stdout=out)  # l'événement du fixture est dans l'heure
         assert "2 tâche(s) traitée(s)" in out.getvalue()
         event.refresh_from_db()
         assert event.reminder_sent_at is not None

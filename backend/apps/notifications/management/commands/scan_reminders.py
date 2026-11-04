@@ -22,8 +22,8 @@ class Command(BaseCommand):
     help = "Balaye les tâches dues une fois, ou en boucle avec --loop (service « scheduler » du compose)."
 
     def add_arguments(self, parser):
-        parser.add_argument("--loop", action="store_true", help="Recommencer sans fin, toutes les --interval s.")
-        parser.add_argument("--interval", type=int, default=300, help="Secondes entre deux balayages (300).")
+        parser.add_argument("--loop", action="store_true", help="Boucler toutes les --interval s")
+        parser.add_argument("--interval", type=int, default=300, help="Secondes entre deux balayages (300)")
 
     def handle(self, *args, **options):
         interval = max(10, options["interval"])
