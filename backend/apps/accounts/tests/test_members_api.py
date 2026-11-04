@@ -54,7 +54,12 @@ def test_members_list_shows_who_linked_the_companion(as_user, member, officer, g
     CompanionDevice.objects.create(
         user=officer, name="Ancien", token_hash="h3", token_prefix="c", revoked_at=seen
     )
-    by_id = {m["discord_id"]: m["companion"] for m in as_user(gm).get("/api/members/").data}
+    User.objects.filter(discord_id="100").update(display_name="zoe")
+    User.objects.filter(discord_id="200").update(display_name="Emile")
+    User.objects.filter(discord_id="300").update(display_name="arthas")
+    data = as_user(gm).get("/api/members/").data
+    assert [m["display_name"] for m in data] == ["arthas", "Emile", "zoe"]  # sans tenir compte de la casse
+    by_id = {m["discord_id"]: m["companion"] for m in data}
     assert by_id["100"] == {"devices": 2, "last_seen_at": "2026-11-04T21:00:00+00:00"}
     assert by_id["200"] is None and by_id["300"] is None
     # Même information hors liste (fiche d'un membre, /me), calculée à la demande.

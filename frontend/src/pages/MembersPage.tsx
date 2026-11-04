@@ -82,88 +82,91 @@ export function MembersPage() {
               </tr>
             </thead>
             <tbody>
-              {members.data?.map((member) => {
-                const isMe = member.id === me.id;
-                const manageable = canManage && !isMe && outranks(me.site_role, member.site_role);
-                return (
-                  <tr
-                    key={member.id}
-                    className={clsx("border-b border-border/60", !member.is_active && "opacity-60")}
-                  >
-                    <td className="px-3 py-2 sm:px-4">
-                      <div className="flex items-center gap-3">
-                        <Link
-                          to={`/membres/${member.id}`}
-                          className="flex items-center gap-3 text-text hover:text-gold"
-                        >
-                          <img src={member.avatar_url} alt="" className="size-8 shrink-0 rounded-full" />
-                          <span className="font-medium">{member.display_name}</span>
-                        </Link>
-                        {isMe && <span className="text-xs text-muted">(toi)</span>}
-                      </div>
-                    </td>
-                    <td className="hidden px-3 py-2 text-muted sm:table-cell sm:px-4">
-                      {member.discord_username}
-                    </td>
-                    <td className="px-3 py-2 sm:px-4">
-                      {me.site_role === "gm" && !isMe ? (
-                        <Select
-                          value={member.site_role}
-                          disabled={busy}
-                          aria-label={`Rôle de ${member.display_name}`}
-                          onChange={(e) => setRole.mutate({ member, role: e.target.value as SiteRole })}
-                        >
-                          {ROLES.map((role) => (
-                            <option key={role} value={role}>
-                              {ROLE_LABELS[role]}
-                            </option>
-                          ))}
-                        </Select>
-                      ) : (
-                        <RoleBadge role={member.site_role} />
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 sm:px-4">
-                      {member.is_active ? (
-                        <span className="text-success">Actif</span>
-                      ) : (
-                        <span className="text-danger">
-                          Désactivé
-                          {member.deactivation_reason === "discord" && " (Discord)"}
-                        </span>
-                      )}
-                    </td>
-                    <td className="hidden whitespace-nowrap px-3 py-2 md:table-cell sm:px-4">
-                      {member.companion ? (
-                        <span className="text-success">
-                          Lié
-                          <span className="text-xs text-muted">
-                            {member.companion.devices > 1 ? ` · ${member.companion.devices} PC` : ""}
-                            {member.companion.last_seen_at
-                              ? ` · vu ${formatAgo(member.companion.last_seen_at)}`
-                              : " · jamais connecté"}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="text-muted">—</span>
-                      )}
-                    </td>
-                    {canManage && (
-                      <td className="whitespace-nowrap px-3 py-2 text-right sm:px-4">
-                        {manageable && (
-                          <Button
-                            variant={member.is_active ? "danger" : "ghost"}
-                            disabled={busy}
-                            onClick={() => setActive.mutate({ member, active: !member.is_active })}
+              {/* Alphabétique sans tenir compte de la casse ni des accents (le serveur trie déjà, hors accents). */}
+              {[...(members.data ?? [])]
+                .sort((a, b) => a.display_name.localeCompare(b.display_name, "fr", { sensitivity: "base" }))
+                .map((member) => {
+                  const isMe = member.id === me.id;
+                  const manageable = canManage && !isMe && outranks(me.site_role, member.site_role);
+                  return (
+                    <tr
+                      key={member.id}
+                      className={clsx("border-b border-border/60", !member.is_active && "opacity-60")}
+                    >
+                      <td className="px-3 py-2 sm:px-4">
+                        <div className="flex items-center gap-3">
+                          <Link
+                            to={`/membres/${member.id}`}
+                            className="flex items-center gap-3 text-text hover:text-gold"
                           >
-                            {member.is_active ? "Désactiver" : "Réactiver"}
-                          </Button>
+                            <img src={member.avatar_url} alt="" className="size-8 shrink-0 rounded-full" />
+                            <span className="font-medium">{member.display_name}</span>
+                          </Link>
+                          {isMe && <span className="text-xs text-muted">(toi)</span>}
+                        </div>
+                      </td>
+                      <td className="hidden px-3 py-2 text-muted sm:table-cell sm:px-4">
+                        {member.discord_username}
+                      </td>
+                      <td className="px-3 py-2 sm:px-4">
+                        {me.site_role === "gm" && !isMe ? (
+                          <Select
+                            value={member.site_role}
+                            disabled={busy}
+                            aria-label={`Rôle de ${member.display_name}`}
+                            onChange={(e) => setRole.mutate({ member, role: e.target.value as SiteRole })}
+                          >
+                            {ROLES.map((role) => (
+                              <option key={role} value={role}>
+                                {ROLE_LABELS[role]}
+                              </option>
+                            ))}
+                          </Select>
+                        ) : (
+                          <RoleBadge role={member.site_role} />
                         )}
                       </td>
-                    )}
-                  </tr>
-                );
-              })}
+                      <td className="whitespace-nowrap px-3 py-2 sm:px-4">
+                        {member.is_active ? (
+                          <span className="text-success">Actif</span>
+                        ) : (
+                          <span className="text-danger">
+                            Désactivé
+                            {member.deactivation_reason === "discord" && " (Discord)"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="hidden whitespace-nowrap px-3 py-2 md:table-cell sm:px-4">
+                        {member.companion ? (
+                          <span className="text-success">
+                            Lié
+                            <span className="text-xs text-muted">
+                              {member.companion.devices > 1 ? ` · ${member.companion.devices} PC` : ""}
+                              {member.companion.last_seen_at
+                                ? ` · vu ${formatAgo(member.companion.last_seen_at)}`
+                                : " · jamais connecté"}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                      {canManage && (
+                        <td className="whitespace-nowrap px-3 py-2 text-right sm:px-4">
+                          {manageable && (
+                            <Button
+                              variant={member.is_active ? "danger" : "ghost"}
+                              disabled={busy}
+                              onClick={() => setActive.mutate({ member, active: !member.is_active })}
+                            >
+                              {member.is_active ? "Désactiver" : "Réactiver"}
+                            </Button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         )}
