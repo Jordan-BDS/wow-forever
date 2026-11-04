@@ -1,8 +1,10 @@
 import clsx from "clsx";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router";
+import { useAddonErrors, type AddonError } from "@/api/sync";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { Card, PageTitle } from "@/components/ui";
+import { Card, PageTitle, Spinner } from "@/components/ui";
+import { formatDateTime } from "@/lib/game";
 
 /**
  * Tests en jeu (GM seulement) : la fiche de contrôle des collecteurs de l'addon sur le vrai client Forever,
@@ -338,6 +340,7 @@ export function TestsPage() {
         </aside>
 
         <div className="space-y-8">
+          <AddonErrorsCard />
           {SECTIONS.map((section, i) => (
             <section key={section.title} id={`tests-${i}`} className="scroll-mt-24 space-y-3">
               <div>
@@ -363,6 +366,84 @@ export function TestsPage() {
         </div>
       </div>
     </>
+  );
+}
+
+/** Erreurs des collecteurs remontées par les addons de toute la guilde, à copier d'un bloc. */
+function AddonErrorsCard() {
+  const errors = useAddonErrors(true);
+  const [copied, setCopied] = useState(false);
+  if (errors.isPending) return <Spinner />;
+  const list = errors.data ?? [];
+  const asText = list
+    .map(
+      (e) =>
+        `${e.at ? formatDateTime(e.at) : "?"} · ${e.user.display_name}${e.device ? ` (${e.device})` : ""} · addon ${e.addon}${
+          e.client ? ` · client ${e.client}` : ""
+        }\n  ${e.where || "?"} : ${e.error}`,
+    )
+    .join("\n");
+  const copyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(asText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* presse-papiers refusé : le texte reste sélectionnable ci-dessous */
+    }
+  };
+  return (
+    <Card className={clsx("space-y-3", list.length > 0 && "border-danger/40")}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-xl">Erreurs remontées par les addons</h2>
+        <span className="text-xs text-muted">14 derniers jours · toute la guilde · dédoublonnées</span>
+      </div>
+      {errors.isError ? (
+        <p className="text-sm text-danger">Impossible de charger les erreurs.</p>
+      ) : list.length === 0 ? (
+        <p className="text-sm text-muted">
+          Aucune erreur reçue. Un collecteur qui plante est noté par l'addon et arrive ici au prochain envoi.
+        </p>
+      ) : (
+        <>
+          <ul className="space-y-2">
+            {list.map((e, i) => (
+              <ErrorRow key={`${e.user.id}-${e.at}-${i}`} e={e} />
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={copyAll}
+            className={clsx(
+              "rounded-sm border px-3 py-1.5 text-sm transition-colors",
+              copied
+                ? "border-success text-success"
+                : "border-border text-muted hover:border-gold hover:text-gold",
+            )}
+          >
+            {copied ? "Tout copié" : `Tout copier (${list.length})`}
+          </button>
+        </>
+      )}
+    </Card>
+  );
+}
+
+function ErrorRow({ e }: { e: AddonError }) {
+  return (
+    <li className="rounded-md border border-border bg-bg/60 p-3 text-sm">
+      <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
+        <span className="text-text">{e.at ? formatDateTime(e.at) : "heure inconnue"}</span>
+        <span>{e.user.display_name}</span>
+        {e.device && <span>· {e.device}</span>}
+        <span>· addon {e.addon}</span>
+        {e.client && <span>· client {e.client}</span>}
+        <span>· reçu {formatDateTime(e.received_at)}</span>
+      </div>
+      <div className="mt-1 font-mono text-[12.5px] break-words whitespace-pre-wrap">
+        <span className="text-gold-light">{e.where || "?"}</span> : {e.error}
+      </div>
+    </li>
   );
 }
 

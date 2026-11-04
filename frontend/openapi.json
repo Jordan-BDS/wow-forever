@@ -3566,6 +3566,33 @@
                 }
             }
         },
+        "/api/sync/addon-errors/": {
+            "get": {
+                "operationId": "sync_addon_errors_retrieve",
+                "description": "GM : erreurs des collecteurs remontées par les addons de la guilde (14 derniers jours).",
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/sync/characters/{id}/progress/": {
             "get": {
                 "operationId": "sync_characters_progress_retrieve",

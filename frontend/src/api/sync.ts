@@ -140,6 +140,31 @@ export type Rankings = {
   week_totals: Record<string, number>;
 };
 
+export type AddonError = {
+  at: string | null;
+  received_at: string;
+  user: { id: number; display_name: string };
+  device: string | null;
+  addon: string;
+  client: string;
+  where: string;
+  error: string;
+};
+
+/** GM : erreurs des collecteurs remontées par les addons de la guilde (14 jours). */
+export function useAddonErrors(enabled: boolean) {
+  return useQuery({
+    queryKey: ["sync", "addon-errors"] as const,
+    enabled,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/sync/addon-errors/");
+      if (error || !data) throw error ?? new Error();
+      return (data as unknown as { errors: AddonError[] }).errors;
+    },
+  });
+}
+
 export function useCharacterProgress(characterId: number) {
   return useQuery({
     queryKey: ["sync", "progress", characterId] as const,

@@ -76,6 +76,11 @@ class ImportBatch(models.Model):
     )
     code = models.TextField(help_text="Le code d'export tel que reçu.")
     summary = models.JSONField(default=dict)
+    errors = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Erreurs des collecteurs de l'addon, telles qu'exportées (t, where, error, addon).",
+    )
 
     class Meta:
         verbose_name = "import"

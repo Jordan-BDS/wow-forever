@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
+from apps.accounts.permissions import IsGM
 from apps.characters.models import Character
 
 from . import services
@@ -190,6 +191,16 @@ class CharacterProgressView(APIView):
 
         data = progress.character_progress(character)
         return Response({"available": data is not None, **(data or {})})
+
+
+class AddonErrorsView(APIView):
+    """GM : erreurs des collecteurs remontées par les addons de la guilde (14 derniers jours)."""
+
+    permission_classes = [IsGM]
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    def get(self, request: Request) -> Response:
+        return Response({"errors": services.addon_errors()})
 
 
 class RankingsView(APIView):

@@ -932,6 +932,23 @@ export interface paths {
         patch: operations["signups_partial_update"];
         trace?: never;
     };
+    "/api/sync/addon-errors/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description GM : erreurs des collecteurs remontées par les addons de la guilde (14 derniers jours). */
+        get: operations["sync_addon_errors_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sync/characters/{id}/progress/": {
         parameters: {
             query?: never;
@@ -4613,6 +4630,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Signup"];
+                };
+            };
+        };
+    };
+    sync_addon_errors_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

@@ -260,6 +260,63 @@ def _client_refusal(client: dict | None) -> str:
     return f"Export d'un autre client ({version}, interface {toc}) : seul WoW Forever est accepté."
 
 
+MAX_ADDON_ERRORS = 50
+
+
+def _addon_errors(raw: Any) -> list[dict]:
+    """Erreurs des collecteurs telles que l'addon les exporte, nettoyées et bornées."""
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw[-MAX_ADDON_ERRORS:]:
+        if not isinstance(item, dict):
+            continue
+        t = item.get("t")
+        out.append(
+            {
+                "t": int(t) if isinstance(t, (int, float)) and not isinstance(t, bool) and t > 0 else None,
+                "where": str(item.get("where") or "")[:80],
+                "error": str(item.get("error") or "")[:2000],
+                "addon": str(item.get("addon") or "")[:32],
+            }
+        )
+    return out
+
+
+def addon_errors(days: int = 14, limit: int = 200) -> list[dict]:
+    """Erreurs remontées par tous les addons de la guilde sur les derniers jours, dédoublonnées : l'addon
+    renvoie à chaque export les mêmes 50 dernières. Plus récentes en premier."""
+    since = timezone.now() - timedelta(days=days)
+    batches = (
+        ImportBatch.objects.filter(received_at__gte=since)
+        .exclude(errors=[])
+        .select_related("user", "device")
+        .order_by("-received_at")
+    )
+    seen: set[tuple] = set()
+    out: list[dict] = []
+    for batch in batches:
+        for item in batch.errors:
+            key = (batch.user_id, item.get("t"), item.get("where"), item.get("error"))
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(
+                {
+                    "at": datetime.fromtimestamp(item["t"], tz=UTC).isoformat() if item.get("t") else None,
+                    "received_at": batch.received_at.isoformat(),
+                    "user": {"id": batch.user_id, "display_name": batch.user.display_name},
+                    "device": batch.device.name if batch.device else None,
+                    "addon": item.get("addon") or batch.addon_version,
+                    "client": batch.client,
+                    "where": item.get("where") or "",
+                    "error": item.get("error") or "",
+                }
+            )
+    out.sort(key=lambda e: e["at"] or e["received_at"], reverse=True)
+    return out[:limit]
+
+
 @transaction.atomic
 def import_code(user, code: str, *, source: str, device: CompanionDevice | None = None) -> ImportBatch:
     payload = decode_export(code)
@@ -277,6 +334,7 @@ def import_code(user, code: str, *, source: str, device: CompanionDevice | None 
         install_id=str(payload.get("install") or "")[:64],
         client=_client_label(client),
         code="".join(code.split()),
+        errors=_addon_errors(payload.get("errors")),
     )
     summary: dict[str, int] = {status: 0 for status in SnapshotStatus.values}
     summary["new_recipes"] = 0
