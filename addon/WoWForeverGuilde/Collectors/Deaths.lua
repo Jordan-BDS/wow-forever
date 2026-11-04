@@ -70,7 +70,8 @@ function ns.DeathPhrase(info)
     personnage = info.name, tueur = info.killer, zone = zone ~= "" and zone or "nulle part", niveau = tostring(info.level),
     classe = info.class,
   }
-  return (phrase:gsub("{(%w+)}", function(key) return values[key] or ("{" .. key .. "}") end))
+  local text = phrase:gsub("{(%w+)}", function(key) return values[key] or ("{" .. key .. "}") end)
+  return (text:gsub("^%l", string.upper)) -- « une chute remercie… » → « Une chute remercie… »
 end
 
 ns.RegisterCollector({
