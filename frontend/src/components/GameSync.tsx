@@ -321,12 +321,20 @@ export function SyncJourney() {
                   </Button>
                 </a>
               )}
+              {release.data.assets.addon && (
+                <a href={release.data.assets.addon} className="text-xs">
+                  Addon seul (zip)
+                </a>
+              )}
               <span className="text-xs text-muted">version {release.data.version}</span>
             </div>
           ) : (
             <p className="text-sm text-muted">Le compagnon n'est pas encore publié.</p>
           )}
-          <p className="text-xs text-muted">Il installe l'addon dans ton dossier WoW et le tient à jour.</p>
+          <p className="text-xs text-muted">
+            Il installe l'addon dans ton dossier WoW et envoie tes données tout seul. Sans lui : le zip de
+            l'addon dans Interface/AddOns, et le code à coller plus bas.
+          </p>
         </Step>
 
         <Step n={1} done={done} title="Lie-le à ton compte">
@@ -431,24 +439,23 @@ function Step({
     <li
       className={clsx(
         "relative space-y-2 border-l border-border pl-5 md:border-0 md:pl-0",
+        // Fil du bord droit du médaillon précédent au bord gauche de celui-ci, sans passer sous les titres.
         n > 0 &&
-          "md:before:absolute md:before:top-[17px] md:before:right-1/2 md:before:left-[-50%] md:before:h-px",
+          "md:before:absolute md:before:top-[17px] md:before:right-[calc(100%+4px)] md:before:left-[calc(-100%-1rem+2.25rem+4px)] md:before:h-px",
         n > 0 && (threadDone ? "md:before:bg-gold" : "md:before:bg-border"),
       )}
     >
-      <div className="flex items-center gap-3">
-        <span
-          className={clsx(
-            "relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full border-2 font-display text-sm",
-            isDone ? "border-gold bg-gold text-bg" : "border-gold/70 bg-surface text-gold",
-          )}
-          aria-label={isDone ? "fait" : "à faire"}
-        >
-          {ROMAN[n]}
-        </span>
-        <h3 className="font-display text-base leading-tight">{title}</h3>
-      </div>
-      <div className="space-y-2 md:pl-12">{children}</div>
+      <span
+        className={clsx(
+          "relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full border-2 font-display text-sm",
+          isDone ? "border-gold bg-gold text-bg" : "border-gold/70 bg-surface text-gold",
+        )}
+        aria-label={isDone ? "fait" : "à faire"}
+      >
+        {ROMAN[n]}
+      </span>
+      <h3 className="font-display text-base leading-tight">{title}</h3>
+      <div className="space-y-2">{children}</div>
     </li>
   );
 }
