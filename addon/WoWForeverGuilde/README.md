@@ -13,6 +13,8 @@ transporte le code jusqu'au site.
   (`counters.mobs`) dans le journal quotidien (d'où les classements hebdo par créature), détail nom / premier /
   dernier kill dans `char.mobs`, hors journal, 500 espèces au plus.
 - `Data.lua` : tables de référence à tenir à jour (quêtes d'accès, derniers boss, sorts de récolte).
+- `Samwise.blp` : icône de la guilde (portrait de Samwise Didier, l'ancienne icône « Temp » des clients Classic),
+  en tête des fenêtres et dans la liste des addons (`## IconTexture`).
 - `Phrases.lua` : gabarits des annonces de mort (liste à fournir par Jordan).
 - `UI.lua` : fenêtre principale, export, dialogues, texte flottant des morts.
 - `Positions.lua`, `MapUI.lua` : partage de position. Case « Partager ma position » (cochée par défaut) : le client

@@ -68,8 +68,9 @@ ns.Data.ALERT_TTL = 120 -- s d'anneau rouge et de mention « attaqué » après 
 ns.Data.ROSTER_REFRESH = 2 -- s de regroupement des rafraîchissements de la liste
 
 -- Bornes.
--- Icône de la guilde : « Temp » (fileDataID 136235), le portrait de Samwise Didier qui sert d'icône bouche-trou au jeu.
-ns.Data.ICON = 136235
+-- Icône de la guilde : le portrait de Samwise Didier, l'icône bouche-trou « Temp » des clients Classic (celle de
+-- Forever est le logo WoW), embarquée dans l'addon (Samwise.blp, 64×64).
+ns.Data.ICON = "Interface\\AddOns\\WoWForeverGuilde\\Samwise"
 ns.Data.JOURNAL_DAYS = 60
 ns.Data.MAX_EVENTS = 500
 ns.Data.MAX_ERRORS = 50
