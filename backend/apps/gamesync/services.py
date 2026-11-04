@@ -686,6 +686,7 @@ def pending_snapshots(user):
 
 
 RELEASE_CACHE_KEY = "gamesync:latest_release"
+RELEASE_REQUIRED_ASSETS = {"windows", "macos", "addon"}
 RELEASE_TAG_PREFIX = "companion-v"
 
 
@@ -698,6 +699,7 @@ def latest_release(force: bool = False) -> dict | None:
         if cached is not None:
             return cached or None
     release = None
+    ttl = 3600
     try:
         response = httpx.get(
             f"https://api.github.com/repos/{settings.COMPANION_RELEASES_REPO}/releases",
@@ -720,6 +722,11 @@ def latest_release(force: bool = False) -> dict | None:
                         assets["windows"] = url  # l'installeur exe (NSIS) a la priorité sur le msi
                     elif name.endswith(".dmg"):
                         assets["macos"] = url
+                if not set(assets) >= RELEASE_REQUIRED_ASSETS:
+                    # Release en cours de publication (fichiers encore en envoi) : on reste sur la précédente
+                    # complète et on revérifie vite, au lieu de figer une liste partielle pendant une heure.
+                    ttl = 60
+                    continue
                 release = {
                     "version": tag[len(RELEASE_TAG_PREFIX) :],
                     "tag": tag,
@@ -730,5 +737,5 @@ def latest_release(force: bool = False) -> dict | None:
                 break
     except httpx.HTTPError:
         logger.warning("Impossible de lire les releases GitHub du compagnon", exc_info=True)
-    cache.set(RELEASE_CACHE_KEY, release or False, 3600)
+    cache.set(RELEASE_CACHE_KEY, release or False, ttl)
     return release

@@ -462,3 +462,42 @@ class TestAddonErrors:
             ("pve.onEvent", member.display_name, "0.3.1"),
         ]
         assert data[0]["at"] is None and data[1]["at"].startswith(NOW.strftime("%Y-%m-%d"))
+
+
+class TestLatestRelease:
+    def test_incomplete_release_falls_back_to_previous_and_caches_briefly(self, monkeypatch):
+        import httpx
+        from django.core.cache import cache
+
+        def asset(name):
+            return {"name": name, "browser_download_url": f"https://x/{name}"}
+
+        complete = ["x64-setup.exe", "x64_en-US.msi", "universal.dmg"]
+        payload = [
+            {
+                "tag_name": "companion-v0.3.3",
+                "assets": [asset("WoW_0.3.3_universal.dmg"), asset("latest.json")],
+            },
+            {
+                "tag_name": "companion-v0.3.2",
+                "assets": [asset(f"WoW_0.3.2_{n}") for n in complete]
+                + [asset("WoWForeverGuilde-addon-0.3.2.zip")],
+            },
+        ]
+
+        class Response:
+            status_code = 200
+
+            def json(self):
+                return payload
+
+        set_calls = []
+        monkeypatch.setattr(httpx, "get", lambda *a, **k: Response())
+        monkeypatch.setattr(cache, "set", lambda key, value, ttl: set_calls.append((value, ttl)))
+        release = services.latest_release(force=True)
+        assert release["version"] == "0.3.2" and release["assets"]["windows"].endswith("setup.exe")
+        assert set_calls[-1][1] == 60  # on revérifie dans la minute
+        # Une fois les fichiers tous là, la 0.3.3 passe et le cache redevient long.
+        payload[0]["assets"] += [asset("WoW_0.3.3_x64-setup.exe"), asset("WoWForeverGuilde-addon-0.3.3.zip")]
+        release = services.latest_release(force=True)
+        assert release["version"] == "0.3.3" and set_calls[-1][1] == 3600
