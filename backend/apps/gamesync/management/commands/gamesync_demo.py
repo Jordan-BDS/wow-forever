@@ -18,6 +18,7 @@ from apps.accounts.models import SiteRole, User
 from apps.gamedata.models import Item, Recipe
 from apps.gamesync import services, titles
 from apps.gamesync.format import encode_export
+from apps.gamesync.models import WeeklyTitle
 
 PARIS = ZoneInfo("Europe/Paris")
 
@@ -43,6 +44,19 @@ PROFESSIONS = [171, 164, 333, 202, 182, 165, 186, 393, 197]
 SKILL_SLUGS = {171: "alchemy", 164: "blacksmithing", 333: "enchanting", 202: "engineering", 182: "herbalism",
                165: "leatherworking", 186: "mining", 393: "skinning", 197: "tailoring"}  # fmt: skip
 GATHERING_FOR = {186: "mining", 182: "herbalism", 393: "skinning"}
+# Créatures (identifiant de PNJ, nom, tranche de niveaux) : le tableau de chasse se remplit selon le niveau du jour.
+CREATURES = [
+    (3098, "Sanglier tacheté", 1, 12), (3124, "Scorpide ouvrier", 1, 12), (3107, "Crabe du ressac", 1, 12),
+    (3101, "Scorpide-lame", 3, 14), (3192, "Kolkar casse-genoux", 6, 16), (721, "Lapin", 1, 60), (1412, "Écureuil", 1, 60),
+    (3263, "Raptor Écaille-de-Soleil", 10, 22), (3242, "Rôdeur de la savane", 10, 22), (3244, "Grand trotteur des plaines", 10, 22),
+    (3380, "Harpie Serre-Ventrecourt", 12, 24), (3275, "Zhevra des Tarides", 10, 22), (3243, "Lézard-tonnerre", 14, 26),
+    (3825, "Coureur Patte-Fantôme", 18, 30), (3919, "Ours Patte-Fantôme", 20, 32), (4253, "Centaure Galak", 22, 34),
+    (4342, "Basilic Mangeroc", 26, 38), (2287, "Ogre Boulderfist", 28, 40), (5296, "Naga Ensorcelée", 32, 44),
+    (4854, "Pillard Grimtotem", 34, 46), (5232, "Ogre Gordunni", 40, 52), (5420, "Hyène de Tanaris", 40, 50),
+    (7855, "Flibustier des mers du Sud", 42, 54), (6498, "Diablosaure", 50, 60), (6505, "Dévoreur d'Un'Goro", 48, 58),
+    (8531, "Goule pourrissante", 52, 60), (8550, "Abomination boursouflée", 54, 60), (9262, "Chien de guerre Rochenoire", 56, 60),
+    (9198, "Lanceur de sorts Rochenoire", 56, 60), (11729, "Guêpe silithide", 55, 60), (10981, "Nécromant du Fléau", 56, 60),
+]  # fmt: skip
 REPUTATIONS = [(609, "Cercle cénarien"), (59, "Confrérie du Thorium"), (529, "Aube d'argent"), (270, "Tribu Zandalar"),
                (76, "Orgrimmar"), (81, "Les Pitons-du-Tonnerre"), (68, "Fossoyeuse"), (530, "Trolls Sombrelance")]  # fmt: skip
 
@@ -128,6 +142,11 @@ class Command(BaseCommand):
                 continue
             self.stdout.write(f"{name}: {batch.summary}")
 
+        # Données de démo : les titres de la semaine close sont recalculés à chaque passage.
+        local_today = now.astimezone(PARIS).date()
+        WeeklyTitle.objects.filter(
+            week_start=local_today - timedelta(days=local_today.weekday() + 7)
+        ).delete()
         awarded = titles.award_weekly_titles(now)
         self.stdout.write(
             self.style.SUCCESS(
@@ -154,7 +173,8 @@ class Command(BaseCommand):
         counting_since = today - timedelta(days=45)
         # Compteurs cumulés jour après jour.
         counters = {"deaths": 0, "boss_kills": 0, "raids_done": 0, "dungeons_done": 0, "dungeons_entered": 0, "raids_entered": 0,
-                    "bg_played": 0, "bg_won": 0, "quests": 0, "crafted_total": 0, "gathering": {}, "bosses": {}}  # fmt: skip
+                    "bg_played": 0, "bg_won": 0, "quests": 0, "crafted_total": 0, "kills": 0, "gathering": {}, "bosses": {}}  # fmt: skip
+        mobs: dict[str, dict] = {}
         gathering_kind = None
         professions = []
         for skill_line in rng.sample(PROFESSIONS, 2):
@@ -179,6 +199,26 @@ class Command(BaseCommand):
             played_today = rng.random() < 0.7 * activity
             if played_today:
                 counters["deaths"] += rng.choice([0, 0, 1, 1, 2, 3])
+                # Créatures du jour : 4 à 7 espèces de la tranche du niveau courant, les critters en prime.
+                pool = [c for c in CREATURES if c[2] <= current_level <= c[3]] or CREATURES[:3]
+                killed_today = (
+                    int(rng.randint(15, 70) * activity) if current_level < 60 else rng.randint(0, 45)
+                )
+                at = int(
+                    datetime.combine(day, datetime.min.time(), tzinfo=PARIS).replace(hour=21).timestamp()
+                )
+                for npc_id, npc_name, _, _ in rng.sample(pool, min(len(pool), rng.randint(4, 7))):
+                    share = (
+                        killed_today // rng.randint(2, 6)
+                        if npc_name not in ("Lapin", "Écureuil")
+                        else rng.randint(0, 2)
+                    )
+                    if share <= 0:
+                        continue
+                    record = mobs.setdefault(str(npc_id), {"n": 0, "name": npc_name, "first": at})
+                    record["n"] += share
+                    record["last"] = at + rng.randint(0, 3600)
+                    counters["kills"] += share
                 counters["quests"] += rng.randint(0, 6)
                 if gathering_kind:
                     counters["gathering"][gathering_kind] = counters["gathering"].get(
@@ -284,7 +324,7 @@ class Command(BaseCommand):
             "level": level, "spec_tab": spec_tab, "exported_at": int(exported_at.timestamp()),
             "counting_since": int(datetime.combine(counting_since, datetime.min.time(), tzinfo=PARIS).timestamp()),
             "professions": professions, "gear": gear, "attunements": attunements, "lockouts": lockouts,
-            "reputations": reputations, "pvp": pvp, "counters": counters, "journal": journal, "events": events,
+            "reputations": reputations, "pvp": pvp, "counters": counters, "mobs": mobs, "journal": journal, "events": events,
         }  # fmt: skip
 
     @staticmethod
