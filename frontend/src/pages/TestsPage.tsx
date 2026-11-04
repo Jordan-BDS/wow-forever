@@ -289,11 +289,12 @@ export function TestsPage() {
   return (
     <>
       <PageTitle>Tests en jeu</PageTitle>
-      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+        {/* Gauche : ce que je dois tester. */}
+        <div className="space-y-8">
           <Card className="space-y-3">
-            <div className="flex items-baseline justify-between">
-              <span className="font-display text-lg">Avancement</span>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="font-display text-lg">À tester</span>
               <span className="font-mono text-sm text-gold-light">
                 {done} / {ALL_IDS.length}
               </span>
@@ -304,14 +305,12 @@ export function TestsPage() {
                 style={{ width: `${(100 * done) / ALL_IDS.length}%` }}
               />
             </div>
-            <ol className="space-y-1 text-sm">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
               {SECTIONS.map((section, i) => {
                 const n = section.steps.filter((s) => checked.has(s.id)).length;
                 return (
-                  <li key={section.title} className="flex items-baseline justify-between gap-2">
-                    <a href={`#tests-${i}`} className="text-text hover:text-gold">
-                      {section.title}
-                    </a>
+                  <a key={section.title} href={`#tests-${i}`} className="text-text hover:text-gold">
+                    {section.title}{" "}
                     <span
                       className={clsx(
                         "font-mono text-xs",
@@ -320,27 +319,23 @@ export function TestsPage() {
                     >
                       {n}/{section.steps.length}
                     </span>
-                  </li>
+                  </a>
                 );
               })}
-            </ol>
-            <button
-              type="button"
-              className="text-xs text-muted hover:text-text"
-              onClick={() => setChecked(new Set())}
-            >
-              Tout décocher
-            </button>
+              <button
+                type="button"
+                className="ml-auto text-xs text-muted hover:text-text"
+                onClick={() => setChecked(new Set())}
+              >
+                Tout décocher
+              </button>
+            </div>
+            <p className="text-xs text-muted">
+              Les collecteurs de l'addon n'ont jamais tourné sur le vrai client Forever. Si une étape rate,
+              copie la sortie du /dump ou l'erreur Lua telle quelle. Les cases restent cochées sur ce
+              navigateur.
+            </p>
           </Card>
-          <p className="text-xs text-muted">
-            Les collecteurs de l'addon n'ont jamais tourné sur le vrai client Forever. Si une étape rate,
-            copie la sortie du /dump ou l'erreur Lua telle quelle. Les cases restent cochées sur ce
-            navigateur.
-          </p>
-        </aside>
-
-        <div className="space-y-8">
-          <AddonErrorsCard />
           {SECTIONS.map((section, i) => (
             <section key={section.title} id={`tests-${i}`} className="scroll-mt-24 space-y-3">
               <div>
@@ -359,11 +354,16 @@ export function TestsPage() {
               </ol>
             </section>
           ))}
-          <p className="text-xs text-muted">
-            Une erreur Lua de l'addon commence par Interface/AddOns/WoWForeverGuilde/… Les erreurs sont aussi
-            gardées dans le fichier de l'addon et remontent au site à l'envoi suivant.
-          </p>
         </div>
+
+        {/* Droite : ce qui remonte des addons, collé à l'écran pendant qu'on déroule la liste. */}
+        <aside className="space-y-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto">
+          <AddonErrorsCard />
+          <p className="text-xs text-muted">
+            Une erreur Lua de l'addon commence par Interface/AddOns/WoWForeverGuilde/… Elles sont gardées dans
+            le fichier de l'addon, visibles avec /mf erreurs, et remontent ici à l'envoi suivant.
+          </p>
+        </aside>
       </div>
     </>
   );
