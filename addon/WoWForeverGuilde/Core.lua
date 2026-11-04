@@ -188,6 +188,15 @@ frame:SetScript("OnEvent", function(_, event, ...)
     ns.Safe("logout", onLogout)
   elseif event == "PLAYER_REGEN_ENABLED" then
     flushDeferred()
+  elseif event == "ADDON_ACTION_FORBIDDEN" or event == "ADDON_ACTION_BLOCKED" then
+    -- Le jeu a refusé un appel réservé à son interface : ce n'est pas une erreur Lua, on la note nous-mêmes
+    -- (chat, /mf erreurs, et le site au prochain envoi) avec le nom de la fonction, pour savoir quoi corriger.
+    local addon, func = ...
+    if addon == ADDON then
+      local what = string.format("%s : %s", event, tostring(func))
+      ns.Store.LogError("protected", what)
+      ns.Print(ns.L.ACTION_BLOCKED, tostring(func))
+    end
   else
     dispatch(event, ...)
   end
@@ -195,6 +204,8 @@ end)
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("PLAYER_LOGOUT")
+frame:RegisterEvent("ADDON_ACTION_FORBIDDEN")
+frame:RegisterEvent("ADDON_ACTION_BLOCKED")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
 SLASH_WOWFOREVERGUILDE1 = "/mf" -- Manuel Feralas, nom voté le 4 novembre 2026

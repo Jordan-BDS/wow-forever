@@ -55,6 +55,7 @@ ns.L = setmetatable({
   SAVE_NOW = "Sauvegarder (/reload)",
   REOPEN = "/mf · /mf qui · /mf sos · /mf lfg texte · /mf erreurs",
   ERRORS_NONE = "Aucune erreur de l'addon enregistrée.",
+  ACTION_BLOCKED = "|cffff6a4dAppel refusé par le jeu|r : %s. Noté dans /mf erreurs, envoie-le au GM.",
   ERRORS_HEADER = "%d erreur(s) enregistrée(s), les %d dernières (elles partent aussi au site) :",
   ERRORS_RECENT = "|cffff6a4d%d erreur(s)|r de l'addon depuis hier : /mf erreurs pour les voir.",
   EXPORT_TITLE = "Exporter vers le site",

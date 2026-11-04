@@ -305,6 +305,19 @@ class TestSession:
         g._FIRE("PLAYER_LOGIN")
         assert any("1 erreur(s)" in m and "/mf erreurs" in m for m in list(g._CHAT.values()))
 
+    def test_protected_call_refused_by_the_game_is_recorded_and_exported(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        g._FIRE("ADDON_ACTION_FORBIDDEN", "WoWForeverGuilde", "JoinChannelByName()")
+        g._FIRE("ADDON_ACTION_BLOCKED", "AutreAddon", "CastSpellByName()")  # pas le nôtre : ignoré
+        assert any("Appel refusé" in m and "JoinChannelByName()" in m for m in list(g._CHAT.values()))
+        errors = list(g.WoWForeverGuildeDB.errors.values())
+        assert len(errors) == 1 and errors[0].where == "protected"
+        assert errors[0].error == "ADDON_ACTION_FORBIDDEN : JoinChannelByName()"
+        payload = decode_export(logout_code(lua))
+        assert payload["errors"][0]["error"] == "ADDON_ACTION_FORBIDDEN : JoinChannelByName()"
+
     def test_midnight_rollover_splits_days_in_memory(self):
         lua = boot()
         g = lua.globals()
