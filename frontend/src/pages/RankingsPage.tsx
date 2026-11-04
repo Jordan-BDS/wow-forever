@@ -87,7 +87,7 @@ export function RankingsPage() {
     <>
       <PageTitle>Classements de la guilde</PageTitle>
 
-      {data.titles.length > 0 && <TitlesRow titles={data.titles} />}
+      {data.titles.length > 0 && <TitlesRow titles={data.titles} mob={data.mob_of_week.previous} />}
 
       <h2 className="font-display text-lg">Classements</h2>
       <p className="mb-4 text-sm text-muted">
@@ -137,7 +137,7 @@ export function RankingsPage() {
 
       <GuildProgression data={data} />
 
-      <HuntingBoard mobs={data.mobs} meId={me.id} />
+      <HuntingBoard mobs={data.mobs} meId={me.id} periodLabel={periodLabel} />
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <LevelsCard levels={data.levels} />
@@ -147,7 +147,13 @@ export function RankingsPage() {
   );
 }
 
-function TitlesRow({ titles }: { titles: Rankings["titles"] }) {
+function TitlesRow({
+  titles,
+  mob,
+}: {
+  titles: Rankings["titles"];
+  mob: Rankings["mob_of_week"]["previous"];
+}) {
   return (
     <section className="mb-8">
       <div className="mb-2 flex flex-wrap items-baseline gap-3">
@@ -156,7 +162,7 @@ function TitlesRow({ titles }: { titles: Rankings["titles"] }) {
           semaine du {shortDate(titles[0].week_start)} · attribués le lundi à 10h, figés ensuite
         </span>
       </div>
-      <TitleCards titles={titles} />
+      <TitleCards titles={titles} mob={mob} />
     </section>
   );
 }
@@ -324,7 +330,15 @@ function GuildProgression({ data }: { data: Rankings }) {
   );
 }
 
-function HuntingBoard({ mobs, meId }: { mobs: Rankings["mobs"]; meId: number }) {
+function HuntingBoard({
+  mobs,
+  meId,
+  periodLabel,
+}: {
+  mobs: Rankings["mobs"];
+  meId: number;
+  periodLabel: string;
+}) {
   const gamedata = useGameData();
   const [expanded, setExpanded] = useState(false);
   if (mobs.length === 0) return null;
@@ -334,7 +348,7 @@ function HuntingBoard({ mobs, meId }: { mobs: Rankings["mobs"]; meId: number }) 
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="font-display text-lg">Tableau de chasse de la guilde</h2>
         <span className="text-xs text-muted">
-          totaux depuis l'installation de l'addon · toute créature frappée dans les 15 s avant sa mort
+          {periodLabel} · toute créature frappée dans les 15 s avant sa mort
         </span>
       </div>
       <Card className="space-y-3">

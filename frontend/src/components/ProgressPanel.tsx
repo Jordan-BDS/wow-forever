@@ -288,7 +288,12 @@ function ProgressContent({ character, p }: { character: Character; p: CharacterP
                   <span className="text-muted">{i + 1}. </span>
                   {m.name}
                 </span>
-                <span className="shrink-0 font-mono">{m.kills}</span>
+                <span className="shrink-0 font-mono">
+                  {m.kills}
+                  <span className={clsx("ml-2 text-xs", m.week > 0 ? "text-success" : "text-muted")}>
+                    {m.week > 0 ? `+${m.week}` : "—"}
+                  </span>
+                </span>
               </li>
             ))}
           </ol>

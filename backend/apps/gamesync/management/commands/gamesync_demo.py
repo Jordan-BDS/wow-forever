@@ -173,7 +173,7 @@ class Command(BaseCommand):
         counting_since = today - timedelta(days=45)
         # Compteurs cumulés jour après jour.
         counters = {"deaths": 0, "boss_kills": 0, "raids_done": 0, "dungeons_done": 0, "dungeons_entered": 0, "raids_entered": 0,
-                    "bg_played": 0, "bg_won": 0, "quests": 0, "crafted_total": 0, "kills": 0, "gathering": {}, "bosses": {}}  # fmt: skip
+                    "bg_played": 0, "bg_won": 0, "quests": 0, "crafted_total": 0, "kills": 0, "gathering": {}, "bosses": {}, "mobs": {}}  # fmt: skip
         mobs: dict[str, dict] = {}
         gathering_kind = None
         professions = []
@@ -219,6 +219,7 @@ class Command(BaseCommand):
                     record["n"] += share
                     record["last"] = at + rng.randint(0, 3600)
                     counters["kills"] += share
+                    counters["mobs"][str(npc_id)] = counters["mobs"].get(str(npc_id), 0) + share
                 counters["quests"] += rng.randint(0, 6)
                 if gathering_kind:
                     counters["gathering"][gathering_kind] = counters["gathering"].get(

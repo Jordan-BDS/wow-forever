@@ -333,7 +333,18 @@ def compute_rankings(
         "categories": categories,
         "titles": current_titles(now),
         "progression": guild_progression(snapshots),
-        "mobs": guild_mobs(snapshots),
+        "mobs": guild_mobs(snapshots, start, end),
+        "mob_of_week": {
+            "current": next(iter(guild_mobs(snapshots, week_start, week_end, limit=1)), None),
+            "previous": next(
+                iter(
+                    guild_mobs(
+                        snapshots, week_start - timedelta(days=7), week_start - timedelta(days=1), limit=1
+                    )
+                ),
+                None,
+            ),
+        },
         "levels": level_distribution(),
         "week_totals": totals,
     }
@@ -468,21 +479,46 @@ def guild_progression(snapshots: dict[int, CharacterSnapshot] | None = None) -> 
 MOBS_LIMIT = 40
 
 
-def guild_mobs(snapshots: dict[int, CharacterSnapshot] | None = None, limit: int = MOBS_LIMIT) -> list[dict]:
-    """Créatures les plus tuées par la guilde (totaux depuis l'installation de l'addon), avec le meilleur
-    chasseur de chacune. Les noms viennent de l'addon, dans la langue du client du premier à l'avoir tuée."""
+def _character_mob_kills(snapshot: CharacterSnapshot, start: date | None, end: date) -> dict[str, int]:
+    """Kills par identifiant de PNJ sur la période. Les addons ≥ 0.3.0 tiennent `counters.mobs` jour après
+    jour dans le journal ; à défaut (export plus ancien), le détail `mobs` ne donne que des totaux."""
+    data = snapshot.data if isinstance(snapshot.data, dict) else {}
+    counters = data.get("counters") if isinstance(data.get("counters"), dict) else {}
+    per_mob = counters.get("mobs") if isinstance(counters.get("mobs"), dict) else None
+    if per_mob is not None:
+        return {
+            str(key): int(delta(snapshot, f"mobs.{key}", start, end)[0])
+            for key in per_mob
+            if str(key).isdigit()
+        }
+    if start is not None:
+        return {}
+    mobs = data.get("mobs") if isinstance(data.get("mobs"), dict) else {}
+    return {
+        str(k): int(number(v.get("n"))) for k, v in mobs.items() if isinstance(v, dict) and str(k).isdigit()
+    }
+
+
+def guild_mobs(
+    snapshots: dict[int, CharacterSnapshot] | None = None,
+    start: date | None = None,
+    end: date | None = None,
+    limit: int = MOBS_LIMIT,
+) -> list[dict]:
+    """Créatures les plus tuées par la guilde sur la période (`start` None : depuis l'installation de
+    l'addon), avec le meilleur chasseur de chacune. Les noms viennent de l'addon, dans la langue du client du
+    premier à l'avoir tuée."""
     snapshots = snapshots if snapshots is not None else latest_snapshots()
+    end = end or timezone.now().astimezone(PARIS).date()
     totals: dict[int, dict] = {}
     for snapshot in snapshots.values():
         data = snapshot.data if isinstance(snapshot.data, dict) else {}
         mobs = data.get("mobs") if isinstance(data.get("mobs"), dict) else {}
         character = snapshot.character
-        for key, record in mobs.items():
-            if not isinstance(record, dict) or not str(key).isdigit():
-                continue
-            n = int(number(record.get("n")))
+        for key, n in _character_mob_kills(snapshot, start, end).items():
             if n <= 0:
                 continue
+            record = mobs.get(key) if isinstance(mobs.get(key), dict) else {}
             mob = totals.setdefault(
                 int(key),
                 {"id": int(key), "name": None, "kills": 0, "hunters": set(), "last": 0.0, "top": None},

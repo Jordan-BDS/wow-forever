@@ -33,7 +33,7 @@ export type CharacterProgress = {
   lockouts?: { name: string; reset_at: string | null; raid: boolean; killed: number; bosses: number }[];
   reputations?: { id: number | null; name: string; value: number; reaction: number | null }[];
   bosses?: { id: number | null; name: string; kills: number; first: string | null; last: string | null }[];
-  mobs?: { id: number | null; name: string; kills: number; last: string | null }[];
+  mobs?: { id: number | null; name: string; kills: number; week: number; last: string | null }[];
   mobs_distinct?: number;
   gear?: {
     slot: string;
@@ -135,6 +135,7 @@ export type Rankings = {
     bosses: ProgressionBoss[];
   }[];
   mobs: GuildMob[];
+  mob_of_week: { current: GuildMob | null; previous: GuildMob | null };
   levels: { label: string; count: number }[];
   week_totals: Record<string, number>;
 };

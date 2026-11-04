@@ -43,12 +43,12 @@ def thrall():
     return character(
         "Player-1-T", "Thrall",
         counters={
-            "deaths": 14, "boss_kills": 3, "gathering": {"mining": 310}, "bg_played": 12, "bg_won": 9, "quests": 50, "hk": 100, "kills": 120,
+            "deaths": 14, "boss_kills": 3, "gathering": {"mining": 310}, "bg_played": 12, "bg_won": 9, "quests": 50, "hk": 100, "kills": 120, "mobs": {"299": 70, "6": 50},
             "bosses": {"672": {"n": 1, "name": "Ragnaros", "first": KILL_TIME, "last": KILL_TIME}},
         },
         journal={
             "2026-09-13": {"deaths": 2, "gathering": {"mining": 20}, "bg_played": 0, "bg_won": 0, "hk": 10},
-            "2026-09-20": {"deaths": 10, "boss_kills": 3, "gathering": {"mining": 100}, "bg_played": 10, "bg_won": 8, "hk": 60, "kills": 100},
+            "2026-09-20": {"deaths": 10, "boss_kills": 3, "gathering": {"mining": 100}, "bg_played": 10, "bg_won": 8, "hk": 60, "kills": 100, "mobs": {"299": 60, "6": 50}},
         },
         mobs={"299": {"n": 70, "name": "Loup des Tarides", "first": KILL_TIME - 86400, "last": KILL_TIME}, "6": {"n": 50, "name": "Kobold"}},
         events=[
@@ -67,8 +67,8 @@ def thrall():
 def garona():
     return character(
         "Player-1-G", "Garona",
-        counters={"deaths": 30, "gathering": {"mining": 50}, "kills": 90},
-        journal={"2026-09-20": {"deaths": 25, "gathering": {"mining": 50}, "kills": 10}},
+        counters={"deaths": 30, "gathering": {"mining": 50}, "kills": 90, "mobs": {"299": 90, "0": 3, "7": 0}},
+        journal={"2026-09-20": {"deaths": 25, "gathering": {"mining": 50}, "kills": 10, "mobs": {"299": 40}}},
         mobs={"299": {"n": 90, "name": "Loup", "last": KILL_TIME + 60}, "0": {"n": 3}, "7": {"n": 0}},
         events=[{"k": "boss", "id": 672, "name": "Ragnaros", "t": KILL_TIME + 60, "guild": 6}],
     )  # fmt: skip
@@ -153,18 +153,29 @@ class TestRankings:
             (member.pk, 20.0),
         ]
         assert result["week_totals"]["kills"] == 100.0
-        # Tableau de chasse : totaux par espèce, nombre de chasseurs, meilleur chasseur ; le nom vient du premier
-        # export qui en a un ; les espèces jamais tuées sont ignorées.
+        # Tableau de chasse de la semaine : différence du journal par espèce (Thrall 70 − 60, Garona 90 − 40 ;
+        # « 0 » sans valeur avant → 3), nombre de chasseurs, meilleur chasseur ; les espèces sans kill sortent.
         board = result["mobs"]
         assert [(m["id"], m["name"], m["kills"], m["hunters"]) for m in board] == [
+            (299, "Loup des Tarides", 60, 2),
+            (0, "Créature 0", 3, 1),
+        ]
+        assert board[0]["top"]["user"]["id"] == other_member.pk and board[0]["top"]["kills"] == 50
+        assert board[0]["top"]["character"]["name"] == "Garona"
+        assert board[0]["last_kill"].startswith("2026-09-20T19:31")
+        assert board[1]["last_kill"] is None
+        assert result["mob_of_week"]["current"]["kills"] == 60
+        # Semaine close (14-20/09) : Thrall 60 − 0 (rien avant le 13) ; Garona : plus ancienne valeur le 20 → 0.
+        previous = result["mob_of_week"]["previous"]
+        assert (previous["id"], previous["kills"], previous["hunters"]) == (299, 60, 1)
+        # Total depuis l'installation : le nom vient du premier export qui en a un.
+        total = rankings.compute_rankings("all", "player", now=NOW)["mobs"]
+        assert [(m["id"], m["name"], m["kills"], m["hunters"]) for m in total] == [
             (299, "Loup des Tarides", 160, 2),
             (6, "Kobold", 50, 1),
             (0, "Créature 0", 3, 1),
         ]
-        assert board[0]["top"]["user"]["id"] == other_member.pk and board[0]["top"]["kills"] == 90
-        assert board[0]["top"]["character"]["name"] == "Garona"
-        assert board[0]["last_kill"].startswith("2026-09-20T19:31")
-        assert board[2]["last_kill"] is None
+        assert total[0]["top"]["kills"] == 90
 
     def test_guild_progression_dedupes_group_kills(self, member, other_member):
         import_for(member, thrall())
@@ -240,9 +251,9 @@ class TestProgress:
         assert [(b["id"], b["name"], b["kills"]) for b in data["bosses"]] == [(672, "Ragnaros", 1)]
         assert data["bosses"][0]["first"].startswith("2026-09-20T19:30")
         assert data["tiles"]["kills"]["total"] == 120.0
-        assert [(m["id"], m["name"], m["kills"]) for m in data["mobs"]] == [
-            (299, "Loup des Tarides", 70),
-            (6, "Kobold", 50),
+        assert [(m["id"], m["name"], m["kills"], m["week"]) for m in data["mobs"]] == [
+            (299, "Loup des Tarides", 70, 0),  # semaine = les 7 derniers jours réels, pas septembre
+            (6, "Kobold", 50, 0),
         ]
         assert data["mobs"][0]["last"].startswith("2026-09-20T19:30") and data["mobs_distinct"] == 2
         gear = {g["slot"]: g for g in data["gear"]}

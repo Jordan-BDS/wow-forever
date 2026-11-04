@@ -178,10 +178,8 @@ class TestSession:
         assert "played" not in character  # temps de jeu opt-in
         assert list(character["journal"].keys()) == [g.date("%Y-%m-%d")]
         assert character["journal"][g.date("%Y-%m-%d")]["deaths"] == 1
-        assert (
-            character["journal"][g.date("%Y-%m-%d")]["kills"] == 1
-            and "mobs" not in character["journal"][g.date("%Y-%m-%d")]
-        )
+        assert character["journal"][g.date("%Y-%m-%d")]["kills"] == 1
+        assert character["journal"][g.date("%Y-%m-%d")]["mobs"] == {"299": 1} == counters["mobs"]
 
         # Et le site l'importe tel quel.
         batch = services.import_code(member, code, source="paste")
@@ -244,7 +242,7 @@ class TestSession:
         cleu("UNIT_DIED", "nil, nil, 0", "'Creature-0-1-2-3-113-C2'", "Sanglier")
 
         char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
-        assert char.counters.kills == 3
+        assert char.counters.kills == 3 and dict(char.counters.mobs) == {"299": 2, "6": 1}
         assert {k: (m.n, m.name) for k, m in dict(char.mobs).items()} == {
             "299": (2, "Loup"),
             "6": (1, "Kobold"),

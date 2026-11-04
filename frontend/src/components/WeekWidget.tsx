@@ -31,7 +31,7 @@ export function WeekWidget() {
               Tous les classements
             </Link>
           </div>
-          <TitleCards titles={data.titles} />
+          <TitleCards titles={data.titles} mob={data.mob_of_week.previous} />
         </section>
       )}
       {races.length > 0 && (
@@ -42,7 +42,7 @@ export function WeekWidget() {
               semaine en cours, depuis lundi · provisoire, clos dimanche minuit
             </span>
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {races.map(({ key, title, category }) => (
               <div key={key} className="text-sm">
                 <div className={category!.shame ? "text-danger" : "text-gold-light"}>{title}</div>
@@ -60,6 +60,23 @@ export function WeekWidget() {
                 </ol>
               </div>
             ))}
+            {data.mobs.length > 0 && (
+              <div className="text-sm">
+                <div className="text-gold-light">Souffre-douleur</div>
+                <div className="text-xs text-muted">Créatures les plus tuées</div>
+                <ol className="mt-1 space-y-0.5">
+                  {data.mobs.slice(0, 3).map((m, i) => (
+                    <li key={m.id} className="flex justify-between gap-2">
+                      <span className="truncate">
+                        <span className="text-muted">{i + 1}. </span>
+                        {m.name}
+                      </span>
+                      <span className="shrink-0 font-mono text-muted">{m.kills}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </div>
         </Card>
       )}

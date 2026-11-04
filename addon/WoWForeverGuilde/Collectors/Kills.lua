@@ -1,7 +1,7 @@
 -- Créatures tuées : un kill est compté quand une créature que moi (ou mon familier, mes totems…) ai frappée dans
 -- les KILL_WINDOW dernières secondes meurt (même logique que le crédit de quête du jeu : pas besoin du coup fatal).
--- Un compteur cumulé `kills` suit les périodes dans le journal ; le détail par créature (identifiant de PNJ, nom,
--- nombre, dernier kill) vit dans `char.mobs`, hors du journal quotidien pour ne pas gonfler le fichier.
+-- Le compteur cumulé `kills` et le nombre par identifiant de PNJ (`counters.mobs`) suivent les périodes dans le
+-- journal quotidien ; le détail par créature (nom, premier et dernier kill) vit dans `char.mobs`, hors journal.
 local ADDON, ns = ...
 
 local DAMAGE_EVENTS = {
@@ -44,7 +44,7 @@ local function prune(t)
 end
 
 --- Garde au plus MAX_MOBS créatures distinctes : on oublie d'abord les moins tuées, puis les plus anciennes.
-local function capMobs(mobs)
+local function capMobs(mobs, counts)
   local keys = {}
   for key in pairs(mobs) do keys[#keys + 1] = key end
   if #keys <= ns.Data.MAX_MOBS then return end
@@ -53,7 +53,10 @@ local function capMobs(mobs)
     if ma.n ~= mb.n then return ma.n < mb.n end
     return (ma.last or 0) < (mb.last or 0)
   end)
-  for i = 1, #keys - ns.Data.MAX_MOBS do mobs[keys[i]] = nil end
+  for i = 1, #keys - ns.Data.MAX_MOBS do
+    mobs[keys[i]] = nil
+    if counts then counts[keys[i]] = nil end
+  end
 end
 
 local function recordKill(char, id, name, t)
@@ -65,11 +68,12 @@ local function recordKill(char, id, name, t)
   if not record then
     record = { n = 0, first = t }
     mobs[key] = record
-    capMobs(mobs)
+    capMobs(mobs, char.counters.mobs)
     if mobs[key] ~= record then return end -- évincé immédiatement : la table est pleine de créatures plus tuées
   end
   record.n = record.n + 1
   record.last = t
+  ns.Journal.IncrementIn(char, "mobs", key)
   if type(name) == "string" and name ~= "" then record.name = name end
 end
 

@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useGameData } from "@/api/hooks";
-import type { WeeklyTitle } from "@/api/sync";
+import type { GuildMob, WeeklyTitle } from "@/api/sync";
 import { ClassName } from "@/components/game";
 import { findClass } from "@/lib/game";
 
@@ -85,6 +85,24 @@ const Claw = (
   </svg>
 );
 
+const Paw = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="6" cy="9" r="2" />
+    <circle cx="18" cy="9" r="2" />
+    <circle cx="9.5" cy="4.5" r="2" />
+    <circle cx="14.5" cy="4.5" r="2" />
+    <path d="M12 10c-3 0-6 3-6 6a3 3 0 0 0 4 3c.7-.3 1.3-.5 2-.5s1.3.2 2 .5a3 3 0 0 0 4-3c0-3-3-6-6-6Z" />
+  </svg>
+);
+
 const THEMES: Record<string, Theme> = {
   gathering: { accent: "#d9b84a", glow: "rgba(217,184,74,.25)", icon: Pickaxe, unit: "ressources" },
   bg: { accent: "#e0604a", glow: "rgba(224,96,74,.25)", icon: Swords, unit: "joueurs tués" },
@@ -102,12 +120,15 @@ function value(t: WeeklyTitle, unit: string): string {
 /** Ordre d'affichage commun aux cartes et aux « Futurs Roxors ». */
 const TITLE_ORDER = ["gathering", "bg", "boss", "kills", "shame"];
 
-/** Cartes des Roxors de la semaine passée : icône, accent, gagnant en grand, personnage à la couleur de classe. */
-export function TitleCards({ titles }: { titles: WeeklyTitle[] }) {
+const MOB_THEME: Theme = { accent: "#c47bff", glow: "rgba(196,123,255,.25)", icon: Paw, unit: "fois tuée" };
+
+/** Cartes des Roxors de la semaine passée : icône, accent, gagnant en grand, personnage à la couleur de classe.
+ *  Avec `mob`, une sixième carte : la créature la plus tuée par la guilde cette semaine-là. */
+export function TitleCards({ titles, mob }: { titles: WeeklyTitle[]; mob?: GuildMob | null }) {
   const gamedata = useGameData();
   const ordered = [...titles].sort((a, b) => TITLE_ORDER.indexOf(a.key) - TITLE_ORDER.indexOf(b.key));
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {ordered.map((t) => {
         const theme = THEMES[t.key] ?? DEFAULT_THEME;
         return (
@@ -153,6 +174,40 @@ export function TitleCards({ titles }: { titles: WeeklyTitle[] }) {
           </div>
         );
       })}
+      {mob && (
+        <div
+          className="relative overflow-hidden rounded-lg border bg-surface p-4"
+          style={{
+            borderColor: MOB_THEME.accent,
+            backgroundImage: `radial-gradient(circle at 100% 0%, ${MOB_THEME.glow}, transparent 60%)`,
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <span
+              className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 bg-bg [&>svg]:size-6"
+              style={{ borderColor: MOB_THEME.accent, color: MOB_THEME.accent }}
+            >
+              {MOB_THEME.icon}
+            </span>
+            <div className="min-w-0">
+              <div className="text-[11px] uppercase tracking-[.14em]" style={{ color: MOB_THEME.accent }}>
+                Souffre-douleur
+              </div>
+              <div className="truncate font-display text-xl leading-tight text-text">{mob.name}</div>
+              <div className="mt-0.5 font-mono text-sm" style={{ color: MOB_THEME.accent }}>
+                {mob.kills} {MOB_THEME.unit}
+              </div>
+              {mob.top && (
+                <div className="text-sm">
+                  <span className="text-muted">surtout par </span>
+                  <Link to={`/membres/${mob.top.user.id}`}>{mob.top.user.display_name}</Link>
+                  <span className="text-muted"> ({mob.top.kills})</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
