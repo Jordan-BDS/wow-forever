@@ -19,6 +19,12 @@ class IsOwnerOrOfficer(permissions.BasePermission):
         return obj.owner_id == request.user.pk or request.user.is_officer_or_above
 
 
+CREATION_LOCKED = (
+    "Les personnages arrivent du jeu : installe l'addon et le compagnon, "
+    "ton personnage apparaîtra ici tout seul."
+)
+
+
 class CharacterViewSet(viewsets.ModelViewSet):
     """Personnages de la guilde. Lecture pour tous ; écriture par le propriétaire ou un officier."""
 
@@ -31,9 +37,10 @@ class CharacterViewSet(viewsets.ModelViewSet):
     )
 
     def perform_create(self, serializer):
+        # Depuis la sortie du jeu, les personnages arrivent de l'addon ; seul un officier peut en saisir un.
+        if not self.request.user.is_officer_or_above:
+            raise PermissionDenied(CREATION_LOCKED)
         owner = serializer.validated_data.get("owner", self.request.user)
-        if owner != self.request.user and not self.request.user.is_officer_or_above:
-            raise PermissionDenied("Seul un officier peut créer un personnage pour quelqu'un d'autre.")
         serializer.save(owner=owner)
 
     def perform_destroy(self, instance: Character):

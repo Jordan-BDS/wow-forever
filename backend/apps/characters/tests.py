@@ -34,19 +34,27 @@ def create(client, **overrides):
     return client.post("/api/characters/", payload(**overrides), format="json")
 
 
+class TestCreationLock:
+    def test_members_cannot_create_but_officers_can_for_them(self, as_user, member, officer):
+        denied = create(as_user(member))
+        assert denied.status_code == 403 and "addon" in denied.data["detail"]
+        allowed = create(as_user(officer), owner_id=member.pk)
+        assert allowed.status_code == 201 and allowed.data["owner"]["id"] == member.pk
+
+
 class TestCreate:
-    def test_creates_and_first_character_becomes_main(self, as_user, member):
-        response = create(as_user(member))
+    def test_creates_and_first_character_becomes_main(self, as_user, member, officer):
+        response = create(as_user(officer), owner_id=member.pk)
         assert response.status_code == 201, response.data
         assert response.data["is_main"] is True
         assert response.data["owner"]["id"] == member.pk
         assert [p["profession"] for p in response.data["professions"]] == ["alchemy", "herbalism", "cooking"]
 
-    def test_second_character_is_an_alt_unless_marked_main(self, as_user, member):
-        client = as_user(member)
-        first = create(client).data
+    def test_second_character_is_an_alt_unless_marked_main(self, as_user, member, officer):
+        first = create(as_user(officer), owner_id=member.pk).data
         second = create(
-            client,
+            as_user(officer),
+            owner_id=member.pk,
             name="Garrosh",
             player_class="warrior",
             main_role="tank",
@@ -56,7 +64,8 @@ class TestCreate:
         ).data
         assert second["is_main"] is False
         third = create(
-            client,
+            as_user(officer),
+            owner_id=member.pk,
             name="Rexxar",
             player_class="hunter",
             main_role="dps",
@@ -69,15 +78,16 @@ class TestCreate:
         assert Character.objects.get(pk=first["id"]).is_main is False
         assert Character.objects.filter(owner=member, is_main=True).count() == 1
 
-    def test_name_is_unique_case_insensitive(self, as_user, member, other_member):
-        create(as_user(member))
-        response = create(as_user(other_member), name="thrall")
+    def test_name_is_unique_case_insensitive(self, as_user, member, other_member, officer):
+        create(as_user(officer), owner_id=member.pk)
+        response = create(as_user(officer), owner_id=other_member.pk, name="thrall")
         assert response.status_code == 400
         assert "name" in response.data
 
-    def test_rejects_incompatible_race_and_class(self, as_user, member):
+    def test_rejects_incompatible_race_and_class(self, as_user, member, officer):
         response = create(
-            as_user(member),
+            as_user(officer),
+            owner_id=member.pk,
             race="tauren",
             player_class="rogue",
             main_role="dps",
@@ -87,9 +97,10 @@ class TestCreate:
         assert response.status_code == 400
         assert "race" in response.data
 
-    def test_rejects_role_the_class_cannot_fill(self, as_user, member):
+    def test_rejects_role_the_class_cannot_fill(self, as_user, member, officer):
         response = create(
-            as_user(member),
+            as_user(officer),
+            owner_id=member.pk,
             player_class="mage",
             race="undead",
             main_role="tank",
@@ -99,19 +110,20 @@ class TestCreate:
         assert response.status_code == 400
         assert "main_role" in response.data
 
-    def test_rejects_specialization_of_another_class(self, as_user, member):
-        response = create(as_user(member), specialization="mage-fire")
+    def test_rejects_specialization_of_another_class(self, as_user, member, officer):
+        response = create(as_user(officer), owner_id=member.pk, specialization="mage-fire")
         assert response.status_code == 400
         assert "specialization" in response.data
 
-    def test_rejects_same_main_and_off_role(self, as_user, member):
-        response = create(as_user(member), off_role="heal")
+    def test_rejects_same_main_and_off_role(self, as_user, member, officer):
+        response = create(as_user(officer), owner_id=member.pk, off_role="heal")
         assert response.status_code == 400
         assert "off_role" in response.data
 
-    def test_rejects_three_primary_professions(self, as_user, member):
+    def test_rejects_three_primary_professions(self, as_user, member, officer):
         response = create(
-            as_user(member),
+            as_user(officer),
+            owner_id=member.pk,
             professions=[
                 {"profession": "alchemy", "skill": 1},
                 {"profession": "herbalism", "skill": 1},
@@ -121,18 +133,20 @@ class TestCreate:
         assert response.status_code == 400
         assert "professions" in response.data
 
-    def test_rejects_profession_specialization_mismatch(self, as_user, member):
+    def test_rejects_profession_specialization_mismatch(self, as_user, member, officer):
         response = create(
-            as_user(member),
+            as_user(officer),
+            owner_id=member.pk,
             professions=[
                 {"profession": "alchemy", "skill": 1, "specialization": "engineering-gnomish"},
             ],
         )
         assert response.status_code == 400
 
-    def test_accepts_profession_specialization(self, as_user, member):
+    def test_accepts_profession_specialization(self, as_user, member, officer):
         response = create(
-            as_user(member),
+            as_user(officer),
+            owner_id=member.pk,
             professions=[
                 {"profession": "engineering", "skill": 300, "specialization": "engineering-gnomish"},
             ],
@@ -140,13 +154,14 @@ class TestCreate:
         assert response.status_code == 201, response.data
         assert response.data["professions"][0]["specialization"] == "engineering-gnomish"
 
-    def test_race_must_match_guild_faction(self, as_user, member):
+    def test_race_must_match_guild_faction(self, as_user, member, officer):
         settings = GuildSettings.load()
         settings.faction = "alliance"
         settings.save()
-        assert create(as_user(member)).status_code == 400
+        assert create(as_user(officer), owner_id=member.pk).status_code == 400
         ok = create(
-            as_user(member),
+            as_user(officer),
+            owner_id=member.pk,
             race="skyborn-alliance",
             player_class="druid",
             main_role="heal",
@@ -155,9 +170,9 @@ class TestCreate:
         )
         assert ok.status_code == 201, ok.data
 
-    def test_level_bounds(self, as_user, member):
-        assert create(as_user(member), level=61).status_code == 400
-        assert create(as_user(member), level=0).status_code == 400
+    def test_level_bounds(self, as_user, member, officer):
+        assert create(as_user(officer), owner_id=member.pk, level=61).status_code == 400
+        assert create(as_user(officer), owner_id=member.pk, level=0).status_code == 400
 
     def test_officer_can_create_for_someone_else_but_member_cannot(
         self, as_user, member, officer, other_member
@@ -170,9 +185,9 @@ class TestCreate:
 
 
 class TestUpdateAndDelete:
-    def test_owner_updates_level_and_professions(self, as_user, member):
+    def test_owner_updates_level_and_professions(self, as_user, member, officer):
         client = as_user(member)
-        created = create(client).data
+        created = create(as_user(officer), owner_id=member.pk).data
         response = client.patch(
             f"/api/characters/{created['id']}/",
             {"level": 60, "professions": [{"profession": "alchemy", "skill": 300}]},
@@ -183,17 +198,18 @@ class TestUpdateAndDelete:
         assert len(response.data["professions"]) == 1
 
     def test_other_member_cannot_edit_but_officer_can(self, as_user, member, other_member, officer):
-        created = create(as_user(member)).data
+        created = create(as_user(officer), owner_id=member.pk).data
         assert (
             as_user(other_member).patch(f"/api/characters/{created['id']}/", {"level": 2}).status_code == 403
         )
         assert as_user(officer).patch(f"/api/characters/{created['id']}/", {"level": 2}).status_code == 200
 
-    def test_set_main_switches_main(self, as_user, member):
+    def test_set_main_switches_main(self, as_user, member, officer):
         client = as_user(member)
-        first = create(client).data
+        first = create(as_user(officer), owner_id=member.pk).data
         second = create(
-            client,
+            as_user(officer),
+            owner_id=member.pk,
             name="Alt",
             player_class="mage",
             race="troll",
@@ -207,11 +223,12 @@ class TestUpdateAndDelete:
         assert response.data["is_main"] is True
         assert Character.objects.get(pk=first["id"]).is_main is False
 
-    def test_deleting_main_promotes_highest_alt(self, as_user, member):
+    def test_deleting_main_promotes_highest_alt(self, as_user, member, officer):
         client = as_user(member)
-        main = create(client).data
+        main = create(as_user(officer), owner_id=member.pk).data
         alt = create(
-            client,
+            as_user(officer),
+            owner_id=member.pk,
             name="Alt",
             player_class="mage",
             race="troll",
@@ -224,8 +241,8 @@ class TestUpdateAndDelete:
         assert client.delete(f"/api/characters/{main['id']}/").status_code == 204
         assert Character.objects.get(pk=alt["id"]).is_main is True
 
-    def test_list_hides_characters_of_deactivated_members(self, as_user, member, other_member):
-        create(as_user(member))
+    def test_list_hides_characters_of_deactivated_members(self, as_user, member, other_member, officer):
+        create(as_user(officer), owner_id=member.pk)
         other_member.is_active = False
         other_member.save()
         from apps.gamedata.models import PlayerClass, Race

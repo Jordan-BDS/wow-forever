@@ -26,12 +26,15 @@ export function CharactersPage() {
           <CharacterCard key={character.id} character={character} gamedata={gamedata.data} />
         ))}
         <Link
-          to="/personnages/nouveau"
-          className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-surface/40 text-muted transition hover:border-gold hover:text-gold"
+          to="/profil"
+          className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-surface/40 px-4 text-center text-muted transition hover:border-gold hover:text-gold"
         >
-          <span className="text-4xl leading-none">+</span>
+          <span className="text-4xl leading-none">⇄</span>
           <span className="text-sm">
-            {mine.length === 0 ? "Créer mon premier personnage" : "Ajouter un personnage"}
+            {mine.length === 0 ? "Ton personnage arrive du jeu" : "Un autre personnage ? Il arrive du jeu"}
+          </span>
+          <span className="text-xs">
+            Installe l'addon et le compagnon depuis ton profil, coche « Envoyer ce personnage ».
           </span>
         </Link>
       </div>

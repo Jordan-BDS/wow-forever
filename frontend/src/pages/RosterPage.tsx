@@ -2,14 +2,17 @@ import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { Character, GameRole } from "@/api/client";
 import { useCharacters, useGameData } from "@/api/hooks";
+import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ClassDot, ClassName, GameRoleTag, LevelBadge } from "@/components/game";
 import { Button, Card, PageTitle, Select, Spinner } from "@/components/ui";
 import { GAME_ROLES, ROLE_LABEL, findClass, specName } from "@/lib/game";
+import { isOfficerOrAbove } from "@/lib/roles";
 import { COMPOSITION_MODES, type CompositionMode, groupByOwner, summarize } from "@/lib/roster";
 
 export function RosterPage() {
   const characters = useCharacters();
   const gamedata = useGameData();
+  const me = useCurrentUser();
   const [classFilter, setClassFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState<GameRole | "">("");
   const [minLevel, setMinLevel] = useState(1);
@@ -42,9 +45,11 @@ export function RosterPage() {
     <>
       <PageTitle
         actions={
-          <Link to="/personnages/nouveau">
-            <Button>Ajouter un personnage</Button>
-          </Link>
+          isOfficerOrAbove(me.site_role) ? (
+            <Link to="/personnages/nouveau">
+              <Button>Saisir un personnage (officier)</Button>
+            </Link>
+          ) : undefined
         }
       >
         Roster
@@ -91,7 +96,8 @@ export function RosterPage() {
 
           {groups.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted">
-              Aucun personnage. <Link to="/personnages/nouveau">Ajoute le tien</Link> pour lancer le roster.
+              Aucun personnage pour l'instant : ils arrivent du jeu, via l'addon et le compagnon (voir{" "}
+              <Link to="/profil">ton profil</Link>).
             </p>
           ) : (
             <table className="w-full text-sm">

@@ -310,7 +310,10 @@ class TestImport:
             again.data["snapshots"][0]["status"] == "ignored" and client.get("/api/sync/pending/").data == []
         )
 
-    def test_low_level_ignored_by_default_but_can_be_included(self, as_user, member):
+    def test_low_level_ignored_by_default_but_can_be_included(self, as_user, member, monkeypatch):
+        monkeypatch.setattr(
+            services, "MIN_LEVEL_BY_DEFAULT", 10
+        )  # désactivé pour la sortie (tout le monde est niveau 1)
         client = as_user(member)
         line = do_import(
             client, export_code(character_payload(guid="Player-1-0004", name="Banquo", level=4))

@@ -78,6 +78,8 @@ export function CharacterFormPage() {
     }
     return <CharacterForm key={existing.id} characterId={characterId} initial={fromCharacter(existing)} />;
   }
+  // Création : réservée aux officiers, les personnages des membres arrivent du jeu.
+  if (!isOfficerOrAbove(me.site_role)) return <Navigate to="/personnages" replace />;
   return <CharacterForm initial={EMPTY} />;
 }
 

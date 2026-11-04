@@ -294,7 +294,8 @@ function SignupWidget({ event, onChange }: { event: GuildEvent; onChange: () => 
   if (mine.length === 0) {
     return (
       <Card className="text-sm text-muted">
-        <Link to="/personnages/nouveau">Crée un personnage</Link> pour pouvoir t'inscrire.
+        Aucun personnage synchronisé : installe l'addon et le compagnon depuis{" "}
+        <Link to="/profil">ton profil</Link>, ton personnage apparaîtra ici et tu pourras t'inscrire.
       </Card>
     );
   }

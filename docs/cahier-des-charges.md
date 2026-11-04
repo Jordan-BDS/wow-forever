@@ -1084,6 +1084,14 @@ réalité du jeu à côté, sans la remplacer.
 - **Roster** : colonne « synchro » (pastille de fraîcheur), tri par niveau réel, filtre « a l'accès à <raid> »,
   « verrouillé cette semaine ».
 
+### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
+
+La création manuelle de personnages est **réservée aux officiers** (API et site) : les membres installent l'addon et
+le compagnon, cochent « Envoyer ce personnage », et le personnage apparaît sur le site au premier envoi (plus de seuil
+de niveau à l'import). Au déploiement suivant, une migration a **effacé tous les personnages** saisis avant la sortie,
+avec leurs métiers, sets, builds, recettes, inscriptions aux événements et l'historique d'import ; les appareils du
+compagnon sont conservés. Restent modifiables à la main : rôles, main, note (le reste est écrasé par l'import).
+
 ### Classements
 
 **Réalisation (28 octobre 2026)** : onglet **Progression** de la fiche (tuiles d'activité avec variation sur 7 jours,

@@ -37,7 +37,7 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 PARIS = ZoneInfo("Europe/Paris")
-MIN_LEVEL_BY_DEFAULT = 10
+MIN_LEVEL_BY_DEFAULT = 1  # sortie du jeu : tout le monde démarre niveau 1, on prend tout
 SNAPSHOT_RETENTION_DAYS = 90
 LOW_LEVEL_NOTE = "low_level"
 # Bornes de `exported_at` : avant 2020 ou au-delà d'un siècle, la valeur est aberrante ; au-delà de quelques
