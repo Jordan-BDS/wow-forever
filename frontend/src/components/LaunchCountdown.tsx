@@ -15,7 +15,8 @@ export function LaunchCountdown() {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
   }, []);
-  const phase = launchPhase(now);
+  const target = devLaunchOverride() ?? LAUNCH_AT;
+  const phase = launchPhase(now, target);
   if (phase === "over") return null;
 
   const launchLocal = LAUNCH_AT.toLocaleString("fr-FR", {
@@ -44,7 +45,7 @@ export function LaunchCountdown() {
     );
   }
 
-  const parts = splitCountdown(LAUNCH_AT, now);
+  const parts = splitCountdown(target, now);
   return (
     <section
       className="flex h-full flex-col justify-center overflow-hidden rounded-lg border border-gold/70 bg-surface p-5 sm:p-6"
@@ -72,4 +73,13 @@ export function LaunchCountdown() {
       </p>
     </section>
   );
+}
+
+/** Dev seulement : `?lancement=<minutes>` place la sortie il y a N minutes (0 = à l'instant) pour voir l'après. */
+function devLaunchOverride(): Date | null {
+  if (!import.meta.env.DEV) return null;
+  const raw = new URLSearchParams(window.location.search).get("lancement");
+  if (raw === null) return null;
+  const minutes = Number(raw) || 0;
+  return new Date(Date.now() - minutes * 60_000);
 }
