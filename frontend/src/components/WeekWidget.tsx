@@ -1,7 +1,10 @@
 import { Link } from "react-router";
+import { useGameData } from "@/api/hooks";
 import { formatValue, useRankings } from "@/api/sync";
+import { ClassName } from "@/components/game";
 import { TitleCards } from "@/components/TitleBadges";
 import { Card } from "@/components/ui";
+import { findClass } from "@/lib/game";
 
 /** Les cinq catégories qui donnent un Roxor, avec le nom du titre en jeu. */
 const RACES: { key: string; title: string }[] = [
@@ -15,6 +18,7 @@ const RACES: { key: string; title: string }[] = [
 /** Accueil : les Roxors de la semaine passée (définitifs), puis la course en cours vers les prochains. */
 export function WeekWidget() {
   const rankings = useRankings("week", "player");
+  const gamedata = useGameData();
   const data = rankings.data;
   if (!data || data.characters === 0) return null;
   const races = RACES.map((r) => ({ ...r, category: data.categories.find((c) => c.key === r.key) })).filter(
@@ -50,9 +54,17 @@ export function WeekWidget() {
                 <ol className="mt-1 space-y-0.5">
                   {category!.entries.slice(0, 3).map((e) => (
                     <li key={e.user.id} className="flex justify-between gap-2">
-                      <span>
+                      <span className="truncate">
                         <span className="text-muted">{e.rank}. </span>
-                        <Link to={`/membres/${e.user.id}`}>{e.user.display_name}</Link>
+                        {e.character ? (
+                          <Link to={`/personnages/${e.character.id}`}>
+                            <ClassName playerClass={findClass(gamedata.data, e.character.player_class)}>
+                              {e.character.name}
+                            </ClassName>
+                          </Link>
+                        ) : (
+                          <Link to={`/membres/${e.user.id}`}>{e.user.display_name}</Link>
+                        )}
                       </span>
                       <span className="font-mono text-muted">{formatValue(category!, e.value)}</span>
                     </li>
