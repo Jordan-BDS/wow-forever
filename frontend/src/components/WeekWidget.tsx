@@ -46,16 +46,16 @@ export function WeekWidget() {
               semaine en cours, depuis lundi · provisoire, clos dimanche minuit
             </span>
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid gap-x-10 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
             {races.map(({ key, title, category }) => (
               <div key={key} className="text-sm">
                 <div className={category!.shame ? "text-danger" : "text-gold-light"}>{title}</div>
                 <div className="text-xs text-muted">{category!.label}</div>
-                <ol className="mt-1 space-y-0.5">
+                <ol className="mt-2 space-y-1">
                   {category!.entries.slice(0, 3).map((e) => (
-                    <li key={e.user.id} className="flex justify-between gap-2">
+                    <li key={e.user.id} className="flex justify-between gap-6">
                       <span className="truncate">
-                        <span className="text-muted">{e.rank}. </span>
+                        <span className="mr-1 inline-block w-5 text-right text-muted">{e.rank}.</span>
                         {e.character ? (
                           <Link to={`/personnages/${e.character.id}`}>
                             <ClassName playerClass={findClass(gamedata.data, e.character.player_class)}>
@@ -76,11 +76,11 @@ export function WeekWidget() {
               <div className="text-sm">
                 <div className="text-gold-light">Souffre-douleur</div>
                 <div className="text-xs text-muted">Créatures les plus tuées</div>
-                <ol className="mt-1 space-y-0.5">
+                <ol className="mt-2 space-y-1">
                   {data.mobs.slice(0, 3).map((m, i) => (
-                    <li key={m.id} className="flex justify-between gap-2">
+                    <li key={m.id} className="flex justify-between gap-6">
                       <span className="truncate">
-                        <span className="text-muted">{i + 1}. </span>
+                        <span className="mr-1 inline-block w-5 text-right text-muted">{i + 1}.</span>
                         {m.name}
                       </span>
                       <span className="shrink-0 font-mono text-muted">{m.kills}</span>
