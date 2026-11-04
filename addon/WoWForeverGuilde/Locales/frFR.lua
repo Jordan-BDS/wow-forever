@@ -15,6 +15,7 @@ ns.L = setmetatable({
   SEND_CHARACTER = "Envoyer ce personnage",
   SHARE_PLAYTIME = "Partager le temps de jeu",
   SHOW_DEATHS = "Afficher les morts des autres",
+  SOUND_DEATHS = "Jouer un son à chaque mort affichée",
   ANNOUNCE_DEATHS = "Annoncer mes morts",
   SHARE_POSITION = "Partager ma position sur la carte (et voir les autres)",
   POSITION_ON = "Position partagée : les membres qui partagent la leur apparaissent sur la carte du monde.",

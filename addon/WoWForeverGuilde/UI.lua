@@ -115,27 +115,31 @@ local function buildMain()
   main.sendCheck = makeCheck(main, L.SEND_CHARACTER,
     function() return ns.char and not ns.Store.IsExcluded(ns.char.guid) end,
     function(on) if ns.char then ns.db.settings.excluded[ns.char.guid] = (not on) and true or nil end UI.Refresh() end)
-  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 176)
+  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 200)
   main.positionCheck = makeCheck(main, L.SHARE_POSITION,
     function() return ns.db.settings.sharePosition end,
     function(on) ns.Positions.SetSharing(on) end)
-  main.positionCheck:SetPoint("BOTTOMLEFT", 12, 152)
+  main.positionCheck:SetPoint("BOTTOMLEFT", 12, 176)
   main.minimapCheck = makeCheck(main, L.SHARE_MINIMAP,
     function() return ns.db.settings.minimapDots end,
     function(on) ns.MapUI.SetMinimap(on) end)
-  main.minimapCheck:SetPoint("BOTTOMLEFT", 12, 128)
+  main.minimapCheck:SetPoint("BOTTOMLEFT", 12, 152)
   main.gankCheck = makeCheck(main, L.GANK_ALERTS,
     function() return ns.db.settings.gankAlerts end,
     function(on) ns.db.settings.gankAlerts = on end)
-  main.gankCheck:SetPoint("BOTTOMLEFT", 12, 104)
+  main.gankCheck:SetPoint("BOTTOMLEFT", 12, 128)
   main.playCheck = makeCheck(main, L.SHARE_PLAYTIME,
     function() return ns.db.settings.sharePlaytime end,
     function(on) ns.db.settings.sharePlaytime = on end)
-  main.playCheck:SetPoint("BOTTOMLEFT", 12, 80)
+  main.playCheck:SetPoint("BOTTOMLEFT", 12, 104)
   main.showDeaths = makeCheck(main, L.SHOW_DEATHS,
     function() return ns.db.settings.showDeaths end,
     function(on) ns.db.settings.showDeaths = on end)
-  main.showDeaths:SetPoint("BOTTOMLEFT", 12, 56)
+  main.showDeaths:SetPoint("BOTTOMLEFT", 12, 80)
+  main.soundDeaths = makeCheck(main, L.SOUND_DEATHS,
+    function() return ns.db.settings.soundDeaths end,
+    function(on) ns.db.settings.soundDeaths = on end)
+  main.soundDeaths:SetPoint("BOTTOMLEFT", 12, 56)
   main.announceDeaths = makeCheck(main, L.ANNOUNCE_DEATHS,
     function() return ns.db.settings.announceDeaths end,
     function(on) ns.db.settings.announceDeaths = on end)

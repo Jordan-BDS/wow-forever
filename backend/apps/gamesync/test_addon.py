@@ -272,6 +272,10 @@ class TestSession:
         toast = g.WoWForeverGuildeDeath
         assert toast.shown is True and "Thrall" in toast.text.text and "une chute" in toast.text.text
         assert len(list(g._SOUNDS.values())) == 1
+        # Son coupé → le popup reste, sans son.
+        lua.execute("WoWForeverGuildeDB.settings.soundDeaths = false")
+        g._FIRE("CHAT_MSG_CHANNEL", sent.text, "Thrall", "", "", "", "", 0, 5, "wfgdeaths")
+        assert toast.shown is True and len(list(g._SOUNDS.values())) == 1
         # Désactivé → rien n'est envoyé.
         lua.execute("WoWForeverGuildeDB.settings.announceDeaths = false")
         g._FIRE("PLAYER_DEAD")
