@@ -5,7 +5,7 @@ import { KEYS, useInvalidate, useMyAvailability } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ME_KEY } from "@/auth/useMe";
 import { AvailabilityGrid } from "@/components/AvailabilityGrid";
-import { CompanionCard, GameImportCard, PendingCharactersCard } from "@/components/GameSync";
+import { PendingCharactersCard, SyncJourney } from "@/components/GameSync";
 import { Button, Card, Field, Input, PageTitle, Spinner } from "@/components/ui";
 import { cellsToSlots, slotsToCells } from "@/lib/availability";
 
@@ -24,21 +24,19 @@ export function ProfilePage() {
   return (
     <>
       <PageTitle>Mon profil</PageTitle>
-      <div className="grid gap-4 md:grid-cols-[360px_1fr]">
-        <div className="space-y-4">
-          <ProfileForm key={me.id} initialName={me.display_name} initialBio={me.bio ?? ""} />
-          <DmPreferences key={`${me.dm_enabled}-${me.dm_muted_kinds.join(",")}`} me={me} />
-        </div>
-        <div className="space-y-4">
+      <div className="space-y-5">
+        <SyncJourney />
+        <PendingCharactersCard />
+        <div className="grid gap-5 md:grid-cols-[360px_1fr]">
+          <Card className="space-y-5">
+            <ProfileForm key={me.id} initialName={me.display_name} initialBio={me.bio ?? ""} />
+            <div className="rule-gold opacity-60" />
+            <DmPreferences key={`${me.dm_enabled}-${me.dm_muted_kinds.join(",")}`} me={me} />
+          </Card>
           <AvailabilityEditor
             key={JSON.stringify(availability.data)}
             initial={slotsToCells(availability.data ?? [])}
           />
-          <PendingCharactersCard />
-          <div className="grid gap-4 lg:grid-cols-2">
-            <GameImportCard />
-            <CompanionCard />
-          </div>
         </div>
       </div>
     </>
@@ -64,39 +62,37 @@ function ProfileForm({ initialName, initialBio }: { initialName: string; initial
   });
 
   return (
-    <Card>
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          save.mutate();
-        }}
-      >
-        <h2 className="font-display text-lg">Identité</h2>
-        <Field label="Nom affiché">
-          <Input
-            value={displayName}
-            minLength={2}
-            maxLength={64}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
-        </Field>
-        <Field label="Bio">
-          <textarea
-            value={bio}
-            rows={4}
-            onChange={(e) => setBio(e.target.value)}
-            className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm focus:border-gold focus:outline-none"
-          />
-        </Field>
-        <div className="flex items-center gap-3">
-          <Button type="submit" disabled={save.isPending}>
-            Enregistrer
-          </Button>
-          {message && <span className="text-sm text-muted">{message}</span>}
-        </div>
-      </form>
-    </Card>
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        save.mutate();
+      }}
+    >
+      <h2 className="font-display text-lg">Identité</h2>
+      <Field label="Nom affiché">
+        <Input
+          value={displayName}
+          minLength={2}
+          maxLength={64}
+          onChange={(e) => setDisplayName(e.target.value)}
+        />
+      </Field>
+      <Field label="Bio">
+        <textarea
+          value={bio}
+          rows={4}
+          onChange={(e) => setBio(e.target.value)}
+          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm focus:border-gold focus:outline-none"
+        />
+      </Field>
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={save.isPending}>
+          Enregistrer
+        </Button>
+        {message && <span className="text-sm text-muted">{message}</span>}
+      </div>
+    </form>
   );
 }
 
@@ -126,7 +122,7 @@ function DmPreferences({ me }: { me: Member }) {
   };
 
   return (
-    <Card className="space-y-3">
+    <div className="space-y-3">
       <div>
         <h2 className="font-display text-lg">Messages privés du bot</h2>
         <p className="text-xs text-muted">
@@ -167,7 +163,7 @@ function DmPreferences({ me }: { me: Member }) {
         ))}
       </ul>
       {message && <p className="text-xs text-muted">{message}</p>}
-    </Card>
+    </div>
   );
 }
 

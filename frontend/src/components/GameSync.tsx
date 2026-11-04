@@ -9,6 +9,9 @@ import {
   useSyncPending,
   useSyncRelease,
 } from "@/api/hooks";
+import clsx from "clsx";
+import { Link } from "react-router";
+import { useCurrentUser } from "@/auth/useCurrentUser";
 import { Button, Card, Field, Spinner, Textarea } from "@/components/ui";
 import { formatAgo, formatDateTime } from "@/lib/game";
 
@@ -46,8 +49,8 @@ function summarize(batch: ImportBatch): string {
   return parts.length ? parts.join(", ") : "rien de nouveau";
 }
 
-/** Collage du code d'export de l'addon (chemin sans compagnon). */
-export function GameImportCard() {
+/** Collage du code d'export de l'addon (chemin sans compagnon). `plain` : sans carte, pour s'emboîter ailleurs. */
+export function GameImportCard({ plain = false }: { plain?: boolean }) {
   const invalidate = useInvalidate();
   const [code, setCode] = useState("");
   const [result, setResult] = useState<ImportBatch | null>(null);
@@ -72,15 +75,18 @@ export function GameImportCard() {
     },
   });
 
+  const Wrapper = plain ? "div" : Card;
   return (
-    <Card className="space-y-3">
-      <div>
-        <h2 className="font-display text-lg">Importer depuis le jeu</h2>
-        <p className="text-xs text-muted">
-          Dans le jeu, ouvre la fenêtre de l'addon, « Exporter le code », Ctrl+C, puis colle ici. Avec le
-          compagnon installé, c'est automatique à chaque déconnexion.
-        </p>
-      </div>
+    <Wrapper className="space-y-3">
+      {!plain && (
+        <div>
+          <h2 className="font-display text-lg">Importer depuis le jeu</h2>
+          <p className="text-xs text-muted">
+            Dans le jeu, ouvre la fenêtre de l'addon, « Exporter le code », Ctrl+C, puis colle ici. Avec le
+            compagnon installé, c'est automatique à chaque déconnexion.
+          </p>
+        </div>
+      )}
       <form
         className="space-y-3"
         onSubmit={(e) => {
@@ -106,7 +112,7 @@ export function GameImportCard() {
         </div>
       </form>
       {result && <ImportResult batch={result} />}
-    </Card>
+    </Wrapper>
   );
 }
 
@@ -241,10 +247,17 @@ export function PendingCharactersCard() {
   );
 }
 
-/** Téléchargement du compagnon, code d'appairage, machines liées. */
-export function CompanionCard() {
+const ROMAN = ["I", "II", "III", "IV"];
+
+/**
+ * Bande « Depuis le jeu » du profil : les quatre étapes qui amènent un personnage sur le site, reliées par un fil
+ * d'or qui se remplit au fur et à mesure. Téléchargement, appairage, consigne en jeu, personnages reçus.
+ */
+export function SyncJourney() {
   const release = useSyncRelease();
   const devices = useSyncDevices();
+  const characters = useCharacters();
+  const me = useCurrentUser();
   const invalidate = useInvalidate();
   const [pairing, setPairing] = useState<{ code: string; expires_at: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -271,93 +284,171 @@ export function CompanionCard() {
     onError: (e) => setError(errorMessage(e)),
   });
 
-  const active = (devices.data ?? []).filter((d) => !d.revoked_at);
+  const allDevices = devices.data ?? [];
+  const active = allDevices.filter((d) => !d.revoked_at);
+  const synced = (characters.data ?? [])
+    .filter((c) => c.owner.id === me.id && c.guid)
+    .sort((a, b) => (b.last_synced_at ?? "").localeCompare(a.last_synced_at ?? ""));
+  const lastSync = synced[0]?.last_synced_at ?? null;
+  const done = [allDevices.length > 0, active.length > 0, synced.length > 0, synced.length > 0];
 
   return (
-    <Card className="space-y-3">
-      <div>
-        <h2 className="font-display text-lg">Compagnon</h2>
-        <p className="text-xs text-muted">
-          Petit programme qui installe l'addon dans ton dossier WoW et envoie tes données au site à chaque
-          déconnexion.
+    <section className="rounded-md border border-gold/40 bg-surface-2/70 bg-gradient-to-b from-surface-2/80 to-surface/90 p-4 sm:p-5">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="font-display text-xl">Depuis le jeu</h2>
+        <p className="text-sm text-muted">
+          {synced.length === 0
+            ? "Ton personnage n'a pas encore été reçu. Quatre étapes, la première fois seulement."
+            : lastSync
+              ? `Dernier envoi ${formatAgo(lastSync)}.`
+              : "Personnages reçus."}
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        {release.data ? (
-          <>
-            {release.data.assets.windows && (
-              <a href={release.data.assets.windows} className="inline-flex">
-                <Button type="button">Télécharger pour Windows</Button>
-              </a>
-            )}
-            {release.data.assets.macos && (
-              <a href={release.data.assets.macos} className="inline-flex">
-                <Button type="button" variant="ghost">
-                  macOS
-                </Button>
-              </a>
-            )}
-            {release.data.assets.addon && (
-              <a href={release.data.assets.addon} className="text-xs">
-                Addon seul (zip)
-              </a>
-            )}
-            <span className="text-xs text-muted">
-              Version {release.data.version}
-              {release.data.published_at ? ` · ${formatDateTime(release.data.published_at)}` : ""}
-            </span>
-          </>
-        ) : (
-          <span className="text-muted">
-            Pas encore disponible : le compagnon arrive après la sortie du jeu.
-          </span>
-        )}
-      </div>
+      <ol className="grid gap-x-4 gap-y-6 md:grid-cols-4">
+        <Step n={0} done={done} title="Installe le compagnon">
+          {release.data ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {release.data.assets.windows && (
+                <a href={release.data.assets.windows} className="inline-flex">
+                  <Button type="button">Windows</Button>
+                </a>
+              )}
+              {release.data.assets.macos && (
+                <a href={release.data.assets.macos} className="inline-flex">
+                  <Button type="button" variant="ghost">
+                    macOS
+                  </Button>
+                </a>
+              )}
+              <span className="text-xs text-muted">version {release.data.version}</span>
+            </div>
+          ) : (
+            <p className="text-sm text-muted">Le compagnon n'est pas encore publié.</p>
+          )}
+          <p className="text-xs text-muted">Il installe l'addon dans ton dossier WoW et le tient à jour.</p>
+        </Step>
 
-      <div className="space-y-2 border-t border-border pt-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="ghost" disabled={generate.isPending} onClick={() => generate.mutate()}>
-            {pairing ? "Nouveau code" : "Lier un compagnon"}
-          </Button>
+        <Step n={1} done={done} title="Lie-le à ton compte">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" disabled={generate.isPending} onClick={() => generate.mutate()}>
+              {pairing ? "Nouveau code" : active.length > 0 ? "Lier un autre PC" : "Obtenir un code"}
+            </Button>
+          </div>
           {pairing && (
-            <span className="text-sm">
-              Code à saisir dans le compagnon :{" "}
+            <p className="text-sm">
+              À saisir dans le compagnon :{" "}
               <code className="rounded bg-bg px-2 py-1 font-mono text-lg tracking-widest text-gold">
                 {pairing.code}
               </code>
-              <span className="ml-2 text-xs text-muted">
+              <span className="block text-xs text-muted">
                 valable jusqu'à {formatDateTime(pairing.expires_at)}
               </span>
-            </span>
+            </p>
           )}
-        </div>
-        {active.length > 0 && (
-          <ul className="space-y-1 text-sm">
-            {active.map((d) => (
-              <li key={d.id} className="flex flex-wrap items-center gap-2">
-                <span>{d.name}</span>
-                <span className="text-xs text-muted">
-                  {d.last_seen_at ? `vu ${formatAgo(d.last_seen_at)}` : "jamais connecté"} · lié le{" "}
-                  {formatDateTime(d.created_at)}
-                </span>
-                <Button
-                  variant="danger"
-                  className="px-2 py-0.5 text-xs"
-                  disabled={revoke.isPending}
-                  onClick={() => {
-                    if (window.confirm(`Révoquer « ${d.name} » ? Il devra être appairé de nouveau.`))
-                      revoke.mutate(d.id);
-                  }}
-                >
-                  Révoquer
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {error && <p className="text-sm text-danger">{error}</p>}
+          {active.length > 0 && (
+            <ul className="space-y-1 text-sm">
+              {active.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center gap-x-2">
+                  <span>{d.name}</span>
+                  <span className="text-xs text-muted">
+                    {d.last_seen_at ? `vu ${formatAgo(d.last_seen_at)}` : "jamais connecté"}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs text-muted underline-offset-2 hover:text-danger hover:underline"
+                    disabled={revoke.isPending}
+                    onClick={() => {
+                      if (window.confirm(`Révoquer « ${d.name} » ? Il devra être lié de nouveau.`))
+                        revoke.mutate(d.id);
+                    }}
+                  >
+                    révoquer
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {error && <p className="text-xs text-danger">{error}</p>}
+        </Step>
+
+        <Step n={2} done={done} title="En jeu, envoie ton personnage">
+          <p className="text-sm">
+            Tape <code className="rounded bg-bg px-1.5 py-0.5 font-mono text-xs text-gold">/mf</code> et
+            laisse « Envoyer ce personnage » coché. Les données partent à chaque déconnexion ou /reload.
+          </p>
+          <p className="text-xs text-muted">
+            Niveau, métiers, recettes, talents, équipement : tout vient du jeu, rien à saisir ici.
+          </p>
+        </Step>
+
+        <Step n={3} done={done} title="Tes personnages">
+          {synced.length === 0 ? (
+            <p className="text-sm text-muted">Ils apparaîtront ici au premier envoi.</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {synced.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-baseline gap-x-2">
+                  <Link to={`/personnages/${c.id}`}>{c.name}</Link>
+                  <span className="text-xs text-muted">
+                    niveau {c.level}
+                    {c.last_synced_at ? ` · ${formatAgo(c.last_synced_at)}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Step>
+      </ol>
+
+      <details className="mt-5 border-t border-border/70 pt-3 text-sm">
+        <summary className="cursor-pointer text-muted hover:text-text">
+          Sans compagnon : coller un code d'export
+        </summary>
+        <p className="mt-2 mb-3 text-xs text-muted">
+          Dans le jeu, /mf puis « Exporter le code », Ctrl+C, et colle ici.
+        </p>
+        <GameImportCard plain />
+      </details>
+    </section>
+  );
+}
+
+function Step({
+  n,
+  done,
+  title,
+  children,
+}: {
+  n: number;
+  done: boolean[];
+  title: string;
+  children: React.ReactNode;
+}) {
+  const isDone = done[n];
+  const threadDone = n > 0 && done[n - 1];
+  return (
+    <li
+      className={clsx(
+        "relative space-y-2 border-l border-border pl-5 md:border-0 md:pl-0",
+        n > 0 &&
+          "md:before:absolute md:before:top-[17px] md:before:right-1/2 md:before:left-[-50%] md:before:h-px",
+        n > 0 && (threadDone ? "md:before:bg-gold" : "md:before:bg-border"),
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <span
+          className={clsx(
+            "relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full border-2 font-display text-sm",
+            isDone ? "border-gold bg-gold text-bg" : "border-gold/70 bg-surface text-gold",
+          )}
+          aria-label={isDone ? "fait" : "à faire"}
+        >
+          {ROMAN[n]}
+        </span>
+        <h3 className="font-display text-base leading-tight">{title}</h3>
       </div>
-    </Card>
+      <div className="space-y-2 md:pl-12">{children}</div>
+    </li>
   );
 }
