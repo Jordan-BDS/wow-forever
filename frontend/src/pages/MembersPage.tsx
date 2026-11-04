@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { useState } from "react";
+import { Link } from "react-router";
 import { api, errorMessage, type Member, type SiteRole } from "@/api/client";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { Button, Card, PageTitle, RoleBadge, Select, Spinner } from "@/components/ui";
@@ -89,8 +90,13 @@ export function MembersPage() {
                   >
                     <td className="px-3 py-2 sm:px-4">
                       <div className="flex items-center gap-3">
-                        <img src={member.avatar_url} alt="" className="size-8 shrink-0 rounded-full" />
-                        <span className="font-medium">{member.display_name}</span>
+                        <Link
+                          to={`/membres/${member.id}`}
+                          className="flex items-center gap-3 text-text hover:text-gold"
+                        >
+                          <img src={member.avatar_url} alt="" className="size-8 shrink-0 rounded-full" />
+                          <span className="font-medium">{member.display_name}</span>
+                        </Link>
                         {isMe && <span className="text-xs text-muted">(toi)</span>}
                       </div>
                     </td>
