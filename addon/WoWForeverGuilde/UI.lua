@@ -119,35 +119,35 @@ local function buildMain()
   main.sendCheck = makeCheck(main, L.SEND_CHARACTER,
     function() return ns.char and not ns.Store.IsExcluded(ns.char.guid) end,
     function(on) if ns.char then ns.db.settings.excluded[ns.char.guid] = (not on) and true or nil end UI.Refresh() end)
-  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 200)
+  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 206)
   main.positionCheck = makeCheck(main, L.SHARE_POSITION,
     function() return ns.db.settings.sharePosition end,
     function(on) ns.Positions.SetSharing(on) end)
-  main.positionCheck:SetPoint("BOTTOMLEFT", 12, 176)
+  main.positionCheck:SetPoint("BOTTOMLEFT", 12, 184)
   main.minimapCheck = makeCheck(main, L.SHARE_MINIMAP,
     function() return ns.db.settings.minimapDots end,
     function(on) ns.MapUI.SetMinimap(on) end)
-  main.minimapCheck:SetPoint("BOTTOMLEFT", 12, 152)
+  main.minimapCheck:SetPoint("BOTTOMLEFT", 12, 162)
   main.gankCheck = makeCheck(main, L.GANK_ALERTS,
     function() return ns.db.settings.gankAlerts end,
     function(on) ns.db.settings.gankAlerts = on end)
-  main.gankCheck:SetPoint("BOTTOMLEFT", 12, 128)
+  main.gankCheck:SetPoint("BOTTOMLEFT", 12, 140)
   main.playCheck = makeCheck(main, L.SHARE_PLAYTIME,
     function() return ns.db.settings.sharePlaytime end,
     function(on) ns.db.settings.sharePlaytime = on end)
-  main.playCheck:SetPoint("BOTTOMLEFT", 12, 104)
+  main.playCheck:SetPoint("BOTTOMLEFT", 12, 118)
   main.showDeaths = makeCheck(main, L.SHOW_DEATHS,
     function() return ns.db.settings.showDeaths end,
     function(on) ns.db.settings.showDeaths = on end)
-  main.showDeaths:SetPoint("BOTTOMLEFT", 12, 80)
+  main.showDeaths:SetPoint("BOTTOMLEFT", 12, 96)
   main.soundDeaths = makeCheck(main, L.SOUND_DEATHS,
     function() return ns.db.settings.soundDeaths end,
     function(on) ns.db.settings.soundDeaths = on end)
-  main.soundDeaths:SetPoint("BOTTOMLEFT", 12, 56)
+  main.soundDeaths:SetPoint("BOTTOMLEFT", 12, 74)
   main.announceDeaths = makeCheck(main, L.ANNOUNCE_DEATHS,
     function() return ns.db.settings.announceDeaths end,
     function(on) ns.db.settings.announceDeaths = on end)
-  main.announceDeaths:SetPoint("BOTTOMLEFT", 12, 32)
+  main.announceDeaths:SetPoint("BOTTOMLEFT", 12, 52)
 
   -- Colonne état
   main.statusHeader = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -173,20 +173,21 @@ local function buildMain()
   main.lastWrite:SetPoint("BOTTOMLEFT", 240, 74)
   main.session = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   main.session:SetPoint("BOTTOMRIGHT", -16, 74)
-  main.exportButton = makeButton(main, L.EXPORT, 170)
-  main.exportButton:SetPoint("BOTTOMLEFT", 240, 40)
-  main.exportButton:SetScript("OnClick", function() UI.ShowExport() end)
-  main.saveButton = makeButton(main, L.SAVE_NOW, 230)
-  main.saveButton:SetPoint("LEFT", main.exportButton, "RIGHT", 8, 0)
-  main.saveButton:SetScript("OnClick", function() ReloadUI() end)
-  main.rosterButton = makeButton(main, L.ROSTER_BUTTON, 200)
-  main.rosterButton:SetPoint("BOTTOMLEFT", 12, 8)
+  -- Une seule rangée de boutons, alignés en bas de la fenêtre.
+  main.rosterButton = makeButton(main, L.ROSTER_BUTTON, 140)
+  main.rosterButton:SetPoint("BOTTOMLEFT", 12, 12)
   main.rosterButton:SetScript("OnClick", function() ns.RosterUI.Toggle() end)
-  main.sosButton = makeButton(main, L.SOS_BUTTON, 170)
+  main.sosButton = makeButton(main, L.SOS_BUTTON, 140)
   main.sosButton:SetPoint("LEFT", main.rosterButton, "RIGHT", 8, 0)
   main.sosButton:SetScript("OnClick", function() ns.Positions.SOS() end)
+  main.exportButton = makeButton(main, L.EXPORT, 150)
+  main.exportButton:SetPoint("LEFT", main.sosButton, "RIGHT", 8, 0)
+  main.exportButton:SetScript("OnClick", function() UI.ShowExport() end)
+  main.saveButton = makeButton(main, L.SAVE_NOW, 190)
+  main.saveButton:SetPoint("LEFT", main.exportButton, "RIGHT", 8, 0)
+  main.saveButton:SetScript("OnClick", function() ReloadUI() end)
   main.hint = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  main.hint:SetPoint("BOTTOMRIGHT", -16, 18)
+  main.hint:SetPoint("BOTTOMRIGHT", -16, 44)
   main.hint:SetText(L.REOPEN)
   main:SetScript("OnShow", UI.Refresh)
 end
