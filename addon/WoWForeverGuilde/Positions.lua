@@ -3,7 +3,7 @@
 -- guilde, ou canal caché tant que la guilde n'existe pas) ; les autres l'affichent sur la carte du monde (MapUI.lua)
 -- et dans la liste « Guilde en jeu » (RosterUI.lua). Règle symétrique : ne pas partager = ne pas voir.
 -- Envoi au changement de zone, au déplacement, et au moins toutes les POSITION_HEARTBEAT s.
--- Appel à l'aide (« gank ») : manuel seulement (/wfg sos ou le bouton), jamais automatique pour ne pas spammer
+-- Appel à l'aide (« gank ») : manuel seulement (/mf sos ou le bouton), jamais automatique pour ne pas spammer
 -- en zone contestée ; la cible est nommée si c'est un joueur ; un envoi par GANK_COOLDOWN s ; chez les autres, toast
 -- et son dans la même zone, ligne de chat ailleurs, anneau rouge sur le point pendant ALERT_TTL s.
 local ADDON, ns = ...
@@ -191,7 +191,7 @@ local function scheduleBroadcast()
   end)
 end
 
---- /wfg lfg <texte> : recherche de groupe diffusée avec la position ; vide pour retirer.
+--- /mf lfg <texte> : recherche de groupe diffusée avec la position ; vide pour retirer.
 function Positions.SetLFG(text)
   text = (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
   Positions.lfg = text ~= "" and cut(text, 80) or nil

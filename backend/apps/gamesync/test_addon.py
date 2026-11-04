@@ -629,7 +629,7 @@ class TestPositions:
         )
         g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
         assert len(list(g._ADDON_SENT.values())) == sent_before
-        # /wfg sos avec un joueur ciblé : appel avec son nom et sa classe.
+        # /mf sos avec un joueur ciblé : appel avec son nom et sa classe.
         lua.execute("_TARGET = { name = 'Garrosh', class = 'WARRIOR', player = true }")
         g.SlashCmdList.WOWFOREVERGUILDE("sos")
         sent = list(g._ADDON_SENT.values())

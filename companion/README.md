@@ -1,4 +1,4 @@
-# Compagnon WoW Forever Guilde
+# Compagnon Manuel Feralas (WoW Forever Guilde)
 
 Application de bureau (Tauri 2) qui installe l'addon dans le dossier du jeu, surveille le fichier `SavedVariables`
 qu'il écrit à chaque déconnexion ou `/reload`, et envoie le code d'export au site. Cahier des charges, étape 11.

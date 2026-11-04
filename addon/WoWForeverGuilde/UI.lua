@@ -1,4 +1,4 @@
--- Interface : fenêtre /wfg (personnages, état de la collecte, export, sauvegarde), fenêtre d'export,
+-- Interface : fenêtre /mf (personnages, état de la collecte, export, sauvegarde), fenêtre d'export,
 -- dialogues (transfert, sauvegarde), texte flottant des morts. Sobre : rien ne s'ouvre tout seul hors dialogues.
 local ADDON, ns = ...
 

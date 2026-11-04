@@ -408,7 +408,7 @@ pub fn run() {
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().cloned().expect("icône"))
                 .menu(&menu)
-                .tooltip("WoW Forever Guilde")
+                .tooltip("Manuel Feralas")
                 .on_menu_event(move |app, event| match event.id.as_ref() {
                     "open" => {
                         if let Some(w) = app.get_webview_window("main") {

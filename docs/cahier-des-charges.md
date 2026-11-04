@@ -773,7 +773,7 @@ limiter la surface exposée aux changements d'API du jeu.
 | `Journal.lua` | Instantanés quotidiens des compteurs, liste d'événements horodatés |
 | `Export.lua` | Encodeur JSON maison, compression, encodage imprimable, somme de contrôle, préfixe de version |
 | `Data.lua` | Tables de référence mises à jour avec les releases : quêtes d'accès, dernier boss par instance, sorts de récolte, cartes de champ de bataille |
-| `UI.lua` | Fenêtre `/wfg` : état par catégorie, rappels, interrupteurs, fenêtre d'export |
+| `UI.lua` | Fenêtre `/mf` : état par catégorie, rappels, interrupteurs, fenêtre d'export |
 | `Locales/` | Textes FR / EN de l'interface (les données sont des identifiants, jamais des libellés) |
 
 **Base sauvegardée** (`WoWForeverGuildeDB`, au niveau du compte) : `version`, `installId` (généré au premier
@@ -822,7 +822,7 @@ journées de la différence (limite acceptée, les horodatages d'événements re
 | Artisanat | sort de recette réussi | fabrications par identifiant de recette |
 | Quêtes | `QUEST_TURNED_IN` | nombre, quêtes clés |
 
-**Interface en jeu** (commande `/wfg` **provisoire** : à remplacer par l'acronyme du nom de la guilde dès que le sondage l'aura choisi, avec le préfixe des messages de chat ; pas de bouton de minicarte) : état par catégorie avec la date de dernière lecture,
+**Interface en jeu** (commande `/mf`, acronyme de « Manuel Feralas », nom de guilde voté le 4 novembre 2026 ; `/wfg` reste un alias ; préfixe de chat `[MF]` ; le titre affiché de l'addon est le nom de la guilde, le dossier reste `WoWForeverGuilde` ; pas de bouton de minicarte) : état par catégorie avec la date de dernière lecture,
 rappel « ouvre tes métiers une fois » tant qu'un métier n'a jamais été lu (et message discret au login si plus de 7
 jours), interrupteur opt-in du temps de jeu, « exclure ce personnage du site », bouton
 **Exporter** qui ouvre une zone de texte avec le code présélectionné (Ctrl+C) et le compte WoW concerné.

@@ -1,10 +1,10 @@
-# WoW Forever Guilde — addon
+# Manuel Feralas — addon (dossier `WoWForeverGuilde`)
 
 Collecte la progression du personnage et produit un code d'export pour le site de la guilde. Ne touche jamais au
 réseau : le client écrit `WoWForeverGuildeDB` à la déconnexion et au `/reload`, le compagnon (ou un copier-coller)
 transporte le code jusqu'au site.
 
-- `Core.lua` : cycle de vie, bus d'événements, protection des collecteurs (`pcall`, hors combat), `/wfg`.
+- `Core.lua` : cycle de vie, bus d'événements, protection des collecteurs (`pcall`, hors combat), `/mf`.
 - `Store.lua`, `Journal.lua`, `Export.lua`, `Json.lua`, `Base64.lua` : base, journal quotidien, code `WFG1:…`.
 - `Collectors/` : un module par catégorie (identité, équipement, talents, métiers, réputations, accès, verrous, PvP,
   PvE, créatures tuées, récolte et artisanat, quêtes, annonces de mort). Les créatures tuées (`Collectors/Kills.lua`)
@@ -20,12 +20,12 @@ transporte le code jusqu'au site.
   apparaissent en points couleur de classe sur la carte du monde (HereBeDragons-Pins : zone, continent, monde).
   Survol : nom, niveau, zone, talents, âge ; clic gauche : menu Inviter (ou Suggérer l'invitation quand on n'est
   pas chef) / Chuchoter. Ne pas partager = ne pas voir. Un membre silencieux depuis 3 min disparaît. Points aussi
-  sur la minimap (flottant au bord vers les membres proches), réglage à part. Recherche de groupe (`/wfg lfg texte`
-  ou le champ de la liste) diffusée avec la position. Appel à l'aide : **manuel seulement** (bouton dans `/wfg` et
-  dans la liste, ou `/wfg sos` ; la cible est nommée si c'est un joueur), jamais automatique pour ne pas spammer en
+  sur la minimap (flottant au bord vers les membres proches), réglage à part. Recherche de groupe (`/mf lfg texte`
+  ou le champ de la liste) diffusée avec la position. Appel à l'aide : **manuel seulement** (bouton dans `/mf` et
+  dans la liste, ou `/mf sos` ; la cible est nommée si c'est un joueur), jamais automatique pour ne pas spammer en
   zone contestée ; un envoi par minute ; chez les autres, toast et son dans la même zone, ligne de chat ailleurs,
   anneau rouge sur le point 2 min.
-- `RosterUI.lua` : liste « Guilde en jeu » (`/wfg qui`) : membres en ligne par zone d'après le roster de guilde (même
+- `RosterUI.lua` : liste « Guilde en jeu » (`/mf qui`) : membres en ligne par zone d'après le roster de guilde (même
   sans addon), enrichis des positions reçues ; section « Cherchent un groupe » ; clic → même menu que la carte.
 - `Libs/` : LibStub, LibDeflate (export), CallbackHandler-1.0 et HereBeDragons-2.0 (+ Pins) pour la carte ;
   HereBeDragons connaît le client Forever (`WOW_PROJECT_CAMELOT`).

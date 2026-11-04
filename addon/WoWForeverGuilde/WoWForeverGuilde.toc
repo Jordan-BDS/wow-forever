@@ -1,6 +1,6 @@
 ## Interface: 16001
-## Title: WoW Forever Guilde
-## Notes: Remonte la progression de tes personnages sur le site de la guilde (export ou compagnon).
+## Title: Manuel Feralas
+## Notes: Addon de la guilde Manuel Feralas : progression, carte de guilde, annonces de mort. /mf en jeu.
 ## Author: WoW Forever
 ## Version: 0.3.0
 ## SavedVariables: WoWForeverGuildeDB

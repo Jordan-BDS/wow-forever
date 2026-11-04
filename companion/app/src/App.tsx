@@ -32,7 +32,7 @@ export function App() {
     <div className="app">
       <header className="header">
         <div>
-          <h1>WoW Forever Guilde</h1>
+          <h1>Manuel Feralas</h1>
           <div className="muted">Compagnon · envoie tes données au site à chaque déconnexion</div>
         </div>
         {state.display_name && <div className="muted">Lié à {state.display_name}</div>}

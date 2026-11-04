@@ -1,4 +1,4 @@
--- Liste « Guilde en jeu » (/wfg qui) : membres en ligne regroupés par zone d'après le roster de guilde (tout le
+-- Liste « Guilde en jeu » (/mf qui) : membres en ligne regroupés par zone d'après le roster de guilde (tout le
 -- monde, même sans addon), enrichis des positions partagées (sous-zone, talents, recherche de groupe, attaque en
 -- cours). Section « Cherchent un groupe » en tête. Champ pour diffuser sa propre recherche. Clic sur un nom : menu
 -- Inviter / Chuchoter ; survol : infobulle quand la position est connue.

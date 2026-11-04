@@ -181,7 +181,8 @@ frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("PLAYER_LOGOUT")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
-SLASH_WOWFOREVERGUILDE1 = "/wfg" -- provisoire : acronyme du nom de la guilde à venir (cahier des charges)
+SLASH_WOWFOREVERGUILDE1 = "/mf" -- Manuel Feralas, nom voté le 4 novembre 2026
+SLASH_WOWFOREVERGUILDE2 = "/wfg" -- ancien alias, gardé pour les habitudes
 SlashCmdList.WOWFOREVERGUILDE = function(raw)
   raw = raw or ""
   local msg = raw:lower():gsub("^%s+", "")

@@ -80,12 +80,12 @@ produit le **code d'export** que le site importe (Profil › Importer depuis le 
 seul. Cahier des charges, étape 11.
 
 - **Installation à la main** (tant que le compagnon n'existe pas) : copier le dossier `WoWForeverGuilde` dans
-  `World of Warcraft/_forever_/Interface/AddOns/`, puis `/wfg` en jeu.
-- **Carte de la guilde** : chaque membre qui coche « Partager ma position » dans `/wfg` apparaît en point couleur de
+  `World of Warcraft/_forever_/Interface/AddOns/`, puis `/mf` en jeu (l'addon s'affiche « Manuel Feralas », le nom de la guilde).
+- **Carte de la guilde** : chaque membre qui coche « Partager ma position » dans `/mf` apparaît en point couleur de
   classe sur la carte du monde des autres (survol : nom, niveau, zone, talents ; clic : inviter ou chuchoter). Les
   positions circulent par messages addon dans le canal de guilde, jamais hors du jeu. Avec : points sur la minimap,
-  liste « Guilde en jeu » par zone (`/wfg qui`, roster + positions), recherche de groupe (`/wfg lfg texte`) et appel à
-  l'aide quand un joueur hostile attaque (automatique ou `/wfg sos`).
+  liste « Guilde en jeu » par zone (`/mf qui`, roster + positions), recherche de groupe (`/mf lfg texte`) et appel à
+  l'aide manuel (bouton ou `/mf sos`, jamais automatique).
 - **Tests hors du jeu** : l'addon tourne dans un environnement WoW simulé (`backend/apps/gamesync/wow_stub.lua`)
   via `lupa` (Lua 5.1, comme le client) : `cd backend && uv run pytest apps/gamesync/test_addon.py`. Une session
   complète y est jouée et le code produit est décodé puis importé par le site.
