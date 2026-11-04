@@ -289,6 +289,22 @@ class TestSession:
         g._FIRE("PLAYER_DEAD")
         assert len(list(g._SENT.values())) == 1
 
+    def test_collector_errors_are_listed_by_slash_command_and_recalled_at_login(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        g.SlashCmdList.WOWFOREVERGUILDE("erreurs")
+        assert any("Aucune erreur" in m for m in list(g._CHAT.values()))
+        # Un collecteur qui plante : l'erreur est gardée, listée, et rappelée à la prochaine connexion.
+        g._NS.Safe("pve.onEvent", lua.eval("function() error('PvE.lua:63: attempt to index nil') end"))
+        g.SlashCmdList.WOWFOREVERGUILDE("erreurs")
+        chat = list(g._CHAT.values())
+        assert any("1 erreur(s) enregistrée(s)" in m for m in chat)
+        assert any("pve.onEvent" in m and "attempt to index nil" in m for m in chat)
+        lua.execute("_CHAT = {}")
+        g._FIRE("PLAYER_LOGIN")
+        assert any("1 erreur(s)" in m and "/mf erreurs" in m for m in list(g._CHAT.values()))
+
     def test_midnight_rollover_splits_days_in_memory(self):
         lua = boot()
         g = lua.globals()

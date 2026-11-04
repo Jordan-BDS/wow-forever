@@ -67,6 +67,22 @@ function ns.RegisterCollector(def)
   ns.collectors[#ns.collectors + 1] = def
 end
 
+--- /mf erreurs : les dernières erreurs des collecteurs (gardées dans le fichier, envoyées au site), à copier.
+function ns.PrintErrors(limit)
+  local errors = (ns.db and ns.db.errors) or {}
+  if #errors == 0 then
+    ns.Print(ns.L.ERRORS_NONE)
+    return
+  end
+  limit = limit or 10
+  local first = math.max(1, #errors - limit + 1)
+  ns.Print(ns.L.ERRORS_HEADER, #errors, #errors - first + 1)
+  for i = first, #errors do
+    local e = errors[i]
+    ns.Print("%s · %s · %s", date("%d/%m %H:%M", e.t or 0), tostring(e.where or "?"), tostring(e.error or "?"))
+  end
+end
+
 function ns.Char()
   return ns.char
 end
@@ -190,6 +206,7 @@ SlashCmdList.WOWFOREVERGUILDE = function(raw)
   elseif msg == "save" or msg == "reload" then ReloadUI()
   elseif msg == "qui" or msg == "who" then ns.RosterUI.Toggle()
   elseif msg == "sos" then ns.Positions.SOS()
+  elseif msg == "erreurs" or msg == "errors" then ns.PrintErrors()
   elseif msg:match("^lfg") then ns.Positions.SetLFG(raw:gsub("^%s*[Ll][Ff][Gg]", ""))
   elseif ns.UI then ns.UI.Toggle() end
 end

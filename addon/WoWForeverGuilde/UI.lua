@@ -335,6 +335,11 @@ end
 
 function UI.OnLogin(entry)
   ns.Print(L.WELCOME, entry.name or UnitName("player") or "", dateText(entry.counting_since))
+  local recent = 0
+  for _, e in ipairs((ns.db and ns.db.errors) or {}) do
+    if (e.t or 0) >= ns.now() - 86400 then recent = recent + 1 end
+  end
+  if recent > 0 then ns.Print(L.ERRORS_RECENT, recent) end
 end
 
 -- --- texte flottant des morts ---------------------------------------------------------------------------
