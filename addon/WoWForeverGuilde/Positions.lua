@@ -3,9 +3,9 @@
 -- guilde, ou canal caché tant que la guilde n'existe pas) ; les autres l'affichent sur la carte du monde (MapUI.lua)
 -- et dans la liste « Guilde en jeu » (RosterUI.lua). Règle symétrique : ne pas partager = ne pas voir.
 -- Envoi au changement de zone, au déplacement, et au moins toutes les POSITION_HEARTBEAT s.
--- Appel à l'aide (« gank ») : détecté dans le journal de combat (joueur hostile qui me frappe, hors instance et hors
--- duel) ou par /wfg sos ; un envoi par GANK_COOLDOWN s ; chez les autres, toast et son dans la même zone, ligne de
--- chat ailleurs, anneau rouge sur le point pendant ALERT_TTL s.
+-- Appel à l'aide (« gank ») : manuel seulement (/wfg sos ou le bouton), jamais automatique pour ne pas spammer
+-- en zone contestée ; la cible est nommée si c'est un joueur ; un envoi par GANK_COOLDOWN s ; chez les autres, toast
+-- et son dans la même zone, ligne de chat ailleurs, anneau rouge sur le point pendant ALERT_TTL s.
 local ADDON, ns = ...
 
 local Positions = { peers = {}, lfg = nil }
@@ -17,7 +17,6 @@ local last = { at = 0 }
 local lastSOS = 0
 local registered = false
 local scheduled = false
-local dueling = false
 
 local function enabled()
   return ns.db ~= nil and ns.db.settings.sharePosition == true
@@ -206,51 +205,28 @@ end
 
 -- --- appel à l'aide ----------------------------------------------------------------------------------------
 
--- Drapeaux du journal de combat : contrôlé par un joueur (lui-même ou son familier) et hostile.
-local CONTROL_PLAYER, REACTION_HOSTILE = 0x100, 0x40
-local function hasFlag(flags, flag)
-  return type(flags) == "number" and math.floor(flags / flag) % 2 == 1
-end
--- Coups reçus seulement : DAMAGE_SHIELD (Épines…) a pour source la victime de *mes* coups, on l'exclut.
-local HIT = { SWING_DAMAGE = true, RANGE_DAMAGE = true, SPELL_DAMAGE = true, SPELL_PERIODIC_DAMAGE = true }
-
---- Envoie l'appel. `attacker`/`attackerGUID` viennent du journal de combat ; en manuel (/wfg sos), la cible si
---- c'est un joueur. Un envoi par GANK_COOLDOWN s.
-function Positions.SOS(attacker, attackerGUID, manual)
+--- Envoie l'appel à l'aide : ma position, et la cible si c'est un joueur. Un envoi par GANK_COOLDOWN s.
+function Positions.SOS()
   if not ns.char then return false end
   if not enabled() then
-    if manual then ns.Print(L.SOS_NEEDS_SHARING) end
+    ns.Print(L.SOS_NEEDS_SHARING)
     return false
   end
   local t = ns.now()
-  if t - lastSOS < ns.Data.GANK_COOLDOWN then return false end
-  local class = ""
-  if attackerGUID and GetPlayerInfoByGUID then
-    local _, token = GetPlayerInfoByGUID(attackerGUID)
-    class = ns.plain(token) or ""
+  if t - lastSOS < ns.Data.GANK_COOLDOWN then
+    ns.Print(string.format(L.SOS_COOLDOWN, math.ceil(ns.Data.GANK_COOLDOWN - (t - lastSOS))))
+    return false
   end
-  if manual and not attacker and UnitExists and UnitExists("target") and UnitIsPlayer and UnitIsPlayer("target") then
+  local attacker, class = nil, ""
+  if UnitExists and UnitExists("target") and UnitIsPlayer and UnitIsPlayer("target") then
     attacker = ns.plain(UnitName("target"))
     class = ns.plain(select(2, UnitClass("target"))) or ""
   end
   local map, x, y = Positions.Here()
   if not send(Positions.EncodeAlert(ns.char, map, x, y, attacker, class)) then return false end
   lastSOS = t
-  if manual then ns.Print(L.SOS_SENT) end
+  ns.Print(L.SOS_SENT)
   return true
-end
-
-local function onCombatLog()
-  if not CombatLogGetCurrentEventInfo or not ns.char or dueling then return end
-  local _, subevent, _, sourceGUID, sourceName, sourceFlags, _, destGUID = CombatLogGetCurrentEventInfo()
-  if ns.plain(destGUID) ~= ns.char.guid then return end
-  if not HIT[ns.plain(subevent)] then return end
-  sourceGUID, sourceFlags = ns.plain(sourceGUID), ns.plain(sourceFlags)
-  if sourceGUID == ns.char.guid or not (hasFlag(sourceFlags, CONTROL_PLAYER) and hasFlag(sourceFlags, REACTION_HOSTILE)) then
-    return
-  end
-  if IsInInstance and IsInInstance() then return end -- champs de bataille, arènes, donjons
-  Positions.SOS(ns.plain(sourceName), sourceGUID, false)
 end
 
 local function announceAlert(peer)
@@ -400,25 +376,16 @@ ns.RegisterCollector({
   name = "positions",
   events = {
     CHAT_MSG_ADDON = true, ZONE_CHANGED_NEW_AREA = true, ZONE_CHANGED = true, ZONE_CHANGED_INDOORS = true,
-    PLAYER_ENTERING_WORLD = true, COMBAT_LOG_EVENT_UNFILTERED = true, DUEL_REQUESTED = true, DUEL_FINISHED = true,
-    GUILD_ROSTER_UPDATE = true,
+    PLAYER_ENTERING_WORLD = true, GUILD_ROSTER_UPDATE = true,
   },
   onLogin = function()
     registerPrefix()
-    -- Celui qui lance le duel ne reçoit pas DUEL_REQUESTED : on observe l'appel lui-même.
-    if hooksecurefunc and StartDuel then pcall(hooksecurefunc, "StartDuel", function() dueling = true end) end
     C_Timer.After(6, function() ns.Safe("positions.broadcast", broadcast, true) end) -- après le canal caché (5 s)
     C_Timer.NewTicker(ns.Data.POSITION_TICK, function() ns.Safe("positions.tick", tick) end)
   end,
   onEvent = function(_, event, ...)
     if event == "CHAT_MSG_ADDON" then
       onAddonMessage(...)
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-      onCombatLog()
-    elseif event == "DUEL_REQUESTED" then
-      dueling = true
-    elseif event == "DUEL_FINISHED" then
-      dueling = false
     elseif event == "GUILD_ROSTER_UPDATE" then
       if ns.RosterUI then ns.RosterUI.Refresh() end
     else

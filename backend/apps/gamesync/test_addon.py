@@ -617,56 +617,40 @@ class TestPositions:
             and menu.rows[2].invite.shown is False
         )
 
-    def test_gank_is_detected_in_the_combat_log_and_alerts_members_nearby(self):
+    def test_sos_is_manual_only_and_alerts_members_nearby(self):
         lua = boot()
         g = lua.globals()
         login(lua)
         lua.execute(FAKE_PINS)
         sent_before = len(list(g._ADDON_SENT.values()))
-        # Un joueur hostile me frappe hors instance : appel à l'aide avec sa classe.
+        # Un joueur hostile me frappe hors instance : rien ne part tout seul (ça spammerait en zone contestée).
         lua.execute(
             "_CLEU = { 0, 'SWING_DAMAGE', false, 'Player-1-00000EVIL', 'Garrosh', 0x548, 0, 'Player-1-000ABC01', 'Thrall', 0x511, 0, 120 }"
         )
         g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        assert len(list(g._ADDON_SENT.values())) == sent_before
+        # /wfg sos avec un joueur ciblé : appel avec son nom et sa classe.
+        lua.execute("_TARGET = { name = 'Garrosh', class = 'WARRIOR', player = true }")
+        g.SlashCmdList.WOWFOREVERGUILDE("sos")
         sent = list(g._ADDON_SENT.values())
         assert len(sent) == sent_before + 1
         assert (
             sent[-1].text
             == "G\t1\tPlayer-1-000ABC01\tThrall Fils-de-Durotan\tSHAMAN\t60\t1429\t0.5000\t0.5000\tForêt d'Elwynn\t\tGarrosh\tWARRIOR"
         )
-        # Un seul appel par minute ; rien en instance, en duel, ni contre un monstre.
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-        g._ADVANCE(61)
-        lua.execute("_INSTANCE = 'pvp'")
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-        lua.execute("_INSTANCE = nil")
-        g._FIRE("DUEL_REQUESTED")
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-        g._FIRE("DUEL_FINISHED")
-        lua.execute("_CLEU[6] = 0xa48")  # un monstre (TYPE_NPC + CONTROL_NPC), pas un joueur
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-        lua.execute("_CLEU[6] = 0x548; _CLEU[2] = 'DAMAGE_SHIELD'")  # Épines : c'est moi qui frappe
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-        lua.execute("_CLEU[2] = 'SPELL_DAMAGE'")
-        g.StartDuel("Garrosh")  # lanceur du duel : pas de DUEL_REQUESTED, mais le hook
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-        g._FIRE("DUEL_FINISHED")
-        lua.execute("_CLEU[6] = 0xa48")
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-        assert len(list(g._ADDON_SENT.values())) == len(sent) + 1  # le battement de cœur des 60 s seulement
-        # Le familier d'un joueur hostile compte (contrôlé par un joueur), même sans classe connue.
-        g._ADVANCE(61)
-        lua.execute(
-            "_CLEU = { 0, 'SWING_DAMAGE', false, 'Pet-0-0000PET', 'Loup', 0x1148, 0, 'Player-1-000ABC01', 'Thrall', 0x511, 0, 40 }"
-        )
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-        assert list(g._ADDON_SENT.values())[-1].text.endswith("\tLoup\t")
-        # /wfg sos manuel, puis refusé sans partage.
-        g._ADVANCE(61)
+        assert any("Appel à l'aide envoyé" in m for m in list(g._CHAT.values()))
+        # Un seul appel par minute : le second est refusé avec le délai restant.
+        g._ADVANCE(10)
         g.SlashCmdList.WOWFOREVERGUILDE("sos")
-        assert list(g._ADDON_SENT.values())[-1].text.startswith("G\t1\tPlayer-1-000ABC01\t") and any(
-            "Appel à l'aide envoyé" in m for m in list(g._CHAT.values())
-        )
+        assert len(list(g._ADDON_SENT.values())) == len(sent)
+        assert any("réessaie dans 50 s" in m for m in list(g._CHAT.values()))
+        # Cible monstre ou pas de cible : appel sans agresseur. Le bouton fait la même chose que la commande.
+        g._ADVANCE(51)
+        lua.execute("_TARGET = { name = 'Sanglier', class = nil, player = false }")
+        g._NS.Positions.SOS()
+        assert list(g._ADDON_SENT.values())[-1].text.endswith("\tForêt d'Elwynn\t\t\t")
+        # Refusé sans partage de position.
+        g._ADVANCE(61)
         g._NS.Positions.SetSharing(False)
         g.SlashCmdList.WOWFOREVERGUILDE("sos")
         assert any("Partager ma position" in m for m in list(g._CHAT.values()))

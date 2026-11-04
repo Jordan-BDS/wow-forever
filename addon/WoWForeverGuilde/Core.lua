@@ -188,7 +188,7 @@ SlashCmdList.WOWFOREVERGUILDE = function(raw)
   if msg == "export" and ns.UI then ns.UI.ShowExport()
   elseif msg == "save" or msg == "reload" then ReloadUI()
   elseif msg == "qui" or msg == "who" then ns.RosterUI.Toggle()
-  elseif msg == "sos" then ns.Positions.SOS(nil, nil, true)
+  elseif msg == "sos" then ns.Positions.SOS()
   elseif msg:match("^lfg") then ns.Positions.SetLFG(raw:gsub("^%s*[Ll][Ff][Gg]", ""))
   elseif ns.UI then ns.UI.Toggle() end
 end
