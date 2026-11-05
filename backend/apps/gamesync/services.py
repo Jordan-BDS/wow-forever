@@ -83,6 +83,20 @@ SKILL_LINES = {
     185: "cooking",
     129: "first-aid",
     356: "fishing",
+    # Lignes « Classic » d'une base moderne (l'addon remonte normalement à la ligne mère ci-dessus ; filet de
+    # sécurité si le client ne connaît pas la hiérarchie). Identifiants du client Blizzard, à confirmer sur
+    # Forever.
+    2485: "alchemy",
+    2477: "blacksmithing",
+    2494: "enchanting",
+    2506: "engineering",
+    2556: "herbalism",
+    2532: "leatherworking",
+    2572: "mining",
+    2564: "skinning",
+    2540: "tailoring",
+    2548: "cooking",
+    2592: "fishing",
 }
 
 
@@ -589,25 +603,71 @@ def _apply_gear(character: Character, gear) -> None:
         )
 
 
+def _talent_ranks(trees: list[TalentTree], talents: dict) -> dict[int, int] | None:
+    """Rang par talent d'après ce que l'addon a pu lire, par ordre de fiabilité :
+    `grid` (« arbre-rangée-colonne » → rang, rangée et colonne telles que le jeu les numérote, à partir de 1),
+    `spells` (« id de sort » → rang, traits modernes : le sort désigne le talent et son rang),
+    `points` (« arbre-index » → rang, ancien format : l'index suit l'ordre rangée puis colonne de l'arbre).
+    None si aucun des trois n'est là."""
+    grid, spells, points = talents.get("grid"), talents.get("spells"), talents.get("points")
+    ranks: dict[int, int] = {}
+    if isinstance(grid, dict):
+        by_cell = {
+            (tab, talent.row + 1, talent.column + 1): talent
+            for tab, tree in enumerate(trees, start=1)
+            for talent in Talent.objects.filter(tree=tree)
+        }
+        for key, rank in grid.items():
+            parts = str(key).split("-")
+            if len(parts) != 3 or not all(p.isdigit() for p in parts) or not isinstance(rank, int):
+                continue
+            talent = by_cell.get((int(parts[0]), int(parts[1]), int(parts[2])))
+            if talent is not None and rank > 0:
+                ranks[talent.pk] = rank  # le rang lu en jeu fait foi, même si l'index local a moins de rangs
+        return ranks
+    if isinstance(spells, dict):
+        by_spell: dict[int, tuple[Talent, int]] = {}
+        for talent in Talent.objects.filter(tree__in=trees):
+            for position, spell_id in enumerate(talent.rank_spells, start=1):
+                by_spell[int(spell_id)] = (talent, position)
+        for key, rank in spells.items():
+            if not str(key).isdigit() or not isinstance(rank, int) or rank <= 0:
+                continue
+            found = by_spell.get(int(key))
+            if found is None:
+                continue
+            talent, position = found
+            # Le nœud dit son rang avec le sort du rang 1, ou le sort du rang atteint avec un rang 1 : le plus
+            # grand des deux est le bon dans les deux cas.
+            ranks[talent.pk] = max(ranks.get(talent.pk, 0), min(max(rank, position), talent.max_rank))
+        return ranks
+    if isinstance(points, dict):
+        for tab, tree in enumerate(trees, start=1):
+            ordered_ids = list(Talent.objects.filter(tree=tree).order_by("row", "column"))
+            for index, talent in enumerate(ordered_ids, start=1):
+                rank = points.get(f"{tab}-{index}")
+                if isinstance(rank, int) and rank > 0:
+                    ranks[talent.pk] = rank
+        return ranks
+    return None
+
+
 def _apply_talents(character: Character, talents) -> None:
-    """Build « En jeu » = les points lus en jeu (`points` : « arbre-index » → rang, index dans l'ordre
-    rangée puis colonne de l'arbre) ; devient le build actif et fixe la spécialisation affichée."""
-    points = talents.get("points") if isinstance(talents, dict) else None
-    if not isinstance(points, dict):
+    """Build « En jeu » = les points lus en jeu (cf. `_talent_ranks`), posés arbre par arbre puis rangée par
+    rangée ; devient le build actif et fixe la spécialisation affichée."""
+    if not isinstance(talents, dict):
         return
     trees = list(TalentTree.objects.filter(player_class=character.player_class).order_by("order"))
     if not trees:
         return
-    by_tree = {
-        tree.pk: list(Talent.objects.filter(tree=tree).order_by("row", "column").values_list("id", flat=True))
-        for tree in trees
-    }
+    ranks = _talent_ranks(trees, talents)
+    if ranks is None:
+        return
     ordered: list[int] = []
-    for tab, tree in enumerate(trees, start=1):
-        for index, talent_id in enumerate(by_tree[tree.pk], start=1):
-            rank = points.get(f"{tab}-{index}")
-            if isinstance(rank, int) and rank > 0:
-                ordered.extend([talent_id] * rank)
+    for tree in trees:
+        ids = Talent.objects.filter(tree=tree).order_by("row", "column").values_list("id", flat=True)
+        for talent_id in ids:
+            ordered.extend([talent_id] * ranks.get(talent_id, 0))
     with transaction.atomic():
         build, _ = TalentBuild.objects.get_or_create(character=character, name=IN_GAME)
         TalentBuild.objects.filter(character=character).exclude(pk=build.pk).update(is_active=False)

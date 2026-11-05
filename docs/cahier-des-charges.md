@@ -811,8 +811,8 @@ journées de la différence (limite acceptée, les horodatages d'événements re
 |---|---|---|
 | Identité | login, `PLAYER_LEVEL_UP` (événement horodaté), `TIME_PLAYED_MSG` | niveau, classe, race, temps de jeu |
 | Équipement | `PLAYER_EQUIPMENT_CHANGED` | lien d'objet par emplacement → identifiant d'objet, d'enchantement, suffixe |
-| Talents | `PLAYER_TALENT_UPDATE` / points dépensés | rang par identifiant de talent ; **API exacte à confirmer sur le client Forever** (arbres Classic sur une base moderne) |
-| Métiers | ouverture de la fenêtre (`TRADE_SKILL_SHOW`, `TRADE_SKILL_LIST_UPDATE`) | compétence, maximum, spécialisation, identifiants des recettes apprises (`C_TradeSkillUI`) ; métiers connus détectés dès le login pour signaler ceux jamais lus |
+| Talents | `PLAYER_TALENT_UPDATE`, `CHARACTER_POINTS_CHANGED`, `TRAIT_CONFIG_UPDATED` | trois lectures essayées dans l'ordre : API Classic (`GetTalentInfo` en valeurs), sa forme en table (`C_SpecializationInfo.GetTalentInfo`), traits modernes (`C_Traits`, rang par sort) ; export `grid` « arbre-rangée-colonne » → rang (lu en premier par le site), `points` « arbre-index » (ancien) ou `spells` « sort » → rang ; aucune API : noté une fois dans `/mf erreurs` ; **laquelle répond sur Forever reste à lire via `/mf api`** |
+| Métiers | ouverture de la fenêtre (`TRADE_SKILL_SHOW`, `TRADE_SKILL_LIST_UPDATE`) | compétence, maximum, spécialisation, identifiants des recettes apprises (`C_TradeSkillUI`) ; métiers connus détectés dès le login pour signaler ceux jamais lus ; la ligne de compétence est ramenée à sa **ligne mère** (Alchimie 171 plutôt qu'« Alchimie Classic » 2485) via `C_TradeSkillUI.GetProfessionInfoBySkillLineID`, le site accepte aussi les lignes « Classic » ; la compétence vient de la ligne d'extension quand la mère dit 0 |
 | Réputations | `UPDATE_FACTION` | faction → valeur |
 | Accès | login, `QUEST_TURNED_IN` | `IsQuestFlaggedCompleted` sur la table des quêtes d'accès de `Data.lua` |
 | Verrous | `UPDATE_INSTANCE_INFO` | instance, réinitialisation, boss tombés |
@@ -1093,6 +1093,19 @@ personnage n'est pas dans la guilde. Les appels refusés sont désormais notés 
 Même constat pour le **journal de combat** (`COMBAT_LOG_EVENT_UNFILTERED` / `CombatLogGetCurrentEventInfo`,
 trouvé par bissection des collecteurs) : les kills viennent du message d'expérience et le tueur d'une mort est la
 cible hostile au moment de mourir (plus de « une chute » ni de cause environnementale).
+
+### Talents, métiers, carte : lecture défensive et diagnostic (5 novembre 2026, addon 0.3.7)
+
+Vérification à froid de la chaîne talents → métiers → carte avant les tests en jeu. Le collecteur de talents ne
+connaissait que l'API Classic, dont la disparition sur la base moderne est documentée ci-dessus : il aurait marqué
+« Indisponible » en silence. Il essaie désormais trois lectures (Classic en valeurs, `C_SpecializationInfo` en table,
+`C_Traits` par sort), repère chaque point par **arbre / rangée / colonne** plutôt que par index (l'ordre des index
+n'est pas garanti identique à l'ordre rangée puis colonne de la table `Talent`), et le site lit `grid`, puis `spells`
+(via `Talent.rank_spells`), puis l'ancien `points`. Les métiers remontent à leur ligne mère et gardent une compétence
+non nulle. La commande **`/mf api`** affiche les fonctions présentes et absentes (talents, métiers, carte, messages
+addon) et ce que les collecteurs en lisent, puis note le tout avec les erreurs : le GM le lit dans « Tests en jeu »
+sans copier-coller. Un collecteur sans API le note une fois par session (`talents.scan`, `professions.scan`). La carte
+n'a pas changé : messages addon sur le canal de guilde (donc une guilde), HereBeDragons connaît Forever.
 
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 

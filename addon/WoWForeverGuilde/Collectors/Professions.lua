@@ -1,5 +1,11 @@
 -- Métiers : compétence dès la connexion ; recettes connues seulement quand la fenêtre du métier est ouverte.
+-- Sur une base moderne, un métier a une ligne de compétence « mère » (Alchimie, 171) et une ligne par extension
+-- (« Alchimie Classic ») : on remonte toujours à la mère, c'est elle que le site connaît ; la compétence vient de
+-- la ligne d'extension quand la mère n'en a pas.
 local ADDON, ns = ...
+
+local available = nil
+local reported = false
 
 local function entryFor(char, skillLine)
   char.professions = char.professions or {}
@@ -8,9 +14,38 @@ local function entryFor(char, skillLine)
   return char.professions[key]
 end
 
+--- Ligne mère d'une ligne de compétence (elle-même si le client ne connaît pas la hiérarchie), et la fiche de la
+--- ligne lue (compétence propre à cette ligne) quand le client la donne.
+local function parentLine(skillLine)
+  local api = C_TradeSkillUI and C_TradeSkillUI.GetProfessionInfoBySkillLineID
+  if api then
+    local ok, info = pcall(api, skillLine)
+    if ok and type(info) == "table" then
+      local parent = ns.plain(info.parentProfessionID)
+      return (type(parent) == "number" and parent > 0) and parent or skillLine, info
+    end
+  end
+  return skillLine, nil
+end
+
+--- Une valeur de compétence n'écrase l'ancienne que si elle dit quelque chose (ni nil, ni 0, ni secrète).
+local function positive(value, fallback)
+  value = ns.plain(value)
+  if type(value) == "number" and value > 0 then return value end
+  return fallback
+end
+
 --- Métiers connus (sans recettes) : GetProfessions (moderne) → GetProfessionInfo.
 local function scanKnown(char)
-  if not (GetProfessions and GetProfessionInfo) then return end
+  if not (GetProfessions and GetProfessionInfo) then
+    available = false
+    if not reported then
+      reported = true
+      ns.Store.LogError("professions.scan", ns.L.PROFESSIONS_NO_API)
+    end
+    return
+  end
+  available = true
   local seen = {}
   -- GetProfessions renvoie 6 emplacements (métier 1, métier 2, archéologie, pêche, cuisine, secourisme) avec des
   -- trous : ipairs s'arrêterait au premier nil, on parcourt donc par select en ignorant les emplacements vides.
@@ -19,10 +54,16 @@ local function scanKnown(char)
       local index = select(i, ...)
       if type(index) == "number" then
         local name, _, skill, max, _, _, skillLine = GetProfessionInfo(index)
-        if skillLine then
-          local prof = entryFor(char, skillLine)
-          prof.name, prof.skill, prof.max = name, ns.plain(skill), ns.plain(max)
-          seen[tostring(skillLine)] = true
+        skillLine = ns.plain(skillLine)
+        if type(skillLine) == "number" then
+          local parent, lineInfo = parentLine(skillLine)
+          local prof = entryFor(char, parent)
+          prof.name = ns.plain(name) or prof.name
+          prof.line = skillLine -- ligne telle que lue, pour comprendre un métier que le site ne reconnaît pas
+          -- La mère peut dire 0 sur une base moderne : la compétence est alors celle de la ligne lue.
+          prof.skill = positive(skill, positive(lineInfo and lineInfo.skillLevel, prof.skill))
+          prof.max = positive(max, positive(lineInfo and lineInfo.maxSkillLevel, prof.max))
+          seen[tostring(parent)] = true
         end
       end
     end
@@ -38,17 +79,24 @@ end
 --- Fenêtre d'un métier ouverte : liste des recettes apprises.
 local function scanOpen(char)
   if not C_TradeSkillUI then return end
-  local info = C_TradeSkillUI.GetBaseProfessionInfo and C_TradeSkillUI.GetBaseProfessionInfo()
+  if C_TradeSkillUI.IsTradeSkillLinked and C_TradeSkillUI.IsTradeSkillLinked() then return end -- métier d'un autre
+  local base = C_TradeSkillUI.GetBaseProfessionInfo and C_TradeSkillUI.GetBaseProfessionInfo()
+  local child = C_TradeSkillUI.GetChildProfessionInfo and C_TradeSkillUI.GetChildProfessionInfo()
+  if type(base) ~= "table" then base = nil end
+  if type(child) ~= "table" then child = nil end
+  local info = base or child
   if not info and C_TradeSkillUI.GetTradeSkillLine then
     local id, name, skill, max = C_TradeSkillUI.GetTradeSkillLine()
     info = id and { professionID = id, professionName = name, skillLevel = skill, maxSkillLevel = max } or nil
   end
-  if not info or not info.professionID then return end
-  if C_TradeSkillUI.IsTradeSkillLinked and C_TradeSkillUI.IsTradeSkillLinked() then return end -- métier d'un autre
-  local prof = entryFor(char, info.professionID)
-  prof.name = info.professionName or prof.name
-  prof.skill = ns.plain(info.skillLevel) or prof.skill
-  prof.max = ns.plain(info.maxSkillLevel) or prof.max
+  local id = info and ns.plain(info.professionID)
+  if type(id) ~= "number" or id <= 0 then return end
+  local parent = positive(info.parentProfessionID, nil) or parentLine(id)
+  local prof = entryFor(char, parent)
+  prof.name = ns.plain(info.professionName) or prof.name
+  -- La ligne d'extension porte la compétence ; la mère parfois 0 sur une base moderne.
+  prof.skill = positive(child and child.skillLevel, positive(info.skillLevel, prof.skill))
+  prof.max = positive(child and child.maxSkillLevel, positive(info.maxSkillLevel, prof.max))
   local recipes = {}
   for _, recipeId in ipairs(C_TradeSkillUI.GetAllRecipeIDs() or {}) do
     local r = C_TradeSkillUI.GetRecipeInfo(recipeId)
@@ -58,7 +106,7 @@ local function scanOpen(char)
   prof.recipes = recipes
   prof.read_at = ns.now()
   ns.knownRecipes = ns.knownRecipes or {}
-  for _, id in ipairs(recipes) do ns.knownRecipes[id] = true end
+  for _, rid in ipairs(recipes) do ns.knownRecipes[rid] = true end
 end
 
 local function neverRead(char)
@@ -97,6 +145,7 @@ ns.RegisterCollector({
     end
   end,
   status = function(char)
+    if available == false then return ns.L.NOT_AVAILABLE end
     local lines = {}
     for _, prof in pairs(char.professions or {}) do
       local label = (prof.name or tostring(prof.id)) .. " " .. tostring(prof.skill or "?")

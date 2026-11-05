@@ -95,6 +95,80 @@ function ns.Char()
   return ns.char
 end
 
+-- /mf trace : pendant TRACE_SECONDS, chaque message addon envoyé ou reçu est affiché (type, expéditeur, réponse du
+-- jeu, raison d'un rejet), pour comprendre pourquoi un appel ou une mort n'arrive pas chez quelqu'un.
+ns.traceUntil = 0
+function ns.Trace(fmt, ...)
+  if ns.now() > (ns.traceUntil or 0) then return end
+  ns.Print("|cff9a9a9atrace ·|r " .. fmt, ...)
+end
+
+-- /mf api : ce que ce client offre pour les talents, les métiers, la carte et les messages addon, et ce que les
+-- collecteurs en ont tiré. Affiché dans le chat et noté (où = « diagnostic ») pour partir au site avec les erreurs :
+-- le GM le lit dans « Tests en jeu » sans copier-coller depuis l'autre PC.
+local PROBES = {
+  { "talents", {
+    "GetNumTalentTabs", "GetNumTalents", "GetTalentInfo", "GetTalentTabInfo",
+    "C_SpecializationInfo.GetTalentInfo", "C_SpecializationInfo.GetNumTalentTabs",
+    "C_ClassTalents.GetActiveConfigID", "C_Traits.GetConfigInfo",
+  } },
+  { "métiers", {
+    "GetProfessions", "GetProfessionInfo", "GetNumSkillLines", "GetSkillLineInfo",
+    "C_TradeSkillUI.GetBaseProfessionInfo", "C_TradeSkillUI.GetChildProfessionInfo",
+    "C_TradeSkillUI.GetProfessionInfoBySkillLineID", "C_TradeSkillUI.GetTradeSkillLine",
+    "C_TradeSkillUI.GetAllRecipeIDs", "C_TradeSkillUI.GetRecipeInfo",
+  } },
+  { "carte", {
+    "C_Map.GetBestMapForUnit", "C_Map.GetPlayerMapPosition", "C_ChatInfo.RegisterAddonMessagePrefix",
+    "C_ChatInfo.SendAddonMessage", "IsInGuild", "GetNumGuildMembers", "GetGuildRosterInfo",
+  } },
+}
+
+local function resolve(path)
+  local value = _G
+  for part in path:gmatch("[^.]+") do
+    if type(value) ~= "table" then return nil end
+    value = value[part]
+  end
+  return value
+end
+
+function ns.Diagnostic()
+  local lines = {}
+  for _, group in ipairs(PROBES) do
+    local have, miss = {}, {}
+    for _, name in ipairs(group[2]) do
+      if resolve(name) ~= nil then have[#have + 1] = name else miss[#miss + 1] = name end
+    end
+    lines[#lines + 1] = string.format("%s · présent : %s · absent : %s", group[1],
+      #have > 0 and table.concat(have, ", ") or "rien", #miss > 0 and table.concat(miss, ", ") or "rien")
+  end
+  local char = ns.char or {}
+  local professions = {}
+  for _, prof in pairs(char.professions or {}) do
+    professions[#professions + 1] = string.format("%s (%s→%s) %s", tostring(prof.name), tostring(prof.line), tostring(prof.id), tostring(prof.skill))
+  end
+  table.sort(professions)
+  local map, x, y
+  if ns.Positions and ns.Positions.Here then map, x, y = ns.Positions.Here() end -- pas de « and » : il tronquerait les retours
+  local pins = LibStub and LibStub("HereBeDragons-Pins-2.0", true)
+  lines[#lines + 1] = string.format("lecture · talents : %s (%s) · métiers : %s · guilde : %s · position : %s · points de carte : %s",
+    tostring((ns.TalentApi and ns.TalentApi()) or "aucune"),
+    char.talents and char.talents.api and (char.talents.spells and "sorts" or "arbres") or "jamais lu",
+    #professions > 0 and table.concat(professions, ", ") or "aucun",
+    (IsInGuild and IsInGuild()) and "oui" or "non",
+    map and string.format("carte %s%s", tostring(map), x and string.format(" (%.2f, %.2f)", x, y) or " sans coordonnées") or "illisible",
+    pins and "bibliothèque chargée" or "bibliothèque absente")
+  for _, line in ipairs(lines) do ns.Print(line) end
+  local client = ""
+  if type(GetBuildInfo) == "function" then
+    local ok, version, build, _, toc = pcall(GetBuildInfo)
+    if ok then client = string.format(" · client %s (%s, %s)", tostring(version), tostring(build), tostring(toc)) end
+  end
+  ns.Store.LogError("diagnostic", table.concat(lines, " | ") .. client)
+  ns.Print(ns.L.DIAG_SAVED)
+end
+
 local frame = CreateFrame("Frame")
 ns.frame = frame
 local registered = {}
@@ -228,6 +302,10 @@ SlashCmdList.WOWFOREVERGUILDE = function(raw)
   elseif msg == "qui" or msg == "who" then ns.RosterUI.Toggle()
   elseif msg == "sos" then ns.Positions.SOS()
   elseif msg == "erreurs" or msg == "errors" then ns.PrintErrors()
+  elseif msg == "api" or msg == "diag" then ns.Safe("diagnostic", ns.Diagnostic)
+  elseif msg == "trace" then
+    ns.traceUntil = ns.now() + ns.Data.TRACE_SECONDS
+    ns.Print(ns.L.TRACE_ON, ns.Data.TRACE_SECONDS)
   elseif msg:match("^lfg") then ns.Positions.SetLFG(raw:gsub("^%s*[Ll][Ff][Gg]", ""))
   elseif ns.UI then ns.UI.Toggle() end
 end

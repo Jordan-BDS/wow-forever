@@ -148,13 +148,17 @@ end
 
 -- C_ChatInfo.SendAddonMessage renvoie un Enum.SendAddonMessageResult (0 = envoyé) sur les clients récents, rien ou
 -- true sur les anciens : on ne tient l'envoi pour fait que dans ces cas, sinon la position sera renvoyée au prochain tick.
+--- Envoie `text` à la guilde. Renvoie vrai si le jeu l'a accepté, puis sa réponse brute (code ou erreur) pour l'afficher.
 local function send(text)
   local api = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
-  if not api then return false end
-  if not (IsInGuild and IsInGuild()) then return false end -- sans guilde, rien ne circule
+  if not api then return false, "SendAddonMessage absent" end
+  if not (IsInGuild and IsInGuild()) then return false, "pas de guilde" end -- sans guilde, rien ne circule
   local ok, result = ns.Risky("SendAddonMessage GUILD", pcall, api, PREFIX, text, "GUILD")
-  return ok and (result == nil or result == true or result == 0)
+  local sent = ok and (result == nil or result == true or result == 0)
+  ns.Trace("envoi %s → %s", text:sub(1, 1), sent and "accepté" or tostring(result))
+  return sent, result
 end
+Positions.Send = send
 
 local function moved(map, x, y, zone)
   if map ~= last.map or zone ~= last.zone then return true end
@@ -217,20 +221,31 @@ function Positions.SOS()
     class = ns.plain(select(2, UnitClass("target"))) or ""
   end
   local map, x, y = Positions.Here()
-  if not send(Positions.EncodeAlert(ns.char, map, x, y, attacker, class)) then return false end
+  local sent, result = send(Positions.EncodeAlert(ns.char, map, x, y, attacker, class))
+  if not sent then
+    ns.Print(L.SOS_FAILED, tostring(result))
+    return false
+  end
   lastSOS = t
   ns.Print(L.SOS_SENT)
   return true
 end
 
 local function announceAlert(peer)
-  if not ns.db.settings.gankAlerts then return end
+  if not ns.db.settings.gankAlerts then
+    ns.Trace("appel de %s ignoré : « Me prévenir quand un membre appelle à l'aide » décoché", peer.name or "?")
+    return
+  end
   local attacker = peer.alert.attacker ~= "" and ns.ClassColored(peer.alert.attacker, peer.alert.class) or L.ATTACKER_UNKNOWN
   local place = Positions.Where(peer)
   local text = string.format(L.ALERT_TEXT, ns.ClassColored(peer.name, peer.class), attacker, place ~= "" and place or L.WHERE_UNKNOWN)
   ns.Print(text)
   local myMap = Positions.Here()
-  if myMap and peer.map == myMap and ns.UI and ns.UI.ShowAlert then ns.UI.ShowAlert(peer, text) end
+  if myMap and peer.map == myMap and ns.UI and ns.UI.ShowAlert then
+    ns.UI.ShowAlert(peer, text)
+  else
+    ns.Trace("appel de %s : carte %s, moi %s → ligne de chat seulement", peer.name or "?", tostring(peer.map), tostring(myMap))
+  end
 end
 
 -- --- réception ------------------------------------------------------------------------------------------
@@ -254,11 +269,30 @@ local function trusted(channel)
 end
 
 local function onAddonMessage(prefix, text, channel, sender)
-  if prefix ~= PREFIX or not enabled() or not trusted(channel) then return end
+  if ns.plain(prefix) ~= PREFIX then return end
   text, sender = ns.plain(text), ns.plain(sender)
-  if type(text) ~= "string" then return end
+  if type(text) ~= "string" then
+    ns.Trace("reçu de %s : texte illisible (valeur secrète ?)", tostring(sender))
+    return
+  end
+  if not enabled() then
+    ns.Trace("reçu %s de %s : ignoré, « Partager ma position » décoché", text:sub(1, 1), tostring(sender))
+    return
+  end
+  if not trusted(channel) then
+    ns.Trace("reçu %s de %s : ignoré, canal %s", text:sub(1, 1), tostring(sender), tostring(ns.plain(channel)))
+    return
+  end
   local msg = Positions.Decode(text)
-  if not msg or (ns.char and msg.guid == ns.char.guid) then return end
+  if not msg then
+    if text:sub(1, 1) ~= "D" then ns.Trace("reçu de %s : message illisible", tostring(sender)) end -- D : une mort
+    return
+  end
+  if ns.char and msg.guid == ns.char.guid then
+    ns.Trace("reçu %s : le mien", msg.kind)
+    return
+  end
+  ns.Trace("reçu %s de %s (%s, carte %s)", msg.kind, tostring(sender), msg.name or "?", tostring(msg.map))
   if msg.kind == "L" then Positions.Forget(msg.guid) return end
   local peer = Positions.peers[msg.guid] or { guid = msg.guid }
   -- Chaque champ est réécrit, y compris à vide : une carte sans coordonnées (instance, chargement) retire le point.

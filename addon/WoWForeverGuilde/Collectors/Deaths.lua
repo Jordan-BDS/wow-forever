@@ -19,13 +19,22 @@ function ns.OnDeath(char, death)
   if not (IsInGuild and IsInGuild()) then return end
   local api = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
   if not api then return end
-  local className = UnitClass("player")
+  -- Jeton de classe (SHAMAN) et non le nom affiché (Chaman) : c'est la clé des couleurs de classe chez le receveur,
+  -- qui retraduit dans sa langue. Les anciennes versions envoyaient le nom affiché : il reste accepté tel quel.
+  local class = char.class
+  if type(class) ~= "string" or class == "" then
+    local ok, _, token = pcall(UnitClass, "player")
+    class = ok and ns.plain(token) or ""
+  end
   local line = ns.Data.DEATH_PREFIX .. table.concat({
-    encodeField(char.guid), encodeField(char.name), encodeField(char.surname), encodeField(className or char.class),
+    encodeField(char.guid), encodeField(char.name), encodeField(char.surname), encodeField(class),
     tostring(char.level or 0), encodeField(describeKiller(death)), encodeField(death.zone), encodeField(death.sub),
     tostring(death.t or ns.now()),
   }, "\t")
-  if #line <= 255 then ns.Risky("SendAddonMessage GUILD (mort)", pcall, api, ns.Data.ADDON_PREFIX, line, "GUILD") end
+  if #line > 255 then return end
+  local ok, result = ns.Risky("SendAddonMessage GUILD (mort)", pcall, api, ns.Data.ADDON_PREFIX, line, "GUILD")
+  local sent = ok and (result == nil or result == true or result == 0)
+  ns.Trace("envoi D (ma mort) → %s", sent and "accepté" or tostring(result))
 end
 
 local function parse(line)
@@ -40,13 +49,19 @@ local function parse(line)
 end
 ns.ParseDeathLine = parse
 
+--- Nom de classe dans la langue du client (« Chaman ») d'après le jeton reçu, ou le texte reçu tel quel.
+function ns.ClassLabel(class)
+  local names = LOCALIZED_CLASS_NAMES_MALE
+  return (type(names) == "table" and names[class]) or class or ""
+end
+
 function ns.DeathPhrase(info)
   local phrases = ns.PHRASES
   local phrase = phrases[math.random(1, #phrases)]
   local zone = info.zone ~= "" and info.zone or info.sub
   local values = {
     personnage = info.name, tueur = info.killer, zone = zone ~= "" and zone or "nulle part", niveau = tostring(info.level),
-    classe = info.class,
+    classe = ns.ClassLabel(info.class),
   }
   local text = phrase:gsub("{(%w+)}", function(key) return values[key] or ("{" .. key .. "}") end)
   return (text:gsub("^%l", string.upper)) -- « une chute remercie… » → « Une chute remercie… »
@@ -60,7 +75,12 @@ ns.RegisterCollector({
     text = ns.plain(text)
     if type(text) ~= "string" then return end
     local info = parse(text)
-    if not info or not ns.db.settings.showDeaths then return end
+    if not info then return end
+    if not ns.db.settings.showDeaths then
+      ns.Trace("mort de %s : popup désactivé dans les réglages", info.name)
+      return
+    end
+    ns.Trace("mort de %s reçue : popup", info.name)
     if ns.UI and ns.UI.ShowDeath then ns.UI.ShowDeath(info, ns.DeathPhrase(info)) end
   end,
 })

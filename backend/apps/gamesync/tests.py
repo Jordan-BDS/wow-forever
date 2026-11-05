@@ -3,8 +3,8 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from apps.characters.models import Character, CharacterProfession
-from apps.gamedata.models import PlayerClass, Profession, Race, Recipe
+from apps.characters.models import Character, CharacterProfession, TalentBuild
+from apps.gamedata.models import PlayerClass, Profession, Race, Recipe, Talent, TalentTree
 from apps.gamedata.seed import seed
 from apps.guild.models import GuildSettings
 
@@ -353,6 +353,53 @@ class TestImport:
 
 RETAIL_CLIENT = {"version": "12.1.5", "build": "64567", "toc": 120105, "project": 1}
 FOREVER_CLIENT = {"version": "1.15.0", "build": "60000", "toc": 16001, "project": 1}
+
+
+class TestTalentsImport:
+    """Le build « En jeu » se lit par rangée/colonne (grid), par sort (spells) ou par index (points)."""
+
+    @pytest.fixture
+    def shaman(self, member):
+        shaman = PlayerClass.objects.get(slug="shaman")
+        elemental = TalentTree.objects.create(id=261, player_class=shaman, name="Élémentaire", order=1)
+        enhancement = TalentTree.objects.create(id=263, player_class=shaman, name="Amélioration", order=2)
+        for talent_id, tree, name, row, column, spells in [
+            (1, elemental, "Convection", 0, 1, [16039, 16109, 16110, 16111, 16112]),
+            (2, enhancement, "Robustesse", 0, 1, [16258, 16293]),
+            (3, enhancement, "Maîtrise des boucliers", 0, 2, [16253, 16298, 16299, 16300, 16301]),
+            (4, enhancement, "Frappe-tempête", 6, 1, [17364]),
+        ]:
+            Talent.objects.create(
+                id=talent_id, tree=tree, name=name, row=row, column=column, rank_spells=spells
+            )
+        return Character.objects.create(
+            owner=member, name="Thrall", player_class=shaman, race=Race.objects.get(slug="orc"), level=60
+        )
+
+    def points(self, character):
+        return TalentBuild.objects.get(character=character, name=services.IN_GAME).points
+
+    def test_grid_keys_are_one_based_rows_and_columns_per_tree(self, shaman):
+        grid = {"1-1-2": 5, "2-1-3": 4, "2-7-2": 1, "9-9-9": 3}
+        services._apply_talents(shaman, {"api": "classic", "grid": grid, "points": {"1-1": 1}})
+        assert self.points(shaman) == [1] * 5 + [3] * 4 + [4]
+        shaman.refresh_from_db()
+        assert shaman.specialization.slug == "shaman-enhancement"
+
+    def test_spells_name_the_talent_and_its_rank(self, shaman):
+        # Rang 1 du nœud avec le sort du rang 3, un nœud à 2 rangs sur le sort du rang 1, un inconnu, un rang
+        # trop haut (borné au rang max).
+        spells = {"16299": 1, "16258": 2, "99999": 5, "17364": 9}
+        services._apply_talents(shaman, {"api": "traits", "spells": spells})
+        assert self.points(shaman) == [2, 2, 3, 3, 3, 4]
+
+    def test_legacy_points_are_still_read_and_unreadable_payloads_change_nothing(self, shaman):
+        services._apply_talents(shaman, {"points": {"2-1": 2}})
+        assert self.points(shaman) == [2, 2]
+        services._apply_talents(shaman, {"api": "traits"})  # aucune lecture : le build reste
+        assert self.points(shaman) == [2, 2]
+        services._apply_talents(shaman, {"api": "traits", "spells": {}})  # lu, zéro point : build vidé
+        assert self.points(shaman) == []
 
 
 class TestForeignClient:

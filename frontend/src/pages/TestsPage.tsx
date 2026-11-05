@@ -72,9 +72,20 @@ const SECTIONS: Section[] = [
         id: "version",
         title: "Version de l'addon chargée",
         commands: ['/dump C_AddOns.GetAddOnMetadata("WoWForeverGuilde", "Version")'],
-        expected: "« 0.3.1 ».",
+        expected: "La version de la dernière release (0.3.7 au 5 novembre).",
         otherwise:
           "Autre chose : le compagnon n'a pas recopié l'addon. Bouton « Réinstaller l'addon » puis /reload.",
+      },
+      {
+        id: "api",
+        title: "API du client lisibles par l'addon",
+        severity: "block",
+        severityLabel: "à faire une fois, le résultat arrive ici",
+        commands: ["/mf api"],
+        expected:
+          "Quatre lignes dans le chat : talents, métiers, carte (fonctions présentes et absentes), puis ce que l'addon en lit. Le tout est noté et remonte dans la colonne de droite au prochain envoi, ligne « diagnostic ».",
+        otherwise:
+          "« talents : aucune » ou « métiers · présent : rien » : copie la ligne, c'est le nom des fonctions qui manquent qu'il me faut.",
       },
       {
         id: "talents",
@@ -83,20 +94,21 @@ const SECTIONS: Section[] = [
         severityLabel: "après le niveau 10",
         commands: [
           "/dump GetNumTalentTabs(), GetNumTalents(1), GetTalentInfo(1, 1)",
-          "/dump GetNumTalentGroups(), GetActiveTalentGroup()",
+          "/dump C_SpecializationInfo.GetTalentInfo(1, 1)",
+          "/dump C_ClassTalents.GetActiveConfigID()",
         ],
         expected:
-          "3, un nombre, puis nom, icône, rangée, colonne, rang. La seconde commande dit si la double spé existe.",
+          "Après un point dépensé puis /mf : la ligne Talents passe « À jour » et le build « En jeu » de la fiche montre le point au bon endroit. L'une des trois commandes répond : 3, un nombre, puis nom, icône, rangée, colonne, rang ; ou une table name / tier / column / rank ; ou un numéro de configuration (traits modernes).",
         otherwise:
-          "Nil partout : la ligne Talents de /mf dira « Indisponible sur ce client » et le build « En jeu » restera vide sur le site.",
+          "Nil partout : la ligne Talents de /mf dit « Indisponible sur ce client », une ligne « talents.scan » arrive à droite, et le build « En jeu » reste vide sur le site.",
       },
       {
-        id: "channel",
-        title: "Canal caché des morts",
-        commands: ['/dump GetChannelName("wfgdeaths")'],
+        id: "guild",
+        title: "Dans la guilde",
+        commands: ["/dump IsInGuild()"],
         expected:
-          "Après 5 s en jeu, un numéro supérieur à 0, et ce canal n'apparaît dans aucun onglet de chat.",
-        otherwise: "0 : les annonces de mort et les positions hors guilde ne circuleront pas.",
+          "true. Positions et annonces de mort passent par messages addon sur le canal de guilde (les canaux de chat sont interdits aux addons sur Forever).",
+        otherwise: "false : rien ne circule, ni carte, ni Guilde en jeu, ni annonces, jusqu'à l'invitation.",
       },
       {
         id: "prefix",
@@ -145,9 +157,15 @@ const SECTIONS: Section[] = [
       {
         id: "profession",
         title: "Fenêtre du métier ouverte une fois",
-        commands: ["/dump C_TradeSkillUI.GetBaseProfessionInfo()"],
+        commands: [
+          "/dump GetProfessionInfo((GetProfessions()))",
+          "/dump C_TradeSkillUI.GetBaseProfessionInfo()",
+          "/dump C_TradeSkillUI.GetChildProfessionInfo()",
+        ],
         expected:
-          "Ouvre la fenêtre du métier puis /mf : « Métiers et recettes » passe de « jamais lu » à « À jour » avec la compétence. La commande, fenêtre ouverte, donne une table avec professionID, skillLevel, maxSkillLevel.",
+          "Ouvre la fenêtre du métier puis /mf : « Métiers et recettes » passe de « jamais lu » à « À jour » avec la compétence. La première commande donne nom, icône, compétence, maximum, deux nombres, puis la ligne de compétence (171 pour l'alchimie, ou un nombre en 24xx-25xx pour une ligne « Classic »). Les deux autres, fenêtre ouverte, donnent une table avec professionID, parentProfessionID, skillLevel, maxSkillLevel.",
+        otherwise:
+          "Métier absent de la fiche sur le site alors que /mf le liste : copie la ligne de compétence (septième valeur) de la première commande, le site ne la connaît pas.",
       },
       {
         id: "gathering",
@@ -185,9 +203,11 @@ const SECTIONS: Section[] = [
       {
         id: "sos",
         title: "Appel à l'aide",
-        commands: ["/mf sos"],
+        commands: ["/mf trace", "/mf sos"],
         expected:
-          "Chez le pote : ligne de chat, texte flottant orange et son s'il est sur la même carte, anneau rouge autour de ton point deux minutes. Un second appel dans la minute répond « réessaie dans N s ».",
+          "Chez le pote : ligne de chat, texte flottant orange et son s'il est sur la même carte, anneau rouge autour de ton point deux minutes. Un second appel dans la minute répond « réessaie dans N s ». Avec la trace active des deux côtés : « envoi G → accepté » chez l'appelant, « reçu G de … » chez l'autre.",
+        otherwise:
+          "« Appel non envoyé : le jeu a répondu N » : le rang de guilde n'a peut-être pas le droit de parler. « reçu G … ignoré » : la raison est écrite. Rien reçu du tout alors que l'envoi est accepté : le serveur ne relaie pas, copie les deux traces.",
       },
       {
         id: "lfg",

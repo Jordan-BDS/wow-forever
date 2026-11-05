@@ -389,8 +389,11 @@ end
 function UI.ShowDeath(info, phrase)
   local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[(info.class or ""):upper()]
   local coloredName = color and ("|c" .. (color.colorStr or "ffffffff") .. info.name .. "|r") or info.name
-  UI.ShowToast(L.DEATH_HEADER, (phrase:gsub(info.name, coloredName, 1)),
-    string.format(L.DEATH_FOOTER, info.level or 0, info.class or ""), { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths)
+  -- Remplacement littéral : un nom n'est pas un motif Lua.
+  local at = phrase:find(info.name, 1, true)
+  if at then phrase = phrase:sub(1, at - 1) .. coloredName .. phrase:sub(at + #info.name) end
+  UI.ShowToast(L.DEATH_HEADER, phrase, string.format(L.DEATH_FOOTER, info.level or 0, ns.ClassLabel(info.class)),
+    { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths)
 end
 
 --- Appel à l'aide d'un membre dans ma zone.

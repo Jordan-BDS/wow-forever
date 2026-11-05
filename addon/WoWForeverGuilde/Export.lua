@@ -14,7 +14,7 @@ end
 local function professionList(entry)
   local list = ns.Json.array()
   for _, prof in pairs(entry.professions or {}) do
-    local item = { id = prof.id, skill = prof.skill, max = prof.max, spec = prof.spec }
+    local item = { id = prof.id, line = prof.line, skill = prof.skill, max = prof.max, spec = prof.spec }
     if prof.recipes then
       local recipes = ns.Json.array()
       for _, id in ipairs(prof.recipes) do recipes[#recipes + 1] = id end

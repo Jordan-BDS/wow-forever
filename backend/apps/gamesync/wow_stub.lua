@@ -21,6 +21,13 @@ UIParent = { GetEffectiveScale = function() return 1 end }
 NUM_CHAT_WINDOWS = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
+LOCALIZED_CLASS_NAMES_MALE = { SHAMAN = "Chaman", MAGE = "Mage" }
+-- Valeur « secrète » du client moderne : toute opération Lua dessus échoue, seul issecretvalue la reconnaît.
+_SECRET = setmetatable({}, {
+  __tostring = function() error("attempt to use a secret value") end,
+  __concat = function() error("attempt to concatenate a secret value") end,
+})
+function issecretvalue(v) return v == _SECRET end
 RAID_CLASS_COLORS = { SHAMAN = { r = 0, g = 0.44, b = 0.87, colorStr = "ff0070dd" }, MAGE = { r = 0.41, g = 0.8, b = 0.94, colorStr = "ff69ccf0" } }
 SOUNDKIT = { RAID_WARNING = 8959 }
 function PlaySound(id) table.insert(_SOUNDS, id) end
@@ -67,7 +74,19 @@ function GetInventoryItemLink(unit, slot) return _GEAR[slot] end
 _TALENTS = { tabs = 3, per_tab = 2, ranks = { ["1-1"] = 0, ["1-2"] = 0, ["2-1"] = 5, ["2-2"] = 3, ["3-1"] = 1, ["3-2"] = 0 } }
 function GetNumTalentTabs() return _TALENTS.tabs end
 function GetNumTalents(tab) return _TALENTS.per_tab end
-function GetTalentInfo(tab, index) return "Talent", "icon", 1, 1, _TALENTS.ranks[tab .. "-" .. index] or 0, 5 end
+-- Rangée et colonne comme le jeu les numérote (à partir de 1) : l'index 1 est en (1,1), l'index 2 en (1,2).
+function GetTalentInfo(tab, index) return "Talent", "icon", 1, index, _TALENTS.ranks[tab .. "-" .. index] or 0, 5 end
+-- Traits modernes (C_Traits) : actifs quand _TRAITS est posé et que l'API Classic est retirée par le test.
+-- _TRAITS = { [spellId] = rang }.
+_TRAITS = nil
+C_ClassTalents = { GetActiveConfigID = function() return _TRAITS and 1 or nil end }
+C_Traits = {
+  GetConfigInfo = function(id) return _TRAITS and { treeIDs = { 10 } } or nil end,
+  GetTreeNodes = function() local ids = {} for spell in pairs(_TRAITS or {}) do table.insert(ids, spell) end table.sort(ids) return ids end,
+  GetNodeInfo = function(_, nodeID) return { activeRank = _TRAITS[nodeID], activeEntry = { entryID = nodeID } } end,
+  GetEntryInfo = function(_, entryID) return { definitionID = entryID } end,
+  GetDefinitionInfo = function(defID) return { spellID = defID } end,
+}
 function GetTalentTabInfo(tab) return ({ "Élémentaire", "Amélioration", "Restauration" })[tab], "icon", 0 end
 
 -- Métiers.
@@ -77,8 +96,17 @@ _PROFESSION_SLOTS = { 1, 2 }
 function GetProfessions() return unpack(_PROFESSION_SLOTS, 1, 6) end
 function GetProfessionInfo(i) local p = _PROFESSIONS[i] if not p then return nil end return p.name, "icon", p.skill, p.max, 0, 0, p.line end
 _OPEN_TRADESKILL = nil
+-- Hiérarchie des lignes de compétence d'une base moderne : _SKILL_PARENTS[ligne d'extension] = ligne mère.
+_SKILL_PARENTS = {}
+_SKILL_INFO = {} -- compétence propre à une ligne : _SKILL_INFO[ligne] = { skillLevel, maxSkillLevel }
+_OPEN_CHILD = nil
 C_TradeSkillUI = {
   GetBaseProfessionInfo = function() return _OPEN_TRADESKILL end,
+  GetChildProfessionInfo = function() return _OPEN_CHILD end,
+  GetProfessionInfoBySkillLineID = function(line)
+    local own = _SKILL_INFO[line] or {}
+    return { professionID = line, parentProfessionID = _SKILL_PARENTS[line] or 0, skillLevel = own.skillLevel, maxSkillLevel = own.maxSkillLevel }
+  end,
   IsTradeSkillLinked = function() return false end,
   GetAllRecipeIDs = function() return _OPEN_TRADESKILL and _OPEN_TRADESKILL.recipes or {} end,
   GetRecipeInfo = function(id) return { recipeID = id, learned = id ~= 99999 } end,

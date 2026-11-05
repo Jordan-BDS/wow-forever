@@ -236,15 +236,23 @@ class TestSession:
         (sent,) = list(g._ADDON_SENT.values())
         assert (sent.prefix, sent.kind) == ("WFG", "GUILD")
         assert sent.text.startswith(
-            "D\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tChaman\t60\tSanglier des Tarides\tForêt d'Elwynn\t"
+            "D\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tSHAMAN\t60\tSanglier des Tarides\tForêt d'Elwynn\t"
         )
-        # Réception par un autre addon, sur le canal de guilde : popup + son.
+        # Réception par un autre addon, sur le canal de guilde : popup + son, nom coloré par classe, classe traduite.
         g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "GUILD", "Thrall-Forever")
         toast = g.WoWForeverGuildeDeath
         assert (
-            toast.shown is True and "Thrall" in toast.text.text and "Sanglier des Tarides" in toast.text.text
+            toast.shown is True
+            and "|cff0070ddThrall|r" in toast.text.text
+            and "Sanglier des Tarides" in toast.text.text
         )
+        assert toast.footer.text == "Niveau 60 · Chaman"
         assert len(list(g._SOUNDS.values())) == 1
+        # Ancienne version en face : nom de classe affiché au lieu du jeton, accepté tel quel.
+        g._FIRE(
+            "CHAT_MSG_ADDON", "WFG", sent.text.replace("\tSHAMAN\t", "\tChaman\t"), "GUILD", "Thrall-Forever"
+        )
+        assert toast.footer.text == "Niveau 60 · Chaman" and len(list(g._SOUNDS.values())) == 2
         # Chuchoté par n'importe qui : ignoré.
         toast.shown = False
         g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "WHISPER", "Inconnu-Forever")
@@ -252,11 +260,29 @@ class TestSession:
         # Son coupé → le popup reste, sans son.
         lua.execute("WoWForeverGuildeDB.settings.soundDeaths = false")
         g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "GUILD", "Thrall-Forever")
-        assert toast.shown is True and len(list(g._SOUNDS.values())) == 1
+        assert toast.shown is True and len(list(g._SOUNDS.values())) == 2
         # Désactivé → rien n'est envoyé.
         lua.execute("WoWForeverGuildeDB.settings.announceDeaths = false")
         g._FIRE("PLAYER_DEAD")
         assert len(list(g._ADDON_SENT.values())) == 1
+
+    def test_death_is_still_announced_when_the_game_hides_values_in_combat(self):
+        # Valeurs « secrètes » (zone, nom de la cible) au moment de mourir : rien ne doit faire sauter l'annonce.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _ZONE = _SECRET; _TARGET = { name = _SECRET, hostile = true }")
+        g._FIRE("PLAYER_DEAD")
+        lua.execute("_ZONE = nil; _TARGET = nil")
+        (sent,) = list(g._ADDON_SENT.values())
+        assert sent.text.startswith(
+            "D\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tSHAMAN\t60\tquelque chose\t\t\t"
+        )
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+        assert g._NS.char.counters.deaths == 1
+        payload = decode_export(logout_code(lua))  # l'export n'embarque aucune valeur secrète
+        death = next(e for e in payload["characters"][0]["events"] if e["k"] == "death")
+        assert death["zone"] == "" and "killer" not in death
 
     def test_collector_errors_are_listed_by_slash_command_and_recalled_at_login(self):
         lua = boot()
@@ -348,6 +374,103 @@ class TestSession:
         (character,) = payload["characters"]
         assert sorted(p["id"] for p in character["professions"]) == [185, 186, 356]
         assert {p["id"]: p["skill"] for p in character["professions"]} == {185: 75, 186: 300, 356: 150}
+
+    def test_talents_are_keyed_by_tree_row_and_column_with_the_classic_api(self):
+        lua = boot()
+        login(lua)
+        payload = decode_export(logout_code(lua))
+        (character,) = payload["characters"]
+        talents = character["talents"]
+        # L'index 1 d'un arbre est en (rangée 1, colonne 1), l'index 2 en (1, 2) dans le simulateur.
+        assert talents["api"] == "classic" and talents["tabs"] == [0, 8, 1]
+        assert talents["grid"] == {"2-1-1": 5, "2-1-2": 3, "3-1-1": 1}
+        assert talents["points"] == {"2-1": 5, "2-2": 3, "3-1": 1}
+        assert character["spec_tab"] == 2
+        assert lua.globals()._NS.TalentSummary() == "Amélioration 0/8/1"
+
+    def test_talents_fall_back_on_modern_traits_as_ranks_per_spell(self):
+        lua = boot()
+        lua.execute("GetNumTalentTabs, GetNumTalents, GetTalentInfo, GetTalentTabInfo = nil, nil, nil, nil")
+        lua.execute("_TRAITS = { [16035] = 5, [17364] = 1 }")  # Convection 5/5, Frappe-tempête 1/1
+        login(lua)
+        payload = decode_export(logout_code(lua))
+        (character,) = payload["characters"]
+        assert character["talents"] == {"api": "traits", "spells": {"16035": 5, "17364": 1}}
+        assert "spec_tab" not in character
+        assert lua.globals()._NS.TalentSummary() == ""  # pas d'arbres : pas de résumé dans la position
+
+    def test_no_talent_api_is_reported_once_and_shown_as_unavailable(self):
+        lua = boot()
+        lua.execute("GetNumTalentTabs, GetNumTalents, GetTalentInfo, GetTalentTabInfo = nil, nil, nil, nil")
+        login(lua)
+        g = lua.globals()
+        g._FIRE("CHARACTER_POINTS_CHANGED")
+        g._ADVANCE(2)
+        errors = list(g.WoWForeverGuildeDB.errors.values())
+        assert [e.where for e in errors] == ["talents.scan"]
+        assert "aucune API de talents" in errors[0].error and "/mf api" in errors[0].error
+        statuses = {d.name: d.status(g._NS.char) for d in g._NS.collectors.values() if d.name == "talents"}
+        assert "Indisponible" in statuses["talents"]
+        assert decode_export(logout_code(lua))["characters"][0].get("talents") in (None, {})
+
+    def test_professions_are_reported_under_their_parent_skill_line(self):
+        lua = boot()
+        # Base moderne : l'alchimie est lue comme « Alchimie Classic » (2485), fille de 171 ; la mère dit 0, la
+        # compétence est celle de la ligne lue.
+        lua.execute(
+            "_PROFESSIONS[2] = { name = 'Alchimie', skill = 0, max = 0, line = 2485 };"
+            "_SKILL_PARENTS[2485] = 171; _SKILL_INFO[2485] = { skillLevel = 292, maxSkillLevel = 300 }"
+        )
+        login(lua)
+        before = decode_export(logout_code(lua))["characters"][0]
+        assert {p["id"]: p["skill"] for p in before["professions"]} == {171: 292, 186: 300}
+        g = lua.globals()
+        g._FIRE("PLAYER_LOGIN")
+        g._ADVANCE(5)
+        lua.execute(
+            "_OPEN_TRADESKILL = { professionID = 171, professionName = 'Alchimie', skillLevel = 0, maxSkillLevel = 0, parentProfessionID = 0, recipes = { 17580 } };"
+            "_OPEN_CHILD = { professionID = 2485, professionName = 'Alchimie Classic', skillLevel = 295, maxSkillLevel = 300, parentProfessionID = 171 }"
+        )
+        g._FIRE("TRADE_SKILL_SHOW")
+        g._ADVANCE(2)
+        lua.execute("_SKILL_INFO[2485] = { skillLevel = 295, maxSkillLevel = 300 }")  # la fenêtre a dit 295
+        payload = decode_export(logout_code(lua))
+        (character,) = payload["characters"]
+        professions = {p["id"]: p for p in character["professions"]}
+        assert set(professions) == {171, 186}
+        assert professions[171]["line"] == 2485 and professions[171]["skill"] == 295
+        assert professions[171]["max"] == 300 and professions[171]["recipes"] == [17580]
+        assert professions[186]["line"] == 186 and professions[186]["skill"] == 300
+
+    def test_api_diagnostic_is_printed_and_travels_with_the_errors(self):
+        lua = boot()
+        login(lua)
+        g = lua.globals()
+        lua.execute("_GUILD = true")
+        g.SlashCmdList.WOWFOREVERGUILDE("api")
+        chat = list(g._CHAT.values())
+        assert any(
+            "talents · présent : GetNumTalentTabs" in m and "absent : C_SpecializationInfo" in m for m in chat
+        )
+        assert any(
+            "métiers · présent : GetProfessions" in m and "absent : GetNumSkillLines" in m for m in chat
+        )
+        assert any(
+            "lecture · talents : classic (arbres)" in m
+            and "guilde : oui" in m
+            and "carte 1429 (0.50, 0.50)" in m
+            for m in chat
+        )
+        assert any(
+            "Alchimie (171→171) 290" in m and "Minage (186→186) 300" in m for m in chat
+        )  # ligne lue → mère
+        assert any("Diagnostic noté" in m for m in chat)
+        errors = decode_export(logout_code(lua))["errors"]
+        assert len(errors) == 1 and errors[0]["where"] == "diagnostic"
+        assert (
+            errors[0]["error"].startswith("talents · présent")
+            and "client 1.60.1 (12345, 16001)" in errors[0]["error"]
+        )
 
     @pytest.mark.parametrize("modern", [False, True], ids=["battlefield_winner", "pvp_match_complete"])
     def test_two_consecutive_battlegrounds_on_the_same_map_are_both_counted(self, modern):
@@ -709,6 +832,43 @@ class TestPositions:
         assert len(list(g.WoWForeverGuildeDB.errors.values())) == 0, list(
             g.WoWForeverGuildeDB.errors.values()
         )
+
+    def test_trace_explains_sends_receptions_and_rejections(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        g.SlashCmdList.WOWFOREVERGUILDE("trace")
+        g.SlashCmdList.WOWFOREVERGUILDE("sos")
+        chat = list(g._CHAT.values())
+        assert any("Trace des messages addon pendant 120 s" in m for m in chat)
+        assert any("trace ·" in m and "envoi G → accepté" in m for m in chat)
+        # Réception d'un appel, puis d'un appel ignoré (réglage), puis d'un message chuchoté.
+        alert = (
+            "G\t1\tPlayer-1-0099\tJaina\tMAGE\t12\t1429\t0.5000\t0.5000\tForêt d'Elwynn\t\tGarrosh\tWARRIOR"
+        )
+        g._FIRE("CHAT_MSG_ADDON", "WFG", alert, "GUILD", "Jaina-Forever")
+        lua.execute("WoWForeverGuildeDB.settings.gankAlerts = false")
+        g._FIRE("CHAT_MSG_ADDON", "WFG", alert, "GUILD", "Jaina-Forever")
+        g._FIRE("CHAT_MSG_ADDON", "WFG", alert, "WHISPER", "Jaina-Forever")
+        chat = list(g._CHAT.values())
+        assert any("reçu G de Jaina-Forever (Jaina, carte 1429)" in m for m in chat)
+        assert any("appel de Jaina ignoré" in m and "décoché" in m for m in chat)
+        assert any("reçu G de Jaina-Forever : ignoré, canal WHISPER" in m for m in chat)
+        # Le jeu refuse l'envoi : l'appelant le sait, avec le code.
+        lua.execute(
+            "C_ChatInfo.SendAddonMessage = function() return 3 end; WoWForeverGuildeDB.settings.gankAlerts = true"
+        )
+        g._ADVANCE(61)
+        g.SlashCmdList.WOWFOREVERGUILDE("sos")
+        chat = list(g._CHAT.values())
+        assert any("Appel non envoyé" in m and "« 3 »" in m for m in chat)
+        assert any("envoi G → 3" in m for m in chat)
+        # Après le délai, silence.
+        g._ADVANCE(120)
+        lua.execute("_CHAT = {}")
+        g._FIRE("CHAT_MSG_ADDON", "WFG", alert, "GUILD", "Jaina-Forever")
+        assert not any("trace" in m for m in list(g._CHAT.values()))
 
     def test_minimap_dots_follow_their_setting(self):
         lua = boot()

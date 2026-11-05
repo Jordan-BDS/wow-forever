@@ -72,6 +72,7 @@ ns.Data.ICON = "Interface\\AddOns\\WoWForeverGuilde\\Samwise"
 ns.Data.JOURNAL_DAYS = 60
 ns.Data.MAX_EVENTS = 500
 ns.Data.MAX_ERRORS = 50
+ns.Data.TRACE_SECONDS = 120 -- durée de /mf trace
 ns.Data.RELOAD_REMINDER_SECONDS = 3 * 3600
 ns.Data.GATHERING_WINDOW = 3
 ns.Data.MAX_MOBS = 500 -- créatures distinctes gardées par personnage (clé = nom affiché)

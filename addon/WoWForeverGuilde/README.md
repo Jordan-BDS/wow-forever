@@ -4,8 +4,19 @@ Collecte la progression du personnage et produit un code d'export pour le site d
 réseau : le client écrit `WoWForeverGuildeDB` à la déconnexion et au `/reload`, le compagnon (ou un copier-coller)
 transporte le code jusqu'au site.
 
-- `Core.lua` : cycle de vie, bus d'événements, protection des collecteurs (`pcall`, hors combat), `/mf`.
+- `Core.lua` : cycle de vie, bus d'événements, protection des collecteurs (`pcall`, hors combat), `/mf`. `/mf api` :
+  diagnostic des API du client (talents, métiers, carte, messages addon) et de ce que les collecteurs en lisent,
+  affiché dans le chat et noté avec les erreurs pour le GM (« Tests en jeu » sur le site). `/mf trace` : pendant 2 min, chaque
+  message addon envoyé ou reçu s'affiche (type, expéditeur, réponse du jeu, raison d'un rejet).
 - `Store.lua`, `Journal.lua`, `Export.lua`, `Json.lua`, `Base64.lua` : base, journal quotidien, code `WFG1:…`.
+- `Collectors/Talents.lua` : trois lectures essayées dans l'ordre, l'API Classic (`GetTalentInfo` en valeurs), sa
+  forme en table (`C_SpecializationInfo.GetTalentInfo`, Classic Era 1.15+) puis les traits modernes (`C_Traits`,
+  rang par sort) ; export `grid` (« arbre-rangée-colonne » → rang, ce que le site lit en premier), `points`
+  (« arbre-index », ancien format) ou `spells` (« sort » → rang). Aucune API : « Indisponible », noté une fois dans
+  `/mf erreurs`.
+- `Collectors/Professions.lua` : compétence dès la connexion, recettes à l'ouverture de la fenêtre ; la ligne de
+  compétence est ramenée à sa ligne mère (Alchimie 171 plutôt qu'« Alchimie Classic ») via
+  `C_TradeSkillUI.GetProfessionInfoBySkillLineID`, la compétence vient de la ligne d'extension quand la mère dit 0.
 - `Collectors/` : un module par catégorie (identité, équipement, talents, métiers, réputations, accès, verrous, PvP,
   PvE, créatures tuées, récolte et artisanat, quêtes, annonces de mort par message addon sur le canal de guilde). Les créatures tuées (`Collectors/Kills.lua`)
   viennent du message d'expérience « X meurt, vous gagnez N points » (Forever interdit le journal de combat aux

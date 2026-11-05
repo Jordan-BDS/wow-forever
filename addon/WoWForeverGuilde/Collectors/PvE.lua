@@ -20,12 +20,25 @@ local function guildmatesInGroup()
   return count, members
 end
 
+--- Texte lu sous protection : un appel qui échoue ou une valeur « secrète » (en combat) donne "" plutôt qu'une
+--- erreur qui ferait sauter tout le traitement de la mort, annonce comprise.
+local function text(fn, ...)
+  if type(fn) ~= "function" then return "" end
+  local ok, value = pcall(fn, ...)
+  value = ok and ns.plain(value) or nil
+  return type(value) == "string" and value or ""
+end
+
 --- Qui m'a tué : sans journal de combat (interdit aux addons sur Forever), la cible hostile au moment de la mort.
 local function killerName()
-  if not (UnitExists and UnitExists("target")) then return nil end
-  if UnitCanAttack and not UnitCanAttack("player", "target") then return nil end
-  local name = ns.plain(UnitName("target"))
-  return type(name) == "string" and name ~= "" and name or nil
+  local ok, exists = pcall(UnitExists or function() end, "target")
+  if not (ok and ns.plain(exists)) then return nil end
+  if UnitCanAttack then
+    local okAttack, hostile = pcall(UnitCanAttack, "player", "target")
+    if okAttack and ns.plain(hostile) == false then return nil end
+  end
+  local name = text(UnitName, "target")
+  return name ~= "" and name or nil
 end
 
 ns.RegisterCollector({
@@ -63,9 +76,9 @@ ns.RegisterCollector({
       end
     elseif event == "PLAYER_DEAD" then
       ns.Journal.Increment(char, "deaths")
-      local zone = (GetZoneText and GetZoneText()) or ""
-      local sub = (GetSubZoneText and GetSubZoneText()) or ""
-      local death = ns.Journal.Event(char, "death", { zone = zone, sub = sub, killer = killerName(), level = char.level })
+      local zone, sub = text(GetZoneText), text(GetSubZoneText)
+      local okKiller, killer = pcall(killerName)
+      local death = ns.Journal.Event(char, "death", { zone = zone, sub = sub, killer = okKiller and killer or nil, level = char.level })
       if ns.OnDeath then ns.Safe("deaths.announce", ns.OnDeath, char, death) end
     end
   end,
