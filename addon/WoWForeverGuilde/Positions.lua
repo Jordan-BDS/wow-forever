@@ -152,7 +152,7 @@ local function send(text)
   local api = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
   if not api then return false end
   if not (IsInGuild and IsInGuild()) then return false end -- sans guilde, rien ne circule
-  local ok, result = pcall(api, PREFIX, text, "GUILD")
+  local ok, result = ns.Risky("SendAddonMessage GUILD", pcall, api, PREFIX, text, "GUILD")
   return ok and (result == nil or result == true or result == 0)
 end
 

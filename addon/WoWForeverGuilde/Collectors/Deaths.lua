@@ -25,7 +25,7 @@ function ns.OnDeath(char, death)
     tostring(char.level or 0), encodeField(describeKiller(death)), encodeField(death.zone), encodeField(death.sub),
     tostring(death.t or ns.now()),
   }, "\t")
-  if #line <= 255 then pcall(api, ns.Data.ADDON_PREFIX, line, "GUILD") end
+  if #line <= 255 then ns.Risky("SendAddonMessage GUILD (mort)", pcall, api, ns.Data.ADDON_PREFIX, line, "GUILD") end
 end
 
 local function parse(line)

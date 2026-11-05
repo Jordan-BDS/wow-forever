@@ -134,6 +134,14 @@ function MapUI.Clear()
   if menu then menu:Hide() end
 end
 
+-- HereBeDragons-Pins réagit lui-même à ces événements (zoom de la minimap, changement de zone) : on pose le marqueur
+-- pour qu'un refus du jeu survenu à ce moment-là soit attribuable à la bibliothèque.
+ns.RegisterCollector({
+  name = "mapui",
+  events = { MINIMAP_UPDATE_ZOOM = true, PLAYER_ENTERING_WORLD = true, ZONE_CHANGED_NEW_AREA = true },
+  onEvent = function(_, event) ns.lastRisky = { name = "HereBeDragons " .. event, t = ns.now() } end,
+})
+
 --- Case « Points aussi sur la minimap » : ajoute ou retire les points de la minimap sans toucher à la carte.
 function MapUI.SetMinimap(on)
   ns.db.settings.minimapDots = on and true or false

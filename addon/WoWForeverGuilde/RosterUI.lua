@@ -16,7 +16,7 @@ local pending = false
 
 local function requestRoster()
   local api = (C_GuildInfo and C_GuildInfo.GuildRoster) or GuildRoster
-  if api then pcall(api) end
+  if api then ns.Risky("GuildRoster", pcall, api) end
 end
 
 local function header(label, count)

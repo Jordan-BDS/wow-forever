@@ -70,7 +70,7 @@ class TestLoading:
         ns = lua.globals()._NS
         names = sorted(ns.collectors[i].name for i in range(1, len(ns.collectors) + 1))
         assert names == sorted(
-            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions"]
+            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions", "mapui"]
         )  # fmt: skip
         assert lua.globals().SlashCmdList.WOWFOREVERGUILDE is not None
         # Icône de la guilde (portrait de Samwise, « Temp ») sur les fenêtres et dans la liste des addons.
@@ -317,14 +317,16 @@ class TestSession:
         lua = boot()
         g = lua.globals()
         login(lua)
+        lua.execute("_NS.Risky('RequestRaidInfo', function() end)")
         g._FIRE("ADDON_ACTION_FORBIDDEN", "WoWForeverGuilde", "JoinChannelByName()")
         g._FIRE("ADDON_ACTION_BLOCKED", "AutreAddon", "CastSpellByName()")  # pas le nôtre : ignoré
         assert any("Appel refusé" in m and "JoinChannelByName()" in m for m in list(g._CHAT.values()))
         errors = list(g.WoWForeverGuildeDB.errors.values())
         assert len(errors) == 1 and errors[0].where == "protected"
-        assert errors[0].error == "ADDON_ACTION_FORBIDDEN : JoinChannelByName()"
+        expected = "ADDON_ACTION_FORBIDDEN : JoinChannelByName() (dernier appel sensible : RequestRaidInfo, il y a 0 s)"
+        assert errors[0].error == expected
         payload = decode_export(logout_code(lua))
-        assert payload["errors"][0]["error"] == "ADDON_ACTION_FORBIDDEN : JoinChannelByName()"
+        assert payload["errors"][0]["error"] == expected
 
     def test_midnight_rollover_splits_days_in_memory(self):
         lua = boot()

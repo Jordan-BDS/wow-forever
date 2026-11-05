@@ -45,7 +45,7 @@ ns.RegisterCollector({
     if ChatFrame_AddMessageEventFilter and RequestTimePlayed then
       ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", filterPlayed)
       awaiting = true
-      RequestTimePlayed()
+      ns.Risky("RequestTimePlayed", RequestTimePlayed)
     end
   end,
   onEvent = function(char, event, ...)

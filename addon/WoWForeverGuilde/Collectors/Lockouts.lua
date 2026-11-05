@@ -23,6 +23,8 @@ ns.RegisterCollector({
   events = { UPDATE_INSTANCE_INFO = true, BOSS_KILL = true },
   scanOn = { UPDATE_INSTANCE_INFO = true },
   scan = scan,
-  onLogin = function() if RequestRaidInfo then RequestRaidInfo() end end,
-  onEvent = function(char, event) if event == "BOSS_KILL" and RequestRaidInfo then RequestRaidInfo() end end,
+  onLogin = function() if RequestRaidInfo then ns.Risky("RequestRaidInfo", RequestRaidInfo) end end,
+  onEvent = function(char, event)
+    if event == "BOSS_KILL" and RequestRaidInfo then ns.Risky("RequestRaidInfo", RequestRaidInfo) end
+  end,
 })

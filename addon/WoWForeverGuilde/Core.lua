@@ -67,6 +67,14 @@ function ns.RegisterCollector(def)
   ns.collectors[#ns.collectors + 1] = def
 end
 
+--- Dernier appel « sensible » (API que le jeu pourrait réserver à son interface) : quand le jeu refuse un appel
+--- sans en donner le nom, on sait au moins ce qu'on venait de faire. Pose le marqueur puis appelle.
+ns.lastRisky = nil
+function ns.Risky(name, fn, ...)
+  ns.lastRisky = { name = name, t = ns.now() }
+  return fn(...)
+end
+
 --- /mf erreurs : les dernières erreurs des collecteurs (gardées dans le fichier, envoyées au site), à copier.
 function ns.PrintErrors(limit)
   local errors = (ns.db and ns.db.errors) or {}
@@ -193,7 +201,9 @@ frame:SetScript("OnEvent", function(_, event, ...)
     -- (chat, /mf erreurs, et le site au prochain envoi) avec le nom de la fonction, pour savoir quoi corriger.
     local addon, func = ...
     if addon == ADDON then
-      local what = string.format("%s : %s", event, tostring(func))
+      local last = ns.lastRisky
+      local hint = last and string.format(" (dernier appel sensible : %s, il y a %d s)", last.name, ns.now() - last.t) or ""
+      local what = string.format("%s : %s%s", event, tostring(func), hint)
       ns.Store.LogError("protected", what)
       ns.Print(ns.L.ACTION_BLOCKED, tostring(func))
     end
