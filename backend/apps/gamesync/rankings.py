@@ -486,17 +486,11 @@ def _character_mob_kills(snapshot: CharacterSnapshot, start: date | None, end: d
     counters = data.get("counters") if isinstance(data.get("counters"), dict) else {}
     per_mob = counters.get("mobs") if isinstance(counters.get("mobs"), dict) else None
     if per_mob is not None:
-        return {
-            str(key): int(delta(snapshot, f"mobs.{key}", start, end)[0])
-            for key in per_mob
-            if str(key).isdigit()
-        }
+        return {str(key): int(delta(snapshot, f"mobs.{key}", start, end)[0]) for key in per_mob}
     if start is not None:
         return {}
     mobs = data.get("mobs") if isinstance(data.get("mobs"), dict) else {}
-    return {
-        str(k): int(number(v.get("n"))) for k, v in mobs.items() if isinstance(v, dict) and str(k).isdigit()
-    }
+    return {str(k): int(number(v.get("n"))) for k, v in mobs.items() if isinstance(v, dict)}
 
 
 def guild_mobs(
@@ -520,8 +514,16 @@ def guild_mobs(
                 continue
             record = mobs.get(key) if isinstance(mobs.get(key), dict) else {}
             mob = totals.setdefault(
-                int(key),
-                {"id": int(key), "name": None, "kills": 0, "hunters": set(), "last": 0.0, "top": None},
+                key,
+                {
+                    "id": int(key) if key.isdigit() else None,
+                    "key": key,
+                    "name": None,
+                    "kills": 0,
+                    "hunters": set(),
+                    "last": 0.0,
+                    "top": None,
+                },
             )
             mob["kills"] += n
             mob["hunters"].add(character.owner_id)
@@ -539,11 +541,12 @@ def guild_mobs(
                         "player_class": character.player_class.slug,
                     },
                 }
-    ordered = sorted(totals.values(), key=lambda m: (-m["kills"], (m["name"] or "").lower(), m["id"]))
+    ordered = sorted(totals.values(), key=lambda m: (-m["kills"], (m["name"] or m["key"]).lower(), m["key"]))
     return [
         {
             "id": m["id"],
-            "name": m["name"] or f"Créature {m['id']}",
+            "key": m["key"],
+            "name": m["name"] or (f"Créature {m['key']}" if m["key"].isdigit() else m["key"]),
             "kills": m["kills"],
             "hunters": len(m["hunters"]),
             "last_kill": datetime.fromtimestamp(m["last"], tz=UTC).isoformat() if m["last"] > 0 else None,

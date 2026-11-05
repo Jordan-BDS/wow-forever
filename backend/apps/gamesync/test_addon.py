@@ -138,20 +138,11 @@ class TestSession:
             "",
         )
         g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-2", 17580)  # recette connue → fabrication
-        lua.execute(
-            "_CLEU = { 0, 'SWING_DAMAGE', false, 'Creature-0-1', 'Sanglier des Tarides', 0, 0, 'Player-1-000ABC01', 'Thrall' }"
-        )
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        lua.execute("_TARGET = { name = 'Sanglier des Tarides', hostile = true }")
         g._FIRE("PLAYER_DEAD")
-        # Un loup frappé puis mort : créature tuée.
-        lua.execute(
-            "_CLEU = { 0, 'SWING_DAMAGE', false, 'Player-1-000ABC01', 'Thrall', 0x511, 0, 'Creature-0-1-2-3-299-ABC', 'Loup des Tarides', 0xa48 }"
-        )
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-        lua.execute(
-            "_CLEU = { 0, 'UNIT_DIED', false, nil, nil, 0, 0, 'Creature-0-1-2-3-299-ABC', 'Loup des Tarides', 0xa48 }"
-        )
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        lua.execute("_TARGET = nil")
+        # Un loup tué : message d'expérience (le journal de combat est interdit aux addons sur Forever).
+        g._FIRE("CHAT_MSG_COMBAT_XP_GAIN", "Loup des Tarides meurt, vous gagnez 45 points d'expérience.")
         g._FIRE("QUEST_TURNED_IN", 1234)
         g._FIRE("PVP_MATCH_COMPLETE", 0, 900)
         g._FIRE("PLAYER_LEVEL_UP", 60)
@@ -173,7 +164,7 @@ class TestSession:
         assert counters["bosses"]["672"]["n"] == 1 and counters["gathering"]["mining"] == 3
         assert counters["gathered_items"]["2770"] == 3 and counters["crafted"]["17580"] == 1
         assert counters["kills"] == 1 and character["mobs"] == {
-            "299": {"n": 1, "name": "Loup des Tarides", "first": g.time(), "last": g.time()}
+            "Loup des Tarides": {"n": 1, "name": "Loup des Tarides", "first": g.time(), "last": g.time()}
         }
         assert (
             counters["deaths"] == 1
@@ -189,7 +180,7 @@ class TestSession:
         assert list(character["journal"].keys()) == [g.date("%Y-%m-%d")]
         assert character["journal"][g.date("%Y-%m-%d")]["deaths"] == 1
         assert character["journal"][g.date("%Y-%m-%d")]["kills"] == 1
-        assert character["journal"][g.date("%Y-%m-%d")]["mobs"] == {"299": 1} == counters["mobs"]
+        assert character["journal"][g.date("%Y-%m-%d")]["mobs"] == {"Loup des Tarides": 1} == counters["mobs"]
 
         # Et le site l'importe tel quel.
         batch = services.import_code(member, code, source="paste")
@@ -206,83 +197,53 @@ class TestSession:
             ("mining", 300),
         ]
         assert set(created.known_recipes.values_list("recipe_id", flat=True)) == {17580, 11448}
-        assert created.snapshots.get().data["mobs"]["299"]["n"] == 1
+        assert created.snapshots.get().data["mobs"]["Loup des Tarides"]["n"] == 1
 
-    def test_creature_kills_count_when_i_or_my_pet_hit_them_before_they_die(self):
+    def test_creature_kills_come_from_experience_messages(self):
         lua = boot()
         g = lua.globals()
         login(lua)
-        me, mine = (
-            "'Player-1-000ABC01', 'Thrall', 0x511",
-            "0x1111",
-        )  # mes drapeaux ; familier : affiliation « mine »
-
-        def cleu(subevent, source, dest, dest_name, dest_flags=0xA48):
-            lua.execute(
-                f"_CLEU = {{ 0, '{subevent}', false, {source}, 0, {dest}, '{dest_name}', {dest_flags} }}"
-            )
-            g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-
-        wolf, wolf2, kobold, boar, totem = (
-            "'Creature-0-1-2-3-299-A1'", "'Creature-0-1-2-3-299-A2'", "'Creature-0-1-2-3-6-B1'",
-            "'Creature-0-1-2-3-113-C1'", "'Creature-0-1-2-3-2630-T1'",
-        )  # fmt: skip
-        # Frappé par moi puis mort : compté. Deux spawns du même PNJ : même espèce.
-        cleu("SPELL_DAMAGE", me, wolf, "Loup")
-        cleu("UNIT_DIED", "nil, nil, 0", wolf, "Loup")
-        cleu("SWING_DAMAGE", me, wolf2, "Loup")
-        cleu("UNIT_DIED", "nil, nil, 0", wolf2, "Loup")
-        # Mort sans que je l'aie touché : pas compté.
-        cleu("UNIT_DIED", "nil, nil, 0", kobold, "Kobold")
-        # Frappé par mon familier (drapeau « mine ») puis coup fatal porté par lui : compté une seule fois.
-        cleu("SPELL_DAMAGE", f"'Pet-0-1-2-3-4-P1', 'Grognon', {mine}", kobold, "Kobold")
-        cleu("PARTY_KILL", f"'Pet-0-1-2-3-4-P1', 'Grognon', {mine}", kobold, "Kobold")
-        cleu("UNIT_DIED", "nil, nil, 0", kobold, "Kobold")
-        # Frappé par un autre joueur : pas compté. Un joueur qui meurt : pas une créature.
-        cleu("SWING_DAMAGE", "'Player-1-0000FFFF', 'Garona', 0x548", boar, "Sanglier")
-        cleu("UNIT_DIED", "nil, nil, 0", boar, "Sanglier")
-        cleu("SWING_DAMAGE", me, "'Player-1-0000FFFF'", "Garona", 0x548)
-        cleu("UNIT_DIED", "nil, nil, 0", "'Player-1-0000FFFF'", "Garona", 0x548)
-        # Totem d'un joueur (contrôlé par un joueur) : pas compté.
-        cleu("SWING_DAMAGE", me, totem, "Totem", 0x1148)
-        cleu("UNIT_DIED", "nil, nil, 0", totem, "Totem", 0x1148)
-        # Frappé il y a trop longtemps : pas compté.
-        cleu("SWING_DAMAGE", me, "'Creature-0-1-2-3-113-C2'", "Sanglier")
-        g._ADVANCE(20)
-        cleu("UNIT_DIED", "nil, nil, 0", "'Creature-0-1-2-3-113-C2'", "Sanglier")
-
+        for text in (
+            "Loup meurt, vous gagnez 45 points d'expérience.",
+            "Loup meurt, vous gagnez 45 points d'expérience. (+9 bonus de groupe)",
+            "Kobold mineur meurt, vous gagnez 30 points d'expérience.",
+            "Vous gagnez 120 points d'expérience.",  # quête rendue : pas une créature
+        ):
+            g._FIRE("CHAT_MSG_COMBAT_XP_GAIN", text)
         char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
-        assert char.counters.kills == 3 and dict(char.counters.mobs) == {"299": 2, "6": 1}
+        assert char.counters.kills == 3 and dict(char.counters.mobs) == {"Loup": 2, "Kobold mineur": 1}
         assert {k: (m.n, m.name) for k, m in dict(char.mobs).items()} == {
-            "299": (2, "Loup"),
-            "6": (1, "Kobold"),
+            "Loup": (2, "Loup"),
+            "Kobold mineur": (1, "Kobold mineur"),
         }
         status = next(d for d in dict(g._NS.collectors).values() if d.name == "kills").status(char)
         assert status == "3 créatures tuées · 2 espèces"
-        assert g._NS.NpcId("Vehicle-0-1-2-3-4567-X") == 4567 and g._NS.NpcId("Pet-0-1-2-3-4-P1") is None
+        # Le motif est construit depuis la chaîne du jeu : « %s » devient le nom, le reste est protégé.
+        assert g._NS.XpPattern() == "^(.-) meurt, vous gagnez "
 
     def test_death_is_announced_by_guild_addon_message_and_shown_as_toast(self):
         lua = boot()
         g = lua.globals()
         login(lua)
-        lua.execute(
-            "_CLEU = { 0, 'ENVIRONMENTAL_DAMAGE', false, nil, nil, 0, 0, 'Player-1-000ABC01', 'Thrall', 0, 0, 'Falling' }"
-        )
-        g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
         # Sans guilde : rien ne part (le client moderne interdit les canaux de chat aux addons).
         g._FIRE("PLAYER_DEAD")
         assert list(g._ADDON_SENT.values()) == []
         lua.execute("_GUILD = true")
+        # Le tueur est la cible hostile au moment de mourir (pas de journal de combat sur Forever).
+        lua.execute("_TARGET = { name = 'Sanglier des Tarides', hostile = true }")
         g._FIRE("PLAYER_DEAD")
+        lua.execute("_TARGET = nil")
         (sent,) = list(g._ADDON_SENT.values())
         assert (sent.prefix, sent.kind) == ("WFG", "GUILD")
         assert sent.text.startswith(
-            "D\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tChaman\t60\tune chute\tForêt d'Elwynn\t"
+            "D\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tChaman\t60\tSanglier des Tarides\tForêt d'Elwynn\t"
         )
         # Réception par un autre addon, sur le canal de guilde : popup + son.
         g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "GUILD", "Thrall-Forever")
         toast = g.WoWForeverGuildeDeath
-        assert toast.shown is True and "Thrall" in toast.text.text and "une chute" in toast.text.text
+        assert (
+            toast.shown is True and "Thrall" in toast.text.text and "Sanglier des Tarides" in toast.text.text
+        )
         assert len(list(g._SOUNDS.values())) == 1
         # Chuchoté par n'importe qui : ignoré.
         toast.shown = False

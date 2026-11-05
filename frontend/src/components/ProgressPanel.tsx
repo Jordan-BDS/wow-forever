@@ -281,7 +281,7 @@ function ProgressContent({ character, p }: { character: Character; p: CharacterP
           <ol className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
             {p.mobs!.map((m, i) => (
               <li
-                key={`${m.id}-${m.name}`}
+                key={m.key}
                 className="flex items-baseline justify-between gap-2 border-b border-border/60 py-1"
               >
                 <span className="truncate">

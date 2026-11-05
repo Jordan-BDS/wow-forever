@@ -368,7 +368,7 @@ function HuntingBoard({
               {shown.map((m, i) => {
                 const isMe = m.top?.user.id === meId;
                 return (
-                  <tr key={m.id} className="border-t border-border/60">
+                  <tr key={m.key} className="border-t border-border/60">
                     <td className={clsx("py-1.5 pr-2", i < 3 ? "text-gold-light" : "text-muted")}>{i + 1}</td>
                     <td className="py-1.5 pr-3">{m.name}</td>
                     <td className="py-1.5 pr-3 text-right font-mono">{m.kills}</td>

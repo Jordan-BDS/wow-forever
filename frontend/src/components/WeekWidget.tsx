@@ -78,7 +78,7 @@ export function WeekWidget() {
                 <div className="text-xs text-muted">Créatures les plus tuées</div>
                 <ol className="mt-2 space-y-1">
                   {data.mobs.slice(0, 3).map((m, i) => (
-                    <li key={m.id} className="flex justify-between gap-6">
+                    <li key={m.key} className="flex justify-between gap-6">
                       <span className="truncate">
                         <span className="mr-1 inline-block w-5 text-right text-muted">{i + 1}.</span>
                         {m.name}

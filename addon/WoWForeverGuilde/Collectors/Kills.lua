@@ -1,47 +1,32 @@
--- Créatures tuées : un kill est compté quand une créature que moi (ou mon familier, mes totems…) ai frappée dans
--- les KILL_WINDOW dernières secondes meurt (même logique que le crédit de quête du jeu : pas besoin du coup fatal).
--- Le compteur cumulé `kills` et le nombre par identifiant de PNJ (`counters.mobs`) suivent les périodes dans le
--- journal quotidien ; le détail par créature (nom, premier et dernier kill) vit dans `char.mobs`, hors journal.
+-- Créatures tuées. Forever interdit le journal de combat aux addons (ADDON_ACTION_FORBIDDEN) : on lit le message
+-- d'expérience « Sanglier meurt, vous gagnez 45 points d'expérience. », donc toute créature qui rapporte de
+-- l'expérience, en solo comme en groupe. Au niveau maximum il n'y a plus de message : les kills ne sont plus comptés.
+-- Le compteur cumulé `kills` et le nombre par créature (`counters.mobs`, clé = nom, faute d'identifiant) suivent
+-- les périodes dans le journal quotidien ; le détail (premier et dernier kill) vit dans `char.mobs`, hors journal.
 local ADDON, ns = ...
 
-local DAMAGE_EVENTS = {
-  SWING_DAMAGE = true, RANGE_DAMAGE = true, SPELL_DAMAGE = true, SPELL_PERIODIC_DAMAGE = true,
-  SPELL_BUILDING_DAMAGE = true, DAMAGE_SPLIT = true, DAMAGE_SHIELD = true,
-}
-local AFFILIATION_MINE, CONTROL_PLAYER = 0x1, 0x100
-
-local touched = {} -- GUID de créature → { t = dernier coup, name = nom }
-local touchedCount = 0
-local lastPrune = 0
-
-local function hasFlag(flags, flag)
-  return type(flags) == "number" and math.floor(flags / flag) % 2 == 1
+--- Motif Lua construit depuis la chaîne du jeu « %s meurt, vous gagnez %d points d'expérience. » : on ne garde que
+--- le début, jusqu'au nom et au verbe, pour couvrir aussi les variantes de groupe (« (+%d bonus de groupe) »).
+local pattern
+local function xpPattern()
+  if pattern then return pattern end
+  local template = COMBATLOG_XPGAIN_FIRSTPERSON or "%s meurt, vous gagnez %d points d'expérience."
+  local head = template:match("^(.-)%%d") or template -- jusqu'au nombre de points
+  head = head:gsub("[%^%$%(%)%.%[%]%*%+%-%?]", "%%%0") -- caractères magiques
+  head = head:gsub("%%s", "(.-)", 1) -- %s → nom de la créature
+  pattern = "^" .. head
+  return pattern
 end
+ns.XpPattern = xpPattern
 
---- Identifiant de PNJ d'un GUID « Creature-0-serveur-instance-zone-NPCID-spawn » (ou Vehicle-…).
-local function npcId(guid)
-  if type(guid) ~= "string" then return nil end
-  local id = guid:match("^Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)%-") or guid:match("^Vehicle%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
-  return id and tonumber(id) or nil
+--- Nom de la créature tuée d'après un message d'expérience, nil sinon.
+local function killedName(msg)
+  if type(msg) ~= "string" then return nil end
+  local name = msg:match(xpPattern())
+  if name and name ~= "" then return name end
+  return nil
 end
-ns.NpcId = npcId
-
---- La source du coup, c'est moi ou une de mes unités (familier, totem, gardien).
-local function isMine(char, sourceGUID, sourceFlags)
-  if sourceGUID ~= nil and sourceGUID == char.guid then return true end
-  return hasFlag(sourceFlags, AFFILIATION_MINE)
-end
-
-local function prune(t)
-  if t - lastPrune < ns.Data.KILL_WINDOW then return end
-  lastPrune = t
-  for guid, hit in pairs(touched) do
-    if t - hit.t > ns.Data.KILL_WINDOW then
-      touched[guid] = nil
-      touchedCount = touchedCount - 1
-    end
-  end
-end
+ns.KilledName = killedName
 
 --- Garde au plus MAX_MOBS créatures distinctes : on oublie d'abord les moins tuées, puis les plus anciennes.
 local function capMobs(mobs, counts)
@@ -59,70 +44,28 @@ local function capMobs(mobs, counts)
   end
 end
 
-local function recordKill(char, id, name, t)
+local function recordKill(char, name, t)
   ns.Journal.Increment(char, "kills")
   local mobs = char.mobs
   if type(mobs) ~= "table" then mobs = {}; char.mobs = mobs end
-  local key = tostring(id)
-  local record = mobs[key]
+  local record = mobs[name]
   if not record then
-    record = { n = 0, first = t }
-    mobs[key] = record
+    record = { n = 0, first = t, name = name }
+    mobs[name] = record
     capMobs(mobs, char.counters.mobs)
-    if mobs[key] ~= record then return end -- évincé immédiatement : la table est pleine de créatures plus tuées
+    if mobs[name] ~= record then return end -- évincé immédiatement : la table est pleine de créatures plus tuées
   end
   record.n = record.n + 1
   record.last = t
-  ns.Journal.IncrementIn(char, "mobs", key)
-  if type(name) == "string" and name ~= "" then record.name = name end
-end
-
-local function onCombatLog(char)
-  if not CombatLogGetCurrentEventInfo or not char or not char.guid then return end
-  local _, subevent, _, sourceGUID, _, sourceFlags, _, destGUID, destName, destFlags = CombatLogGetCurrentEventInfo()
-  subevent = ns.plain(subevent)
-  if not subevent then return end
-  destGUID = ns.plain(destGUID)
-  local id = npcId(destGUID)
-  if not id then return end -- joueurs, familiers, objets : pas des créatures
-  local t = ns.now()
-  if DAMAGE_EVENTS[subevent] then
-    if hasFlag(ns.plain(destFlags), CONTROL_PLAYER) then return end -- totems, gardiens d'un joueur
-    if not isMine(char, ns.plain(sourceGUID), ns.plain(sourceFlags)) then return end
-    local hit = touched[destGUID]
-    if hit then
-      hit.t = t
-    else
-      touched[destGUID] = { t = t, name = ns.plain(destName) }
-      touchedCount = touchedCount + 1
-    end
-    if touchedCount > 50 then prune(t) end
-  elseif subevent == "PARTY_KILL" then
-    -- Coup fatal porté par moi : compté tout de suite, et UNIT_DIED juste après ne recomptera pas.
-    if not isMine(char, ns.plain(sourceGUID), ns.plain(sourceFlags)) then return end
-    if hasFlag(ns.plain(destFlags), CONTROL_PLAYER) then return end
-    local hit = touched[destGUID]
-    if hit then touched[destGUID] = nil; touchedCount = touchedCount - 1 end
-    recordKill(char, id, ns.plain(destName) or (hit and hit.name), t)
-  elseif subevent == "UNIT_DIED" then
-    local hit = touched[destGUID]
-    if not hit then return end
-    touched[destGUID] = nil
-    touchedCount = touchedCount - 1
-    if t - hit.t > ns.Data.KILL_WINDOW then return end
-    recordKill(char, id, ns.plain(destName) or hit.name, t)
-  end
+  ns.Journal.IncrementIn(char, "mobs", name)
 end
 
 ns.RegisterCollector({
   name = "kills",
-  events = { COMBAT_LOG_EVENT_UNFILTERED = true, PLAYER_ENTERING_WORLD = true },
-  onEvent = function(char, event)
-    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-      onCombatLog(char)
-    else
-      touched, touchedCount = {}, 0 -- changement de monde : les cibles en cours ne mourront plus sous nos yeux
-    end
+  events = { CHAT_MSG_COMBAT_XP_GAIN = true },
+  onEvent = function(char, event, msg)
+    local name = killedName(ns.plain(msg))
+    if name then recordKill(char, name, ns.now()) end
   end,
   status = function(char)
     local n, distinct = (char.counters and char.counters.kills) or 0, 0

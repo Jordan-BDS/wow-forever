@@ -169,7 +169,10 @@ def character_progress(character: Character, now: datetime | None = None) -> dic
         (
             {
                 "id": int(k) if str(k).isdigit() else None,
-                "name": v["name"] if isinstance(v.get("name"), str) and v["name"] else f"Créature {k}",
+                "key": str(k),
+                "name": v["name"]
+                if isinstance(v.get("name"), str) and v["name"]
+                else (f"Créature {k}" if str(k).isdigit() else str(k)),
                 "kills": int(number(v.get("n"))),
                 "week": int(delta(snapshot, f"mobs.{k}", week_start, today)[0]) if k in per_mob else 0,
                 "last": _iso(v.get("last")),

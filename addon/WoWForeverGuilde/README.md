@@ -8,10 +8,10 @@ transporte le code jusqu'au site.
 - `Store.lua`, `Journal.lua`, `Export.lua`, `Json.lua`, `Base64.lua` : base, journal quotidien, code `WFG1:…`.
 - `Collectors/` : un module par catégorie (identité, équipement, talents, métiers, réputations, accès, verrous, PvP,
   PvE, créatures tuées, récolte et artisanat, quêtes, annonces de mort par message addon sur le canal de guilde). Les créatures tuées (`Collectors/Kills.lua`)
-  viennent du journal de combat : toute créature frappée par moi ou mes unités (familier, totems) dans les 15 s
-  avant sa mort, ou dont j'ai porté le coup fatal ; compteur cumulé `kills` et nombre par identifiant de PNJ
-  (`counters.mobs`) dans le journal quotidien (d'où les classements hebdo par créature), détail nom / premier /
-  dernier kill dans `char.mobs`, hors journal, 500 espèces au plus.
+  viennent du message d'expérience « X meurt, vous gagnez N points » (Forever interdit le journal de combat aux
+  addons) ; compteur cumulé `kills` et nombre par créature (`counters.mobs`, clé = nom) dans le journal quotidien
+  (d'où les classements hebdo par créature), premier / dernier kill dans `char.mobs`, hors journal, 500 espèces au
+  plus ; rien au niveau maximum.
 - `Data.lua` : tables de référence à tenir à jour (quêtes d'accès, derniers boss, sorts de récolte).
 - `Samwise.blp` : icône de la guilde (portrait de Samwise Didier, l'ancienne icône « Temp » des clients Classic),
   en tête des fenêtres et dans la liste des addons (`## IconTexture`).

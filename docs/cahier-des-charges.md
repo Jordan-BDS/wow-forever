@@ -1035,7 +1035,7 @@ restent exacts mais le détail quotidien est perdu.
 | Réputations | Factions et niveaux | Exacte | ✅ |
 | PvP | **Victoires honorables à vie** et rang (totaux du jeu) ; champs de bataille joués / gagnés / perdus par type | Totaux exacts ; BG comptés depuis l'installation | ✅ |
 | PvE | Donjons et raids entrés / terminés (dernier boss), boss tués par nom et date, morts | Comptés depuis l'installation | ✅ |
-| Créatures tuées | Toute créature frappée par le joueur ou ses unités dans les 15 s avant sa mort (crédit de quête du jeu), ou dont il porte le coup fatal ; total cumulé et nombre par PNJ dans le journal quotidien (classements par période), détail nom / premier / dernier kill hors journal, 500 espèces au plus | Comptées depuis l'installation ; un heal pur ne compte rien | ✅ (addon 0.3.0, 4 nov. 2026) |
+| Créatures tuées | D'après le message d'expérience « X meurt, vous gagnez N points » (le journal de combat est **interdit aux addons sur Forever**) : toute créature qui rapporte de l'expérience, en solo ou en groupe, clé = nom affiché ; total cumulé et nombre par créature dans le journal quotidien (classements par période), premier / dernier kill hors journal, 500 espèces au plus | Comptées depuis l'installation ; plus rien au niveau maximum (pas de message d'expérience) | ✅ (addon 0.3.6, 5 nov. 2026) |
 | Récolte et artisanat | Minerais, herbes, peaux, poissons ramassés ; objets fabriqués par recette | Approximatif (sort de récolte + butin suivant) | ✅ |
 | Quêtes | Quêtes rendues (nombre), quêtes clés marquées | Comptées depuis l'installation ; clés exactes | ✅ |
 
@@ -1090,6 +1090,9 @@ Le client Forever (interface 16001) refuse aux addons l'usage des canaux de chat
 rechargement, fonction non nommée). Le canal caché `wfgdeaths` est abandonné (addon 0.3.4) : annonces de mort et
 positions passent **uniquement par messages addon sur le canal de guilde**, donc rien ne circule tant que le
 personnage n'est pas dans la guilde. Les appels refusés sont désormais notés par l'addon et remontés au site.
+Même constat pour le **journal de combat** (`COMBAT_LOG_EVENT_UNFILTERED` / `CombatLogGetCurrentEventInfo`,
+trouvé par bissection des collecteurs) : les kills viennent du message d'expérience et le tueur d'une mort est la
+cible hostile au moment de mourir (plus de « une chute » ni de cause environnementale).
 
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 

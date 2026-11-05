@@ -35,7 +35,10 @@ function GetInstanceInfo() return _INSTANCE_NAME or "", _INSTANCE or "none", 0, 
 function IsInGroup() return _IN_GROUP == true end
 function IsInRaid() return false end
 function GetNumGroupMembers() return 0 end
-_TARGET = nil -- { name = "Garrosh", class = "WARRIOR", player = true }
+_TARGET = nil -- { name = "Garrosh", class = "WARRIOR", player = true, hostile = true }
+COMBATLOG_XPGAIN_FIRSTPERSON = "%s meurt, vous gagnez %d points d'expérience."
+COMBATLOG_XPGAIN_FIRSTPERSON_GROUP = "%s meurt, vous gagnez %d points d'expérience. (+%d bonus de groupe)"
+function UnitCanAttack(a, b) return b == "target" and _TARGET ~= nil and _TARGET.hostile == true end
 function UnitExists(unit) return unit == "target" and _TARGET ~= nil end
 function UnitIsInMyGuild() return false end
 

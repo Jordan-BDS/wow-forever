@@ -1,14 +1,8 @@
--- PvE : entrées en instance, boss tués (horodatés, avec la part de guildiens du groupe), instances terminées, morts.
--- La dernière source de dégâts est mémorisée pour l'annonce de mort.
+-- PvE : entrées en instance, boss tués (horodatés, avec la part de guildiens du groupe), instances terminées, morts
+-- (tueur = la cible hostile au moment de mourir : le journal de combat est interdit aux addons sur Forever).
 local ADDON, ns = ...
 
 local inInstance = false
-ns.lastDamage = nil
-
-local DAMAGE_EVENTS = {
-  SWING_DAMAGE = true, RANGE_DAMAGE = true, SPELL_DAMAGE = true, SPELL_PERIODIC_DAMAGE = true,
-  SPELL_BUILDING_DAMAGE = true, ENVIRONMENTAL_DAMAGE = true, DAMAGE_SPLIT = true, DAMAGE_SHIELD = true,
-}
 
 local function guildmatesInGroup()
   local count, members = 0, {}
@@ -26,29 +20,21 @@ local function guildmatesInGroup()
   return count, members
 end
 
-local function onCombatLog(char)
-  if not CombatLogGetCurrentEventInfo then return end
-  local _, subevent, _, _, sourceName, _, _, destGUID = CombatLogGetCurrentEventInfo()
-  subevent = ns.plain(subevent)
-  if not subevent or not DAMAGE_EVENTS[subevent] then return end
-  if ns.plain(destGUID) ~= (char and char.guid) then return end
-  if subevent == "ENVIRONMENTAL_DAMAGE" then
-    local envType = select(12, CombatLogGetCurrentEventInfo())
-    ns.lastDamage = { env = ns.plain(envType), t = ns.now() }
-  else
-    ns.lastDamage = { source = ns.plain(sourceName), t = ns.now() }
-  end
+--- Qui m'a tué : sans journal de combat (interdit aux addons sur Forever), la cible hostile au moment de la mort.
+local function killerName()
+  if not (UnitExists and UnitExists("target")) then return nil end
+  if UnitCanAttack and not UnitCanAttack("player", "target") then return nil end
+  local name = ns.plain(UnitName("target"))
+  return type(name) == "string" and name ~= "" and name or nil
 end
 
 ns.RegisterCollector({
   name = "pve",
   events = {
-    PLAYER_ENTERING_WORLD = true, ENCOUNTER_END = true, PLAYER_DEAD = true, COMBAT_LOG_EVENT_UNFILTERED = true,
+    PLAYER_ENTERING_WORLD = true, ENCOUNTER_END = true, PLAYER_DEAD = true,
   },
   onEvent = function(char, event, ...)
-    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-      onCombatLog(char)
-    elseif event == "PLAYER_ENTERING_WORLD" then
+    if event == "PLAYER_ENTERING_WORLD" then
       local inside, kind = IsInInstance()
       if inside and (kind == "party" or kind == "raid") and not inInstance then
         local name, _, _, _, _, _, _, instanceId = GetInstanceInfo()
@@ -79,10 +65,7 @@ ns.RegisterCollector({
       ns.Journal.Increment(char, "deaths")
       local zone = (GetZoneText and GetZoneText()) or ""
       local sub = (GetSubZoneText and GetSubZoneText()) or ""
-      local last = ns.lastDamage
-      local killer, env = nil, nil
-      if last and ns.now() - (last.t or 0) <= 10 then killer, env = last.source, last.env end
-      local death = ns.Journal.Event(char, "death", { zone = zone, sub = sub, killer = killer, env = env, level = char.level })
+      local death = ns.Journal.Event(char, "death", { zone = zone, sub = sub, killer = killerName(), level = char.level })
       if ns.OnDeath then ns.Safe("deaths.announce", ns.OnDeath, char, death) end
     end
   end,

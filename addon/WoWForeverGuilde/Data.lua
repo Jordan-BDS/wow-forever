@@ -74,5 +74,4 @@ ns.Data.MAX_EVENTS = 500
 ns.Data.MAX_ERRORS = 50
 ns.Data.RELOAD_REMINDER_SECONDS = 3 * 3600
 ns.Data.GATHERING_WINDOW = 3
-ns.Data.KILL_WINDOW = 15 -- s entre mon dernier coup sur une créature et sa mort pour que le kill compte
-ns.Data.MAX_MOBS = 500 -- créatures distinctes gardées par personnage
+ns.Data.MAX_MOBS = 500 -- créatures distinctes gardées par personnage (clé = nom affiché)
