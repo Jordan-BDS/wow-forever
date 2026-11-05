@@ -1084,6 +1084,13 @@ réalité du jeu à côté, sans la remplacer.
 - **Roster** : colonne « synchro » (pastille de fraîcheur), tri par niveau réel, filtre « a l'accès à <raid> »,
   « verrouillé cette semaine ».
 
+### Canaux de chat interdits aux addons (constaté le 5 novembre 2026, nuit de la sortie)
+
+Le client Forever (interface 16001) refuse aux addons l'usage des canaux de chat (`ADDON_ACTION_FORBIDDEN` au
+rechargement, fonction non nommée). Le canal caché `wfgdeaths` est abandonné (addon 0.3.4) : annonces de mort et
+positions passent **uniquement par messages addon sur le canal de guilde**, donc rien ne circule tant que le
+personnage n'est pas dans la guilde. Les appels refusés sont désormais notés par l'addon et remontés au site.
+
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 
 La création manuelle de personnages est **réservée aux officiers** (API et site) : les membres installent l'addon et

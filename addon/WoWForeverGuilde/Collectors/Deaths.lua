@@ -1,30 +1,7 @@
--- Annonces de mort, en jeu seulement : ligne balisée dans un canal caché lue par les autres addons, popup flottant
--- 5 s avec son chez ceux qui l'affichent. Rien dans le canal de guilde, rien vers Discord.
+-- Annonces de mort, en jeu seulement : message addon (préfixe WFG, type « D ») sur le canal de guilde, lu par les
+-- autres addons, popup flottant 5 s avec son chez ceux qui l'affichent. Rien de visible dans le chat, rien vers
+-- Discord. Le client moderne interdit aux addons les canaux de chat : pas de canal caché, il faut une guilde.
 local ADDON, ns = ...
-
-local channelName = ns.Data.DEATH_CHANNEL
-local joined = false
-
-local function hideChannel()
-  for i = 1, (NUM_CHAT_WINDOWS or 10) do
-    local frame = _G["ChatFrame" .. i]
-    if frame and ChatFrame_RemoveChannel then pcall(ChatFrame_RemoveChannel, frame, channelName) end
-  end
-end
-
-local function join()
-  if joined or not JoinChannelByName then return end
-  local ok = pcall(JoinChannelByName, channelName, ns.Data.DEATH_CHANNEL_PASSWORD, nil, false)
-  joined = ok and true or false
-  hideChannel()
-end
-
-local function channelIndex()
-  if not GetChannelName then return nil end
-  local id = GetChannelName(channelName)
-  return id and id > 0 and id or nil
-end
-ns.HiddenChannelIndex = channelIndex -- repli du partage de position avant la création de la guilde
 
 local function describeKiller(death)
   if death.env and ns.Data.ENVIRONMENTAL[death.env] then return ns.L[ns.Data.ENVIRONMENTAL[death.env]] end
@@ -39,15 +16,16 @@ end
 --- Appelé par le collecteur PvE à PLAYER_DEAD.
 function ns.OnDeath(char, death)
   if not ns.db.settings.announceDeaths then return end
-  local index = channelIndex()
-  if not index or not SendChatMessage then return end
+  if not (IsInGuild and IsInGuild()) then return end
+  local api = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
+  if not api then return end
   local className = UnitClass("player")
   local line = ns.Data.DEATH_PREFIX .. table.concat({
     encodeField(char.guid), encodeField(char.name), encodeField(char.surname), encodeField(className or char.class),
     tostring(char.level or 0), encodeField(describeKiller(death)), encodeField(death.zone), encodeField(death.sub),
     tostring(death.t or ns.now()),
   }, "\t")
-  if #line <= 255 then SendChatMessage(line, "CHANNEL", nil, index) end
+  if #line <= 255 then pcall(api, ns.Data.ADDON_PREFIX, line, "GUILD") end
 end
 
 local function parse(line)
@@ -76,20 +54,13 @@ end
 
 ns.RegisterCollector({
   name = "deaths",
-  events = { CHAT_MSG_CHANNEL = true, CHANNEL_UI_UPDATE = true, PLAYER_ENTERING_WORLD = true },
-  onLogin = function()
-    C_Timer.After(5, join)
-  end,
-  onEvent = function(char, event, ...)
-    if event == "PLAYER_ENTERING_WORLD" or event == "CHANNEL_UI_UPDATE" then
-      if joined then hideChannel() end
-    elseif event == "CHAT_MSG_CHANNEL" then
-      local text, _, _, _, _, _, _, _, name = ...
-      text = ns.plain(text)
-      if type(text) ~= "string" or type(name) ~= "string" or name:lower() ~= channelName then return end
-      local info = parse(text)
-      if not info or not ns.db.settings.showDeaths then return end
-      if ns.UI and ns.UI.ShowDeath then ns.UI.ShowDeath(info, ns.DeathPhrase(info)) end
-    end
+  events = { CHAT_MSG_ADDON = true },
+  onEvent = function(char, event, prefix, text, channel)
+    if ns.plain(prefix) ~= ns.Data.ADDON_PREFIX or ns.plain(channel) ~= "GUILD" then return end
+    text = ns.plain(text)
+    if type(text) ~= "string" then return end
+    local info = parse(text)
+    if not info or not ns.db.settings.showDeaths then return end
+    if ns.UI and ns.UI.ShowDeath then ns.UI.ShowDeath(info, ns.DeathPhrase(info)) end
   end,
 })

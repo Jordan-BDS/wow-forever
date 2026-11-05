@@ -92,7 +92,7 @@ seul. Cahier des charges, étape 11.
   complète y est jouée et le code produit est décodé puis importé par le site.
 - **À valider en jeu à la sortie** (4 novembre 2026) : les collecteurs dépendent de l'API du client Forever ; la liste
   de vérification est dans le cahier des charges (talents, fin de rencontre des boss de donjon, sorts de récolte,
-  canal caché des annonces de mort).
+  annonces de mort par message addon de guilde).
 
 ## Déploiement sur le VPS
 

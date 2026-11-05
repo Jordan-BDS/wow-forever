@@ -51,10 +51,8 @@ ns.Data.ENVIRONMENTAL = {
   Fire = "ENV_FIRE", Lava = "ENV_LAVA", Slime = "ENV_SLIME",
 }
 
--- Canal caché des annonces de mort.
-ns.Data.DEATH_CHANNEL = "wfgdeaths"
-ns.Data.DEATH_CHANNEL_PASSWORD = "forever"
-ns.Data.DEATH_PREFIX = "WFG\tDEATH\t1\t"
+-- Annonces de mort et positions : messages addon sur le canal de guilde (le client moderne interdit les canaux aux addons).
+ns.Data.DEATH_PREFIX = "D\t1\t" -- message addon de mort (préfixe WFG, canal de guilde)
 
 -- Partage de position (messages addon, préfixe enregistré auprès du client).
 ns.Data.ADDON_PREFIX = "WFG"

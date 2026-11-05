@@ -7,7 +7,7 @@ transporte le code jusqu'au site.
 - `Core.lua` : cycle de vie, bus d'événements, protection des collecteurs (`pcall`, hors combat), `/mf`.
 - `Store.lua`, `Journal.lua`, `Export.lua`, `Json.lua`, `Base64.lua` : base, journal quotidien, code `WFG1:…`.
 - `Collectors/` : un module par catégorie (identité, équipement, talents, métiers, réputations, accès, verrous, PvP,
-  PvE, créatures tuées, récolte et artisanat, quêtes, annonces de mort). Les créatures tuées (`Collectors/Kills.lua`)
+  PvE, créatures tuées, récolte et artisanat, quêtes, annonces de mort par message addon sur le canal de guilde). Les créatures tuées (`Collectors/Kills.lua`)
   viennent du journal de combat : toute créature frappée par moi ou mes unités (familier, totems) dans les 15 s
   avant sa mort, ou dont j'ai porté le coup fatal ; compteur cumulé `kills` et nombre par identifiant de PNJ
   (`counters.mobs`) dans le journal quotidien (d'où les classements hebdo par créature), détail nom / premier /
@@ -18,8 +18,8 @@ transporte le code jusqu'au site.
 - `Phrases.lua` : gabarits des annonces de mort (liste à fournir par Jordan).
 - `UI.lua` : fenêtre principale, export, dialogues, texte flottant des morts.
 - `Positions.lua`, `MapUI.lua` : partage de position. Case « Partager ma position » (cochée par défaut) : le client
-  émet carte, coordonnées, niveau et résumé de talents par message addon (préfixe `WFG`, canal de guilde, ou canal
-  caché tant que la guilde n'existe pas) au changement de zone, au déplacement et toutes les 60 s ; les autres
+  émet carte, coordonnées, niveau et résumé de talents par message addon (préfixe `WFG`, canal de guilde ; le client
+  moderne interdit les canaux de chat aux addons, donc rien ne circule sans guilde) au changement de zone, au déplacement et toutes les 60 s ; les autres
   apparaissent en points couleur de classe sur la carte du monde (HereBeDragons-Pins : zone, continent, monde).
   Survol : nom, niveau, zone, talents, âge ; clic gauche : menu Inviter (ou Suggérer l'invitation quand on n'est
   pas chef) / Chuchoter. Ne pas partager = ne pas voir. Un membre silencieux depuis 3 min disparaît. Points aussi

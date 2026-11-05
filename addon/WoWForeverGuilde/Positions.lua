@@ -1,6 +1,6 @@
 -- Partage de position entre membres. Quand « Partager ma position » est coché, le client émet sa carte, ses
--- coordonnées, son niveau, un résumé de talents et son éventuelle recherche de groupe par message addon (canal de
--- guilde, ou canal caché tant que la guilde n'existe pas) ; les autres l'affichent sur la carte du monde (MapUI.lua)
+-- coordonnées, son niveau, un résumé de talents et son éventuelle recherche de groupe par message addon sur le
+-- canal de guilde (il faut donc une guilde) ; les autres l'affichent sur la carte du monde (MapUI.lua)
 -- et dans la liste « Guilde en jeu » (RosterUI.lua). Règle symétrique : ne pas partager = ne pas voir.
 -- Envoi au changement de zone, au déplacement, et au moins toutes les POSITION_HEARTBEAT s.
 -- Appel à l'aide (« gank ») : manuel seulement (/mf sos ou le bouton), jamais automatique pour ne pas spammer
@@ -151,14 +151,8 @@ end
 local function send(text)
   local api = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
   if not api then return false end
-  local ok, result
-  if IsInGuild and IsInGuild() then
-    ok, result = pcall(api, PREFIX, text, "GUILD")
-  else
-    local index = ns.HiddenChannelIndex and ns.HiddenChannelIndex()
-    if not index then return false end
-    ok, result = pcall(api, PREFIX, text, "CHANNEL", index)
-  end
+  if not (IsInGuild and IsInGuild()) then return false end -- sans guilde, rien ne circule
+  local ok, result = pcall(api, PREFIX, text, "GUILD")
   return ok and (result == nil or result == true or result == 0)
 end
 
@@ -254,19 +248,13 @@ function Positions.ForgetAll()
   if ns.RosterUI then ns.RosterUI.Refresh() end
 end
 
--- Seuls le canal de guilde et le canal caché font foi : un message addon chuchoté par n'importe qui est ignoré.
-local function trusted(channel, channelName)
-  channel = ns.plain(channel)
-  if channel == "GUILD" then return true end
-  if channel == "CHANNEL" then
-    channelName = ns.plain(channelName)
-    return type(channelName) == "string" and channelName:lower() == ns.Data.DEATH_CHANNEL
-  end
-  return false
+-- Seul le canal de guilde fait foi : un message addon chuchoté par n'importe qui est ignoré.
+local function trusted(channel)
+  return ns.plain(channel) == "GUILD"
 end
 
-local function onAddonMessage(prefix, text, channel, sender, _, _, _, channelName)
-  if prefix ~= PREFIX or not enabled() or not trusted(channel, channelName) then return end
+local function onAddonMessage(prefix, text, channel, sender)
+  if prefix ~= PREFIX or not enabled() or not trusted(channel) then return end
   text, sender = ns.plain(text), ns.plain(sender)
   if type(text) ~= "string" then return end
   local msg = Positions.Decode(text)
@@ -380,7 +368,7 @@ ns.RegisterCollector({
   },
   onLogin = function()
     registerPrefix()
-    C_Timer.After(6, function() ns.Safe("positions.broadcast", broadcast, true) end) -- après le canal caché (5 s)
+    C_Timer.After(6, function() ns.Safe("positions.broadcast", broadcast, true) end)
     C_Timer.NewTicker(ns.Data.POSITION_TICK, function() ns.Safe("positions.tick", tick) end)
   end,
   onEvent = function(_, event, ...)

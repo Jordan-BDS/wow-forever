@@ -261,7 +261,7 @@ class TestSession:
         assert status == "3 créatures tuées · 2 espèces"
         assert g._NS.NpcId("Vehicle-0-1-2-3-4567-X") == 4567 and g._NS.NpcId("Pet-0-1-2-3-4-P1") is None
 
-    def test_death_is_announced_on_hidden_channel_and_shown_as_toast(self):
+    def test_death_is_announced_by_guild_addon_message_and_shown_as_toast(self):
         lua = boot()
         g = lua.globals()
         login(lua)
@@ -269,25 +269,33 @@ class TestSession:
             "_CLEU = { 0, 'ENVIRONMENTAL_DAMAGE', false, nil, nil, 0, 0, 'Player-1-000ABC01', 'Thrall', 0, 0, 'Falling' }"
         )
         g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
+        # Sans guilde : rien ne part (le client moderne interdit les canaux de chat aux addons).
         g._FIRE("PLAYER_DEAD")
-        (sent,) = list(g._SENT.values())
-        assert sent.kind == "CHANNEL" and sent.target == 5
+        assert list(g._ADDON_SENT.values()) == []
+        lua.execute("_GUILD = true")
+        g._FIRE("PLAYER_DEAD")
+        (sent,) = list(g._ADDON_SENT.values())
+        assert (sent.prefix, sent.kind) == ("WFG", "GUILD")
         assert sent.text.startswith(
-            "WFG\tDEATH\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tChaman\t60\tune chute\tForêt d'Elwynn\t"
+            "D\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tChaman\t60\tune chute\tForêt d'Elwynn\t"
         )
-        # Réception par un autre addon : popup + son.
-        g._FIRE("CHAT_MSG_CHANNEL", sent.text, "Thrall", "", "", "", "", 0, 5, "wfgdeaths")
+        # Réception par un autre addon, sur le canal de guilde : popup + son.
+        g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "GUILD", "Thrall-Forever")
         toast = g.WoWForeverGuildeDeath
         assert toast.shown is True and "Thrall" in toast.text.text and "une chute" in toast.text.text
         assert len(list(g._SOUNDS.values())) == 1
+        # Chuchoté par n'importe qui : ignoré.
+        toast.shown = False
+        g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "WHISPER", "Inconnu-Forever")
+        assert toast.shown is False
         # Son coupé → le popup reste, sans son.
         lua.execute("WoWForeverGuildeDB.settings.soundDeaths = false")
-        g._FIRE("CHAT_MSG_CHANNEL", sent.text, "Thrall", "", "", "", "", 0, 5, "wfgdeaths")
+        g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "GUILD", "Thrall-Forever")
         assert toast.shown is True and len(list(g._SOUNDS.values())) == 1
         # Désactivé → rien n'est envoyé.
         lua.execute("WoWForeverGuildeDB.settings.announceDeaths = false")
         g._FIRE("PLAYER_DEAD")
-        assert len(list(g._SENT.values())) == 1
+        assert len(list(g._ADDON_SENT.values())) == 1
 
     def test_collector_errors_are_listed_by_slash_command_and_recalled_at_login(self):
         lua = boot()
@@ -453,9 +461,13 @@ class TestPositions:
         g = lua.globals()
         login(lua)
         assert g._PREFIXES["WFG"] is True
+        # Sans guilde : rien ne part, le client moderne interdit les canaux de chat aux addons.
+        assert list(g._ADDON_SENT.values()) == []
+        lua.execute("_GUILD = true")
+        g._ADVANCE(10)
         (first,) = list(g._ADDON_SENT.values())
-        # Sans guilde encore : canal caché. Nom complet, classe, niveau, carte, coordonnées, zone, talents.
-        assert (first.prefix, first.kind, first.target) == ("WFG", "CHANNEL", 5)
+        # Nom complet, classe, niveau, carte, coordonnées, zone, talents, sur le canal de guilde.
+        assert (first.prefix, first.kind) == ("WFG", "GUILD")
         assert (
             first.text
             == "P\t1\tPlayer-1-000ABC01\tThrall Fils-de-Durotan\tSHAMAN\t60\t1429\t0.5000\t0.5000\tForêt d'Elwynn\t\tAmélioration 0/8/1\t"
@@ -463,8 +475,8 @@ class TestPositions:
         # Immobile : rien de plus à la lecture suivante.
         g._ADVANCE(10)
         assert len(list(g._ADDON_SENT.values())) == 1
-        # Dans la guilde et déplacé : canal de guilde.
-        lua.execute("_GUILD = true; _MAP.x = 0.52")
+        # Déplacé : nouvel envoi.
+        lua.execute("_MAP.x = 0.52")
         g._ADVANCE(10)
         second = list(g._ADDON_SENT.values())[-1]
         assert second.kind == "GUILD" and "\t0.5200\t" in second.text
@@ -591,6 +603,7 @@ class TestPositions:
     def test_not_sharing_means_not_seeing(self):
         lua = boot()
         g = lua.globals()
+        lua.execute("_GUILD = true")  # les messages addon passent par le canal de guilde
         login(lua)
         lua.execute(FAKE_PINS)
         receive(lua, JAINA)
@@ -611,6 +624,7 @@ class TestPositions:
     def test_lfg_flag_travels_with_the_position_and_shows_in_tooltip_and_list(self):
         lua = boot()
         g = lua.globals()
+        lua.execute("_GUILD = true")  # les messages addon passent par le canal de guilde
         login(lua)
         lua.execute(FAKE_PINS)
         g.SlashCmdList.WOWFOREVERGUILDE("lfg Gnomeregan ce soir")
@@ -657,6 +671,7 @@ class TestPositions:
     def test_sos_is_manual_only_and_alerts_members_nearby(self):
         lua = boot()
         g = lua.globals()
+        lua.execute("_GUILD = true")  # les messages addon passent par le canal de guilde
         login(lua)
         lua.execute(FAKE_PINS)
         sent_before = len(list(g._ADDON_SENT.values()))
@@ -765,10 +780,12 @@ _NS.MapUI.UsePins({
         g = lua.globals()
         login(lua)
         lua.execute(FAKE_PINS)
-        # Un message chuchoté avec le bon préfixe est ignoré ; le canal caché est accepté.
+        # Un message chuchoté ou passé par un canal avec le bon préfixe est ignoré ; seule la guilde fait foi.
         g._FIRE("CHAT_MSG_ADDON", "WFG", JAINA, "WHISPER", "Jaina-Forever")
         assert list(g._NS.Positions.peers.items()) == []
         g._FIRE("CHAT_MSG_ADDON", "WFG", JAINA, "CHANNEL", "Jaina-Forever", "", 0, 5, "wfgdeaths")
+        assert list(g._NS.Positions.peers.items()) == []
+        receive(lua, JAINA)
         assert (
             g._NS.Positions.peers["Player-1-00000JAI"] is not None and len(list(g._PINS.added.items())) == 1
         )
