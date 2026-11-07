@@ -124,6 +124,11 @@ class CharacterSnapshot(models.Model):
     data = models.JSONField()
     status = models.CharField(max_length=10, choices=SnapshotStatus.choices)
     note = models.CharField(max_length=200, blank=True)
+    kept = models.BooleanField(
+        "Conservé",
+        default=False,
+        help_text="A servi de base à une complétion par le compagnon : jamais supprimé par le nettoyage.",
+    )
 
     class Meta:
         verbose_name = "instantané de personnage"

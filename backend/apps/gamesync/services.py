@@ -510,16 +510,17 @@ def _apply(
 
     snapshot = _snapshot(batch, parsed, raw, character=character, status=status, note=note)
     # Un instantané par jour et par installation de l'addon : celui d'un autre PC le même jour reste, le site
-    # additionne les installations (cf. progress.merge_installs).
+    # additionne les installations (cf. progress.merge_installs). Ceux qui ont servi de base à une complétion
+    # par le compagnon (`kept`) restent toujours : la marque de l'addon les désigne.
     CharacterSnapshot.objects.filter(
         character=character,
         day=snapshot.day,
         batch__install_id=batch.install_id,
         status__in=[SnapshotStatus.APPLIED, SnapshotStatus.CREATED],
-    ).exclude(pk=snapshot.pk).delete()
+    ).exclude(pk=snapshot.pk).exclude(kept=True).delete()
     CharacterSnapshot.objects.filter(
         character=character, day__lt=snapshot.day - timedelta(days=SNAPSHOT_RETENTION_DAYS)
-    ).delete()
+    ).exclude(kept=True).delete()
     return snapshot
 
 

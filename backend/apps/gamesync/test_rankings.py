@@ -140,6 +140,54 @@ class TestInstalls:
         assert merged.data["counters"]["deaths"] == 17
         assert merged.data["gear"]["head"] == {"id": 16842, "ench": 2583}
         assert thrall_char.snapshots.filter(status__in=progress.APPLIED).count() == 2
+        assert merged.bases == {"pc-fixe": EXPORTED + 1200, "portable": EXPORTED + 600}
+
+    def test_a_seeded_install_counts_the_others_only_after_their_base(self, member):
+        # Le compagnon du portable a recopié l'état du site (fixe compris jusqu'à son export EXPORTED) :
+        # l'export suivant du portable porte la marque, et le fixe ne compte que ce qu'il fait depuis.
+        import_for(member, thrall(), install="pc-fixe")
+        thrall_char = Character.objects.get(name="Thrall")
+        state = progress.companion_state(member)
+        (served,) = state["characters"]
+        assert served["guid"] == "Player-1-T" and served["counters"]["deaths"] == 14
+        assert served["bases"] == {"pc-fixe": EXPORTED} and state["seed_at"] > EXPORTED
+        assert thrall_char.snapshots.get().kept is True
+        seeded = character(
+            "Player-1-T", "Thrall",
+            counters={**served["counters"], "deaths": 16},  # deux morts de plus sur le portable
+            journal=served["journal"],
+            mobs=served["mobs"], events=served["events"], pvp=served["pvp"],
+            seed={"at": state["seed_at"], "bases": served["bases"]},
+        )  # fmt: skip
+        seeded["exported_at"] = EXPORTED + 600
+        import_for(member, seeded, install="portable")
+        merged = progress.latest_snapshot(thrall_char)
+        assert merged.installs == 2 and merged.data["counters"]["deaths"] == 16  # pas 14 + 16
+        assert merged.data["counters"]["kills"] == 120 and merged.data["mobs"]["299"]["n"] == 70
+        assert merged.data["journal"]["2026-09-20"]["deaths"] == 10
+        # Le fixe rejoue après la base : seule la différence depuis son export EXPORTED s'ajoute.
+        back = thrall()
+        back["counters"]["deaths"] = 20
+        back["counters"]["kills"] = 130
+        back["mobs"]["299"]["n"] = 80
+        back["events"].append({"k": "death", "t": EXPORTED + 1500, "zone": "Durotar"})
+        back["exported_at"] = EXPORTED + 1800
+        import_for(member, back, install="pc-fixe")
+        merged = progress.latest_snapshot(thrall_char)
+        c = merged.data["counters"]
+        assert (c["deaths"], c["kills"], c["hk"]) == (16 + 6, 120 + 10, 100)
+        assert (
+            merged.data["mobs"]["299"]["n"] == 80 and merged.data["mobs"]["299"]["first"] == KILL_TIME - 86400
+        )
+        assert [e for e in merged.data["events"] if e["k"] == "death"] == [
+            {"k": "death", "t": EXPORTED + 1500, "zone": "Durotar"}
+        ]
+        # Le nettoyage du jour a gardé la base (instantané conservé) à côté du nouvel export du fixe.
+        assert thrall_char.snapshots.filter(status__in=progress.APPLIED).count() == 3
+        assert merged.bases == {"pc-fixe": EXPORTED + 1800, "portable": EXPORTED + 600}
+        result = rankings.compute_rankings("week", "character", now=NOW)
+        by_key = {cat["key"]: cat for cat in result["categories"]}
+        assert [e["value"] for e in by_key["deaths"]["entries"]] == [12.0]  # 22 − 10
 
 
 class TestRankings:

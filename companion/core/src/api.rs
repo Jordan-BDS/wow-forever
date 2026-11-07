@@ -104,6 +104,50 @@ pub struct CompanionStatus {
     pub last_import: Option<ImportBatch>,
 }
 
+/// Un personnage tel que le site le fusionne (toutes installations), à recopier dans l'addon.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct StateCharacter {
+    pub guid: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub surname: Option<String>,
+    #[serde(default)]
+    pub realm: Option<String>,
+    #[serde(default)]
+    pub class: Option<String>,
+    #[serde(default)]
+    pub race: Option<String>,
+    #[serde(default)]
+    pub level: Option<i64>,
+    #[serde(default)]
+    pub counting_since: Option<i64>,
+    #[serde(default)]
+    pub counters: serde_json::Value,
+    #[serde(default)]
+    pub journal: serde_json::Value,
+    #[serde(default)]
+    pub events: serde_json::Value,
+    #[serde(default)]
+    pub mobs: serde_json::Value,
+    #[serde(default)]
+    pub pvp: serde_json::Value,
+    #[serde(default)]
+    pub played: Option<i64>,
+    #[serde(default)]
+    pub previous_guids: serde_json::Value,
+    /// Installation → horodatage du dernier export qu'elle a fourni au site : ce que cet état contient.
+    #[serde(default)]
+    pub bases: std::collections::BTreeMap<String, i64>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct SiteState {
+    pub seed_at: i64,
+    #[serde(default)]
+    pub characters: Vec<StateCharacter>,
+}
+
 #[derive(Debug, Deserialize)]
 struct ErrorBody {
     #[serde(default)]
@@ -209,6 +253,16 @@ impl SiteClient {
         let response = self
             .authed(self.http.get(self.url("companion/me/")))
             .send()?;
+        if response.status().is_success() {
+            Ok(response.json()?)
+        } else {
+            Err(Self::error_from(response))
+        }
+    }
+
+    /// L'état fusionné de mes personnages, pour compléter l'addon de ce PC.
+    pub fn state(&self) -> Result<SiteState> {
+        let response = self.authed(self.http.get(self.url("state/"))).send()?;
         if response.status().is_success() {
             Ok(response.json()?)
         } else {

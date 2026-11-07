@@ -103,6 +103,9 @@ class TestPairing:
         )  # usage unique
 
         api_client.credentials(HTTP_AUTHORIZATION=f"Companion {token}")
+        # État fusionné pour la complétion d'un autre PC : vide tant qu'aucun personnage n'est importé.
+        empty = api_client.get("/api/sync/state/")
+        assert empty.status_code == 200 and empty.data["characters"] == [] and empty.data["seed_at"] > 0
         me = api_client.get("/api/sync/companion/me/")
         assert (
             me.status_code == 200
@@ -113,6 +116,12 @@ class TestPairing:
         assert imported.status_code == 201, imported.data
         assert imported.data["source"] == "companion" and imported.data["device"]["name"] == "PC de Jordan"
         assert Character.objects.get(guid="Player-1-000ABC01").owner == member
+        # L'état servi au compagnon désigne l'export compris (base) et le conserve.
+        state = api_client.get("/api/sync/state/")
+        (served,) = state.data["characters"]
+        assert served["guid"] == "Player-1-000ABC01" and served["class"] == "SHAMAN"
+        assert served["counters"] == {} and served["bases"] == {"inst-1": int(NOW.timestamp())}
+        assert CharacterSnapshot.objects.get(guid="Player-1-000ABC01").kept is True
 
         api_client.credentials()
         as_user(member).post(f"/api/sync/devices/{paired.data['device']['id']}/revoke/")

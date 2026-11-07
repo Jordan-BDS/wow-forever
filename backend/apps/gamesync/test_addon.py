@@ -646,6 +646,26 @@ class TestDurability:
         assert character["lockouts"][0]["killed"] == 7
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_companion_seed_mark_is_kept_and_exported(self):
+        # Le compagnon a complété le fichier depuis le site et y a posé sa marque : l'addon la ressort telle quelle.
+        lua = boot()
+        g = lua.globals()
+        g._FIRE("ADDON_LOADED", "WoWForeverGuilde")
+        lua.execute("""
+          WoWForeverGuildeDB.characters['Player-1-000ABC01'] = {
+            guid = 'Player-1-000ABC01', name = 'Thrall', counting_since = 1700000000,
+            counters = { deaths = 14, kills = 120 }, journal = { ['2026-09-20'] = { deaths = 10 } },
+            seed = { at = 1764000100, bases = { ['pc-fixe'] = 1763999000 } },
+          }
+        """)
+        g._FIRE("PLAYER_LOGIN")
+        g._ADVANCE(7)
+        g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
+        (character,) = decode_export(logout_code(lua))["characters"]
+        assert character["seed"] == {"at": 1764000100, "bases": {"pc-fixe": 1763999000}}
+        assert character["counters"]["deaths"] == 15 and character["counting_since"] == 1700000000
+
     def test_expired_lockouts_still_disappear_when_the_read_is_empty(self):
         lua = boot()
         g = lua.globals()

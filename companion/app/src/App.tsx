@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { api, type AppState, type SyncOutcome } from "./api";
+import { api, type AppState, type PullOutcome, type SyncOutcome } from "./api";
 
 export function App() {
   const [state, setState] = useState<AppState | null>(null);
@@ -13,6 +13,7 @@ export function App() {
     void refresh();
     const unlisteners = [
       api.onSync((outcomes) => setState((s) => (s ? { ...s, last_sync: outcomes, last_sync_at: Math.floor(Date.now() / 1000) } : s))),
+      api.onPull((outcome) => setState((s) => (s ? { ...s, last_pull: outcome, last_pull_at: Math.floor(Date.now() / 1000) } : s))),
       api.onUpdateAvailable((version) => setUpdating(version)),
       api.onUpdateFailed((e) => {
         setUpdating(null);
@@ -158,6 +159,21 @@ function OutcomeLine({ o }: { o: SyncOutcome }) {
   return <li><span className="muted">{o.account} : rien de nouveau</span></li>;
 }
 
+function pullText(o: PullOutcome): string {
+  switch (o.kind) {
+    case "completed":
+      return `${o.characters} personnage${o.characters > 1 ? "s" : ""} complété${o.characters > 1 ? "s" : ""} depuis le site dans ${o.accounts.join(", ")}${
+        o.created.length ? ` (fichier créé pour ${o.created.join(", ")})` : ""
+      }.`;
+    case "game_running":
+      return "Le jeu tourne : l'addon sera complété depuis le site au prochain lancement, jeu fermé.";
+    case "nothing":
+      return `Rien à compléter : ${o.reason}.`;
+    case "failed":
+      return `Complétion impossible : ${o.error}`;
+  }
+}
+
 function StatusView({ state, onChange, onError }: { state: AppState; onChange: () => void; onError: (e: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
@@ -189,6 +205,22 @@ function StatusView({ state, onChange, onError }: { state: AppState; onChange: (
         <div className="row">
           <button className="primary" disabled={busy} onClick={() => run(api.syncNow)}>Synchroniser maintenant</button>
           <button onClick={() => api.openSite("/profil")}>Ouvrir mon profil sur le site</button>
+        </div>
+        <p className="muted">
+          Dans l'autre sens, au lancement et jeu fermé, le site complète l'addon de ce PC avec tout ce qu'il sait de tes
+          personnages (autres PC, réinstallations) : rien ne repart de zéro.
+          {state.last_pull && (
+            <>
+              {" "}
+              <span className={state.last_pull.kind === "failed" ? "ko" : state.last_pull.kind === "completed" ? "ok" : undefined}>
+                {pullText(state.last_pull)}
+              </span>
+              {state.last_pull_at && ` (${new Date(state.last_pull_at * 1000).toLocaleTimeString()})`}
+            </>
+          )}
+        </p>
+        <div className="row">
+          <button disabled={busy} onClick={() => run(api.pullNow)}>Compléter depuis le site</button>
         </div>
       </section>
 

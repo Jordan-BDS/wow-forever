@@ -4,8 +4,12 @@ Application de bureau (Tauri 2) qui installe l'addon dans le dossier du jeu, sur
 qu'il écrit à chaque déconnexion ou `/reload`, et envoie le code d'export au site. Cahier des charges, étape 11.
 
 - `core/` : bibliothèque Rust sans interface, testée par `cargo test` (dossier WoW, SavedVariables, addon embarqué,
-  API du site, boucle de synchronisation, journal de chat).
+  API du site, boucle de synchronisation, complétion depuis le site).
 - `app/` : interface React + `src-tauri/` (fenêtre, barre des tâches, surveillance de fichier, mise à jour).
+
+Dans l'autre sens, au lancement et jeu fermé, le compagnon recopie dans `SavedVariables` l'état fusionné que le site
+a de chaque personnage (toutes installations), avec une marque `seed` pour que le site ne compte rien deux fois :
+une réinstallation ou un second PC ne repart jamais de zéro. Le fichier est lu et réécrit par `core/src/luatable.rs`.
 
 ## Développer
 

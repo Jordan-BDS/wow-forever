@@ -46,6 +46,8 @@ function Export.Character(entry, settings)
     spec_tab = entry.spec_tab,
     exported_at = entry.updated_at,
     counting_since = entry.counting_since,
+    seed = entry.seed, -- marque du compagnon : ce que ce fichier contient déjà des autres installations
+
     gear = entry.gear,
     talents = entry.talents,
     professions = professionList(entry),

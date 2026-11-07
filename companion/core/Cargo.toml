@@ -1,6 +1,6 @@
 [package]
 name = "companion-core"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 description = "Cœur du compagnon WoW Forever Guilde : SavedVariables, dossier WoW, addon embarqué, API du site. Sans interface."
 license = "MIT"
@@ -16,6 +16,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 include_dir = "0.7"
 dirs = "6"
 log = "0.4"
+sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 
 [dev-dependencies]
 tempfile = "3"

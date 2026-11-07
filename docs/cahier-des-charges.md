@@ -1164,6 +1164,27 @@ champs de bataille fusionnés, **totaux tenus par le jeu** (victoires honorables
 nettoyage « un instantané par jour » se fait par installation. Aucun changement dans l'addon ; les instantanés de
 l'ancien PC étant conservés 90 jours, un personnage déjà « remis à zéro » retrouve ses chiffres au déploiement.
 
+### Le site complète l'addon au lancement du compagnon (7 novembre 2026, addon et compagnon 0.4.2)
+
+Suite logique de la fusion par installation : au lancement, **jeu fermé**, le compagnon envoie d'abord l'export en
+attente (`sync_once`), puis demande au site l'état fusionné de chaque personnage (`GET /api/sync/state/`, jeton du
+compagnon) et le **recopie dans `SavedVariables`** de chaque compte WoW (`seed.rs`, écriture atomique, fichier créé
+sur un PC neuf) : compteurs, journal, événements, créatures, champs de bataille remplacés par ceux du site ; date de
+départ la plus ancienne ; victoires honorables et temps de jeu au maximum ; tout le reste (équipement, métiers et
+recettes, réglages, identifiant d'installation) intact. Le fichier est lu et réécrit par un petit lecteur du
+sous-ensemble Lua du client (`luatable.rs`), pas par une expression régulière. Si le jeu tourne (un processus dont
+l'exécutable est dans le dossier du jeu), on n'écrit pas : il écraserait le fichier à la déconnexion ; ce sera pour
+le prochain lancement. Bouton « Compléter depuis le site » dans la fenêtre.
+
+**Ne pas compter deux fois** : chaque personnage complété reçoit une **marque** `seed = { at, bases = { installation →
+horodatage du dernier export compris } }`, que l'addon ressort dans ses exports. À la fusion, le site ne compte d'une
+installation désignée dans une marque que ce qu'elle a fait **après** cet export : rien si elle n'a pas réexporté
+depuis, sinon la différence avec l'instantané exact qui a servi (conservé, `kept`, par le nettoyage quotidien et la
+rétention). Relancer le compagnon sur l'autre PC pose une marque plus récente ; la plus récente gagne. Si l'écriture
+échoue, aucune marque : le site continue d'additionner. Limite : avec plusieurs comptes WoW, tous les personnages du
+joueur sont écrits dans chaque dossier de compte (sans effet en jeu). Plafonds de l'addon respectés : 500 événements,
+500 créatures.
+
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 
 La création manuelle de personnages est **réservée aux officiers** (API et site) : les membres installent l'addon et

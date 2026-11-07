@@ -12,7 +12,7 @@ talents, métiers…) de l'export le plus récent. Les fonctions de lecture reç
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -42,6 +42,10 @@ class MergedSnapshot:
     exported_at: datetime
     data: dict
     installs: int = 1
+    #: Installation → horodatage (epoch) du dernier export qu'elle a fourni : ce que contient cet état.
+    bases: dict[str, int] = field(default_factory=dict)
+    #: Instantanés qui ont servi, à conserver si cet état est recopié dans un addon (marque du compagnon).
+    sources: list = field(default_factory=list)
 
     @property
     def character_id(self) -> int:
@@ -62,7 +66,7 @@ def _latest_per_install(snapshots) -> list[CharacterSnapshot]:
 
 
 def latest_snapshot(character: Character) -> MergedSnapshot | None:
-    snapshots = _latest_per_install(
+    snapshots = list(
         CharacterSnapshot.objects.filter(character=character, status__in=APPLIED)
         .select_related("batch")
         .order_by("-exported_at")
@@ -83,7 +87,7 @@ def latest_snapshots() -> dict[int, MergedSnapshot]:
     for snapshot in queryset:
         per_character.setdefault(snapshot.character_id, []).append(snapshot)
     return {
-        character_id: merge_installs(snapshots[0].character, _latest_per_install(snapshots))
+        character_id: merge_installs(snapshots[0].character, snapshots)
         for character_id, snapshots in per_character.items()
     }
 
@@ -128,13 +132,87 @@ def _counters_at(data: dict, export_day: date, day: date) -> dict | None:
     return _dict(journal[candidates[-1]]) if candidates else None
 
 
+def _subtract(a: Any, b: Any, key: str = "") -> Any:
+    """Ce que `a` a de plus que `b` : dictionnaires clé à clé, nombres soustraits (jamais négatifs), dates
+    (`first`, `last`) et totaux du jeu gardés tels quels."""
+    if isinstance(a, dict):
+        b = _dict(b)
+        return {k: _subtract(v, b.get(k), k) for k, v in a.items()}
+    if _is_number(a) and _is_number(b):
+        if key in ("first", "last") or key in GAME_TOTALS:
+            return a
+        return max(0, a - b)
+    return deepcopy(a)
+
+
+def _epoch(moment: datetime) -> int:
+    return int(moment.timestamp())
+
+
+def _seed_bases(data: dict) -> dict[str, int]:
+    """Marque écrite par le compagnon quand il a recopié l'état du site dans l'addon : installation →
+    horodatage du dernier export de celle-ci qui était compris."""
+    bases = _dict(_dict(data.get("seed")).get("bases"))
+    return {str(install): int(at) for install, at in bases.items() if _is_number(at)}
+
+
+def _since(data: dict, base: dict, limit: int, base_day: date) -> dict:
+    """La part d'un instantané postérieure à `base` (l'export de la même installation déjà compris
+    ailleurs) : compteurs, créatures et champs de bataille en différence, événements et journal après."""
+    out = {k: deepcopy(v) for k, v in data.items() if k not in MERGED_KEYS}
+    base_counters = _dict(base.get("counters"))
+    out["counters"] = _subtract(_dict(data.get("counters")), base_counters)
+    out["mobs"] = _subtract(_dict(data.get("mobs")), _dict(base.get("mobs")))
+    out["events"] = [
+        e for e in (data.get("events") or []) if isinstance(e, dict) and number(e.get("t")) > limit
+    ]
+    out["journal"] = {
+        key: _subtract(entry, base_counters)
+        for key, entry in _dict(data.get("journal")).items()
+        if isinstance(key, str) and key > base_day.isoformat() and isinstance(entry, dict)
+    }
+    pvp = deepcopy(_dict(data.get("pvp")))
+    pvp["bg"] = _subtract(_dict(pvp.get("bg")), _dict(_dict(base.get("pvp")).get("bg")))
+    out["pvp"] = pvp
+    for key in ("played", "counting_since", "previous_guids"):
+        if key in data:
+            out[key] = deepcopy(data[key])
+    return out
+
+
 def merge_installs(character: Character, snapshots: list[CharacterSnapshot]) -> MergedSnapshot:
-    """Fusionne le dernier instantané de chaque installation (le premier est le plus récent)."""
-    primary = snapshots[0]
-    if len(snapshots) == 1:
-        return MergedSnapshot(character, primary.exported_at, _dict(primary.data), 1)
-    parts = [(_dict(s.data), day_of(s)) for s in snapshots]
-    data = {k: deepcopy(v) for k, v in parts[0][0].items() if k not in MERGED_KEYS}
+    """Fusionne le dernier instantané de chaque installation. `snapshots` : tous les instantanés appliqués du
+    personnage, du plus récent au plus ancien (les anciens servent de base quand une installation a été
+    recopiée dans une autre par le compagnon : on ne compte alors que ce qu'elle a fait depuis)."""
+    latest = _latest_per_install(snapshots)
+    primary = latest[0]
+    absorbed: dict[str, int] = {}
+    for s in latest:
+        for install, at in _seed_bases(_dict(s.data)).items():
+            if install != s.batch.install_id:
+                absorbed[install] = max(absorbed.get(install, 0), at)
+    parts: list[tuple[dict, date]] = []
+    bases: dict[str, int] = {}
+    for s in latest:
+        install = s.batch.install_id
+        bases[install] = _epoch(s.exported_at)
+        data = _dict(s.data)
+        limit = absorbed.get(install)
+        if limit is not None:
+            if _epoch(s.exported_at) <= limit:
+                continue  # entièrement comprise dans une autre installation
+            base = next(
+                (b for b in snapshots if b.batch.install_id == install and _epoch(b.exported_at) <= limit),
+                None,
+            )
+            if base is not None:
+                data = _since(data, _dict(base.data), limit, day_of(base))
+        parts.append((data, day_of(s)))
+    if not parts:
+        parts = [(_dict(primary.data), day_of(primary))]
+    if len(latest) == 1:
+        return MergedSnapshot(character, primary.exported_at, _dict(primary.data), 1, bases, latest)
+    data = {k: deepcopy(v) for k, v in _dict(primary.data).items() if k not in MERGED_KEYS}
 
     counters: dict = {}
     mobs: dict = {}
@@ -185,7 +263,57 @@ def merge_installs(character: Character, snapshots: list[CharacterSnapshot]) -> 
     played = [p["played"] for p, _ in parts if _is_number(p.get("played"))]
     if played:
         data["played"] = max(played)
-    return MergedSnapshot(character, primary.exported_at, data, len(snapshots))
+    return MergedSnapshot(character, primary.exported_at, data, len(latest), bases, latest)
+
+
+# --- état pour le compagnon ---------------------------------------------------------------------------------
+
+STATE_EVENTS = 500  # plafonds de l'addon (Data.MAX_EVENTS, Data.MAX_MOBS)
+STATE_MOBS = 500
+
+
+def companion_state(user) -> dict:
+    """L'état fusionné de chaque personnage du joueur, tel que le compagnon le recopie dans l'addon d'un PC
+    (complétion au lancement, jeu fermé). Les instantanés qui ont servi sont conservés : la marque que le
+    compagnon écrit les désigne comme bases pour ne pas compter deux fois."""
+    characters = []
+    kept: list[int] = []
+    queryset = Character.objects.filter(owner=user).exclude(guid="").order_by("name")
+    for character in queryset:
+        merged = latest_snapshot(character)
+        if merged is None:
+            continue
+        data = merged.data
+        mobs = {k: v for k, v in _dict(data.get("mobs")).items() if isinstance(v, dict)}
+        if len(mobs) > STATE_MOBS:
+            top = sorted(mobs.items(), key=lambda kv: -number(kv[1].get("n")))[:STATE_MOBS]
+            mobs = dict(top)
+        events = [e for e in (data.get("events") or []) if isinstance(e, dict)][-STATE_EVENTS:]
+        characters.append(
+            {
+                "guid": character.guid,
+                "name": data.get("name") or character.name,
+                "surname": data.get("surname") or character.surname,
+                "realm": data.get("realm") or character.realm,
+                "class": data.get("class"),
+                "race": data.get("race"),
+                "level": data.get("level") if _is_number(data.get("level")) else character.level,
+                "counting_since": data.get("counting_since")
+                if _is_number(data.get("counting_since"))
+                else None,
+                "counters": _dict(data.get("counters")),
+                "journal": _dict(data.get("journal")),
+                "events": events,
+                "mobs": mobs,
+                "pvp": _dict(data.get("pvp")),
+                "played": data.get("played") if _is_number(data.get("played")) else None,
+                "previous_guids": [g for g in (data.get("previous_guids") or []) if isinstance(g, str)],
+                "bases": merged.bases,
+            }
+        )
+        kept.extend(s.pk for s in merged.sources)
+    CharacterSnapshot.objects.filter(pk__in=kept, kept=False).update(kept=True)
+    return {"seed_at": _epoch(timezone.now()), "characters": characters}
 
 
 def number(value: Any) -> float:

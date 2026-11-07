@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use companion_core::api::SiteClient;
 use companion_core::config::{default_dir, Config};
-use companion_core::sync::{sync_once, SyncOutcome};
+use companion_core::sync::{pull_once, sync_once, PullOutcome, SyncOutcome};
 use companion_core::{addon, savedvars, wowdir};
 use notify::{RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,8 @@ struct Inner {
     config: Config,
     last_sync: Option<Vec<SyncOutcome>>,
     last_sync_at: Option<u64>,
+    last_pull: Option<PullOutcome>,
+    last_pull_at: Option<u64>,
 }
 
 type Shared = Arc<Mutex<Inner>>;
@@ -38,6 +40,9 @@ struct AppState {
     installed_addon_version: Option<String>,
     last_sync: Option<Vec<SyncOutcome>>,
     last_sync_at: Option<u64>,
+    /// Complétion de l'addon depuis le site (sens site → fichier), faite au lancement, jeu fermé.
+    last_pull: Option<PullOutcome>,
+    last_pull_at: Option<u64>,
     candidates: Vec<String>,
     /// Dossier d'un autre client que Forever (Retail, Classic…) : le site refusera ses exports.
     game_dir_warning: Option<String>,
@@ -82,6 +87,8 @@ fn snapshot(inner: &Inner) -> AppState {
         }),
         last_sync: inner.last_sync.clone(),
         last_sync_at: inner.last_sync_at,
+        last_pull: inner.last_pull.clone(),
+        last_pull_at: inner.last_pull_at,
         candidates: if game_dir.is_none() {
             wowdir::candidates()
                 .iter()
@@ -126,6 +133,25 @@ fn run_sync(app: &AppHandle, shared: &Shared) -> Vec<SyncOutcome> {
     }
     let _ = app.emit("sync-result", &outcomes);
     outcomes
+}
+
+/// Sens inverse : l'état du site complète le fichier de l'addon (jeu fermé). Après `run_sync`, pour que ce
+/// PC ait d'abord envoyé ce qu'il avait.
+fn run_pull(app: &AppHandle, shared: &Shared) -> Option<PullOutcome> {
+    let (game_dir, config) = {
+        let inner = shared.lock().unwrap();
+        (inner.config.game_dir.clone(), inner.config.clone())
+    };
+    let game_dir = game_dir?;
+    let outcome = pull_once(&game_dir, &config, &client_for(&config));
+    log::info!("complétion depuis le site : {outcome:?}");
+    {
+        let mut inner = shared.lock().unwrap();
+        inner.last_pull = Some(outcome.clone());
+        inner.last_pull_at = Some(now_secs());
+    }
+    let _ = app.emit("pull-result", &outcome);
+    Some(outcome)
 }
 
 // --- commandes -------------------------------------------------------------------------------------
@@ -204,6 +230,13 @@ fn unpair(shared: State<Shared>) -> Result<AppState, String> {
 #[tauri::command]
 fn sync_now(app: AppHandle, shared: State<Shared>) -> Vec<SyncOutcome> {
     run_sync(&app, shared.inner())
+}
+
+/// Bouton « Compléter depuis le site » : envoie d'abord ce qui attend, puis recopie l'état du site.
+#[tauri::command]
+fn pull_now(app: AppHandle, shared: State<Shared>) -> Option<PullOutcome> {
+    let _ = run_sync(&app, shared.inner());
+    run_pull(&app, shared.inner())
 }
 
 #[tauri::command]
@@ -378,7 +411,9 @@ async fn update_loop(app: AppHandle) {
 async fn check_update(app: AppHandle) -> Result<String, String> {
     match try_update(&app).await? {
         None => Ok(format!("Compagnon {} à jour.", env!("CARGO_PKG_VERSION"))),
-        Some(version) => Ok(format!("Mise à jour {version} en cours, le compagnon va redémarrer.")),
+        Some(version) => Ok(format!(
+            "Mise à jour {version} en cours, le compagnon va redémarrer."
+        )),
     }
 }
 
@@ -393,6 +428,8 @@ pub fn run() {
         config,
         last_sync: None,
         last_sync_at: None,
+        last_pull: None,
+        last_pull_at: None,
     }));
 
     tauri::Builder::default()
@@ -418,6 +455,7 @@ pub fn run() {
             pair,
             unpair,
             sync_now,
+            pull_now,
             install_addon,
             check_update,
             set_settings,
@@ -465,7 +503,8 @@ pub fn run() {
             // Mise à jour du compagnon lui-même (et donc de l'addon embarqué) en arrière-plan.
             tauri::async_runtime::spawn(check_for_update(handle.clone()));
             tauri::async_runtime::spawn(update_loop(handle.clone()));
-            // Premier passage au démarrage : on rattrape ce qui a été écrit pendant que le compagnon était fermé.
+            // Premier passage au démarrage : on rattrape ce qui a été écrit pendant que le compagnon était fermé,
+            // puis le site complète l'addon de ce PC (jeu fermé) pour qu'aucune installation ne reparte de zéro.
             let shared_boot = shared.clone();
             let boot = handle.clone();
             std::thread::spawn(move || {
@@ -474,6 +513,7 @@ pub fn run() {
                     let _ = addon::install(&wowdir::addons_dir(&game_dir), false);
                 }
                 let _ = run_sync(&boot, &shared_boot);
+                let _ = run_pull(&boot, &shared_boot);
             });
             Ok(())
         })

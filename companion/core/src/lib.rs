@@ -4,14 +4,18 @@
 //! - `savedvars` : lire le code d'export écrit par l'addon dans `SavedVariables` ;
 //! - `addon` : installer et mettre à jour l'addon embarqué dans l'exécutable ;
 //! - `api` : appairage, import, état, auprès du site ;
-//! - `sync` : la boucle « fichier changé → code → site », avec l'empreinte anti-doublon ;
+//! - `sync` : la boucle « fichier changé → code → site », avec l'empreinte anti-doublon, et le sens inverse
+//!   « site → fichier » au lancement (complétion, jeu fermé) ;
+//! - `luatable` et `seed` : lire et réécrire le fichier `SavedVariables` pour y recopier l'état du site ;
 //! - `config` : réglages et jeton sur le disque.
 
 pub mod addon;
 pub mod api;
 pub mod config;
 pub mod error;
+pub mod luatable;
 pub mod savedvars;
+pub mod seed;
 pub mod sync;
 pub mod wowdir;
 

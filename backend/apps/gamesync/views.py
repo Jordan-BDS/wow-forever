@@ -178,6 +178,19 @@ class CompanionStatusView(APIView):
         return Response(CompanionStatusSerializer(payload).data)
 
 
+class CompanionStateView(APIView):
+    """Pour le compagnon : l'état fusionné de mes personnages (compteurs, journal, créatures, événements), à
+    recopier dans l'addon d'un PC au lancement, jeu fermé, pour qu'aucune installation ne reparte de zéro."""
+
+    authentication_classes = [CompanionTokenAuthentication]
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    def get(self, request: Request) -> Response:
+        from . import progress
+
+        return Response(progress.companion_state(request.user))
+
+
 # --- fiche vivante et classements -------------------------------------------------------------------
 
 

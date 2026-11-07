@@ -107,6 +107,43 @@ pub fn wtf_accounts_dir(game_dir: &Path) -> PathBuf {
     game_dir.join("WTF").join("Account")
 }
 
+/// Les comptes WoW connus de cette installation (dossiers de `WTF/Account/`, hors `SavedVariables` du compte
+/// Battle.net), avec le chemin du fichier de l'addon, qu'il existe ou non.
+pub fn account_files(game_dir: &Path) -> Vec<(String, PathBuf)> {
+    let mut found = Vec::new();
+    let Ok(entries) = std::fs::read_dir(wtf_accounts_dir(game_dir)) else {
+        return found;
+    };
+    for entry in entries.flatten() {
+        let account = entry.file_name().to_string_lossy().to_string();
+        if account.eq_ignore_ascii_case("SavedVariables") || !entry.path().is_dir() {
+            continue;
+        }
+        let path = entry
+            .path()
+            .join("SavedVariables")
+            .join(format!("{}.lua", crate::savedvars::ADDON_NAME));
+        found.push((account, path));
+    }
+    found.sort();
+    found
+}
+
+/// Le jeu tourne-t-il depuis ce dossier ? Un processus dont l'exécutable est dans le dossier du jeu (le client,
+/// quel que soit son nom). Tant qu'il tourne, écrire `SavedVariables` ne sert à rien : il l'écraserait.
+pub fn game_running(game_dir: &Path) -> bool {
+    use sysinfo::{ProcessesToUpdate, System};
+    let prefix = game_dir.to_string_lossy().to_lowercase();
+    let mut system = System::new();
+    system.refresh_processes(ProcessesToUpdate::All, true);
+    system.processes().values().any(|process| {
+        process
+            .exe()
+            .map(|exe| exe.to_string_lossy().to_lowercase().starts_with(&prefix))
+            .unwrap_or(false)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,9 +183,18 @@ mod other_client_tests {
 
     #[test]
     fn warns_for_other_clients_only() {
-        assert_eq!(other_client_name(Path::new("/wow/_retail_")).as_deref(), Some("Retail"));
-        assert_eq!(other_client_name(Path::new("/wow/_classic_era_")).as_deref(), Some("Classic Era"));
-        assert_eq!(other_client_name(Path::new("/wow/_xyz_")).as_deref(), Some("xyz"));
+        assert_eq!(
+            other_client_name(Path::new("/wow/_retail_")).as_deref(),
+            Some("Retail")
+        );
+        assert_eq!(
+            other_client_name(Path::new("/wow/_classic_era_")).as_deref(),
+            Some("Classic Era")
+        );
+        assert_eq!(
+            other_client_name(Path::new("/wow/_xyz_")).as_deref(),
+            Some("xyz")
+        );
         assert!(other_client_name(Path::new("/wow/_forever_")).is_none());
         assert!(other_client_name(Path::new("/wow")).is_none());
     }
