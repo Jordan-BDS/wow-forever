@@ -1150,6 +1150,20 @@ client Forever (wago.tools, build 1.60.1.70862) : les 19 donjons vanilla, une fo
 (`ruins-of-ahn-qiraj`, `temple-of-ahn-qiraj`) pour afficher les noms français. Restent dans « Autres rencontres » :
 les boss du monde (Kazzak, Azuregos, Thunderaan, dragons du Cauchemar) et le raid inédit « Scarlet Enclave ».
 
+### Plusieurs installations de l'addon : le site additionne (7 novembre 2026, site seulement)
+
+Constat : réinstaller l'addon sur un autre PC remettait tout à zéro sur le site sauf les victoires honorables. Les
+données de l'addon vivent dans `SavedVariables` du PC ; un nouveau PC crée une base neuve, un nouvel identifiant
+d'installation et des compteurs vides, et le site ne lisait que le dernier instantané reçu. Désormais le site garde
+le **dernier instantané de chaque installation** (identifiant `install` de l'export, déjà stocké sur le lot) et les
+**fusionne** à la lecture (`progress.merge_installs`) : compteurs additionnés (y compris par créature et par boss,
+`first` au minimum, `last` au maximum), journal additionné jour par jour (une installation qui n'existait pas
+encore ne compte pas, une installation abandonnée reste figée à son dernier état), événements réunis, créatures et
+champs de bataille fusionnés, **totaux tenus par le jeu** (victoires honorables, temps de jeu) au maximum, état
+(équipement, talents, métiers, réputations…) de l'export le plus récent, date de départ la plus ancienne. Le
+nettoyage « un instantané par jour » se fait par installation. Aucun changement dans l'addon ; les instantanés de
+l'ancien PC étant conservés 90 jours, un personnage déjà « remis à zéro » retrouve ses chiffres au déploiement.
+
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 
 La création manuelle de personnages est **réservée aux officiers** (API et site) : les membres installent l'addon et

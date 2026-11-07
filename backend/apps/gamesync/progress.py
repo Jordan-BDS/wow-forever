@@ -1,10 +1,18 @@
 """
 Lecture des instantanés bruts : état courant d'un personnage, valeur des compteurs à une date, séries pour les
 courbes. Tout vient du JSON écrit par l'addon (`CharacterSnapshot.data`), jamais d'une table recalculée.
+
+Un personnage peut être joué depuis plusieurs installations de l'addon (deux PC, une réinstallation) : chacune
+compte depuis zéro et ne connaît pas les autres. Le site garde le dernier instantané de chaque installation et
+les fusionne (`merge_installs`) : compteurs additionnés, journal additionné jour par jour, créatures et
+événements réunis, totaux tenus par le jeu (victoires honorables, temps de jeu) au maximum, état (équipement,
+talents, métiers…) de l'export le plus récent. Les fonctions de lecture reçoivent cet instantané fusionné.
 """
 
 from __future__ import annotations
 
+from copy import deepcopy
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -18,29 +26,166 @@ from .services import PARIS
 
 APPLIED = (SnapshotStatus.APPLIED, SnapshotStatus.CREATED)
 MOBS_PER_CHARACTER = 30
+# Compteurs cumulés, journal, événements et créatures s'additionnent entre installations ; tout le reste est
+# un état, pris sur l'export le plus récent.
+MERGED_KEYS = ("counters", "journal", "events", "mobs", "pvp", "played", "counting_since", "previous_guids")
+# Totaux tenus par le jeu lui-même dans les compteurs : jamais additionnés (le temps de jeu, hors compteurs,
+# est traité à part dans merge_installs).
+GAME_TOTALS = {"hk", "hk_lifetime"}
 
 
-def latest_snapshot(character: Character) -> CharacterSnapshot | None:
-    return (
+@dataclass
+class MergedSnapshot:
+    """Dernier état d'un personnage, toutes installations de l'addon confondues."""
+
+    character: Character
+    exported_at: datetime
+    data: dict
+    installs: int = 1
+
+    @property
+    def character_id(self) -> int:
+        return self.character.pk
+
+
+def _latest_per_install(snapshots) -> list[CharacterSnapshot]:
+    """Le plus récent instantané de chaque installation, du plus récent au plus ancien."""
+    seen: set[str] = set()
+    kept = []
+    for snapshot in snapshots:  # déjà triés par -exported_at
+        install = snapshot.batch.install_id
+        if install in seen:
+            continue
+        seen.add(install)
+        kept.append(snapshot)
+    return kept
+
+
+def latest_snapshot(character: Character) -> MergedSnapshot | None:
+    snapshots = _latest_per_install(
         CharacterSnapshot.objects.filter(character=character, status__in=APPLIED)
+        .select_related("batch")
         .order_by("-exported_at")
-        .first()
     )
+    return merge_installs(character, snapshots) if snapshots else None
 
 
-def latest_snapshots() -> dict[int, CharacterSnapshot]:
-    """Dernier instantané appliqué de chaque personnage (une requête)."""
-    result: dict[int, CharacterSnapshot] = {}
+def latest_snapshots() -> dict[int, MergedSnapshot]:
+    """Dernier instantané de chaque personnage, installations fusionnées (une requête)."""
+    per_character: dict[int, list[CharacterSnapshot]] = {}
     queryset = (
         CharacterSnapshot.objects.filter(
             status__in=APPLIED, character__isnull=False, character__owner__is_active=True
         )
-        .select_related("character__owner", "character__player_class")
+        .select_related("batch", "character__owner", "character__player_class")
         .order_by("-exported_at")
     )
     for snapshot in queryset:
-        result.setdefault(snapshot.character_id, snapshot)
-    return result
+        per_character.setdefault(snapshot.character_id, []).append(snapshot)
+    return {
+        character_id: merge_installs(snapshots[0].character, _latest_per_install(snapshots))
+        for character_id, snapshots in per_character.items()
+    }
+
+
+# --- fusion des installations ------------------------------------------------------------------------------
+
+
+def _add(a: Any, b: Any, key: str = "") -> Any:
+    """Additionne deux valeurs de compteurs : dictionnaires clé à clé, nombres sommés (`first` : minimum ;
+    `last` et totaux du jeu : maximum), texte conservé (le premier non vide)."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        out = {k: deepcopy(v) for k, v in a.items()}
+        for k, v in b.items():
+            out[k] = _add(out[k], v, k) if k in out else deepcopy(v)
+        return out
+    if _is_number(a) and _is_number(b):
+        if key == "first":
+            return min(a, b)
+        if key == "last" or key in GAME_TOTALS:
+            return max(a, b)
+        return a + b
+    if isinstance(a, str) and a:
+        return a
+    return deepcopy(b) if b not in (None, "") else deepcopy(a)
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _dict(value: Any) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def _counters_at(data: dict, export_day: date, day: date) -> dict | None:
+    """Compteurs cumulés d'une installation en fin de `day` : l'état courant à partir du jour de l'export,
+    sinon la dernière entrée du journal à cette date ou avant, sinon rien (l'installation n'existait pas)."""
+    if day >= export_day:
+        return _dict(data.get("counters"))
+    journal = _dict(data.get("journal"))
+    candidates = sorted(k for k in journal if isinstance(k, str) and k <= day.isoformat())
+    return _dict(journal[candidates[-1]]) if candidates else None
+
+
+def merge_installs(character: Character, snapshots: list[CharacterSnapshot]) -> MergedSnapshot:
+    """Fusionne le dernier instantané de chaque installation (le premier est le plus récent)."""
+    primary = snapshots[0]
+    if len(snapshots) == 1:
+        return MergedSnapshot(character, primary.exported_at, _dict(primary.data), 1)
+    parts = [(_dict(s.data), day_of(s)) for s in snapshots]
+    data = {k: deepcopy(v) for k, v in parts[0][0].items() if k not in MERGED_KEYS}
+
+    counters: dict = {}
+    mobs: dict = {}
+    events: list = []
+    bg: dict = {}
+    guids: list = []
+    since = []
+    for part, _ in parts:
+        counters = _add(counters, _dict(part.get("counters")))
+        mobs = _add(mobs, _dict(part.get("mobs")))
+        events.extend(e for e in (part.get("events") or []) if isinstance(e, dict))
+        bg = _add(bg, _dict(_dict(part.get("pvp")).get("bg")))
+        guids.extend(g for g in (part.get("previous_guids") or []) if g not in guids)
+        if _is_number(part.get("counting_since")):
+            since.append(part["counting_since"])
+    data["counters"] = counters
+    data["mobs"] = mobs
+    data["events"] = sorted(events, key=lambda e: number(e.get("t")))
+    data["previous_guids"] = guids
+    if since:
+        data["counting_since"] = min(since)
+
+    # Journal : chaque jour connu d'au moins une installation vaut la somme de l'état de chacune ce jour-là.
+    days = sorted({k for part, _ in parts for k in _dict(part.get("journal")) if isinstance(k, str)})
+    journal: dict = {}
+    for key in days:
+        try:
+            day = date.fromisoformat(key)
+        except ValueError:
+            continue
+        total: dict = {}
+        for part, export_day in parts:
+            at = _counters_at(part, export_day, day)
+            if at is not None:
+                total = _add(total, at)
+        journal[key] = total
+    data["journal"] = journal
+
+    pvp = deepcopy(_dict(parts[0][0].get("pvp")))
+    lifetime = [_dict(p.get("pvp")).get("hk_lifetime") for p, _ in parts]
+    lifetime = [value for value in lifetime if _is_number(value)]
+    if lifetime:
+        pvp["hk_lifetime"] = max(lifetime)
+    if bg:
+        pvp["bg"] = bg
+    if pvp:
+        data["pvp"] = pvp
+    played = [p["played"] for p, _ in parts if _is_number(p.get("played"))]
+    if played:
+        data["played"] = max(played)
+    return MergedSnapshot(character, primary.exported_at, data, len(snapshots))
 
 
 def number(value: Any) -> float:
@@ -57,11 +202,11 @@ def counter(counters: Any, key: str) -> float:
     return number(node)
 
 
-def day_of(snapshot: CharacterSnapshot) -> date:
+def day_of(snapshot: CharacterSnapshot | MergedSnapshot) -> date:
     return snapshot.exported_at.astimezone(PARIS).date()
 
 
-def counters_at(snapshot: CharacterSnapshot, day: date) -> tuple[dict | None, date | None]:
+def counters_at(snapshot: CharacterSnapshot | MergedSnapshot, day: date) -> tuple[dict | None, date | None]:
     """Compteurs cumulés en fin de `day` : l'état courant si `day` est le jour de l'export ou après, sinon la
     dernière entrée du journal à cette date ou avant. Renvoie aussi le jour réellement utilisé."""
     data = snapshot.data if isinstance(snapshot.data, dict) else {}
@@ -76,7 +221,7 @@ def counters_at(snapshot: CharacterSnapshot, day: date) -> tuple[dict | None, da
     return (journal[chosen] if isinstance(journal[chosen], dict) else {}), date.fromisoformat(chosen)
 
 
-def earliest_known(snapshot: CharacterSnapshot) -> tuple[dict, date]:
+def earliest_known(snapshot: CharacterSnapshot | MergedSnapshot) -> tuple[dict, date]:
     """Première valeur connue (plus ancienne entrée du journal, sinon l'état courant)."""
     data = snapshot.data if isinstance(snapshot.data, dict) else {}
     journal = data.get("journal") if isinstance(data.get("journal"), dict) else {}

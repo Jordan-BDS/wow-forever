@@ -74,8 +74,72 @@ def garona():
     )  # fmt: skip
 
 
-def import_for(user, *chars):
-    return services.import_code(user, encode_export({"v": 1, "characters": list(chars)}), source="paste")
+def import_for(user, *chars, install="pc-fixe"):
+    payload = {"v": 1, "install": install, "characters": list(chars)}
+    return services.import_code(user, encode_export(payload), source="paste")
+
+
+class TestInstalls:
+    """Deux installations de l'addon (second PC, réinstallation) : chacune compte depuis zéro, le site additionne
+    au lieu d'oublier l'ancienne."""
+
+    def test_counters_journal_and_state_are_merged_across_installs(self, member):
+        import_for(member, thrall(), install="pc-fixe")
+        fresh = character(
+            "Player-1-T", "Thrall",
+            counters={"deaths": 2, "kills": 5, "hk": 100, "gathering": {"mining": 15}, "mobs": {"299": 5}},
+            journal={},
+            mobs={"299": {"n": 5, "name": "Loup des Tarides", "first": EXPORTED + 60, "last": EXPORTED + 500}},
+            events=[{"k": "death", "t": EXPORTED + 300, "zone": "Durotar"}],
+            gear={"head": {"id": 16842}},
+            pvp={"hk_lifetime": 100, "rank": 8, "bg": {"Goulet": {"played": 1, "won": 1}}},
+        )  # fmt: skip
+        fresh["exported_at"] = EXPORTED + 600
+        fresh["counting_since"] = EXPORTED  # réinstallé aujourd'hui : compteurs repartis de zéro
+        import_for(member, fresh, install="portable")
+        thrall_char = Character.objects.get(name="Thrall")
+        # Les deux instantanés du jour sont conservés, un par installation.
+        assert thrall_char.snapshots.filter(status__in=progress.APPLIED).count() == 2
+        merged = progress.latest_snapshot(thrall_char)
+        assert merged.installs == 2 and merged.data["counting_since"] == EXPORTED - 30 * 86400
+        c = merged.data["counters"]
+        assert (c["deaths"], c["kills"], c["gathering"]["mining"], c["mobs"]["299"]) == (16, 125, 325, 75)
+        assert (
+            c["hk"] == 100 and merged.data["pvp"]["hk_lifetime"] == 2340
+        )  # totaux du jeu : jamais additionnés
+        assert merged.data["pvp"]["bg"]["Goulet"] == {"played": 13, "won": 10}
+        assert merged.data["mobs"]["299"] == {
+            "n": 75, "name": "Loup des Tarides", "first": KILL_TIME - 86400, "last": EXPORTED + 500
+        }  # fmt: skip
+        assert [e["k"] for e in merged.data["events"]][-1] == "death"
+        # Journal : les jours de l'ancienne installation, sans contribution de la nouvelle qui n'existait pas.
+        assert (
+            merged.data["journal"]["2026-09-20"]["deaths"] == 10
+            and merged.data["journal"]["2026-09-20"]["hk"] == 60
+        )
+        assert merged.data["gear"] == {"head": {"id": 16842}}  # état : export le plus récent
+        data = progress.character_progress(thrall_char, now=NOW)
+        assert data["tiles"]["deaths"] == {"total": 16.0, "week": 14.0}  # 16 − 2 (journal du 13)
+        assert data["tiles"]["hk"] == {"total": 100.0, "week": 90.0}
+        assert data["gathering_week"]["mining"] == 305.0
+        assert data["gear"][0]["enchant_id"] is None
+        result = rankings.compute_rankings("week", "character", now=NOW)
+        by_key = {cat["key"]: cat for cat in result["categories"]}
+        assert [(e["character"]["name"], e["value"]) for e in by_key["deaths"]["entries"]] == [
+            ("Thrall", 6.0)
+        ]
+        assert [(e["value"]) for e in by_key["mining"]["entries"]] == [225.0]  # 325 − 100
+        assert [(e["value"]) for e in by_key["hk"]["entries"]] == [40.0]  # 100 − 60, pas 100 + 100
+        assert result["characters"] == 1
+        # Retour sur l'ancien PC : son nouvel export remplace le sien, l'autre installation reste comptée.
+        back = thrall()
+        back["counters"]["deaths"] = 15
+        back["exported_at"] = EXPORTED + 1200
+        import_for(member, back, install="pc-fixe")
+        merged = progress.latest_snapshot(thrall_char)
+        assert merged.data["counters"]["deaths"] == 17
+        assert merged.data["gear"]["head"] == {"id": 16842, "ench": 2583}
+        assert thrall_char.snapshots.filter(status__in=progress.APPLIED).count() == 2
 
 
 class TestRankings:
