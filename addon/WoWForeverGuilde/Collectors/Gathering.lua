@@ -1,7 +1,9 @@
--- Récolte (sort de récolte puis butin dans les 3 s) et artisanat (sort d'une recette connue).
+-- Récolte (sort de récolte puis butin dans la fenêtre qui suit : 10 s, 30 s pour la pêche dont le bouchon met du
+-- temps à mordre ; fermée une seconde après la fenêtre de butin pour ne pas compter le butin d'un monstre tué
+-- juste après) et artisanat (sort d'une recette connue).
 local ADDON, ns = ...
 
-local armed = nil
+local armed = nil -- { kind, until_t } : récolte en cours
 
 local function lootFromMessage(msg)
   local itemId = msg:match("item:(%d+)")
@@ -13,7 +15,7 @@ ns.LootFromMessage = lootFromMessage
 
 ns.RegisterCollector({
   name = "gathering",
-  events = { UNIT_SPELLCAST_SUCCEEDED = true, CHAT_MSG_LOOT = true },
+  events = { UNIT_SPELLCAST_SUCCEEDED = true, CHAT_MSG_LOOT = true, LOOT_CLOSED = true },
   onEvent = function(char, event, ...)
     if event == "UNIT_SPELLCAST_SUCCEEDED" then
       local unit, _, spellId = ...
@@ -24,11 +26,15 @@ ns.RegisterCollector({
         kind = ns.Data.GATHERING_NAMES[ns.plain(C_Spell.GetSpellName(spellId)) or ""]
       end
       if kind then
-        armed = { kind = kind, until_t = ns.now() + ns.Data.GATHERING_WINDOW }
+        local window = kind == "fishing" and ns.Data.FISHING_WINDOW or ns.Data.GATHERING_WINDOW
+        armed = { kind = kind, until_t = ns.now() + window }
       elseif spellId and ns.knownRecipes and ns.knownRecipes[spellId] then
         ns.Journal.Increment(char, "crafted_total")
         ns.Journal.IncrementIn(char, "crafted", spellId)
       end
+    elseif event == "LOOT_CLOSED" then
+      -- La fenêtre de butin se referme : la récolte est finie, le message de butin peut encore suivre d'un instant.
+      if armed then armed.until_t = math.min(armed.until_t, ns.now() + ns.Data.LOOT_CLOSED_GRACE) end
     elseif event == "CHAT_MSG_LOOT" then
       local msg, _, _, _, playerName = ...
       msg = ns.plain(msg)

@@ -818,7 +818,7 @@ journées de la différence (limite acceptée, les horodatages d'événements re
 | Verrous | `UPDATE_INSTANCE_INFO` | instance, réinitialisation, boss tombés |
 | PvP | login, `PVP_MATCH_COMPLETE` / statut de champ de bataille | victoires honorables à vie, rang ; par carte : joué, gagné (vainqueur du match) |
 | PvE | `PLAYER_ENTERING_WORLD` (entrée en instance), `ENCOUNTER_END` (succès), `PLAYER_DEAD` | boss : identifiant de rencontre, date, taille du groupe, GUID des membres du groupe qui sont dans la guilde (règle des 5 pour la progression de guilde) ; donjon terminé = dernier boss de l'instance (`Data.lua`) ; morts |
-| Récolte | `UNIT_SPELLCAST_SUCCEEDED` d'un sort de récolte → fenêtre de 3 s → butin reçu | objets et quantités par identifiant |
+| Récolte | `UNIT_SPELLCAST_SUCCEEDED` d'un sort de récolte → fenêtre de 10 s (30 s pour la pêche), refermée 1 s après `LOOT_CLOSED` → butin reçu | objets et quantités par identifiant |
 | Artisanat | sort de recette réussi | fabrications par identifiant de recette |
 | Quêtes | `QUEST_TURNED_IN` | nombre, quêtes clés |
 
@@ -1184,6 +1184,11 @@ rétention). Relancer le compagnon sur l'autre PC pose une marque plus récente 
 échoue, aucune marque : le site continue d'additionner. Limite : avec plusieurs comptes WoW, tous les personnages du
 joueur sont écrits dans chaque dossier de compte (sans effet en jeu). Plafonds de l'addon respectés : 500 événements,
 500 créatures.
+
+**Récolte (addon 0.4.3)** : la fenêtre entre le sort de récolte et le butin était de 3 s, ce qui rendait la pêche
+impossible à compter (le bouchon met jusqu'à 30 s à mordre après le lancer) et faisait sauter un filon ou une herbe
+ramassés à la main en plus de 3 s. Désormais 10 s, 30 s pour la pêche, et la fenêtre se referme une seconde après
+`LOOT_CLOSED` pour ne pas attribuer à la récolte le butin d'un monstre tué juste après.
 
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 

@@ -646,6 +646,34 @@ class TestDurability:
         assert character["lockouts"][0]["killed"] == 7
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_gathering_window_fits_fishing_and_slow_looting_but_not_the_next_kill(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
+        fish = "Vous recevez un butin : |cffffffff|Hitem:6291:0:0|h[Poisson cru]|h|rx2."
+        ore = "Vous recevez un butin : |cffffffff|Hitem:2770:0:0|h[Minerai de cuivre]|h|r."
+        # Pêche : le bouchon mord 20 s après le lancer, le butin compte quand même.
+        g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-f", 7620)
+        g._ADVANCE(20)
+        g._FIRE("CHAT_MSG_LOOT", fish, "", "", "", "")
+        assert char.counters.gathering.fishing == 2
+        # Filon ramassé à la main 8 s après le sort : compte ; 11 s : trop tard.
+        g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-m1", 2575)
+        g._ADVANCE(8)
+        g._FIRE("CHAT_MSG_LOOT", ore, "", "", "", "")
+        g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-m2", 2575)
+        g._ADVANCE(11)
+        g._FIRE("CHAT_MSG_LOOT", ore, "", "", "", "")
+        assert char.counters.gathering.mining == 1
+        # Fenêtre de butin refermée : le message qui suit d'un instant compte, celui d'un monstre 5 s après non.
+        g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-m3", 2575)
+        g._FIRE("LOOT_CLOSED")
+        g._FIRE("CHAT_MSG_LOOT", ore, "", "", "", "")
+        g._ADVANCE(5)
+        g._FIRE("CHAT_MSG_LOOT", ore, "", "", "", "")
+        assert char.counters.gathering.mining == 2
+
     def test_companion_seed_mark_is_kept_and_exported(self):
         # Le compagnon a complété le fichier depuis le site et y a posé sa marque : l'addon la ressort telle quelle.
         lua = boot()
