@@ -14,9 +14,12 @@ local function scan(char)
   for _, entry in ipairs(ns.Data.ATTUNEMENTS) do
     if entry.faction == "any" or entry.faction == faction then
       local done = completed(entry.quest)
-      if done ~= nil then
-        after[entry.key] = after[entry.key] or done
-        if done and not before[entry.key] and char.attunements_at then
+      -- Un accès acquis ne se perd jamais : une lecture négative ou absente (drapeaux de quêtes pas encore reçus
+      -- à la connexion, déconnexion) ne retire rien.
+      local known = before[entry.key] == true
+      if done ~= nil or known then
+        after[entry.key] = after[entry.key] or known or done == true
+        if done and not known and char.attunements_at then
           ns.Journal.Event(char, "attunement", { key = entry.key })
           ns.Print(ns.L.NEW_ATTUNEMENT, entry.key)
         end

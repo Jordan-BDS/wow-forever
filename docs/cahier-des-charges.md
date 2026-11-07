@@ -1107,6 +1107,24 @@ addon) et ce que les collecteurs en lisent, puis note le tout avec les erreurs :
 sans copier-coller. Un collecteur sans API le note une fois par session (`talents.scan`, `professions.scan`). La carte
 n'a pas changé : messages addon sur le canal de guilde (donc une guilde), HereBeDragons connaît Forever.
 
+### Lectures durables : rien ne s'efface sur une réponse vide (7 novembre 2026, addon 0.3.8)
+
+Constat en jeu : les victoires honorables apparaissaient au classement après un `/reload` puis disparaissaient à la
+déconnexion. Le compteur `hk` était le seul recopié **en valeur absolue** depuis `GetPVPLifetimeStats()` à chaque
+scan, y compris celui de `PLAYER_LOGOUT` ; une réponse à `0` à ce moment-là l'écrasait, et le site, qui ne lit que le
+dernier instantané et calcule `max(0, courant − référence)`, sortait le joueur du classement. Règle désormais commune à
+tout ce que l'addon lit en bloc : **une lecture vide ou nulle n'écrase jamais une valeur connue**. `hk` ne descend plus
+(maximum entre l'ancienne valeur et le total du jeu, `0` et `nil` ignorés) et, tant que le total du jeu n'a jamais
+répondu sur un personnage, chaque `PLAYER_PVP_KILLS_CHANGED` compte une victoire (les événements de la connexion, avant
+la première lecture, sont ignorés). Même garde pour les **métiers** (une liste vide ne marque plus tout comme abandonné,
+ce qui supprimait aussi les recettes sur le site), l'**équipement** (une tenue connue n'est pas remplacée par rien), les
+**talents** (zéro point lu alors qu'un build est connu : on garde le build), les **accès aux raids** (acquis une fois,
+jamais retirés : les drapeaux de quêtes arrivent après la connexion) et les **verrous** (une réponse vide garde ceux
+qui courent encore, `RequestRaidInfo` étant asynchrone). Séquelle unique : les entrées de journal déjà écrites avec un
+`hk` à 0 servent de référence une fois, la semaine qui suit la mise à jour affiche un gain gonflé pour ces joueurs.
+Le classement « saison » garde par ailleurs sa référence 60 jours au plus (profondeur du journal) : juste pour qui a
+installé l'addon depuis le 4 novembre (`counting_since`), glissant vers « les 60 derniers jours » pour les autres.
+
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 
 La création manuelle de personnages est **réservée aux officiers** (API et site) : les membres installent l'addon et

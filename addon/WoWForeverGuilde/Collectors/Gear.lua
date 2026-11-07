@@ -14,6 +14,9 @@ local function scan(char)
       end
     end
   end
+  -- Aucun lien d'objet lu alors qu'on connaissait une tenue : lecture creuse (connexion, déconnexion), on garde la
+  -- tenue connue plutôt que de l'effacer sur le site.
+  if next(gear) == nil and next(char.gear or {}) ~= nil then return end
   char.gear = gear
   char.gear_at = ns.now()
 end

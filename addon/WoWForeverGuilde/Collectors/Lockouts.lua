@@ -14,6 +14,13 @@ local function scan(char)
       }
     end
   end
+  -- Lecture vide : la réponse à RequestRaidInfo n'est peut-être pas arrivée (elle est asynchrone), ou on se déconnecte.
+  -- Les verrous connus qui courent encore restent ; ceux qui ont expiré tombent.
+  if #lockouts == 0 then
+    for _, known in ipairs(char.lockouts or {}) do
+      if (known.reset_at or 0) > t then lockouts[#lockouts + 1] = known end
+    end
+  end
   char.lockouts = lockouts
   char.lockouts_at = t
 end

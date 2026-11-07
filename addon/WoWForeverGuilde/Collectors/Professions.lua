@@ -69,6 +69,9 @@ local function scanKnown(char)
     end
   end
   scanSlots(GetProfessions())
+  -- Lecture vide (connexion, déconnexion, API pas prête) : on ne touche à rien, sinon les métiers et toutes leurs
+  -- recettes partiraient au site comme abandonnés.
+  if next(seen) == nil then return end
   -- Un métier abandonné disparaît.
   for key in pairs(char.professions or {}) do
     if not seen[key] then char.professions[key] = nil end

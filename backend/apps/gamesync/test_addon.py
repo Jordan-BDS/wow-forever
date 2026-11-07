@@ -64,7 +64,7 @@ def logout_code(lua: LuaRuntime) -> str:
 class TestLoading:
     def test_every_lua_file_is_listed_in_the_toc_and_loads(self):
         listed = set(toc_files())
-        on_disk = {str(p.relative_to(ADDON_DIR)) for p in ADDON_DIR.rglob("*.lua")}
+        on_disk = {p.relative_to(ADDON_DIR).as_posix() for p in ADDON_DIR.rglob("*.lua")}
         assert on_disk == listed
         lua = boot()
         ns = lua.globals()._NS
@@ -522,6 +522,95 @@ class TestSession:
         login(lua)
         lua.execute("GetBuildInfo = nil")
         assert "client" not in decode_export(logout_code(lua))
+
+
+class TestDurability:
+    """Les lectures en bloc (connexion, déconnexion, API pas prête) ne détruisent jamais ce que l'addon savait :
+    le site n'a pas de mémoire au-delà du dernier instantané, un export creux l'effacerait."""
+
+    def test_empty_reads_at_logout_keep_everything_known(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
+        assert char.counters.hk == 2340 and char.pvp.hk_lifetime == 2340
+        # À la déconnexion le client ne répond plus : zéro victoire honorable, aucun objet porté, aucun métier,
+        # aucun point de talent, aucune quête terminée, aucun verrou.
+        lua.execute("""
+          GetPVPLifetimeStats = function() return 0, 0 end
+          _GEAR = {}
+          _PROFESSION_SLOTS = {}
+          _TALENTS.ranks = {}
+          _QUESTS_DONE = {}
+          GetNumSavedInstances = function() return 0 end
+        """)
+        payload = decode_export(logout_code(lua))
+        (character,) = payload["characters"]
+        assert character["counters"]["hk"] == 2340 and character["pvp"]["hk_lifetime"] == 2340
+        assert character["journal"][g.date("%Y-%m-%d")]["hk"] == 2340
+        assert character["gear"]["head"]["id"] == 16842
+        assert {p["id"] for p in character["professions"]} == {171, 186}
+        assert character["talents"]["grid"]["2-1-1"] == 5 and character["spec_tab"] == 2
+        assert character["attunements"]["molten-core"] is True
+        assert character["lockouts"][0]["killed"] == 7
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_expired_lockouts_still_disappear_when_the_read_is_empty(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("GetNumSavedInstances = function() return 0 end")
+        g._ADVANCE(300001)  # le verrou connu (réinitialisation dans 300 000 s) est passé
+        payload = decode_export(logout_code(lua))
+        assert payload["characters"][0]["lockouts"] == []
+
+    def test_honorable_kills_never_decrease_and_are_counted_without_the_game_total(self):
+        lua = boot()
+        g = lua.globals()
+        # Total du jeu pas encore chargé à la connexion.
+        lua.execute("GetPVPLifetimeStats = function() return 0, 0 end")
+        g._FIRE("ADDON_LOADED", "WoWForeverGuilde")
+        g._FIRE("PLAYER_LOGIN")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")  # bruit de la connexion, avant la première lecture : ignoré
+        g._ADVANCE(7)
+        char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
+        assert char.counters.hk is None and char.pvp.hk_lifetime is None
+        # Sans total du jeu, l'addon compte lui-même.
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(2)
+        assert char.counters.hk == 1
+        # Le total du jeu répond : il fait foi.
+        lua.execute("GetPVPLifetimeStats = function() return 2341, 0 end")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(2)
+        assert char.counters.hk == 2341 and char.pvp.hk_lifetime == 2341
+        # Il retombe à zéro (déconnexion) : rien ne bouge, et on ne recompte pas par-dessus un total connu.
+        lua.execute("GetPVPLifetimeStats = function() return 0, 0 end")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(2)
+        assert char.counters.hk == 2341
+        assert decode_export(logout_code(lua))["characters"][0]["counters"]["hk"] == 2341
+
+    def test_an_abandoned_profession_or_a_respec_still_updates(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
+        # Un métier sur deux abandonné : la lecture dit encore quelque chose, le métier disparaît bien.
+        lua.execute("_PROFESSION_SLOTS = { 1 }")
+        g._FIRE("SKILL_LINES_CHANGED")
+        g._ADVANCE(2)
+        assert list(dict(char.professions).keys()) == ["186"]
+        # Points déplacés : la nouvelle répartition remplace l'ancienne.
+        lua.execute("_TALENTS.ranks = { ['1-1'] = 4 }")
+        g._FIRE("PLAYER_TALENT_UPDATE")
+        g._ADVANCE(2)
+        assert char.spec_tab == 1 and char.talents.grid["1-1-1"] == 4 and char.talents.grid["2-1-1"] is None
+        # Nouvelle pièce : l'équipement suit.
+        lua.execute("_GEAR = { [1] = '|Hitem:16843:0:0|h[Épaulières]|h' }")
+        g._FIRE("PLAYER_EQUIPMENT_CHANGED")
+        g._ADVANCE(2)
+        assert char.gear.head.id == 16843 and char.gear.mainhand is None
 
 
 FAKE_PINS = """

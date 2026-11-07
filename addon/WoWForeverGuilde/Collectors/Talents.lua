@@ -100,6 +100,7 @@ local function scan(char)
   end
   available = true
   local talents = { api = result.api }
+  local total, specTab = 0, nil
   if result.tabs then
     -- points : « arbre-index » (ancien format) ; grid : « arbre-rangée-colonne », ce que le site préfère.
     local tabs, points, grid, best, bestPoints = ns.Json.array(), {}, {}, nil, -1
@@ -115,15 +116,21 @@ local function scan(char)
         end
       end
       tabs[#tabs + 1] = spent
+      total = total + spent
       if spent > bestPoints then best, bestPoints = tab, spent end
     end
     talents.tabs, talents.points, talents.grid = tabs, points, grid
-    char.spec_tab = bestPoints > 0 and best or nil
+    specTab = bestPoints > 0 and best or nil
   else
     talents.spells = result.spells
-    char.spec_tab = nil -- le site déduit l'arbre dominant des sorts
+    total = result.count or 0
+    specTab = nil -- le site déduit l'arbre dominant des sorts
   end
+  -- Aucun point lu alors qu'un build était connu : lecture creuse (connexion, déconnexion, API pas prête), on garde
+  -- le dernier build plutôt que de l'effacer sur le site. Une vraie remise à zéro est suivie d'une relecture.
+  if total == 0 and char.talents_at then return end
   char.talents = talents
+  char.spec_tab = specTab
   char.talents_at = ns.now()
 end
 
