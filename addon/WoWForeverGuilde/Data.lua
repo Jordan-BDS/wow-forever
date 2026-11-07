@@ -20,16 +20,54 @@ ns.Data.ATTUNEMENTS = {
 }
 
 -- Dernier boss de chaque instance (identifiant de rencontre → clé d'instance) : un kill = instance terminée.
--- Raids vanilla d'après les identifiants Classic Era ; donjons à compléter à la sortie (point ouvert).
-ns.Data.FINAL_BOSSES = {
-  [672] = { instance = "molten-core", raid = true },
-  [1084] = { instance = "onyxia", raid = true },
-  [617] = { instance = "blackwing-lair", raid = true },
-  [796] = { instance = "zul-gurub", raid = true },
-  [723] = { instance = "ruins-of-ahnqiraj", raid = true },
-  [717] = { instance = "temple-of-ahnqiraj", raid = true },
-  [1121] = { instance = "naxxramas", raid = true },
-}
+-- Identifiants lus dans la table DungeonEncounter du client Forever (wago.tools, build 1.60.1.70862, 7 novembre 2026) ;
+-- une instance à plusieurs ailes compte une fois par aile. Les donjons inédits de Forever prennent le dernier boss dans
+-- l'ordre du client, à confirmer en jeu.
+ns.Data.FINAL_BOSSES = {}
+local function finalBosses(instance, raid, ids)
+  for _, id in ipairs(ids) do ns.Data.FINAL_BOSSES[id] = { instance = instance, raid = raid } end
+end
+-- Raids.
+finalBosses("onyxia", true, { 1084 }) -- Onyxia
+finalBosses("molten-core", true, { 672 }) -- Ragnaros
+finalBosses("blackwing-lair", true, { 617 }) -- Nefarian
+finalBosses("zul-gurub", true, { 793 }) -- Hakkar
+finalBosses("ruins-of-ahn-qiraj", true, { 723 }) -- Ossirian
+finalBosses("temple-of-ahn-qiraj", true, { 717 }) -- C'Thun
+finalBosses("naxxramas", true, { 1114 }) -- Kel'Thuzad
+finalBosses("upper-blackrock-spire", true, { 3069 }) -- Général Drakkisath
+-- Donjons vanilla.
+finalBosses("ragefire-chasm", false, { 2735 }) -- Bazzalan
+finalBosses("deadmines", false, { 2747 }) -- Edwin Van Cleef
+finalBosses("wailing-caverns", false, { 592 }) -- Mutanus le Dévoreur
+finalBosses("shadowfang-keep", false, { 2755 }) -- Archimage Arugal
+finalBosses("blackfathom-deeps", false, { 2910, 2767, 2891 }) -- Aku'mai (trois variantes dans le client)
+finalBosses("stockade", false, { 2760 }) -- Bazil Thredd
+finalBosses("gnomeregan", false, { 2772, 2940 }) -- Mekgénieur Thermojoint (deux variantes)
+finalBosses("razorfen-kraul", false, { 2778 }) -- Charlga Trancheflanc
+finalBosses("scarlet-monastery", false, { 2779, 447, 448, 450 }) -- Thalnos (cimetière), Doan (bibliothèque), Herod (armurerie), Blanchetête (cathédrale)
+finalBosses("razorfen-downs", false, { 2785 }) -- Amnennar le Porte-froid
+finalBosses("uldaman", false, { 554 }) -- Archaedas
+finalBosses("zul-farrak", false, { 600 }) -- Chef Ukorz Crinsable
+finalBosses("maraudon", false, { 429 }) -- Princesse Theradras
+finalBosses("sunken-temple", false, { 3584, 493, 2959 }) -- Ombre d'Eranikus (trois variantes)
+finalBosses("blackrock-depths", false, { 2790 }) -- Empereur Dagran Thaurissan
+finalBosses("lower-blackrock-spire", false, { 275 }) -- Seigneur Wyrmthalak
+finalBosses("dire-maul", false, { 346, 361, 368 }) -- Alzzin (est), Prince Tortheldrin (ouest), Roi Gordok (nord)
+finalBosses("scholomance", false, { 2801 }) -- Sombre maître Gandling
+finalBosses("stratholme", false, { 478, 484 }) -- Balnazzar (côté vivant), Baron Vaillefendre (côté mort)
+-- Donjons propres à Forever (dernier boss selon l'ordre du client).
+finalBosses("demon-fall-canyon", false, { 3080 }) -- Azgaloth
+finalBosses("karazhan-crypts", false, { 3172 }) -- Barian Maryla
+finalBosses("city-of-dalaran", false, { 3303 }) -- Shade of the Archmage
+finalBosses("drowned-city", false, { 3479 }) -- Min'loth the Serpent
+finalBosses("blackmaw-hold", false, { 3336 }) -- Unbound Spirit
+finalBosses("alcaz-prison", false, { 3409 }) -- Blazeroar
+finalBosses("excavation-site-wetlands", false, { 3482 }) -- Relic Guardian
+finalBosses("ruins-of-lordaeron", false, { 3354 }) -- Rath'mael
+finalBosses("shapers-terrace", false, { 3502 }) -- Nanaya
+finalBosses("kroldok-stronghold", false, { 3451 }) -- Overseer Mugg
+finalBosses("hall-of-thanes", false, { 3496 }) -- Durgen Dirgehammer
 
 -- Sorts de récolte (identifiant → ressource). Tous les rangs vanilla.
 ns.Data.GATHERING = {}

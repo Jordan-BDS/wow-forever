@@ -200,6 +200,35 @@ class TestSession:
         assert set(created.known_recipes.values_list("recipe_id", flat=True)) == {17580, 11448}
         assert created.snapshots.get().data["mobs"]["Loup des Tarides"]["n"] == 1
 
+    def test_dungeons_and_raids_count_as_done_on_their_final_boss(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
+        lua.execute("_INSTANCE = 'party'; _INSTANCE_NAME = 'Les Mortemines'; _INSTANCE_ID = 36")
+        g._FIRE("PLAYER_ENTERING_WORLD")
+        g._FIRE("ENCOUNTER_END", 2741, "Rhahk'Zor", 1, 5, 1)  # premier boss : rien de terminé
+        assert char.counters.boss_kills == 1 and char.counters.dungeons_done is None
+        g._FIRE("ENCOUNTER_END", 2747, "Edwin Van Cleef", 1, 5, 1)
+        assert char.counters.dungeons_done == 1 and char.counters.dungeons_entered == 1
+        # Le Monastère compte une fois par aile ; un boss raté ne compte pas.
+        g._FIRE("ENCOUNTER_END", 448, "Herod", 1, 5, 1)
+        g._FIRE("ENCOUNTER_END", 450, "Grande Inquisitrice Blanchetête", 1, 5, 0)
+        g._FIRE("ENCOUNTER_END", 450, "Grande Inquisitrice Blanchetête", 1, 5, 1)
+        assert char.counters.dungeons_done == 3
+        # Raids : Hakkar (793) et Kel'Thuzad (1114) selon le client Forever.
+        g._FIRE("ENCOUNTER_END", 793, "Hakkar", 9, 20, 1)
+        g._FIRE("ENCOUNTER_END", 1114, "Kel'Thuzad", 9, 40, 1)
+        assert char.counters.raids_done == 2 and char.counters.boss_kills == 6
+        clears = [e.instance for e in dict(char.events).values() if e.k == "clear"]
+        assert sorted(clears) == [
+            "deadmines",
+            "naxxramas",
+            "scarlet-monastery",
+            "scarlet-monastery",
+            "zul-gurub",
+        ]
+
     def test_creature_kills_come_from_experience_messages(self):
         lua = boot()
         g = lua.globals()

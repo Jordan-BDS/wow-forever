@@ -1137,6 +1137,19 @@ après la mort ; compteur et journal restent immédiats. Les en-têtes « Avis d
 « Guilde en jeu » utilisent des **textures du client** (crâne des marqueurs de raid, épées croisées) au lieu de ☠ et ⚔,
 absents des polices du jeu (carrés à l'écran).
 
+### Donjons terminés : derniers boss lus dans le client Forever (7 novembre 2026, addon 0.4.1)
+
+« Donjons terminés » restait à zéro : la table des derniers boss de `Data.lua` ne contenait que les raids, les donjons
+étaient un point ouvert depuis la sortie. Les identifiants viennent maintenant de la table **DungeonEncounter** du
+client Forever (wago.tools, build 1.60.1.70862) : les 19 donjons vanilla, une fois par aile pour le Monastère
+(4), Hache-Tripes (3) et Stratholme (2), et les 11 donjons inédits de Forever (dernier boss dans l'ordre du client,
+à confirmer en jeu). Même table pour les raids, qui corrige deux identifiants hérités de Classic Era : **Hakkar est
+793** (pas 796) et **Kel'Thuzad 1114** (1121 est les Quatre Cavaliers), donc ZG et Naxx ne comptaient jamais comme
+« raid terminé » ; UBRS (Drakkisath 3069) est ajouté en raid 10. Côté site, `encounters.py` suit la même table
+(ZG à 10 boss, UBRS dans la progression de guilde) et ses slugs sont alignés sur `gamedata.seed`
+(`ruins-of-ahn-qiraj`, `temple-of-ahn-qiraj`) pour afficher les noms français. Restent dans « Autres rencontres » :
+les boss du monde (Kazzak, Azuregos, Thunderaan, dragons du Cauchemar) et le raid inédit « Scarlet Enclave ».
+
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 
 La création manuelle de personnages est **réservée aux officiers** (API et site) : les membres installent l'addon et
