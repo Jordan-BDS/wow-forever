@@ -368,7 +368,7 @@ local function buildToast()
   toast:Hide()
 end
 
---- Texte flottant 5 s : en-tête, phrase colorée, pied, et son d'avertissement si demandé.
+--- Texte flottant TOAST_SECONDS s : en-tête, phrase colorée, pied, et son d'avertissement si demandé.
 function UI.ShowToast(headerText, text, footer, color, sound)
   if not toast then buildToast() end
   toast.header:SetText(headerText)
@@ -380,7 +380,7 @@ function UI.ShowToast(headerText, text, footer, color, sound)
   toast:Show()
   UIFrameFadeIn(toast, 0.3, 0, 1)
   if sound and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then PlaySound(SOUNDKIT.RAID_WARNING, "Master") end
-  toast.timer = C_Timer.NewTimer(5, function()
+  toast.timer = C_Timer.NewTimer(ns.Data.TOAST_SECONDS, function()
     UIFrameFadeOut(toast, 1, 1, 0)
     C_Timer.After(1, function() toast:Hide() end)
   end)

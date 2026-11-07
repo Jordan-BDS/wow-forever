@@ -77,4 +77,5 @@ ns.Data.RELOAD_REMINDER_SECONDS = 3 * 3600
 ns.Data.GATHERING_WINDOW = 3
 ns.Data.KILLER_MEMORY = 60 -- s : une cible hostile ciblée dans ce délai avant le combat (ou pendant) est le tueur présumé
 ns.Data.DEATH_RECAP_DELAY = 1 -- s après la mort avant de lire le récapitulatif du client et d'annoncer
+ns.Data.TOAST_SECONDS = 10 -- durée d'affichage des textes flottants (avis de décès, appel à l'aide)
 ns.Data.MAX_MOBS = 500 -- créatures distinctes gardées par personnage (clé = nom affiché)

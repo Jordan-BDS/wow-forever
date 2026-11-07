@@ -926,7 +926,8 @@ par un Sanglier des Tarides, quel noob »). **En jeu seulement, pas de relais ve
 vue dans les événements du journal de combat) et le poste dans un **canal personnalisé caché** (ex. `wfgdeaths`,
 protégé par mot de passe, rejoint à la connexion et détaché de toutes les fenêtres de chat) : **rien n'apparaît dans
 le canal de guilde**. Les addons des guildiens connectés reçoivent la ligne et affichent un **texte flottant** en haut
-de l'écran pendant **5 secondes**, sans cadre, avec le message troll et un **petit son**. À vérifier sur le client
+de l'écran pendant **10 secondes** (5 à l'origine, allongé le 7 novembre 2026), sans cadre, avec le message troll et
+un **petit son**. À vérifier sur le client
 Forever que le canal reste invisible ; repli : messages d'addon.
 
 Interrupteurs dans la fenêtre de l'addon : « Afficher les morts des autres » (popup et son) et « Annoncer mes

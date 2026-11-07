@@ -1,5 +1,5 @@
 -- Annonces de mort, en jeu seulement : message addon (préfixe WFG, type « D ») sur le canal de guilde, lu par les
--- autres addons, popup flottant 5 s avec son chez ceux qui l'affichent. Rien de visible dans le chat, rien vers
+-- autres addons, popup flottant 10 s avec son chez ceux qui l'affichent. Rien de visible dans le chat, rien vers
 -- Discord. Le client moderne interdit aux addons les canaux de chat : pas de canal caché, il faut une guilde.
 local ADDON, ns = ...
 
