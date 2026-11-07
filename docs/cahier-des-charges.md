@@ -1108,7 +1108,7 @@ addon) et ce que les collecteurs en lisent, puis note le tout avec les erreurs :
 sans copier-coller. Un collecteur sans API le note une fois par session (`talents.scan`, `professions.scan`). La carte
 n'a pas changé : messages addon sur le canal de guilde (donc une guilde), HereBeDragons connaît Forever.
 
-### Lectures durables : rien ne s'efface sur une réponse vide (7 novembre 2026, addon 0.3.8)
+### Lectures durables : rien ne s'efface sur une réponse vide (7 novembre 2026, addon 0.4.0, compagnon 0.4.0)
 
 Constat en jeu : les victoires honorables apparaissaient au classement après un `/reload` puis disparaissaient à la
 déconnexion. Le compteur `hk` était le seul recopié **en valeur absolue** depuis `GetPVPLifetimeStats()` à chaque
