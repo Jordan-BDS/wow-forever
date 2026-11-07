@@ -533,6 +533,84 @@ class TestSession:
         assert professions[171]["max"] == 300 and professions[171]["recipes"] == [17580]
         assert professions[186]["line"] == 186 and professions[186]["skill"] == 300
 
+    def test_crafts_count_from_the_recipe_sheet_even_before_the_window_was_read(self):
+        # Recette apprise mais fenêtre jamais lue par l'addon (autre PC, macro) : la fiche de recette du client
+        # suffit. Un sort quelconque n'est pas une fabrication ; en combat on ne cherche pas.
+        lua = boot()
+        login(lua)
+        g = lua.globals()
+        g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-1", 17580)
+        g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-2", 4321)
+        lua.execute("_COMBAT = true")
+        g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-3", 11448)
+        lua.execute("_COMBAT = nil")
+        counters = decode_export(logout_code(lua))["characters"][0]["counters"]
+        assert counters["crafted_total"] == 1 and counters["crafted"] == {"17580": 1}
+
+    def test_crafted_result_event_counts_once_with_the_spell_cast(self):
+        # Base moderne : le sort réussi puis le résultat de fabrication arrivent pour la même recette ; une seule
+        # fabrication. Le résultat seul (recette inconnue de l'addon) compte aussi.
+        lua = boot()
+        login(lua)
+        g = lua.globals()
+        g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-1", 17580)
+        g._FIRE("TRADE_SKILL_ITEM_CRAFTED_RESULT", lua.eval("{ recipeID = 17580, quantity = 1 }"))
+        g._FIRE("TRADE_SKILL_ITEM_CRAFTED_RESULT", lua.eval("{ recipeID = 2538, quantity = 1 }"))
+        g._ADVANCE(2)
+        g._FIRE("TRADE_SKILL_ITEM_CRAFTED_RESULT", lua.eval("{ recipeID = 2538, quantity = 1 }"))
+        counters = decode_export(logout_code(lua))["characters"][0]["counters"]
+        assert counters["crafted_total"] == 3 and counters["crafted"] == {"17580": 1, "2538": 2}
+
+    def test_classic_trade_skill_window_lists_recipes_and_their_crafts_count(self):
+        # Client sans C_TradeSkillUI.GetAllRecipeIDs : la cuisine se lit par GetTradeSkillInfo / RecipeLink, en
+        # sautant les en-têtes ; la ligne se retrouve par son nom parmi les métiers connus.
+        lua = boot()
+        lua.execute(
+            "_PROFESSIONS[5] = { name = 'Cuisine', skill = 150, max = 225, line = 185 }; _PROFESSION_SLOTS[5] = 5;"
+            "C_TradeSkillUI.GetAllRecipeIDs = nil; C_TradeSkillUI.GetRecipeInfo = nil;"
+            "C_TradeSkillUI.GetBaseProfessionInfo = nil; C_TradeSkillUI.GetChildProfessionInfo = nil;"
+            "C_TradeSkillUI.GetTradeSkillLine = nil"
+        )
+        login(lua)
+        g = lua.globals()
+        lua.execute(
+            "_CLASSIC_TRADESKILL = { name = 'Cuisine', skill = 150, max = 225,"
+            " { name = 'Plats', type = 'header' },"
+            " { name = 'Pain', type = 'trivial', link = '|cffffd000|Henchant:2538|h[Pain]|h|r' },"
+            " { name = 'Ragoût', type = 'optimal', link = '|cffffd000|Henchant:3370|h[Ragoût]|h|r' } }"
+        )
+        g._FIRE("TRADE_SKILL_SHOW")
+        g._FIRE("TRADE_SKILL_UPDATE")
+        g._ADVANCE(2)
+        g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-1", 3370)
+        character = decode_export(logout_code(lua))["characters"][0]
+        professions = {p["id"]: p for p in character["professions"]}
+        assert professions[185]["recipes"] == [2538, 3370] and professions[185]["skill"] == 150
+        assert character["counters"]["crafted"] == {"3370": 1}
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_empty_recipe_read_keeps_known_recipes_and_is_reported_once(self):
+        lua = boot()
+        login(lua)
+        g = lua.globals()
+        lua.execute(
+            "_OPEN_TRADESKILL = { professionID = 171, professionName = 'Alchimie', skillLevel = 290, maxSkillLevel = 300, recipes = { 17580 } }"
+        )
+        g._FIRE("TRADE_SKILL_SHOW")
+        g._ADVANCE(2)
+        lua.execute("_OPEN_TRADESKILL.recipes = {}")
+        g._FIRE("TRADE_SKILL_SHOW")
+        g._ADVANCE(2)
+        g._FIRE("TRADE_SKILL_SHOW")
+        g._ADVANCE(2)
+        character = decode_export(logout_code(lua))["characters"][0]
+        assert {p["id"]: p.get("recipes") for p in character["professions"]}[171] == [17580]
+        errors = [dict(e) for e in g.WoWForeverGuildeDB.errors.values()]
+        assert len(errors) == 1 and "0 recette lue par C_TradeSkillUI" in errors[0]["error"]
+        g.SlashCmdList.WOWFOREVERGUILDE("")
+        # La ligne de statut dit combien de recettes sont connues.
+        assert "Alchimie 290 · 1 recettes" in g.WoWForeverGuildeFrame.statusLines.professions.text
+
     def test_api_diagnostic_is_printed_and_travels_with_the_errors(self):
         lua = boot()
         login(lua)

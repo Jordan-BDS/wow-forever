@@ -1037,7 +1037,7 @@ restent exacts mais le détail quotidien est perdu.
 | PvP | **Victoires honorables à vie** et rang (totaux du jeu) ; champs de bataille joués / gagnés / perdus par type | Totaux exacts ; BG comptés depuis l'installation | ✅ |
 | PvE | Donjons et raids entrés / terminés (dernier boss), boss tués par nom et date, morts | Comptés depuis l'installation | ✅ |
 | Créatures tuées | D'après le message d'expérience « X meurt, vous gagnez N points » (le journal de combat est **interdit aux addons sur Forever**) : toute créature qui rapporte de l'expérience, en solo ou en groupe, clé = nom affiché ; total cumulé et nombre par créature dans le journal quotidien (classements par période), premier / dernier kill hors journal, 500 espèces au plus | Comptées depuis l'installation ; plus rien au niveau maximum (pas de message d'expérience) | ✅ (addon 0.3.6, 5 nov. 2026) |
-| Récolte et artisanat | Minerais, herbes, peaux, poissons ramassés ; objets fabriqués par recette | Approximatif (sort de récolte + butin suivant) | ✅ |
+| Récolte et artisanat | Minerais, herbes, peaux, poissons ramassés ; objets fabriqués par recette (sort réussi reconnu comme recette : lue dans la fenêtre du métier, ou fiche de recette du client ; ou événement de résultat de fabrication de la base moderne, une seule fabrication comptée pour les deux) | Récolte approximative (sort + butin suivant) ; fabrications exactes | ✅ |
 | Quêtes | Quêtes rendues (nombre), quêtes clés marquées | Comptées depuis l'installation ; clés exactes | ✅ |
 
 **Ordre de sûreté** (certitude de pouvoir lire la donnée, et exactitude de la valeur), qui fixe aussi l'ordre de
@@ -1189,6 +1189,18 @@ joueur sont écrits dans chaque dossier de compte (sans effet en jeu). Plafonds 
 impossible à compter (le bouchon met jusqu'à 30 s à mordre après le lancer) et faisait sauter un filon ou une herbe
 ramassés à la main en plus de 3 s. Désormais 10 s, 30 s pour la pêche, et la fenêtre se referme une seconde après
 `LOOT_CLOSED` pour ne pas attribuer à la récolte le butin d'un monstre tué juste après.
+
+**Fabrications (addon 0.4.4)** : un membre a cuisiné des dizaines de plats sans qu'un seul n'arrive sur le site. Le
+comptage ne reconnaissait une fabrication que si le sort lancé figurait dans les recettes lues par la fenêtre du
+métier, et cette lecture passait uniquement par `C_TradeSkillUI.GetAllRecipeIDs` : si le client Forever sert les
+métiers par l'interface Classic (`GetNumTradeSkills`, `GetTradeSkillRecipeLink`, événement `TRADE_SKILL_UPDATE` ;
+`GetNumCrafts` / `CRAFT_SHOW` pour l'enchantement), rien n'était lu, sans erreur, et aucun craft ne comptait.
+Désormais : lecture des recettes par l'API moderne puis Classic (le sort est dans le lien `|Henchant:ID|` de
+chaque ligne hors en-têtes) ; un sort réussi non listé est tout de même une fabrication si la fiche de recette du
+client (`GetRecipeInfo`) le dit, hors combat ; l'événement `TRADE_SKILL_ITEM_CRAFTED_RESULT` de la base moderne
+compte aussi, une seule fois avec le sort (même recette à moins d'une seconde) ; une fenêtre lue sans aucune
+recette ne remplace pas la liste connue et s'inscrit une fois par session dans `/mf erreurs` ; la ligne de statut
+Métiers affiche le nombre de recettes connues. `/mf api` sonde maintenant les deux familles d'API de métier.
 
 ### API Battle.net de Forever : sonde et archive brute (7 novembre 2026, site seulement)
 

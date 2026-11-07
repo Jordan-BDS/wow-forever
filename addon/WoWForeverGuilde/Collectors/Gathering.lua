@@ -4,6 +4,7 @@
 local ADDON, ns = ...
 
 local armed = nil -- { kind, until_t } : récolte en cours
+local lastCraft = nil -- { id, t } : dernière fabrication comptée, pour ne pas la compter deux fois
 
 local function lootFromMessage(msg)
   local itemId = msg:match("item:(%d+)")
@@ -13,9 +14,22 @@ local function lootFromMessage(msg)
 end
 ns.LootFromMessage = lootFromMessage
 
+--- Une fabrication est vue deux fois sur une base moderne : le sort réussi, puis le résultat de fabrication. On ne
+--- compte que la première des deux (même recette dans la seconde).
+local function countCraft(char, spellId)
+  local now = ns.now()
+  if lastCraft and lastCraft.id == spellId and now - lastCraft.t < ns.Data.CRAFT_DEDUPE then return end
+  lastCraft = { id = spellId, t = now }
+  ns.Journal.Increment(char, "crafted_total")
+  ns.Journal.IncrementIn(char, "crafted", spellId)
+end
+
 ns.RegisterCollector({
   name = "gathering",
-  events = { UNIT_SPELLCAST_SUCCEEDED = true, CHAT_MSG_LOOT = true, LOOT_CLOSED = true },
+  events = {
+    UNIT_SPELLCAST_SUCCEEDED = true, CHAT_MSG_LOOT = true, LOOT_CLOSED = true,
+    TRADE_SKILL_ITEM_CRAFTED_RESULT = true, -- base moderne : un événement par objet fabriqué, avec la recette
+  },
   onEvent = function(char, event, ...)
     if event == "UNIT_SPELLCAST_SUCCEEDED" then
       local unit, _, spellId = ...
@@ -28,9 +42,16 @@ ns.RegisterCollector({
       if kind then
         local window = kind == "fishing" and ns.Data.FISHING_WINDOW or ns.Data.GATHERING_WINDOW
         armed = { kind = kind, until_t = ns.now() + window }
-      elseif spellId and ns.knownRecipes and ns.knownRecipes[spellId] then
-        ns.Journal.Increment(char, "crafted_total")
-        ns.Journal.IncrementIn(char, "crafted", spellId)
+      elseif ns.IsRecipe(spellId) then
+        countCraft(char, spellId)
+      end
+    elseif event == "TRADE_SKILL_ITEM_CRAFTED_RESULT" then
+      local result = ...
+      local recipeId = type(result) == "table" and ns.plain(result.recipeID)
+      if type(recipeId) == "number" then
+        ns.knownRecipes = ns.knownRecipes or {}
+        ns.knownRecipes[recipeId] = true
+        countCraft(char, recipeId)
       end
     elseif event == "LOOT_CLOSED" then
       -- La fenêtre de butin se referme : la récolte est finie, le message de butin peut encore suivre d'un instant.

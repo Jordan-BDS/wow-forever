@@ -117,6 +117,8 @@ local PROBES = {
     "C_TradeSkillUI.GetBaseProfessionInfo", "C_TradeSkillUI.GetChildProfessionInfo",
     "C_TradeSkillUI.GetProfessionInfoBySkillLineID", "C_TradeSkillUI.GetTradeSkillLine",
     "C_TradeSkillUI.GetAllRecipeIDs", "C_TradeSkillUI.GetRecipeInfo",
+    "GetNumTradeSkills", "GetTradeSkillInfo", "GetTradeSkillRecipeLink", "GetTradeSkillLine",
+    "GetNumCrafts", "GetCraftInfo", "GetCraftRecipeLink",
   } },
   { "carte", {
     "C_Map.GetBestMapForUnit", "C_Map.GetPlayerMapPosition", "C_ChatInfo.RegisterAddonMessagePrefix",

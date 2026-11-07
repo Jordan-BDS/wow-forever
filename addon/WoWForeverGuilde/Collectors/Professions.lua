@@ -79,19 +79,73 @@ local function scanKnown(char)
   char.professions_at = ns.now()
 end
 
---- Fenêtre d'un métier ouverte : liste des recettes apprises.
-local function scanOpen(char)
-  if not C_TradeSkillUI then return end
-  if C_TradeSkillUI.IsTradeSkillLinked and C_TradeSkillUI.IsTradeSkillLinked() then return end -- métier d'un autre
-  local base = C_TradeSkillUI.GetBaseProfessionInfo and C_TradeSkillUI.GetBaseProfessionInfo()
-  local child = C_TradeSkillUI.GetChildProfessionInfo and C_TradeSkillUI.GetChildProfessionInfo()
+--- Recettes apprises de la fenêtre ouverte, par l'API moderne (C_TradeSkillUI : identifiants de recette = sorts).
+--- nil si l'API n'existe pas.
+local function modernRecipes()
+  if not (C_TradeSkillUI and C_TradeSkillUI.GetAllRecipeIDs and C_TradeSkillUI.GetRecipeInfo) then return nil end
+  local recipes = {}
+  for _, recipeId in ipairs(C_TradeSkillUI.GetAllRecipeIDs() or {}) do
+    recipeId = ns.plain(recipeId)
+    local r = recipeId and C_TradeSkillUI.GetRecipeInfo(recipeId)
+    if type(r) == "table" and ns.plain(r.learned) then recipes[#recipes + 1] = recipeId end
+  end
+  return recipes, "C_TradeSkillUI"
+end
+
+--- Recettes de la fenêtre ouverte par l'API Classic : la liste mêle en-têtes et recettes, et le sort de chaque
+--- recette est dans son lien « |Henchant:ID| ». Fenêtre de métier (cuisine, forge…) ou d'enchantement (Craft).
+local function classicRecipes()
+  local num, info, link
+  if GetNumTradeSkills and GetTradeSkillInfo and GetTradeSkillRecipeLink then
+    num, info, link = GetNumTradeSkills, GetTradeSkillInfo, GetTradeSkillRecipeLink
+  elseif GetNumCrafts and GetCraftInfo and GetCraftRecipeLink then
+    num, info, link = GetNumCrafts, GetCraftInfo, GetCraftRecipeLink
+  else
+    return nil
+  end
+  local recipes = {}
+  for i = 1, (ns.plain(num()) or 0) do
+    local _, kind = info(i)
+    if ns.plain(kind) ~= "header" then
+      local spell = tostring(ns.plain(link(i)) or ""):match("|Henchant:(%d+)")
+      if spell then recipes[#recipes + 1] = tonumber(spell) end
+    end
+  end
+  return recipes, link == GetCraftRecipeLink and "Craft" or "TradeSkill"
+end
+
+--- Ligne de la fenêtre ouverte : { professionID, professionName, skillLevel, maxSkillLevel, parentProfessionID }
+--- et la fiche d'extension, par l'API moderne puis Classic (nom et compétence seulement : la ligne se retrouve par
+--- le nom parmi les métiers connus).
+local function openLine(char)
+  local ui = C_TradeSkillUI
+  local base = ui and ui.GetBaseProfessionInfo and ui.GetBaseProfessionInfo()
+  local child = ui and ui.GetChildProfessionInfo and ui.GetChildProfessionInfo()
   if type(base) ~= "table" then base = nil end
   if type(child) ~= "table" then child = nil end
   local info = base or child
-  if not info and C_TradeSkillUI.GetTradeSkillLine then
-    local id, name, skill, max = C_TradeSkillUI.GetTradeSkillLine()
-    info = id and { professionID = id, professionName = name, skillLevel = skill, maxSkillLevel = max } or nil
+  if not info then
+    local id, name, skill, max
+    if ui and ui.GetTradeSkillLine then id, name, skill, max = ui.GetTradeSkillLine()
+    elseif GetTradeSkillLine then name, skill, max = GetTradeSkillLine()
+    elseif GetCraftDisplaySkillLine then name, skill, max = GetCraftDisplaySkillLine() end
+    name = ns.plain(name)
+    if not ns.plain(id) and name then
+      for _, prof in pairs(char.professions or {}) do
+        if prof.name == name then id = prof.line or prof.id end
+      end
+    end
+    if id then info = { professionID = id, professionName = name, skillLevel = skill, maxSkillLevel = max } end
   end
+  return info, child
+end
+
+local emptyReported = {}
+
+--- Fenêtre d'un métier ouverte : liste des recettes apprises.
+local function scanOpen(char)
+  if C_TradeSkillUI and C_TradeSkillUI.IsTradeSkillLinked and C_TradeSkillUI.IsTradeSkillLinked() then return end -- métier d'un autre
+  local info, child = openLine(char)
   local id = info and ns.plain(info.professionID)
   if type(id) ~= "number" or id <= 0 then return end
   local parent = positive(info.parentProfessionID, nil) or parentLine(id)
@@ -100,16 +154,47 @@ local function scanOpen(char)
   -- La ligne d'extension porte la compétence ; la mère parfois 0 sur une base moderne.
   prof.skill = positive(child and child.skillLevel, positive(info.skillLevel, prof.skill))
   prof.max = positive(child and child.maxSkillLevel, positive(info.maxSkillLevel, prof.max))
-  local recipes = {}
-  for _, recipeId in ipairs(C_TradeSkillUI.GetAllRecipeIDs() or {}) do
-    local r = C_TradeSkillUI.GetRecipeInfo(recipeId)
-    if r and r.learned then recipes[#recipes + 1] = recipeId end
+  local recipes, api = modernRecipes()
+  if not recipes or #recipes == 0 then
+    local fallback, fallbackApi = classicRecipes()
+    if fallback and (#fallback > 0 or not recipes) then recipes, api = fallback, fallbackApi end
+  end
+  if not recipes then
+    ns.Store.LogError("professions.recipes", string.format(ns.L.RECIPES_NO_API, prof.name or tostring(id)))
+    return
+  end
+  -- Une fenêtre ouverte sans aucune recette lue : soit un métier tout neuf, soit l'API ne répond pas comme on
+  -- l'attend. On ne remplace pas une liste connue par rien, et on le note une fois par métier et par session.
+  if #recipes == 0 and (prof.recipes and #prof.recipes > 0 or (prof.skill or 0) > 1) then
+    if not emptyReported[parent] then
+      emptyReported[parent] = true
+      ns.Store.LogError("professions.recipes", string.format(ns.L.RECIPES_EMPTY, prof.name or tostring(id), api))
+    end
+    prof.read_at = ns.now()
+    return
   end
   table.sort(recipes)
   prof.recipes = recipes
+  prof.recipes_api = api
   prof.read_at = ns.now()
   ns.knownRecipes = ns.knownRecipes or {}
   for _, rid in ipairs(recipes) do ns.knownRecipes[rid] = true end
+end
+
+--- Le sort lancé est-il une recette ? D'abord les recettes lues dans les fenêtres, sinon la fiche de recette du
+--- client (API moderne : toute recette apprise répond, fenêtre ouverte ou non). Jamais en combat : on ne
+--- fabrique pas en combat, et les valeurs y sont secrètes.
+function ns.IsRecipe(spellId)
+  if type(spellId) ~= "number" then return false end
+  if ns.knownRecipes and ns.knownRecipes[spellId] then return true end
+  if ns.InCombat() or not (C_TradeSkillUI and C_TradeSkillUI.GetRecipeInfo) then return false end
+  local ok, r = pcall(C_TradeSkillUI.GetRecipeInfo, spellId)
+  if ok and type(r) == "table" and ns.plain(r.learned) then
+    ns.knownRecipes = ns.knownRecipes or {}
+    ns.knownRecipes[spellId] = true
+    return true
+  end
+  return false
 end
 
 local function neverRead(char)
@@ -124,7 +209,11 @@ ns.ProfessionsNeverRead = neverRead
 
 ns.RegisterCollector({
   name = "professions",
-  events = { SKILL_LINES_CHANGED = true, TRADE_SKILL_SHOW = true, TRADE_SKILL_LIST_UPDATE = true },
+  -- TRADE_SKILL_UPDATE et CRAFT_* sont les événements de l'interface Classic (fenêtre d'enchantement à part).
+  events = {
+    SKILL_LINES_CHANGED = true, TRADE_SKILL_SHOW = true, TRADE_SKILL_LIST_UPDATE = true, TRADE_SKILL_UPDATE = true,
+    CRAFT_SHOW = true, CRAFT_UPDATE = true,
+  },
   scanOn = { SKILL_LINES_CHANGED = true },
   scan = scanKnown,
   onLogin = function(char)
@@ -143,7 +232,7 @@ ns.RegisterCollector({
     end
   end,
   onEvent = function(char, event)
-    if event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE" then
+    if event ~= "SKILL_LINES_CHANGED" then
       ns.Debounce("professions:open", 1, function() ns.Safe("professions.open", scanOpen, char) end)
     end
   end,
@@ -153,7 +242,10 @@ ns.RegisterCollector({
     for _, prof in pairs(char.professions or {}) do
       local label = (prof.name or tostring(prof.id)) .. " " .. tostring(prof.skill or "?")
       if prof.recipes then
-        lines[#lines + 1] = string.format(ns.L.UP_TO_DATE, label .. " · " .. ns.UI.Ago(prof.read_at))
+        lines[#lines + 1] = string.format(ns.L.UP_TO_DATE,
+          string.format("%s · %d recettes · %s", label, #prof.recipes, ns.UI.Ago(prof.read_at)))
+      elseif prof.read_at then
+        lines[#lines + 1] = "|cffffb84a" .. label .. " : fenêtre lue sans aucune recette, /mf erreurs|r"
       else
         lines[#lines + 1] = "|cffffb84a" .. label .. " : jamais lu, ouvre la fenêtre du métier|r"
       end

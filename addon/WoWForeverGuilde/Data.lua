@@ -115,6 +115,7 @@ ns.Data.RELOAD_REMINDER_SECONDS = 3 * 3600
 ns.Data.GATHERING_WINDOW = 10 -- s entre le sort de récolte et le butin (fenêtre de butin ouverte à la main)
 ns.Data.FISHING_WINDOW = 30 -- s : le bouchon met jusqu'à 30 s à mordre après le lancer
 ns.Data.LOOT_CLOSED_GRACE = 1 -- s après la fermeture de la fenêtre de butin : le message de butin peut suivre
+ns.Data.CRAFT_DEDUPE = 1 -- s : sort réussi puis résultat de fabrication de la même recette = une seule fabrication
 ns.Data.KILLER_MEMORY = 60 -- s : une cible hostile ciblée dans ce délai avant le combat (ou pendant) est le tueur présumé
 ns.Data.DEATH_RECAP_DELAY = 1 -- s après la mort avant de lire le récapitulatif du client et d'annoncer
 ns.Data.TOAST_SECONDS = 10 -- durée d'affichage des textes flottants (avis de décès, appel à l'aide)

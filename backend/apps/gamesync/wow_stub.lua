@@ -109,8 +109,22 @@ C_TradeSkillUI = {
   end,
   IsTradeSkillLinked = function() return false end,
   GetAllRecipeIDs = function() return _OPEN_TRADESKILL and _OPEN_TRADESKILL.recipes or {} end,
-  GetRecipeInfo = function(id) return { recipeID = id, learned = id ~= 99999 } end,
+  -- Fiche de recette : répond pour toute recette connue du client, fenêtre ouverte ou non ; nil pour un sort qui
+  -- n'est pas une recette. _RECIPE_INFO[id] = apprise ?
+  GetRecipeInfo = function(id)
+    local learned = _RECIPE_INFO[id]
+    if learned == nil then return nil end
+    return { recipeID = id, learned = learned }
+  end,
 }
+_RECIPE_INFO = { [17580] = true, [11448] = true, [99999] = false }
+-- API Classic de la fenêtre de métier : liste mêlant en-têtes et recettes, sort dans le lien « enchant ».
+-- _CLASSIC_TRADESKILL = { { name, type = "header" | "optimal" | …, link } }, nil = fenêtre fermée.
+_CLASSIC_TRADESKILL = nil
+function GetNumTradeSkills() return _CLASSIC_TRADESKILL and #_CLASSIC_TRADESKILL or 0 end
+function GetTradeSkillInfo(i) local r = _CLASSIC_TRADESKILL and _CLASSIC_TRADESKILL[i] if not r then return nil end return r.name, r.type, 1, false end
+function GetTradeSkillRecipeLink(i) local r = _CLASSIC_TRADESKILL and _CLASSIC_TRADESKILL[i] return r and r.link end
+function GetTradeSkillLine() local t = _CLASSIC_TRADESKILL return t and t.name or "UNKNOWN", t and t.skill or 0, t and t.max or 0 end
 
 -- Réputations.
 C_Reputation = {
