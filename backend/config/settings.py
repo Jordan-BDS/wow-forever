@@ -102,6 +102,7 @@ INSTALLED_APPS = [
     "apps.crafting",
     "apps.discordbot",
     "apps.gamesync",
+    "apps.blizzard",
 ]
 
 MIDDLEWARE = [
@@ -155,6 +156,15 @@ DISCORD_GUILD_ID = env("DISCORD_GUILD_ID", "")
 DISCORD_ALLOWED_ROLE_IDS = env_list("DISCORD_ALLOWED_ROLE_IDS")
 DISCORD_FIRST_GM_ID = env("DISCORD_FIRST_GM_ID", "")
 DISCORD_API_BASE = "https://discord.com/api/v10"
+
+# --- API Battle.net (WoW Forever) ---------------------------------------------
+# Client créé sur https://develop.battle.net/access/clients ; jeton d'application, aucun joueur n'a à se
+# connecter.
+BLIZZARD_CLIENT_ID = env("BLIZZARD_CLIENT_ID", "")
+BLIZZARD_CLIENT_SECRET = env("BLIZZARD_CLIENT_SECRET", "")
+BLIZZARD_REGION = env("BLIZZARD_REGION", "eu")
+# Espace de noms statique épinglé sur une version du client (ex. 1.60.1_70399) ; vide = non versionné.
+BLIZZARD_STATIC_VERSION = env("BLIZZARD_STATIC_VERSION", "")
 
 # URL publique du site (pour l'URL de retour OAuth) et URL du front (redirection après connexion).
 SITE_URL = env("SITE_URL", "http://localhost:8000" if DEBUG else None).rstrip("/")

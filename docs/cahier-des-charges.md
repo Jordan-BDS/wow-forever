@@ -1190,6 +1190,32 @@ impossible à compter (le bouchon met jusqu'à 30 s à mordre après le lancer) 
 ramassés à la main en plus de 3 s. Désormais 10 s, 30 s pour la pêche, et la fenêtre se referme une seconde après
 `LOOT_CLOSED` pour ne pas attribuer à la récolte le butin d'un monstre tué juste après.
 
+### API Battle.net de Forever : sonde et archive brute (7 novembre 2026, site seulement)
+
+L'API Battle.net couvre WoW Forever depuis le 5 novembre, sans documentation de Blizzard : espaces de noms
+`profile-forever-{région}`, `dynamic-forever-{région}`, `static-{version}-forever-{région}` ; personnages adressés
+**sans royaume**, par `prénom-nom` en minuscules (unique par région) ; fiche disponible après une première
+déconnexion et à partir du niveau 10, avec vingt à quarante minutes de retard ; sous-ressources rapportées par la
+communauté : équipement, talents, métiers, réputations, quêtes terminées, PvP (victoires honorables, champs de
+bataille par carte), rencontres (boss tués, donjons et raids), statistiques (morts, créatures tuées, quêtes…),
+hauts faits ; guilde avec roster et activité. Un jeton d'application suffit, aucun joueur n'a à se connecter.
+
+Ce qu'elle pourrait remplacer **sûrement** (mêmes données que l'addon, lues côté serveur, sans fichier sur le PC) :
+roster, équipement, talents, métiers et recettes (si la forme est celle de Retail), réputations, accès via les quêtes,
+PvP, boss et instances terminées, compteurs globaux (morts, créatures, quêtes, peut-être récolte). Ce qu'elle ne
+donnera jamais : la carte et les positions, les annonces de mort et le tueur, les kills par créature, les fabrications
+par recette, le temps de jeu, et tout historique (seulement des totaux : le site prendrait un instantané par jour).
+
+Première brique, l'app **`apps.blizzard`** : client (`client.py` : jeton client credentials mis en cache, espaces de
+noms Forever, 404 = absence, nouvelles tentatives sur 429 et 5xx avec `Retry-After`), **archive brute**
+`BlizzardRecord` (une ligne par réponse, JSON tel quel : rejouable et historique, comme les exports de l'addon),
+`blizzard_probe --character prénom-nom [--guild slug]` (statut et clés de chaque réponse, JSON écrits dans
+`backend/data/blizzard/` pour fixer les formes), `blizzard_import` (tous les personnages du site qui ont un nom de
+famille, puis la guilde ; à planifier une fois par jour). Réglages `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`,
+`BLIZZARD_REGION`, `BLIZZARD_STATIC_VERSION` dans `deploy/.env` ; `make blizzard-probe CHAR=…`,
+`make blizzard-import`. Les transformations vers la fiche et les classements s'écriront une fois les formes réelles
+lues par la sonde.
+
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 
 La création manuelle de personnages est **réservée aux officiers** (API et site) : les membres installent l'addon et

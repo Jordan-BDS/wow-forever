@@ -47,6 +47,7 @@ l'URL de retour OAuth à déclarer côté Discord est donc `http://localhost:800
 | backend | `uv run python manage.py runbot` | lance le bot Discord (outbox, rappels, commandes slash, révocation, synchro de l'onglet Événements) |
 | backend | `uv run python manage.py scan_reminders [--loop]` | balaye une fois (ou en boucle) les tâches dues : titres du lundi, rappels, phases des sondages ; c'est le service `scheduler` du compose, filet de sécurité si le bot est arrêté |
 | backend | `uv run python manage.py import_gamedata` | télécharge les tables du client WoW Forever (wago.tools) et importe objets, sets, enchantements, talents, recettes (~2 min, rejouable) |
+| backend | `uv run python manage.py blizzard_probe --character prenom-nom` | sonde l'API Battle.net de Forever (fiche, sous-ressources, guilde) et écrit les JSON dans `data/blizzard/` ; `blizzard_import` archive tout le monde (identifiants dans `.env`) |
 
 En production : `docker compose exec web python manage.py import_gamedata` après la première mise en ligne, puis
 à chaque patch du jeu. Les ajouts manuels faits dans l'admin (lignes « gérées à la main ») sont conservés.
