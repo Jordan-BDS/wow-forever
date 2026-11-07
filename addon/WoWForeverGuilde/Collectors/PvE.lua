@@ -1,8 +1,16 @@
--- PvE : entrées en instance, boss tués (horodatés, avec la part de guildiens du groupe), instances terminées, morts
--- (tueur = la cible hostile au moment de mourir : le journal de combat est interdit aux addons sur Forever).
+-- PvE : entrées en instance, boss tués (horodatés, avec la part de guildiens du groupe), instances terminées, morts.
+-- Qui m'a tué : rien n'est lisible *au moment* de la mort (le client vide la cible, et en combat les noms sont des
+-- valeurs secrètes sur Forever). On lit donc après, ou on se souvient d'avant, dans l'ordre : le récapitulatif de mort
+-- du client (coup fatal, lu DEATH_RECAP_DELAY s plus tard, hors combat), la cible au moment de mourir si elle était
+-- encore lisible, puis la dernière cible hostile mémorisée (nom lu à son ciblage, gardé KILLER_MEMORY s avant le combat
+-- et tout le combat). L'annonce part après ce délai ; le compteur et l'événement du journal sont immédiats.
 local ADDON, ns = ...
 
 local inInstance = false
+local lastHostile = nil -- { name, player, at } : dernière cible hostile dont le nom était lisible
+local combatSince = nil -- début du combat en cours (PLAYER_REGEN_DISABLED)
+local deathsThisSession = 0 -- identifiant du récapitulatif : le client les numérote par session
+local lastSource = nil -- d'où venait le tueur de la dernière mort, pour /mf api (« Tests en jeu »)
 
 local function guildmatesInGroup()
   local count, members = 0, {}
@@ -29,8 +37,8 @@ local function text(fn, ...)
   return type(value) == "string" and value or ""
 end
 
---- Qui m'a tué : sans journal de combat (interdit aux addons sur Forever), la cible hostile au moment de la mort.
-local function killerName()
+--- Nom de la cible si elle existe, est hostile et lisible ; nil sinon.
+local function hostileTargetName()
   local ok, exists = pcall(UnitExists or function() end, "target")
   if not (ok and ns.plain(exists)) then return nil end
   if UnitCanAttack then
@@ -41,10 +49,64 @@ local function killerName()
   return name ~= "" and name or nil
 end
 
+--- Ciblage : on retient la dernière cible hostile lisible (hors combat le nom est en clair ; en combat il est
+--- secret et on garde la précédente).
+local function rememberTarget()
+  local name = hostileTargetName()
+  if not name then return end
+  local okPlayer, player = pcall(UnitIsPlayer or function() end, "target")
+  lastHostile = { name = name, player = okPlayer and ns.plain(player) == true, at = ns.now() }
+end
+
+--- Souvenir encore valable : ciblé pendant le combat en cours, ou dans les KILLER_MEMORY s qui l'ont précédé.
+local function rememberedKiller(t)
+  if not lastHostile then return nil end
+  local since = (combatSince or t) - ns.Data.KILLER_MEMORY
+  return lastHostile.at >= since and lastHostile.name or nil
+end
+
+--- Récapitulatif de mort du client : nom de la source du coup fatal, ou cause environnementale (chute, lave…).
+--- Renvoie aussi si l'API existe, pour la note de diagnostic.
+local function recapKiller(recapID)
+  local get = (C_DeathInfo and C_DeathInfo.GetDeathRecapEvents) or GetDeathRecapEvents
+  if type(get) ~= "function" then return nil, nil, false end
+  local ok, events = pcall(get, recapID)
+  if not ok or type(events) ~= "table" then return nil, nil, true end
+  for i = #events, 1, -1 do -- le dernier événement est le coup fatal
+    local e = events[i]
+    if type(e) == "table" then
+      local env = ns.plain(e.environmentalDamageType)
+      if type(env) == "string" and env ~= "" then return nil, env, true end
+      local name = ns.plain(e.sourceName)
+      if type(name) == "string" and name ~= "" then return name, nil, true end
+    end
+  end
+  return nil, nil, true
+end
+
+--- Complète l'événement de mort (tueur ou cause) puis annonce. `target` : cible lisible au moment de mourir ;
+--- `remembered` : souvenir valable à ce moment-là (tous deux figés à PLAYER_DEAD, la mémoire est remise à zéro ensuite).
+local function resolveDeath(char, death, target, remembered, recapID)
+  local name, env, recapApi = recapKiller(recapID)
+  local source = (name or env) and "récap" or nil
+  if not source and target then name, source = target, "cible" end
+  if not source and remembered then name, source = remembered, "mémoire" end
+  death.killer = name
+  death.env = env
+  lastSource = string.format("tueur d'après %s (récap %s)", source or "rien, inconnu", recapApi and "présent" or "absent")
+  if ns.OnDeath then ns.Safe("deaths.announce", ns.OnDeath, char, death) end
+end
+
+--- Pour /mf api : comment le tueur de la dernière mort a été trouvé, nil sans mort cette session.
+function ns.DeathSource()
+  return lastSource
+end
+
 ns.RegisterCollector({
   name = "pve",
   events = {
     PLAYER_ENTERING_WORLD = true, ENCOUNTER_END = true, PLAYER_DEAD = true,
+    PLAYER_TARGET_CHANGED = true, PLAYER_REGEN_DISABLED = true,
   },
   onEvent = function(char, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
@@ -55,6 +117,11 @@ ns.RegisterCollector({
         ns.Journal.Event(char, "enter", { instance = instanceId, name = name, raid = kind == "raid" })
       end
       inInstance = inside and (kind == "party" or kind == "raid") or false
+    elseif event == "PLAYER_TARGET_CHANGED" then
+      rememberTarget()
+    elseif event == "PLAYER_REGEN_DISABLED" then
+      combatSince = ns.now()
+      rememberTarget() -- entrée en combat sur une cible déjà choisie
     elseif event == "ENCOUNTER_END" then
       local encounterId, name, _, groupSize, success = ...
       if ns.plain(success) == 1 then
@@ -75,11 +142,18 @@ ns.RegisterCollector({
         end
       end
     elseif event == "PLAYER_DEAD" then
+      local t = ns.now()
       ns.Journal.Increment(char, "deaths")
+      deathsThisSession = deathsThisSession + 1
       local zone, sub = text(GetZoneText), text(GetSubZoneText)
-      local okKiller, killer = pcall(killerName)
-      local death = ns.Journal.Event(char, "death", { zone = zone, sub = sub, killer = okKiller and killer or nil, level = char.level })
-      if ns.OnDeath then ns.Safe("deaths.announce", ns.OnDeath, char, death) end
+      local okTarget, target = pcall(hostileTargetName)
+      local remembered = rememberedKiller(t)
+      local death = ns.Journal.Event(char, "death", { zone = zone, sub = sub, level = char.level })
+      local recapID = deathsThisSession
+      C_Timer.After(ns.Data.DEATH_RECAP_DELAY, function()
+        ns.Safe("deaths.resolve", resolveDeath, char, death, okTarget and target or nil, remembered, recapID)
+      end)
+      combatSince = nil
     end
   end,
   status = function(char)

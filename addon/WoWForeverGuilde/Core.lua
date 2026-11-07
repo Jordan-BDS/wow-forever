@@ -122,6 +122,7 @@ local PROBES = {
     "C_Map.GetBestMapForUnit", "C_Map.GetPlayerMapPosition", "C_ChatInfo.RegisterAddonMessagePrefix",
     "C_ChatInfo.SendAddonMessage", "IsInGuild", "GetNumGuildMembers", "GetGuildRosterInfo",
   } },
+  { "mort", { "C_DeathInfo.GetDeathRecapEvents", "GetDeathRecapEvents", "GetDeathRecapLink" } },
 }
 
 local function resolve(path)
@@ -152,13 +153,14 @@ function ns.Diagnostic()
   local map, x, y
   if ns.Positions and ns.Positions.Here then map, x, y = ns.Positions.Here() end -- pas de « and » : il tronquerait les retours
   local pins = LibStub and LibStub("HereBeDragons-Pins-2.0", true)
-  lines[#lines + 1] = string.format("lecture · talents : %s (%s) · métiers : %s · guilde : %s · position : %s · points de carte : %s",
+  lines[#lines + 1] = string.format("lecture · talents : %s (%s) · métiers : %s · guilde : %s · position : %s · points de carte : %s · mort : %s",
     tostring((ns.TalentApi and ns.TalentApi()) or "aucune"),
     char.talents and char.talents.api and (char.talents.spells and "sorts" or "arbres") or "jamais lu",
     #professions > 0 and table.concat(professions, ", ") or "aucun",
     (IsInGuild and IsInGuild()) and "oui" or "non",
     map and string.format("carte %s%s", tostring(map), x and string.format(" (%.2f, %.2f)", x, y) or " sans coordonnées") or "illisible",
-    pins and "bibliothèque chargée" or "bibliothèque absente")
+    pins and "bibliothèque chargée" or "bibliothèque absente",
+    (ns.DeathSource and ns.DeathSource()) or "aucune mort cette session")
   for _, line in ipairs(lines) do ns.Print(line) end
   local client = ""
   if type(GetBuildInfo) == "function" then

@@ -1,8 +1,15 @@
 -- Textes de l'interface. Les données exportées n'utilisent jamais de libellé, seulement des identifiants.
 local ADDON, ns = ...
 
+-- Icônes en textures du client, pas en caractères Unicode : les polices du jeu n'ont ni ☠ ni ⚔ (carrés à l'écran).
+-- Crâne : 8e marqueur de raid de la planche UI-RaidTargetingIcons (256×256, cases de 64) ; épées : icône de sort.
+local SKULL = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcons:14:14:0:0:256:256:192:256:64:128|t"
+local SWORDS = "|TInterface\\Icons\\Ability_DualWield:14|t"
+
 ns.L = setmetatable({
   TITLE = "Manuel Feralas",
+  ICON_SKULL = SKULL,
+  ICON_SWORDS = SWORDS,
   CHAT_PREFIX = "|cffffd100[MF]|r ",
   WELCOME = "Bienvenue, %s. Compteurs depuis le %s. /mf pour l'état de la collecte.",
   PROFESSION_NEVER_READ = "|cffffb84a%s|r n'a jamais été lu : ouvre la fenêtre du métier une fois pour envoyer tes recettes.",
@@ -43,7 +50,7 @@ ns.L = setmetatable({
   SOS_COOLDOWN = "Appel à l'aide déjà envoyé : réessaie dans %d s.",
   SOS_BUTTON = "Appel à l'aide",
   SOS_NEEDS_SHARING = "Coche « Partager ma position » dans /mf pour appeler à l'aide.",
-  ALERT_HEADER = "⚔ Appel à l'aide ⚔",
+  ALERT_HEADER = SWORDS .. " Appel à l'aide " .. SWORDS,
   ALERT_TEXT = "%s se fait attaquer par %s — %s",
   ALERT_SHORT = "attaqué par %s",
   ATTACKER_UNKNOWN = "un joueur",
@@ -91,7 +98,7 @@ ns.L = setmetatable({
   RELOAD_YES = "Sauvegarder (/reload, ~3 s)",
   RELOAD_LATER = "Plus tard",
   RELOAD_NEVER = "Ne plus demander",
-  DEATH_HEADER = "☠ Avis de décès ☠",
+  DEATH_HEADER = SKULL .. " Avis de décès " .. SKULL,
   DEATH_FOOTER = "Niveau %d · %s",
   KILLER_UNKNOWN = "quelque chose",
   ENV_FALLING = "une chute",

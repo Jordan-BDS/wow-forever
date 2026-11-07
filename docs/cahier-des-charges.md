@@ -1126,6 +1126,15 @@ Le classement « saison » garde par ailleurs sa référence 60 jours au plus (p
 installé l'addon depuis le 4 novembre (`counting_since`), glissant vers « les 60 derniers jours » pour les autres.
 Carte : les membres de **mon groupe ou de mon raid** n'ont plus de point (le jeu les affiche déjà, le nôtre faisait
 doublon) ; le point revient quand ils quittent le groupe (`GROUP_ROSTER_UPDATE`), et ils restent dans « Guilde en jeu ».
+Annonces de mort : le tueur n'était **jamais nommé**, parce qu'il était lu sur la cible au moment de `PLAYER_DEAD`, or le
+client vide la cible à la mort et, en combat, les noms sont des valeurs secrètes. Trois sources désormais, dans l'ordre :
+le **récapitulatif de mort** du client (`C_DeathInfo.GetDeathRecapEvents` ou `GetDeathRecapEvents`, coup fatal ou cause
+environnementale, lu une seconde après la mort, hors combat ; API à confirmer en jeu, sondée par `/mf api` qui dit aussi
+d'où venait le tueur de la dernière mort), la cible si elle était encore lisible, puis la **dernière cible hostile
+lisible** (retenue à son ciblage, valable tout le combat et la minute qui le précède). L'annonce part donc une seconde
+après la mort ; compteur et journal restent immédiats. Les en-têtes « Avis de décès » et « Appel à l'aide » et la liste
+« Guilde en jeu » utilisent des **textures du client** (crâne des marqueurs de raid, épées croisées) au lieu de ☠ et ⚔,
+absents des polices du jeu (carrés à l'écran).
 
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 

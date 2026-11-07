@@ -75,4 +75,6 @@ ns.Data.MAX_ERRORS = 50
 ns.Data.TRACE_SECONDS = 120 -- durée de /mf trace
 ns.Data.RELOAD_REMINDER_SECONDS = 3 * 3600
 ns.Data.GATHERING_WINDOW = 3
+ns.Data.KILLER_MEMORY = 60 -- s : une cible hostile ciblée dans ce délai avant le combat (ou pendant) est le tueur présumé
+ns.Data.DEATH_RECAP_DELAY = 1 -- s après la mort avant de lire le récapitulatif du client et d'annoncer
 ns.Data.MAX_MOBS = 500 -- créatures distinctes gardées par personnage (clé = nom affiché)

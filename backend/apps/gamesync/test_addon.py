@@ -141,6 +141,7 @@ class TestSession:
         lua.execute("_TARGET = { name = 'Sanglier des Tarides', hostile = true }")
         g._FIRE("PLAYER_DEAD")
         lua.execute("_TARGET = nil")
+        g._ADVANCE(1)  # le tueur est résolu et annoncé une seconde après la mort
         # Un loup tué : message d'expérience (le journal de combat est interdit aux addons sur Forever).
         g._FIRE("CHAT_MSG_COMBAT_XP_GAIN", "Loup des Tarides meurt, vous gagnez 45 points d'expérience.")
         g._FIRE("QUEST_TURNED_IN", 1234)
@@ -227,12 +228,14 @@ class TestSession:
         login(lua)
         # Sans guilde : rien ne part (le client moderne interdit les canaux de chat aux addons).
         g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
         assert list(g._ADDON_SENT.values()) == []
         lua.execute("_GUILD = true")
         # Le tueur est la cible hostile au moment de mourir (pas de journal de combat sur Forever).
         lua.execute("_TARGET = { name = 'Sanglier des Tarides', hostile = true }")
         g._FIRE("PLAYER_DEAD")
         lua.execute("_TARGET = nil")
+        g._ADVANCE(1)
         (sent,) = list(g._ADDON_SENT.values())
         assert (sent.prefix, sent.kind) == ("WFG", "GUILD")
         assert sent.text.startswith(
@@ -264,7 +267,8 @@ class TestSession:
         # Désactivé → rien n'est envoyé.
         lua.execute("WoWForeverGuildeDB.settings.announceDeaths = false")
         g._FIRE("PLAYER_DEAD")
-        assert len(list(g._ADDON_SENT.values())) == 1
+        g._ADVANCE(1)
+        assert len([s for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]) == 1
 
     def test_death_is_still_announced_when_the_game_hides_values_in_combat(self):
         # Valeurs « secrètes » (zone, nom de la cible) au moment de mourir : rien ne doit faire sauter l'annonce.
@@ -274,6 +278,7 @@ class TestSession:
         lua.execute("_GUILD = true; _ZONE = _SECRET; _TARGET = { name = _SECRET, hostile = true }")
         g._FIRE("PLAYER_DEAD")
         lua.execute("_ZONE = nil; _TARGET = nil")
+        g._ADVANCE(1)
         (sent,) = list(g._ADDON_SENT.values())
         assert sent.text.startswith(
             "D\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tSHAMAN\t60\tquelque chose\t\t\t"
@@ -283,6 +288,63 @@ class TestSession:
         payload = decode_export(logout_code(lua))  # l'export n'embarque aucune valeur secrète
         death = next(e for e in payload["characters"][0]["events"] if e["k"] == "death")
         assert death["zone"] == "" and "killer" not in death
+
+    def test_killer_is_remembered_from_the_last_readable_hostile_target(self):
+        # À la mort le client vide la cible et, en combat, les noms sont secrets : on retient la dernière cible
+        # hostile lisible, ciblée pendant le combat ou dans la minute qui le précède.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _TARGET = { name = 'Loup des Tarides', hostile = true }")
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        # Reciblé en combat : nom illisible, on garde le loup.
+        lua.execute("_TARGET = { name = _SECRET, hostile = true }")
+        g._FIRE("PLAYER_REGEN_DISABLED")
+        g._ADVANCE(90)  # long combat
+        lua.execute("_TARGET = nil")  # le client vide la cible à la mort
+        g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
+        deaths = [s.text for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]
+        assert len(deaths) == 1 and "\tLoup des Tarides\t" in deaths[0]
+        assert g._NS.DeathSource() == "tueur d'après mémoire (récap absent)"
+        # Un souvenir trop vieux, sans combat entre-temps, ne compte pas ; une cible amicale n'est jamais retenue.
+        lua.execute("_ADDON_SENT = {}; _TARGET = { name = 'Kobold', hostile = true }")
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        lua.execute("_TARGET = nil")
+        g._ADVANCE(61)
+        lua.execute("_TARGET = { name = 'Jaina', hostile = false }")
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        lua.execute("_TARGET = nil")
+        g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
+        deaths = [s.text for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]
+        assert len(deaths) == 1 and "\tquelque chose\t" in deaths[0]
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_death_recap_names_the_killing_blow_or_the_environment(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("""
+          _GUILD = true
+          _RECAPS = {
+            [1] = { { sourceName = 'Ragnaros', amount = 3000 }, { sourceName = 'Majordome Executus', amount = 9000 } },
+            [2] = { { sourceName = 'Ragnaros' }, { environmentalDamageType = 'Falling', amount = 500 } },
+          }
+          C_DeathInfo = { GetDeathRecapEvents = function(id) return _RECAPS[id] end }
+          _TARGET = { name = 'Sanglier des Tarides', hostile = true }
+        """)
+        g._FIRE("PLAYER_DEAD")  # première mort de la session : récap n° 1, qui prime sur la cible
+        g._ADVANCE(1)
+        g._FIRE("PLAYER_DEAD")  # deuxième : une chute
+        g._ADVANCE(1)
+        deaths = [s.text for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]
+        assert "\tMajordome Executus\t" in deaths[0] and "\tune chute\t" in deaths[1]
+        events = g._NS.char.events
+        assert events[1].killer == "Majordome Executus" and events[1].env is None
+        assert events[2].env == "Falling" and events[2].killer is None
+        assert g._NS.DeathSource() == "tueur d'après récap (récap présent)"
+        assert g._NS.char.counters.deaths == 2
 
     def test_collector_errors_are_listed_by_slash_command_and_recalled_at_login(self):
         lua = boot()
@@ -916,7 +978,8 @@ class TestPositions:
             toast.shown is True
             and "Jaina" in toast.text.text
             and "Garrosh" in toast.text.text
-            and toast.header.text == "⚔ Appel à l'aide ⚔"
+            and toast.header.text
+            == "|TInterface\\Icons\\Ability_DualWield:14|t Appel à l'aide |TInterface\\Icons\\Ability_DualWield:14|t"
         )
         assert len(list(g._SOUNDS.values())) == sounds + 1
         ((icon, _),) = list(g._PINS.added.items())

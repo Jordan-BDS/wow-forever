@@ -32,7 +32,7 @@ local function line(m)
     if p.lfg and p.lfg ~= "" then parts[#parts + 1] = "|cffffd100" .. string.format(L.LFG_SHORT, p.lfg) .. "|r" end
     if p.alert and p.alert.at >= ns.now() - ns.Data.ALERT_TTL then
       local attacker = p.alert.attacker ~= "" and p.alert.attacker or L.ATTACKER_UNKNOWN
-      parts[#parts + 1] = "|cffff4d4d⚔ " .. string.format(L.ALERT_SHORT, attacker) .. "|r"
+      parts[#parts + 1] = "|cffff4d4d" .. L.ICON_SWORDS .. " " .. string.format(L.ALERT_SHORT, attacker) .. "|r"
     end
   end
   return "  " .. table.concat(parts, " · ")
