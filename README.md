@@ -84,7 +84,8 @@ seul. Cahier des charges, étape 11.
   `World of Warcraft/_forever_/Interface/AddOns/`, puis `/mf` en jeu (l'addon s'affiche « Manuel Feralas », le nom de la guilde).
 - **Carte de la guilde** : chaque membre qui coche « Partager ma position » dans `/mf` apparaît en point couleur de
   classe sur la carte du monde des autres (survol : nom, niveau, zone, talents ; clic : inviter ou chuchoter). Les
-  positions circulent par messages addon dans le canal de guilde, jamais hors du jeu. Avec : points sur la minimap,
+  membres de ton groupe ou de ton raid n'ont pas de point : le jeu les affiche déjà. Les positions circulent par
+  messages addon dans le canal de guilde, jamais hors du jeu. Avec : points sur la minimap,
   liste « Guilde en jeu » par zone (`/mf qui`, roster + positions), recherche de groupe (`/mf lfg texte`) et appel à
   l'aide manuel (bouton ou `/mf sos`, jamais automatique).
 - **Tests hors du jeu** : l'addon tourne dans un environnement WoW simulé (`backend/apps/gamesync/wow_stub.lua`)

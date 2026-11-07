@@ -2,6 +2,7 @@
 -- cartes de zone, de continent et du monde ; minimap avec flottement au bord). Survol → infobulle (nom, niveau,
 -- zone, talents, recherche de groupe, attaque en cours, âge) ; clic gauche → menu Inviter / Chuchoter. Les points
 -- superposés (même endroit) sont regroupés dans l'infobulle et le menu. Anneau rouge pendant un appel à l'aide.
+-- Les membres de mon groupe ou de mon raid n'ont pas de point : le jeu les affiche déjà, le nôtre ferait doublon.
 local ADDON, ns = ...
 
 local MapUI = {}
@@ -85,10 +86,20 @@ local function minimapWanted()
   return ns.db and ns.db.settings.minimapDots == true
 end
 
+--- Déjà dans mon groupe ou mon raid : le jeu affiche lui-même ces membres sur la carte et la minimap.
+local function inMyGroup(peer)
+  local name = peer.sender or peer.name
+  if not name or name == "" then return false end
+  if UnitInParty and UnitInParty(name) then return true end
+  if UnitInRaid and UnitInRaid(name) then return true end
+  return false
+end
+MapUI.InMyGroup = inMyGroup
+
 function MapUI.Update(peer)
   local lib = pins()
   if not lib then return end
-  if not (peer.map and peer.x and peer.y) then
+  if not (peer.map and peer.x and peer.y) or inMyGroup(peer) then
     MapUI.Remove(peer.guid)
     return
   end
@@ -134,12 +145,26 @@ function MapUI.Clear()
   if menu then menu:Hide() end
 end
 
--- HereBeDragons-Pins réagit lui-même à ces événements (zoom de la minimap, changement de zone) : on pose le marqueur
--- pour qu'un refus du jeu survenu à ce moment-là soit attribuable à la bibliothèque.
+--- Repose chaque point d'après les positions connues : retire ceux des membres entrés dans mon groupe, remet ceux des
+--- membres qui l'ont quitté.
+function MapUI.Refresh()
+  if not ns.Positions then return end
+  for _, peer in pairs(ns.Positions.peers) do MapUI.Update(peer) end
+end
+
+-- HereBeDragons-Pins réagit lui-même aux événements de carte (zoom de la minimap, changement de zone) : on pose le
+-- marqueur pour qu'un refus du jeu survenu à ce moment-là soit attribuable à la bibliothèque. Le groupe qui change
+-- (GROUP_ROSTER_UPDATE, en rafale) regroupe un seul rafraîchissement des points.
 ns.RegisterCollector({
   name = "mapui",
-  events = { MINIMAP_UPDATE_ZOOM = true, PLAYER_ENTERING_WORLD = true, ZONE_CHANGED_NEW_AREA = true },
-  onEvent = function(_, event) ns.lastRisky = { name = "HereBeDragons " .. event, t = ns.now() } end,
+  events = { MINIMAP_UPDATE_ZOOM = true, PLAYER_ENTERING_WORLD = true, ZONE_CHANGED_NEW_AREA = true, GROUP_ROSTER_UPDATE = true },
+  onEvent = function(_, event)
+    if event == "GROUP_ROSTER_UPDATE" then
+      ns.Debounce("mapui:refresh", 1, function() ns.Safe("mapui.refresh", MapUI.Refresh) end)
+    else
+      ns.lastRisky = { name = "HereBeDragons " .. event, t = ns.now() }
+    end
+  end,
 })
 
 --- Case « Points aussi sur la minimap » : ajoute ou retire les points de la minimap sans toucher à la carte.

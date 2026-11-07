@@ -721,6 +721,30 @@ class TestPositions:
         g._NS.MapUI.OpenMenu(peer)
         assert row.invite.text == "Déjà dans le groupe" and row.invite.enabled is False
 
+    def test_group_members_have_no_pin_because_the_game_already_shows_them(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        receive(lua, JAINA)
+        assert len(list(g._PINS.added.items())) == 1
+        # Jaina rejoint mon groupe : son point disparaît, sa position reste connue (liste « Guilde en jeu »).
+        lua.execute("_PARTY['Jaina-Forever'] = true")
+        g._FIRE("GROUP_ROSTER_UPDATE")
+        g._FIRE("GROUP_ROSTER_UPDATE")  # en rafale : un seul rafraîchissement
+        g._ADVANCE(1)
+        assert list(g._PINS.added.items()) == []
+        assert g._NS.Positions.peers["Player-1-00000JAI"].name == "Jaina Portvaillant"
+        # Une position reçue pendant qu'on est ensemble ne repose pas de point.
+        receive(lua, JAINA.replace("0.6100", "0.6200"))
+        assert list(g._PINS.added.items()) == []
+        # Elle quitte le groupe : le point revient, à sa dernière position.
+        lua.execute("_PARTY = {}")
+        g._FIRE("GROUP_ROSTER_UPDATE")
+        g._ADVANCE(1)
+        ((_, pin),) = list(g._PINS.added.items())
+        assert pin.x == 0.62
+
     def test_stacked_members_share_tooltip_and_menu_rows(self):
         lua = boot()
         g = lua.globals()

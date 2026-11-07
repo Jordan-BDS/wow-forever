@@ -1124,6 +1124,8 @@ qui courent encore, `RequestRaidInfo` étant asynchrone). Séquelle unique : les
 `hk` à 0 servent de référence une fois, la semaine qui suit la mise à jour affiche un gain gonflé pour ces joueurs.
 Le classement « saison » garde par ailleurs sa référence 60 jours au plus (profondeur du journal) : juste pour qui a
 installé l'addon depuis le 4 novembre (`counting_since`), glissant vers « les 60 derniers jours » pour les autres.
+Carte : les membres de **mon groupe ou de mon raid** n'ont plus de point (le jeu les affiche déjà, le nôtre faisait
+doublon) ; le point revient quand ils quittent le groupe (`GROUP_ROSTER_UPDATE`), et ils restent dans « Guilde en jeu ».
 
 ### Personnages : uniquement depuis le jeu (décidé le 4 novembre 2026, soir de la sortie)
 
