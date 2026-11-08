@@ -27,6 +27,9 @@ def format_value(key: str, value: float) -> str:
         "boss_kills": "boss",
         "kills": "créatures",
         "deaths": "morts",
+        "crafted_total": "objets",
+        "quests": "quêtes",
+        "gathering.fishing": "poissons",
     }.get(key, "")
     number = int(value) if float(value).is_integer() else value
     return f"{number} {unit}".strip()

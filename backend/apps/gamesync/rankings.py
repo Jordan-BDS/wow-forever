@@ -90,6 +90,9 @@ WEEKLY_TITLES: list[tuple[str, str, str]] = [
     ("boss", "Fléau des boss", "boss_kills"),
     ("kills", "Machine à tuer", "kills"),
     ("shame", "Lord Fragilux", "deaths"),
+    ("crafting", "MacGyver", "crafted_total"),
+    ("quests", "Larbin de Hurlevent", "quests"),
+    ("fishing", "Nat Pagle", "fishing"),
 ]
 
 

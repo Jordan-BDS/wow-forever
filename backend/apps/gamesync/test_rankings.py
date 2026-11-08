@@ -47,8 +47,8 @@ def thrall():
             "bosses": {"672": {"n": 1, "name": "Ragnaros", "first": KILL_TIME, "last": KILL_TIME}},
         },
         journal={
-            "2026-09-13": {"deaths": 2, "gathering": {"mining": 20}, "bg_played": 0, "bg_won": 0, "hk": 10},
-            "2026-09-20": {"deaths": 10, "boss_kills": 3, "gathering": {"mining": 100}, "bg_played": 10, "bg_won": 8, "hk": 60, "kills": 100, "mobs": {"299": 60, "6": 50}},
+            "2026-09-13": {"deaths": 2, "gathering": {"mining": 20}, "bg_played": 0, "bg_won": 0, "hk": 10, "quests": 10},
+            "2026-09-20": {"deaths": 10, "boss_kills": 3, "gathering": {"mining": 100, "fishing": 7}, "bg_played": 10, "bg_won": 8, "hk": 60, "kills": 100, "quests": 30, "crafted_total": 5, "mobs": {"299": 60, "6": 50}},
         },
         mobs={"299": {"n": 70, "name": "Loup des Tarides", "first": KILL_TIME - 86400, "last": KILL_TIME}, "6": {"n": 50, "name": "Kobold"}},
         events=[
@@ -320,8 +320,8 @@ class TestTitles:
         created = titles.award_weekly_titles(datetime(2026, 9, 21, 10, 0, tzinfo=PARIS))
         by_key = {t.key: t for t in created}
         assert (
-            by_key["gathering"].user == member and by_key["gathering"].value == 80.0
-        )  # 100 − 20 sur la semaine close
+            by_key["gathering"].user == member and by_key["gathering"].value == 87.0
+        )  # 100 − 20 minerais + 7 poissons sur la semaine close
         assert (
             by_key["shame"].user == member and by_key["shame"].value == 8.0
         )  # Garona : pas de valeur avant le 20
@@ -330,11 +330,16 @@ class TestTitles:
             by_key["kills"].user == member and by_key["kills"].value == 100.0
         )  # Garona : 10 sur la semaine close
         assert by_key["bg"].value == 50.0  # 60 − 10 joueurs tués sur la semaine close
+        assert by_key["crafting"].value == 5.0 and by_key["fishing"].value == 7.0
+        assert by_key["quests"].user == member and by_key["quests"].value == 20.0  # 30 − 10
         recap = Notification.objects.get(kind="weekly_recap")
         assert (
             "Farmeur chinois" in recap.text
             and member.display_name in recap.text
-            and "80 ressources" in recap.text
+            and "87 ressources" in recap.text
+        )
+        assert (
+            "Nat Pagle" in recap.text and "7 poissons" in recap.text and "20 quêtes" in recap.text
         )
         assert titles.award_weekly_titles(NOW) == [] and WeeklyTitle.objects.count() == len(created)
         shown = rankings.current_titles(NOW)

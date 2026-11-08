@@ -103,12 +103,65 @@ const Paw = (
   </svg>
 );
 
+const Hammer = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9" />
+    <path d="m18 15 4-4" />
+    <path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5" />
+  </svg>
+);
+
+const Scroll = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+    <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" />
+  </svg>
+);
+
+const Fish = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z" />
+    <path d="M18 12v.5" />
+    <path d="M16 17.93a9.77 9.77 0 0 1 0-11.86" />
+    <path d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .23 6.5-1.24 1.5-1.24 5-.23 6.5C5.58 18.03 7 16 7 13.33" />
+    <path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4" />
+    <path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 0 1.49-3.98" />
+  </svg>
+);
+
 const THEMES: Record<string, Theme> = {
   gathering: { accent: "#d9b84a", glow: "rgba(217,184,74,.25)", icon: Pickaxe, unit: "ressources" },
   bg: { accent: "#e0604a", glow: "rgba(224,96,74,.25)", icon: Swords, unit: "joueurs tués" },
   boss: { accent: "#ff8a3d", glow: "rgba(255,138,61,.25)", icon: Flame, unit: "boss tués" },
   kills: { accent: "#8fd14f", glow: "rgba(143,209,79,.25)", icon: Claw, unit: "créatures tuées" },
   shame: { accent: "#b7b7b7", glow: "rgba(183,183,183,.2)", icon: Skull, unit: "morts" },
+  crafting: { accent: "#c08457", glow: "rgba(192,132,87,.25)", icon: Hammer, unit: "objets" },
+  quests: { accent: "#4fc7b5", glow: "rgba(79,199,181,.25)", icon: Scroll, unit: "quêtes" },
+  fishing: { accent: "#5aa9e6", glow: "rgba(90,169,230,.25)", icon: Fish, unit: "poissons" },
 };
 const DEFAULT_THEME: Theme = { accent: "#d9b84a", glow: "rgba(217,184,74,.25)", icon: Flame, unit: "" };
 
@@ -118,7 +171,7 @@ function value(t: WeeklyTitle, unit: string): string {
 }
 
 /** Ordre d'affichage commun aux cartes et aux « Futurs Roxors ». */
-const TITLE_ORDER = ["gathering", "bg", "boss", "kills", "shame"];
+const TITLE_ORDER = ["gathering", "bg", "boss", "kills", "shame", "crafting", "quests", "fishing"];
 
 const MOB_THEME: Theme = { accent: "#c47bff", glow: "rgba(196,123,255,.25)", icon: Paw, unit: "fois tué" };
 
