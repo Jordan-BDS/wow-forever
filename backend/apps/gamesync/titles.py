@@ -1,6 +1,7 @@
 """
-Titres de la semaine : calculés le lundi à partir de 10h (Europe/Paris) sur les données horodatées avant lundi
-00h00, puis figés. Un récapitulatif part dans le salon général par l'outbox du bot.
+Titres de la semaine : calculés dès lundi 00h00 (Europe/Paris), au premier balayage du bot ou du scheduler,
+sur les données horodatées avant lundi 00h00, puis figés. Un récapitulatif part dans le salon général par
+l'outbox du bot. Un export arrivé après l'attribution nourrit les tableaux, pas les titres.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from .progress import latest_snapshots
 from .rankings import CATEGORY_BY_KEY, WEEKLY_TITLES, category_entries
 from .services import PARIS
 
-AWARD_HOUR = 10
+AWARD_HOUR = 0  # minuit : la semaine des classements bascule au même moment
 
 
 def format_value(key: str, value: float) -> str:

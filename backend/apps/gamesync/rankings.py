@@ -326,6 +326,9 @@ def compute_rankings(
             "deaths",
         )
     }
+    shown = current_titles(now)
+    # Le Souffre-douleur accompagne les Roxors affichés : même semaine qu'eux, la semaine close sinon.
+    shown_week = date.fromisoformat(shown[0]["week_start"]) if shown else week_start - timedelta(days=7)
     return {
         "period": period,
         "by": by,
@@ -334,17 +337,13 @@ def compute_rankings(
         "players": len({s.character.owner_id for s in snapshots.values()}),
         "characters": len(snapshots),
         "categories": categories,
-        "titles": current_titles(now),
+        "titles": shown,
         "progression": guild_progression(snapshots),
         "mobs": guild_mobs(snapshots, start, end),
         "mob_of_week": {
             "current": next(iter(guild_mobs(snapshots, week_start, week_end, limit=1)), None),
             "previous": next(
-                iter(
-                    guild_mobs(
-                        snapshots, week_start - timedelta(days=7), week_start - timedelta(days=1), limit=1
-                    )
-                ),
+                iter(guild_mobs(snapshots, shown_week, shown_week + timedelta(days=6), limit=1)),
                 None,
             ),
         },
@@ -357,12 +356,19 @@ def compute_rankings(
 
 
 def current_titles(now: datetime) -> list[dict]:
-    """Titres de la dernière semaine close (attribués le lundi à 10h, figés ensuite)."""
+    """Titres de la dernière semaine récompensée : la semaine close dès le balayage de lundi minuit ; en
+    attendant (ou si la semaine close n'a rien donné), les précédents restent en titre."""
     today = now.astimezone(PARIS).date()
     this_monday = today - timedelta(days=today.weekday())
-    titles = WeeklyTitle.objects.filter(week_start=this_monday - timedelta(days=7)).select_related(
-        "user", "character"
+    last_awarded = (
+        WeeklyTitle.objects.filter(week_start__lte=this_monday - timedelta(days=7))
+        .order_by("-week_start")
+        .values_list("week_start", flat=True)
+        .first()
     )
+    if last_awarded is None:
+        return []
+    titles = WeeklyTitle.objects.filter(week_start=last_awarded).select_related("user", "character")
     return [
         {
             "key": t.key,

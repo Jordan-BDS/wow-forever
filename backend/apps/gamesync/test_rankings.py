@@ -312,12 +312,12 @@ class TestRankings:
 
 
 class TestTitles:
-    def test_awarded_monday_after_ten_then_frozen(self, member, other_member):
+    def test_awarded_monday_at_midnight_then_frozen(self, member, other_member):
         import_for(member, thrall())
         import_for(other_member, garona())
-        early = datetime(2026, 9, 21, 9, 59, tzinfo=PARIS)
-        assert titles.award_weekly_titles(early) == []
-        created = titles.award_weekly_titles(datetime(2026, 9, 21, 10, 0, tzinfo=PARIS))
+        sunday_night = datetime(2026, 9, 20, 23, 59, tzinfo=PARIS)
+        assert titles.award_weekly_titles(sunday_night) == []
+        created = titles.award_weekly_titles(datetime(2026, 9, 21, 0, 0, tzinfo=PARIS))
         by_key = {t.key: t for t in created}
         assert (
             by_key["gathering"].user == member and by_key["gathering"].value == 87.0
@@ -338,12 +338,24 @@ class TestTitles:
             and member.display_name in recap.text
             and "87 ressources" in recap.text
         )
-        assert (
-            "Nat Pagle" in recap.text and "7 poissons" in recap.text and "20 quêtes" in recap.text
-        )
+        assert "Nat Pagle" in recap.text and "7 poissons" in recap.text and "20 quêtes" in recap.text
         assert titles.award_weekly_titles(NOW) == [] and WeeklyTitle.objects.count() == len(created)
         shown = rankings.current_titles(NOW)
         assert {t["key"] for t in shown} == set(by_key) and shown[0]["week_start"] == "2026-09-14"
+
+    def test_previous_titles_stay_until_the_next_award(self, member, other_member):
+        """Lundi juste après minuit, avant le balayage : la semaine a basculé, les Roxors précédents restent en
+        titre (et le Souffre-douleur suit leur semaine) jusqu'à l'attribution des suivants."""
+        import_for(member, thrall())
+        import_for(other_member, garona())
+        titles.award_weekly_titles(datetime(2026, 9, 21, 0, 0, tzinfo=PARIS))  # semaine du 14/09
+        next_monday_night = datetime(2026, 9, 28, 0, 2, tzinfo=PARIS)
+        shown = rankings.current_titles(next_monday_night)
+        assert shown and shown[0]["week_start"] == "2026-09-14"
+        data = rankings.compute_rankings("week", "player", now=next_monday_night)
+        assert data["titles"][0]["week_start"] == "2026-09-14"
+        titles.award_weekly_titles(next_monday_night)
+        assert rankings.current_titles(next_monday_night)[0]["week_start"] == "2026-09-21"
 
     def test_scan_reminders_calls_the_award(self, member):
         from apps.notifications.reminders import scan_due_reminders

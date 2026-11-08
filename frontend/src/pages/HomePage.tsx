@@ -8,7 +8,7 @@ import { GuildValues } from "@/components/GuildValues";
 import { Button, Card, PageTitle } from "@/components/ui";
 import { formatRemaining } from "@/lib/game";
 import { PollCard } from "./PollsPage";
-import { WeekWidget } from "@/components/WeekWidget";
+import { WeekTitles, WeekWidget } from "@/components/WeekWidget";
 import { LaunchCountdown } from "@/components/LaunchCountdown";
 import { launchPhase } from "@/lib/launch";
 
@@ -27,6 +27,8 @@ export function HomePage() {
   return (
     <>
       <PageTitle>Bienvenue, {me.display_name}</PageTitle>
+
+      <WeekTitles />
 
       <div className={showCountdown ? "mb-8 grid items-stretch gap-4 lg:grid-cols-2" : "mb-8"}>
         {showCountdown && <LaunchCountdown />}

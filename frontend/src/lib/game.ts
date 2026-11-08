@@ -84,3 +84,18 @@ export function toLocalInput(iso: string | Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+function dayMonth(iso: string): string {
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/Paris",
+  });
+}
+
+/** « semaine du 2 nov. au 8 nov. » à partir du lundi d'une semaine. */
+export function weekSpan(mondayIso: string): string {
+  const sunday = new Date(mondayIso);
+  sunday.setDate(sunday.getDate() + 6);
+  return `semaine du ${dayMonth(mondayIso)} au ${dayMonth(sunday.toISOString())}`;
+}

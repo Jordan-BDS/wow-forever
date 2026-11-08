@@ -1010,7 +1010,7 @@ Un seul collage après une semaine et vingt déconnexions rattrape tout.
    glissants**. Le site reconstruit les instantanés manquants pour les classements par période.
 3. **Événements horodatés** (kills de boss, accès obtenus, passages de niveau), liste bornée aux 500 derniers : les
    dates de premier kill et d'accès restent exactes même importées tard.
-4. **Roxors de la semaine passée figés, tableaux vivants** : un titre attribué le lundi à 10h n'est plus remis en cause ; les
+4. **Roxors de la semaine passée figés, tableaux vivants** : un titre attribué lundi à minuit n'est plus remis en cause ; les
    tableaux se recalculent avec les données tardives, marquées « données reçues le JJ/MM ».
 5. **Fraîcheur par personnage** : chaque personnage porte sa date d'export ; un code plus ancien que le dernier
    import est ignoré pour ce personnage seulement.
@@ -1253,7 +1253,7 @@ la sortie pour soulager l'addon si besoin.
 **Réalisation (28 octobre 2026)** : onglet **Progression** de la fiche (tuiles d'activité avec variation sur 7 jours,
 accès, verrous, réputations, récolte, PvP, boss tués, « Porté en jeu » en lecture seule, historique et dernières
 synchronisations), page **Classements** (`/classements`, onglet de la section Guilde), widget « Cette semaine » sur
-l'accueil, titres attribués par le balayage du bot (lundi ≥ 10h) avec récapitulatif dans le salon général
+l'accueil, titres attribués par le balayage du bot (dès lundi minuit) avec récapitulatif dans le salon général
 (`weekly_recap`), progression de guilde dédoublonnée par rencontre et créneau de 5 minutes. Tout est calculé à la
 demande depuis les instantanés bruts (cache d'une minute), sans table recalculée. Les noms de factions voyagent dans
 l'export (seul libellé admis : pas d'index des factions sur le site). Le build « En jeu » des talents attend la
@@ -1282,9 +1282,11 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
   Titre du lundi « Machine à tuer ».
 - **Tableau** : podium des trois premiers, top 10, puis **ta ligne** mise en évidence avec ton rang même hors
   top 10 ; variation par rapport à la période précédente (▲ ▼) ; clic vers la fiche du personnage.
-- **Roxors de la semaine passée** (titres : « Farmeur chinois » pour les ressources récoltées tous métiers confondus, « Calamité de la Horde » pour les joueurs tués, « Fléau des boss », « Machine à tuer », « Lord Fragilux » pour les morts, « MacGyver » pour les objets fabriqués, « Larbin de Hurlevent » pour les quêtes rendues, « Nat Pagle » pour les poissons) calculés le
-  **lundi à 10h** sur les données **horodatées avant lundi 00h00**, pour laisser arriver les déconnexions tardives et
-  les envois du compagnon ; affichés sur la fiche du gagnant pendant la semaine, et **récapitulatif hebdomadaire**
+- **Roxors de la semaine passée** (titres : « Farmeur chinois » pour les ressources récoltées tous métiers confondus, « Calamité de la Horde » pour les joueurs tués, « Fléau des boss », « Machine à tuer », « Lord Fragilux » pour les morts, « MacGyver » pour les objets fabriqués, « Larbin de Hurlevent » pour les quêtes rendues, « Nat Pagle » pour les poissons) calculés
+  **dès lundi 00h00**, au premier balayage du bot ou du scheduler, sur les données **horodatées avant lundi 00h00**,
+  en même temps que la semaine des classements bascule (décision du 9 novembre 2026, d'abord prévu à 10h : un export
+  arrivé plus tard nourrit les tableaux, pas les titres) ; jusqu'au balayage, les Roxors précédents restent en
+  titre ; affichés sur la fiche du gagnant pendant la semaine, et **récapitulatif hebdomadaire**
   posté par le bot dans le salon général (top 3 par catégorie, nouveaux accès, premiers kills).
 - **Progression de guilde** : page par raid, chaque boss avec la **date du premier kill de la guilde** (dérivée des
   événements de boss horodatés, boss par un groupe de la guilde = au moins 5 joueurs du site présents), nombre de

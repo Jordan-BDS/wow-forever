@@ -15,7 +15,7 @@ import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ClassName } from "@/components/game";
 import { TitleCards } from "@/components/TitleBadges";
 import { Card, PageTitle, Spinner } from "@/components/ui";
-import { findClass, formatDateTime } from "@/lib/game";
+import { findClass, formatDateTime, weekSpan } from "@/lib/game";
 
 const PERIODS: { key: RankingPeriod; label: string }[] = [
   { key: "week", label: "Semaine" },
@@ -159,7 +159,7 @@ function TitlesRow({
       <div className="mb-2 flex flex-wrap items-baseline gap-3">
         <h2 className="font-display text-lg">Roxors de la semaine passée</h2>
         <span className="text-xs text-muted">
-          semaine du {shortDate(titles[0].week_start)} · attribués le lundi à 10h, figés ensuite
+          {weekSpan(titles[0].week_start)} · attribués lundi à minuit, figés ensuite
         </span>
       </div>
       <TitleCards titles={titles} mob={mob} />

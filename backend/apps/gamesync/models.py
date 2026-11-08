@@ -162,7 +162,7 @@ class IgnoredCharacter(models.Model):
 
 
 class WeeklyTitle(models.Model):
-    """Titre de la semaine, attribué le lundi à 10h sur la semaine close, jamais remis en cause."""
+    """Titre de la semaine, attribué dès lundi minuit sur la semaine close, jamais remis en cause."""
 
     week_start = models.DateField(help_text="Lundi de la semaine récompensée.")
     key = models.CharField(max_length=32)
