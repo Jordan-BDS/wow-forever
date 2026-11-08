@@ -8,6 +8,14 @@ local function splitName(full)
   return full, nil
 end
 
+-- Le niveau ne redescend jamais : sur Forever, UnitLevel("player") peut rester sur l'ancien niveau longtemps
+-- après PLAYER_LEVEL_UP (jusqu'à la sortie du jeu) ; l'événement de montée fait foi, la relecture ne fait
+-- que confirmer.
+local function raiseLevel(char, level)
+  level = tonumber(level)
+  if level and level > (char.level or 0) then char.level = level end
+end
+
 local function scan(char)
   local name = UnitName("player")
   local full = UnitFullName and select(1, UnitFullName("player")) or name
@@ -19,7 +27,7 @@ local function scan(char)
   local _, raceToken = UnitRace("player")
   char.class = classToken or char.class
   char.race = raceToken or char.race
-  char.level = UnitLevel("player") or char.level
+  raiseLevel(char, UnitLevel("player"))
   char.faction = (UnitFactionGroup and UnitFactionGroup("player")) or char.faction
   char.identity_at = ns.now()
 end
@@ -51,6 +59,7 @@ ns.RegisterCollector({
   onEvent = function(char, event, ...)
     if event == "PLAYER_LEVEL_UP" then
       local level = ...
+      raiseLevel(char, level)
       ns.Journal.Event(char, "level", { level = level })
     elseif event == "TIME_PLAYED_MSG" then
       local total = ...

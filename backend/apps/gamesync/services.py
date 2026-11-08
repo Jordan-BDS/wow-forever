@@ -213,6 +213,9 @@ def parse_character(raw: Any) -> ParsedCharacter:
     level = raw.get("level")
     if not isinstance(level, int) or isinstance(level, bool) or not 1 <= level <= Character.MAX_LEVEL:
         raise ValueError("niveau invalide")
+    # Filet : un addon d'avant la 0.4.5 pouvait exporter l'ancien niveau après une montée (UnitLevel resté en
+    # arrière sur Forever) ; la montée horodatée, elle, est toujours juste.
+    level = max([level, *_level_events(raw.get("events"))])
     return ParsedCharacter(
         guid=guid[:64],
         name=name[:24],
@@ -226,6 +229,21 @@ def parse_character(raw: Any) -> ParsedCharacter:
         spec_tab=raw.get("spec_tab") if isinstance(raw.get("spec_tab"), int) else None,
         raw=raw,
     )
+
+
+def _level_events(events: Any) -> list[int]:
+    """Niveaux annoncés par les événements de montée (`PLAYER_LEVEL_UP`), bornés au niveau maximum."""
+    if not isinstance(events, list):
+        return []
+    return [
+        e["level"]
+        for e in events
+        if isinstance(e, dict)
+        and e.get("k") == "level"
+        and isinstance(e.get("level"), int)
+        and not isinstance(e.get("level"), bool)
+        and 1 <= e["level"] <= Character.MAX_LEVEL
+    ]
 
 
 def race_slug(token: str) -> str:

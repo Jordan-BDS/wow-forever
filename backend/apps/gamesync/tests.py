@@ -364,6 +364,31 @@ RETAIL_CLIENT = {"version": "12.1.5", "build": "64567", "toc": 120105, "project"
 FOREVER_CLIENT = {"version": "1.15.0", "build": "60000", "toc": 16001, "project": 1}
 
 
+class TestLevelFromEvents:
+    """Filet pour les addons d'avant la 0.4.5 : le niveau exporté ne peut pas être sous la dernière montée."""
+
+    def test_level_is_raised_to_the_last_level_up_event(self):
+        raw = {
+            "guid": "Player-1-1",
+            "name": "Koj",
+            "level": 23,
+            "exported_at": 1794129488,
+            "events": [{"k": "level", "level": 24, "t": 1794128096}, {"k": "boss", "id": 1, "t": 1}],
+        }
+        assert services.parse_character(raw).level == 24
+
+    def test_bogus_level_events_are_ignored(self):
+        raw = {"guid": "Player-1-1", "name": "Koj", "level": 23, "exported_at": 1794129488}
+        for events in (
+            None,
+            "x",
+            [{"k": "level", "level": 99}],
+            [{"k": "level", "level": True}],
+            [{"k": "level"}],
+        ):
+            assert services.parse_character({**raw, "events": events}).level == 23
+
+
 class TestTalentsImport:
     """Le build « En jeu » se lit par rangée/colonne (grid), par sort (spells) ou par index (points)."""
 

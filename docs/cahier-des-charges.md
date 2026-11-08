@@ -1202,6 +1202,13 @@ compte aussi, une seule fois avec le sort (même recette à moins d'une seconde)
 recette ne remplace pas la liste connue et s'inscrit une fois par session dans `/mf erreurs` ; la ligne de statut
 Métiers affiche le nombre de recettes connues. `/mf api` sonde maintenant les deux familles d'API de métier.
 
+**Niveau en retard (addon 0.4.5, 8 novembre 2026)** : un membre passé 24 à 9h54 a quitté le jeu à 10h18, le fichier
+a bien été écrit et envoyé, mais avec le niveau 23 : sur Forever, `UnitLevel("player")` peut rester sur l'ancien
+niveau longtemps après `PLAYER_LEVEL_UP`, y compris à la relecture de la sortie, alors que l'événement de montée
+(déjà noté dans l'historique) donnait le bon niveau. Désormais l'événement fait foi et aucune relecture (connexion,
+entrée en jeu, sortie) ne fait redescendre le niveau connu ; côté site, le niveau importé est relevé à la dernière
+montée horodatée de l'export, ce qui couvre les addons pas encore à jour.
+
 ### API Battle.net de Forever : sonde et archive brute (7 novembre 2026, site seulement)
 
 L'API Battle.net couvre WoW Forever depuis le 5 novembre, sans documentation de Blizzard : espaces de noms

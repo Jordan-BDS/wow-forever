@@ -220,7 +220,8 @@ local function onLogin()
     local candidate = ns.Store.FindTransferCandidate(guid, classToken, raceToken, level)
     if candidate and ns.UI and ns.UI.AskTransfer then ns.UI.AskTransfer(entry, candidate) end
   end
-  entry.class, entry.race, entry.level = classToken, raceToken, level
+  entry.class, entry.race = classToken, raceToken
+  if (level or 0) > (entry.level or 0) then entry.level = level end -- jamais vers le bas (cf. Identity)
   entry.faction = UnitFactionGroup and UnitFactionGroup("player") or nil
 
   for _, def in ipairs(ns.collectors) do

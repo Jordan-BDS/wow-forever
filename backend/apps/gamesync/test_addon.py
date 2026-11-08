@@ -724,6 +724,22 @@ class TestDurability:
         assert character["lockouts"][0]["killed"] == 7
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_level_up_counts_even_when_the_client_still_reports_the_old_level(self):
+        """Vu sur Forever le 8 novembre : montée au 24 annoncée à 9h54, UnitLevel répondait encore 23 à la sortie
+        du jeu à 10h18, et le site est resté au 23. L'événement de montée fait foi, la relecture ne redescend pas."""
+        lua = boot()
+        g = lua.globals()
+        lua.execute("_PLAYER.level = 23")
+        login(lua)
+        char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
+        assert char.level == 23
+        g._FIRE("PLAYER_LEVEL_UP", 24)  # le client, lui, continue de répondre 23
+        g._ADVANCE(2)  # relecture différée de l'identité
+        assert char.level == 24
+        (character,) = decode_export(logout_code(lua))["characters"]
+        assert character["level"] == 24
+        assert [e["level"] for e in character["events"] if e["k"] == "level"] == [24]
+
     def test_gathering_window_fits_fishing_and_slow_looting_but_not_the_next_kill(self):
         lua = boot()
         g = lua.globals()
