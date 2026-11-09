@@ -139,6 +139,24 @@ export type WantedEnemy = {
   last_seen: { at: string; map: number; x: number; y: number } | null;
 };
 
+/** Un ennemi du rapport /wanted : la tête mise à prix avec chaque mort et chaque kill. */
+export type WantedEnemyDetail = WantedEnemy & {
+  first_seen: string | null;
+  deaths: { at: string; zone: string; victim: WantedWho }[];
+  kill_list: { at: string; zone: string; by: WantedWho; prime: number; hunters: string[] }[];
+  zones: { zone: string; deaths: number }[];
+};
+
+export type WantedReport = {
+  period: RankingPeriod;
+  start: string | null;
+  end: string;
+  totals: { enemies: number; points: number; kills: number; victims: number; hunters: number };
+  enemies: WantedEnemyDetail[];
+  hunters: (WantedWho & { kills: number; bounty: number; enemies: number })[];
+  victims: (WantedWho & { deaths: number; enemies: number; last: string | null })[];
+};
+
 export type Rankings = {
   period: RankingPeriod;
   by: RankingBy;
@@ -210,6 +228,18 @@ export function useRankings(period: RankingPeriod, by: RankingBy) {
       const { data, error } = await api.GET("/api/sync/rankings/", { params: { query: { period, by } } });
       if (error || !data) throw error ?? new Error();
       return data as unknown as Rankings;
+    },
+  });
+}
+
+export function useWantedReport(period: RankingPeriod) {
+  return useQuery({
+    queryKey: ["sync", "wanted", period] as const,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/sync/wanted/", { params: { query: { period } } });
+      if (error || !data) throw error ?? new Error();
+      return data as unknown as WantedReport;
     },
   });
 }

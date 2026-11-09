@@ -85,7 +85,9 @@ export function WeekWidget() {
         ))}
         {data.wanted.length > 0 && (
           <div className="text-sm">
-            <div className="text-danger">Wanted</div>
+            <Link to="/wanted" className="text-danger hover:text-danger">
+              Wanted
+            </Link>
             <div className="text-xs text-muted">Têtes mises à prix cette semaine</div>
             <ol className="mt-2 space-y-1">
               {data.wanted.slice(0, 3).map((e, i) => (

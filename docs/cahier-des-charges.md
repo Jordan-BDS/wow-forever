@@ -1209,6 +1209,25 @@ niveau longtemps après `PLAYER_LEVEL_UP`, y compris à la relecture de la sorti
 entrée en jeu, sortie) ne fait redescendre le niveau connu ; côté site, le niveau importé est relevé à la dernière
 montée horodatée de l'export, ce qui couvre les addons pas encore à jour.
 
+**Pêche (addon 0.6.1, 9 novembre 2026)** : les poissons ne comptaient toujours pas en jeu. Le collecteur ne lisait le
+sort de récolte qu'à `UNIT_SPELLCAST_SUCCEEDED` et ne reconnaissait la pêche que par cinq identifiants vanilla ou par
+le nom exact « Pêche », via `C_Spell.GetSpellName` seulement ; la fenêtre de 30 s partait du lancer, alors que le
+bouchon peut mordre tard et le clic suivre. Désormais : la pêche, canalisée, est lue aussi à
+`UNIT_SPELLCAST_CHANNEL_START` ; le sort est reconnu par son identifiant, puis par son nom via `C_Spell.GetSpellName`
+ou `GetSpellInfo` (API Classic), exact ou approché (« Pêche », « Fishing », « Minage », « Cueillette », « Dépeçage »,
+minuscules ASCII seulement pour ne pas abîmer les accents) ; la fin de canalisation (`UNIT_SPELLCAST_CHANNEL_STOP`,
+le bouchon cliqué) rouvre 10 s pour le butin, même après les 30 s. Diagnostic : `/mf api` affiche le dernier sort
+lu (identifiant, nom, événement) et ce que le collecteur en a fait, `/mf trace` montre les récoltes armées et les
+butins comptés ou refusés ; l'étape « Récolte » des Tests en jeu dit quoi vérifier. Sans accès au client, la cause
+exacte reste à confirmer en jeu avec ces deux commandes.
+
+**Page Wanted (site, 9 novembre 2026)** : `/wanted` (onglet de la section Guilde, lien depuis les Classements et
+l'accueil) : par période, totaux (têtes mises à prix, points de prime, recherchés abattus, chasseurs, membres tués),
+une carte par ennemi (classe, recherché depuis, zones où il sévit, prime, abattu, victimes, dernière victime, dernier
+chasseur, détail dépliable des morts et des kills avec les coéquipiers et la prime encaissée), puis « Chasseurs de
+primes » (participations et primes telles que l'addon les a vues) et « Souffre-douleurs de la Horde » (membres les
+plus tués par des joueurs). Endpoint `/api/sync/wanted/?period=`, cache d'une minute, même exclusion GM.
+
 ### API Battle.net de Forever : sonde et archive brute (7 novembre 2026, site seulement)
 
 L'API Battle.net couvre WoW Forever depuis le 5 novembre, sans documentation de Blizzard : espaces de noms

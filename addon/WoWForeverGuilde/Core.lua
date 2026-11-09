@@ -126,6 +126,7 @@ local PROBES = {
   } },
   { "mort", { "C_DeathInfo.GetDeathRecapEvents", "GetDeathRecapEvents", "GetDeathRecapLink" } },
   { "wanted", { "UnitIsPlayer", "COMBATLOG_HONORGAIN", "COMBATLOG_HONORGAIN_NO_RANK", "COMBATLOG_XPGAIN_FIRSTPERSON" } },
+  { "récolte", { "C_Spell.GetSpellName", "GetSpellInfo", "UnitChannelInfo" } },
 }
 
 local function resolve(path)
@@ -168,6 +169,9 @@ function ns.Diagnostic()
   lines[#lines + 1] = string.format("victoire honorable · chaîne : %s · motif : %s",
     type(COMBATLOG_HONORGAIN) == "string" and COMBATLOG_HONORGAIN or "absente",
     (ns.Wanted and ns.Wanted.HonorPatterns and table.concat(ns.Wanted.HonorPatterns(), " | ")) or "aucun")
+  -- Récolte : le dernier sort lu (identifiant, nom, événement) et ce que le collecteur en a fait ; la pêche se
+  -- diagnostique ainsi en jeu (sort non reconnu, ou butin hors fenêtre dans /mf trace).
+  lines[#lines + 1] = "récolte · " .. ((ns.GatherSource and ns.GatherSource()) or "aucun sort de récolte lu cette session")
   for _, line in ipairs(lines) do ns.Print(line) end
   local client = ""
   if type(GetBuildInfo) == "function" then

@@ -14,7 +14,7 @@ import {
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ClassName } from "@/components/game";
 import { TitleCards } from "@/components/TitleBadges";
-import { Card, PageTitle, Spinner } from "@/components/ui";
+import { Card, PageTitle, Pill, Spinner } from "@/components/ui";
 import { findClass, formatDateTime, weekSpan } from "@/lib/game";
 
 const PERIODS: { key: RankingPeriod; label: string }[] = [
@@ -31,31 +31,6 @@ const GROUPS: { key: RankingCategory["group"] | "all"; label: string }[] = [
   { key: "crafting", label: "Artisanat" },
   { key: "guild", label: "Guilde" },
 ];
-
-function Pill({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={clsx(
-        "rounded-full border px-3 py-1 text-sm transition-colors",
-        active
-          ? "border-gold bg-surface-2 text-gold-light"
-          : "border-border bg-surface-2 text-muted hover:text-text",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
 
 function shortDate(iso: string | null): string {
   if (!iso) return "—";
@@ -179,9 +154,14 @@ function WantedBoard({ wanted, periodLabel }: { wanted: Rankings["wanted"]; peri
   return (
     <section className="mt-8">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="font-display text-lg text-danger">Wanted — têtes mises à prix</h2>
+        <h2 className="font-display text-lg text-danger">
+          <Link to="/wanted" className="hover:text-danger">
+            Wanted — têtes mises à prix
+          </Link>
+        </h2>
         <span className="text-xs text-muted">
-          {periodLabel} · un point par membre tué, jamais remis à zéro
+          {periodLabel} · un point par membre tué, jamais remis à zéro ·{" "}
+          <Link to="/wanted">tout le détail</Link>
         </span>
       </div>
       <Card className="space-y-3 border-danger/40">

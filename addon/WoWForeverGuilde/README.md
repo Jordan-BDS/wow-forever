@@ -23,6 +23,10 @@ transporte le code jusqu'au site.
   addons) ; compteur cumulé `kills` et nombre par créature (`counters.mobs`, clé = nom) dans le journal quotidien
   (d'où les classements hebdo par créature), premier / dernier kill dans `char.mobs`, hors journal, 500 espèces au
   plus ; rien au niveau maximum.
+- `Collectors/Gathering.lua` : récolte (sort puis butin dans la fenêtre : 10 s, 30 s pour la pêche) et fabrications.
+  La pêche, canalisée, est lue à `UNIT_SPELLCAST_CHANNEL_START` comme à `SUCCEEDED`, reconnue par identifiant ou par
+  nom (`C_Spell.GetSpellName` ou `GetSpellInfo`, exact ou approché), et la fin de canalisation rouvre 10 s pour le
+  butin ; `/mf api` montre le dernier sort lu et ce qu'il est devenu, `/mf trace` les butins comptés ou refusés.
 - `Data.lua` : tables de référence à tenir à jour (quêtes d'accès, derniers boss, sorts de récolte).
 - `Samwise.blp` : icône de la guilde (portrait de Samwise Didier, l'ancienne icône « Temp » des clients Classic),
   en tête des fenêtres et dans la liste des addons (`## IconTexture`).

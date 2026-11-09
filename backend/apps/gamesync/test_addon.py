@@ -778,6 +778,46 @@ class TestDurability:
         g._FIRE("CHAT_MSG_LOOT", ore, "", "", "", "")
         assert char.counters.gathering.mining == 2
 
+    def test_fishing_is_read_from_the_channel_and_the_spell_name(self):
+        # La pêche est canalisée : le client peut n'émettre que CHANNEL_START, avec un identifiant inconnu de la table
+        # et un nom lu par l'API Classic ; le bouchon cliqué (CHANNEL_STOP) rouvre 10 s pour le butin tardif.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(
+            "C_Spell = nil; function GetSpellInfo(id) if id == 99001 then return 'Pêche (Apprenti)' end return 'Sort' end"
+        )
+        char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
+        fish = "Vous recevez un butin : |cffffffff|Hitem:6291:0:0|h[Poisson cru]|h|rx2."
+        g._FIRE("UNIT_SPELLCAST_CHANNEL_START", "player", "c1", 99001)
+        assert g._NS.GatherSource().startswith(
+            "dernier sort 99001 « Pêche (Apprenti) » (UNIT_SPELLCAST_CHANNEL_START) → fishing"
+        )
+        g._ADVANCE(28)  # le bouchon mord tard
+        g._FIRE("UNIT_SPELLCAST_CHANNEL_STOP", "player", "c1", 99001)
+        g._ADVANCE(6)  # 34 s après le lancer : au-delà des 30 s, mais dans les 10 s de la fin de canalisation
+        g._FIRE("CHAT_MSG_LOOT", fish, "", "", "", "")
+        assert char.counters.gathering.fishing == 2
+        # SUCCEEDED puis CHANNEL_START pour le même lancer : une seule fenêtre, pas raccourcie.
+        g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "c2", 7620)
+        g._ADVANCE(5)
+        g._FIRE("UNIT_SPELLCAST_CHANNEL_START", "player", "c2", 7620)
+        g._ADVANCE(20)
+        g._FIRE("CHAT_MSG_LOOT", fish, "", "", "", "")
+        assert char.counters.gathering.fishing == 4
+        # Fenêtre passée, un sort qui n'est pas une récolte n'arme rien : le butin qui suit n'est pas compté.
+        g._ADVANCE(15)
+        g._FIRE("UNIT_SPELLCAST_CHANNEL_START", "player", "c3", 12345)
+        g._ADVANCE(2)
+        g._FIRE("CHAT_MSG_LOOT", fish, "", "", "", "")
+        assert char.counters.gathering.fishing == 4 and "pas une récolte" in g._NS.GatherSource()
+        # /mf api montre la lecture de la récolte.
+        g.SlashCmdList.WOWFOREVERGUILDE("api")
+        assert any(
+            m.startswith("|cffffd100[MF]|r récolte · dernier sort 12345") for m in list(g._CHAT.values())
+        )
+        assert list(g.WoWForeverGuildeDB.errors.values())[-1].where == "diagnostic"
+
     def test_companion_seed_mark_is_kept_and_exported(self):
         # Le compagnon a complété le fichier depuis le site et y a posé sa marque : l'addon la ressort telle quelle.
         lua = boot()

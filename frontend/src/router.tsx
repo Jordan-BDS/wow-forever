@@ -21,6 +21,7 @@ import { PollsPage } from "./pages/PollsPage";
 import { ProfessionsPage } from "./pages/ProfessionsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RankingsPage } from "./pages/RankingsPage";
+import { WantedPage } from "./pages/WantedPage";
 import { RecipesPage } from "./pages/RecipesPage";
 import { RosterPage } from "./pages/RosterPage";
 import { TalentsPage } from "./pages/TalentsPage";
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
               { path: "sondages", Component: PollsPage },
               { path: "sondages/:id", Component: PollPage },
               { path: "classements", Component: RankingsPage },
+              { path: "wanted", Component: WantedPage },
               { path: "guilde", Component: GuildPage },
               { path: "tests", Component: TestsPage },
               { path: "crafts", Component: CraftsPage },

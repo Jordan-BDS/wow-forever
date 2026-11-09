@@ -1150,6 +1150,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/state/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Pour le compagnon : l'état fusionné de mes personnages (compteurs, journal, créatures, événements), à
+         *     recopier dans l'addon d'un PC au lancement, jeu fermé, pour qu'aucune installation ne reparte de zéro.
+         */
+        get: operations["sync_state_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/wanted/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description La page Wanted : têtes mises à prix détaillées (morts, kills), chasseurs et victimes, par période. */
+        get: operations["sync_wanted_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/talents/{slug}/": {
         parameters: {
             query?: never;
@@ -4939,6 +4976,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    sync_state_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    sync_wanted_retrieve: {
+        parameters: {
+            query?: {
+                /** @description week (défaut), month, season, all */
+                period?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };

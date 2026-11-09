@@ -130,3 +130,29 @@ export function PageTitle({ children, actions }: { children: React.ReactNode; ac
     </div>
   );
 }
+
+/** Filtre en pastille (périodes, groupes) : active en or, sinon discrète. */
+export function Pill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx(
+        "rounded-full border px-3 py-1 text-sm transition-colors",
+        active
+          ? "border-gold bg-surface-2 text-gold-light"
+          : "border-border bg-surface-2 text-muted hover:text-text",
+      )}
+    >
+      {children}
+    </button>
+  );
+}

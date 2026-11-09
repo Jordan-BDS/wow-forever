@@ -72,7 +72,7 @@ const SECTIONS: Section[] = [
         id: "version",
         title: "Version de l'addon chargée",
         commands: ['/dump C_AddOns.GetAddOnMetadata("WoWForeverGuilde", "Version")'],
-        expected: "La version de la dernière release (0.6.0 au 9 novembre).",
+        expected: "La version de la dernière release (0.6.1 au 9 novembre).",
         otherwise:
           "Autre chose : le compagnon n'a pas recopié l'addon. Bouton « Réinstaller l'addon » puis /reload.",
       },
@@ -174,7 +174,7 @@ const SECTIONS: Section[] = [
           "/dump C_Spell.GetSpellName(2575), C_Spell.GetSpellName(2366), C_Spell.GetSpellName(8613), C_Spell.GetSpellName(7620)",
         ],
         expected:
-          "Mine un filon, cueille une herbe ou dépèce : « Récolte et artisanat » compte 1. La commande doit donner « Minage », « Cueillette », « Dépeçage », « Pêche », ou les noms anglais.",
+          "Mine un filon, cueille une herbe ou dépèce : « Récolte et artisanat » compte 1. La commande doit donner « Minage », « Cueillette », « Dépeçage », « Pêche », ou les noms anglais. Pêche : lance la ligne, attends la touche, clique le bouchon, puis /mf api : la ligne « récolte · dernier sort … » doit dire « → fishing » et « poissons » doit avoir compté ; sinon copie cette ligne et /mf trace pendant une prise.",
         otherwise:
           "Un nil : identifiant de sort changé sur Forever. Envoie le nom affiché dans ton livre de sorts, je corrige la table.",
       },

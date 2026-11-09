@@ -4023,6 +4023,65 @@
                 }
             }
         },
+        "/api/sync/state/": {
+            "get": {
+                "operationId": "sync_state_retrieve",
+                "description": "Pour le compagnon : l'état fusionné de mes personnages (compteurs, journal, créatures, événements), à\nrecopier dans l'addon d'un PC au lancement, jeu fermé, pour qu'aucune installation ne reparte de zéro.",
+                "tags": [
+                    "sync"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/wanted/": {
+            "get": {
+                "operationId": "sync_wanted_retrieve",
+                "description": "La page Wanted : têtes mises à prix détaillées (morts, kills), chasseurs et victimes, par période.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "period",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "week (défaut), month, season, all"
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/talents/{slug}/": {
             "get": {
                 "operationId": "talents_retrieve",

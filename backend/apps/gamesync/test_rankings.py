@@ -387,12 +387,44 @@ class TestWanted:
             {"name": "Garrosh Hurlenfer", "class": "WARRIOR", "points": 3, "kills": 1, "last_t": t0 + 600, "map": 1411, "x": 0.5, "y": 0.5},
             {"name": "Vol'jin", "class": "SHAMAN", "points": 1, "kills": 0, "last_t": t0 + 120, "map": None, "x": None, "y": None},
         ]  # fmt: skip
+        # Rapport détaillé de la page /wanted : morts et kills de chaque ennemi, chasseurs, victimes.
+        from . import wanted as wanted_module
+
+        report = wanted_module.wanted_report(None, *rankings.period_bounds("week", NOW))
+        assert report["totals"] == {"enemies": 2, "points": 3, "kills": 1, "victims": 2, "hunters": 2}
+        garrosh_detail = report["enemies"][0]
+        assert [d["victim"]["character"]["name"] for d in garrosh_detail["deaths"]] == ["Garona", "Thrall"]
+        (kill,) = garrosh_detail["kill_list"]
+        assert (kill["by"]["character"]["name"], kill["prime"], kill["hunters"]) == (
+            "Thrall",
+            1,
+            ["Thrall", "Garona"],
+        )
+        assert garrosh_detail["zones"] == [
+            {"zone": "Durotar", "deaths": 1},
+            {"zone": "Orgrimmar", "deaths": 1},
+        ]
+        assert garrosh_detail["first_seen"].startswith("2026-09-21T15:00")
+        assert [(h["user"]["id"], h["kills"], h["bounty"], h["enemies"]) for h in report["hunters"]] == [
+            (other_member.pk, 1, 2, 1),
+            (member.pk, 1, 1, 1),
+        ]
+        assert [(v["character"]["name"], v["deaths"], v["enemies"]) for v in report["victims"]] == [
+            ("Garona", 2, 2),
+            ("Thrall", 1, 1),
+        ]
         # Retrait par le GM (la casse ne compte pas).
         WantedExclusion.objects.create(name="Garrosh  HURLENFER", reason="PNJ homonyme")
         assert [e["name"] for e in rankings.compute_rankings("week", "player", now=NOW)["wanted"]] == [
             "Vol'jin"
         ]
         assert progress.companion_state(member)["wanted"][0]["name"] == "Vol'jin"
+
+    def test_wanted_endpoint(self, as_user, member):
+        response = as_user(member).get("/api/sync/wanted/", {"period": "season"})
+        assert response.status_code == 200 and response.data["period"] == "season"
+        assert response.data["enemies"] == [] and response.data["totals"]["enemies"] == 0
+        assert as_user(member).get("/api/sync/wanted/", {"period": "bidon"}).data["period"] == "week"
 
 
 class TestTitles:

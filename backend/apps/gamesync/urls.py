@@ -18,5 +18,6 @@ urlpatterns = [
         "characters/<int:pk>/progress/", views.CharacterProgressView.as_view(), name="sync-character-progress"
     ),
     path("rankings/", views.RankingsView.as_view(), name="sync-rankings"),
+    path("wanted/", views.WantedView.as_view(), name="sync-wanted"),
     path("addon-errors/", views.AddonErrorsView.as_view(), name="sync-addon-errors"),
 ]

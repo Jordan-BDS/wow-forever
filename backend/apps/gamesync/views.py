@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
@@ -204,6 +205,31 @@ class CharacterProgressView(APIView):
 
         data = progress.character_progress(character)
         return Response({"available": data is not None, **(data or {})})
+
+
+class WantedView(APIView):
+    """La page Wanted : têtes mises à prix détaillées (morts, kills), chasseurs et victimes, par période."""
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("period", OpenApiTypes.STR, description="week (défaut), month, season, all")
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def get(self, request: Request) -> Response:
+        from django.core.cache import cache
+
+        from . import rankings, wanted
+
+        period = request.query_params.get("period", "week")
+        period = period if period in rankings.PERIODS else "week"
+        key = f"gamesync:wanted:{period}"
+        data = cache.get(key)
+        if data is None:
+            start, end = rankings.period_bounds(period, timezone.now())
+            data = {"period": period, **wanted.wanted_report(None, start, end)}
+            cache.set(key, data, 60)
+        return Response(data)
 
 
 class AddonErrorsView(APIView):
