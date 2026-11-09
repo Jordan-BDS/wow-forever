@@ -1,12 +1,15 @@
 import clsx from "clsx";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useGameData } from "@/api/hooks";
 import { useWantedReport, type RankingPeriod, type WantedEnemyDetail, type WantedReport } from "@/api/sync";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { CharacterName, ClassName } from "@/components/game";
-import { Card, PageTitle, Pill, Spinner } from "@/components/ui";
+import { Button, Card, PageTitle, Pill, Spinner } from "@/components/ui";
 import { findClass, formatDateTime } from "@/lib/game";
+
+/** Primes affichées par paquets : les dix premières tout de suite, dix de plus à chaque passage en bas de liste. */
+const PAGE = 10;
 
 const PERIODS: { key: RankingPeriod; label: string }[] = [
   { key: "week", label: "Semaine" },
@@ -63,11 +66,7 @@ export function WantedPage() {
           joueur.
         </Card>
       ) : (
-        <section className="mt-6 space-y-3">
-          {data.enemies.map((enemy, i) => (
-            <EnemyCard key={enemy.key} enemy={enemy} rank={i + 1} meId={me.id} />
-          ))}
-        </section>
+        <EnemyList key={period} enemies={data.enemies} meId={me.id} />
       )}
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -83,6 +82,40 @@ export function WantedPage() {
         mêmes compteurs.
       </p>
     </>
+  );
+}
+
+/** Liste des têtes mises à prix, chargée paresseusement : PAGE cartes, puis PAGE de plus dès que le bas de la liste
+ *  entre dans la fenêtre (ou au bouton, si l'observateur n'existe pas). Remontée à zéro quand la période change
+ *  (clé du composant). */
+function EnemyList({ enemies, meId }: { enemies: WantedEnemyDetail[]; meId: number }) {
+  const [shown, setShown] = useState(PAGE);
+  const sentinel = useRef<HTMLDivElement>(null);
+  const remaining = Math.max(0, enemies.length - shown);
+
+  useEffect(() => {
+    const node = sentinel.current;
+    if (!node || remaining === 0 || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setShown((n) => n + PAGE);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [remaining]);
+
+  return (
+    <section className="mt-6 space-y-3">
+      {enemies.slice(0, shown).map((enemy, i) => (
+        <EnemyCard key={enemy.key} enemy={enemy} rank={i + 1} meId={meId} />
+      ))}
+      {remaining > 0 && (
+        <div ref={sentinel} className="flex justify-center pt-2">
+          <Button variant="ghost" type="button" onClick={() => setShown((n) => n + PAGE)}>
+            Voir {Math.min(PAGE, remaining)} de plus ({remaining} restante{remaining > 1 ? "s" : ""})
+          </Button>
+        </div>
+      )}
+    </section>
   );
 }
 

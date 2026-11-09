@@ -1273,7 +1273,10 @@ l'accueil) : par période, totaux (têtes mises à prix, points de prime, recher
 une carte par ennemi (classe, recherché depuis, zones où il sévit, prime, abattu, victimes, dernière victime, dernier
 chasseur, détail dépliable des morts et des kills avec les coéquipiers et la prime encaissée), puis « Chasseurs de
 primes » (participations et primes telles que l'addon les a vues) et « Souffre-douleurs de la Horde » (membres les
-plus tués par des joueurs). Endpoint `/api/sync/wanted/?period=`, cache d'une minute, même exclusion GM.
+plus tués par des joueurs). Endpoint `/api/sync/wanted/?period=`, cache d'une minute, même exclusion GM. Les cartes
+d'ennemis se chargent par **paquets de dix** (demande du 9 novembre 2026) : les dix premières tout de suite, dix de
+plus dès que le bas de la liste entre dans la fenêtre (`IntersectionObserver`) ou au bouton « Voir 10 de plus (n
+restantes) » ; retour aux dix premières quand la période change.
 
 **Homonymes (site, 9 novembre 2026)** : un membre a rejoué un personnage du même prénom que son main, avec un autre
 nom de famille, et le site le refusait (« existe déjà sur le site ») : l'unicité et le contrôle d'homonymie ne
