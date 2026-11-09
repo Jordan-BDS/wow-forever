@@ -96,6 +96,10 @@ ns.Data.DEATH_PREFIX = "D\t1\t" -- message addon de mort (préfixe WFG, canal de
 ns.Data.WANTED_TTL = 300 -- s : la tête de mort reste sur la carte 5 min là où l'ennemi a tué un membre (décision du 9 novembre 2026)
 ns.Data.WANTED_VICTIMS = 20 -- dernières victimes gardées par ennemi (sert aussi au dédoublonnage)
 ns.Data.WANTED_MAX = 200 -- ennemis gardés : au-delà, les primes les plus faibles et les plus anciennes sautent
+ns.Data.WANTED_KILL_DEDUPE = 60 -- s : deux kills du même ennemi à moins de ce délai (le groupe, l'écho) comptent une fois
+ns.Data.WANTED_HANDSHAKE_DELAY = 8 -- s après la connexion avant de demander le tableau aux guildiens
+ns.Data.WANTED_ANSWER_SPREAD = 5 -- s : la réponse part entre 1 et 1 + ce délai, et seulement si personne n'a répondu
+ns.Data.WANTED_DIGEST_MAX = 40 -- ennemis dans le résumé envoyé à un membre qui se connecte
 
 -- Partage de position (messages addon, préfixe enregistré auprès du client).
 ns.Data.ADDON_PREFIX = "WFG"

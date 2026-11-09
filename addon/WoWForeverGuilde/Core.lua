@@ -125,6 +125,7 @@ local PROBES = {
     "C_ChatInfo.SendAddonMessage", "IsInGuild", "GetNumGuildMembers", "GetGuildRosterInfo",
   } },
   { "mort", { "C_DeathInfo.GetDeathRecapEvents", "GetDeathRecapEvents", "GetDeathRecapLink" } },
+  { "wanted", { "UnitIsPlayer", "COMBATLOG_HONORGAIN", "COMBATLOG_HONORGAIN_NO_RANK", "COMBATLOG_XPGAIN_FIRSTPERSON" } },
 }
 
 local function resolve(path)
@@ -163,6 +164,10 @@ function ns.Diagnostic()
     map and string.format("carte %s%s", tostring(map), x and string.format(" (%.2f, %.2f)", x, y) or " sans coordonnées") or "illisible",
     pins and "bibliothèque chargée" or "bibliothèque absente",
     (ns.DeathSource and ns.DeathSource()) or "aucune mort cette session")
+  -- Chaîne de victoire honorable du client, telle que lue pour détecter les kills de joueurs (Wanted).
+  lines[#lines + 1] = string.format("victoire honorable · chaîne : %s · motif : %s",
+    type(COMBATLOG_HONORGAIN) == "string" and COMBATLOG_HONORGAIN or "absente",
+    (ns.Wanted and ns.Wanted.HonorPatterns and table.concat(ns.Wanted.HonorPatterns(), " | ")) or "aucun")
   for _, line in ipairs(lines) do ns.Print(line) end
   local client = ""
   if type(GetBuildInfo) == "function" then

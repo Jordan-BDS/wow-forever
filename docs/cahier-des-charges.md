@@ -1365,7 +1365,7 @@ l'affichage doit le dire.
 | Lot | Contenu | Dépendance |
 |---|---|---|
 | 1, addon | « D » enrichi, tableau local, avis de décès avec prime, tête de mort sur la carte, `/mf wanted` | aucune, API déjà validées — ✅ addon 0.5.0 (9 novembre 2026) |
-| 2, addon | détection des kills, message « K », toast « Abattu », poignée de main « W » | message de victoire honorable à vérifier en jeu |
+| 2, addon | détection des kills, message « K », toast « Abattu », poignée de main « W » | message de victoire honorable à vérifier en jeu — ✅ addon 0.6.0 (9 novembre 2026), chaîne à confirmer |
 | 3, site | import des nouveaux événements, cartes Classements et accueil, Roxor, retour par le compagnon, retrait GM | lots 1 et 2 |
 
 **Décidé le 9 novembre 2026** : pas de remise à zéro de la prime quand l'ennemi est abattu ; crédit à tout le groupe ;
@@ -1386,6 +1386,25 @@ et la minimap, qui pâlit (100 % → 40 %) puis disparaît après 5 min ; infobu
 Le compagnon conserve `db.wanted` quand il recopie l'état du site (il ne touche qu'aux personnages). Testé dans
 l'environnement simulé (`test_addon.py`, classe `TestWanted`) ; à valider en jeu : `UnitIsPlayer` et `UnitClass` sur
 une cible adverse hors combat, et la texture du marqueur de raid sur le client Forever.
+
+**Réalisation du lot 2 (addon 0.6.0, 9 novembre 2026)** : les kills de joueurs viennent du **message de chat de
+victoire honorable** (`CHAT_MSG_COMBAT_HONOR_GAIN`), le motif étant construit depuis la chaîne du client
+(`COMBATLOG_HONORGAIN`, « %s meurt, victoire honorable Rang : %s (…) », et `COMBATLOG_HONORGAIN_NO_RANK`) comme pour
+les créatures tuées ; `/mf api` affiche la chaîne et le motif (groupe « wanted » de la sonde, avec `UnitIsPlayer`).
+Chaque kill est un événement `pk` du journal (nom, prime encaissée = prime de l'ennemi à ce moment, carte, x, y, zone)
+et incrémente les compteurs `pk` et `bounty` (somme des primes), que le site lira au lot 3 pour les chasseurs de primes
+par différence de compteurs, comme les autres classements. L'ennemi est reconnu par son nom exact, ou par le prénom
+seul s'il est unique au tableau (le message peut ne donner que le prénom là où le récapitulatif donnait prénom et
+nom). S'il est recherché : kill au tableau, dédoublonné à la minute par ennemi (tout le groupe reçoit le message et
+envoie son « K », l'écho du sien aussi), **message « K »** aux guildiens (chasseur, ennemi, prime, kills, heure,
+position, zone), **toast or « Prime encaissée »** avec une phrase troll (`BOUNTY_PHRASES`, variables `{chasseur}`,
+`{ennemi}`, `{prime}`, `{zone}`), ligne de chat, tête de mort déplacée là où il est tombé (infobulle « abattu par X
+ici »). Un « K » reçu pour un ennemi inconnu le crée avec la prime annoncée. **Poignée de main « W »** : 8 s après la
+connexion, demande « W » sur le canal de guilde ; chaque membre qui a un tableau répond après 1 à 6 s au hasard, sauf
+si un résumé est déjà passé ; le résumé tient en lignes de 255 octets (nom, classe, prime, kills, dernière heure,
+carte, x, y par ennemi, 40 ennemis au plus, primes fortes d'abord) ; le receveur garde le **maximum** de chaque valeur
+et la position la plus récente (« vu pour la dernière fois »). Testé dans l'environnement simulé (`TestWantedKills`).
+À valider en jeu : la chaîne exacte de victoire honorable sur Forever et l'arrivée du message pour un kill du groupe.
 
 ### Confidentialité et confiance
 

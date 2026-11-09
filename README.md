@@ -91,7 +91,9 @@ seul. Cahier des charges, étape 11.
   l'aide manuel (bouton ou `/mf sos`, jamais automatique).
 - **Wanted** : un joueur adverse qui tue un membre prend un point de prime, jamais remis à zéro ; l'avis de décès
   porte la prime, une tête de mort rouge marque 5 min sur la carte l'endroit où il a frappé, et `/mf wanted` liste les
-  têtes mises à prix. Tout circule par les mêmes messages addon de guilde ; le site suivra (lot 3).
+  têtes mises à prix. Quand un membre (ou son groupe) abat un recherché, lu dans le message de victoire honorable,
+  tout le monde a le toast « Prime encaissée » et la tête de mort se déplace ; à la connexion, un guildien transmet
+  le tableau à celui qui arrive. Tout circule par les mêmes messages addon de guilde ; le site suivra (lot 3).
 - **Tests hors du jeu** : l'addon tourne dans un environnement WoW simulé (`backend/apps/gamesync/wow_stub.lua`)
   via `lupa` (Lua 5.1, comme le client) : `cd backend && uv run pytest apps/gamesync/test_addon.py`. Une session
   complète y est jouée et le code produit est décodé puis importé par le site.

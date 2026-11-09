@@ -397,8 +397,14 @@ function MapUI.ShowWantedTooltip(entry, owner)
   if (entry.kills or 0) > 0 then GameTooltip:AddLine(string.format(L.WANTED_KILLED_BY_GUILD, entry.kills), 0.6, 0.8, 1) end
   local last = entry.last
   if last then
-    local victim = ns.ClassColored(last.victim or "?", last.victimClass)
-    GameTooltip:AddLine(string.format(L.WANTED_HERE, victim, ns.UI.Ago(last.t)), 0.85, 0.85, 0.85)
+    if last.kind == "kill" then
+      GameTooltip:AddLine(string.format(L.WANTED_KILLED_HERE, ns.ClassColored(last.by or "?", last.byClass), ns.UI.Ago(last.t)), 0.6, 0.9, 0.6)
+    elseif last.kind == "seen" then
+      GameTooltip:AddLine(string.format(L.WANTED_LAST_SEEN, ns.UI.Ago(last.t)), 0.85, 0.85, 0.85)
+    else
+      local victim = ns.ClassColored(last.victim or "?", last.victimClass)
+      GameTooltip:AddLine(string.format(L.WANTED_HERE, victim, ns.UI.Ago(last.t)), 0.85, 0.85, 0.85)
+    end
     local place = ns.Wanted.Where(entry)
     if place ~= "" then GameTooltip:AddLine(place, 0.6, 0.6, 0.6) end
   end

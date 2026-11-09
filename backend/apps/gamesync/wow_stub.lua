@@ -45,6 +45,8 @@ function GetNumGroupMembers() return 0 end
 _TARGET = nil -- { name = "Garrosh", class = "WARRIOR", player = true, hostile = true }
 COMBATLOG_XPGAIN_FIRSTPERSON = "%s meurt, vous gagnez %d points d'expérience."
 COMBATLOG_XPGAIN_FIRSTPERSON_GROUP = "%s meurt, vous gagnez %d points d'expérience. (+%d bonus de groupe)"
+COMBATLOG_HONORGAIN = "%s meurt, victoire honorable Rang : %s (Points d'honneur estimés : %d)"
+COMBATLOG_HONORGAIN_NO_RANK = "%s meurt, victoire honorable (Points d'honneur estimés : %d)"
 function UnitCanAttack(a, b) return b == "target" and _TARGET ~= nil and _TARGET.hostile == true end
 function UnitExists(unit) return unit == "target" and _TARGET ~= nil end
 function UnitIsInMyGuild() return false end

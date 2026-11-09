@@ -61,6 +61,16 @@ def logout_code(lua: LuaRuntime) -> str:
     return g.WoWForeverGuildeDB.export
 
 
+def addon_sent(g) -> list:
+    """Messages addon envoyés, sans la demande de tableau Wanted (« W », 8 s après la connexion)."""
+    return [s for s in g._ADDON_SENT.values() if not s.text.startswith("W\t")]
+
+
+def wanted_sent(g, kind: str) -> list[str]:
+    """Textes des messages Wanted envoyés d'un type donné (« K » kill, « W » poignée de main)."""
+    return [s.text for s in g._ADDON_SENT.values() if s.text.startswith(kind + "\t")]
+
+
 class TestLoading:
     def test_every_lua_file_is_listed_in_the_toc_and_loads(self):
         listed = set(toc_files())
@@ -258,14 +268,14 @@ class TestSession:
         # Sans guilde : rien ne part (le client moderne interdit les canaux de chat aux addons).
         g._FIRE("PLAYER_DEAD")
         g._ADVANCE(1)
-        assert list(g._ADDON_SENT.values()) == []
+        assert addon_sent(g) == []
         lua.execute("_GUILD = true")
         # Le tueur est la cible hostile au moment de mourir (pas de journal de combat sur Forever).
         lua.execute("_TARGET = { name = 'Sanglier des Tarides', hostile = true }")
         g._FIRE("PLAYER_DEAD")
         lua.execute("_TARGET = nil")
         g._ADVANCE(1)
-        (sent,) = list(g._ADDON_SENT.values())
+        (sent,) = addon_sent(g)
         assert (sent.prefix, sent.kind) == ("WFG", "GUILD")
         assert sent.text.startswith(
             "D\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tSHAMAN\t60\tSanglier des Tarides\tForêt d'Elwynn\t"
@@ -297,7 +307,7 @@ class TestSession:
         lua.execute("WoWForeverGuildeDB.settings.announceDeaths = false")
         g._FIRE("PLAYER_DEAD")
         g._ADVANCE(1)
-        assert len([s for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]) == 1
+        assert len([s for s in addon_sent(g) if s.text.startswith("D\t")]) == 1
 
     def test_death_is_still_announced_when_the_game_hides_values_in_combat(self):
         # Valeurs « secrètes » (zone, nom de la cible) au moment de mourir : rien ne doit faire sauter l'annonce.
@@ -308,7 +318,7 @@ class TestSession:
         g._FIRE("PLAYER_DEAD")
         lua.execute("_ZONE = nil; _TARGET = nil")
         g._ADVANCE(1)
-        (sent,) = list(g._ADDON_SENT.values())
+        (sent,) = addon_sent(g)
         assert sent.text.startswith(
             "D\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tSHAMAN\t60\tquelque chose\t\t\t"
         )
@@ -333,7 +343,7 @@ class TestSession:
         lua.execute("_TARGET = nil")  # le client vide la cible à la mort
         g._FIRE("PLAYER_DEAD")
         g._ADVANCE(1)
-        deaths = [s.text for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]
+        deaths = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         assert len(deaths) == 1 and "\tLoup des Tarides\t" in deaths[0]
         assert g._NS.DeathSource() == "tueur d'après mémoire (récap absent)"
         # Un souvenir trop vieux, sans combat entre-temps, ne compte pas ; une cible amicale n'est jamais retenue.
@@ -346,7 +356,7 @@ class TestSession:
         lua.execute("_TARGET = nil")
         g._FIRE("PLAYER_DEAD")
         g._ADVANCE(1)
-        deaths = [s.text for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]
+        deaths = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         assert len(deaths) == 1 and "\tquelque chose\t" in deaths[0]
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
@@ -367,7 +377,7 @@ class TestSession:
         g._ADVANCE(1)
         g._FIRE("PLAYER_DEAD")  # deuxième : une chute
         g._ADVANCE(1)
-        deaths = [s.text for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]
+        deaths = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         assert "\tMajordome Executus\t" in deaths[0] and "\tune chute\t" in deaths[1]
         events = g._NS.char.events
         assert events[1].killer == "Majordome Executus" and events[1].env is None
@@ -870,10 +880,10 @@ class TestPositions:
         login(lua)
         assert g._PREFIXES["WFG"] is True
         # Sans guilde : rien ne part, le client moderne interdit les canaux de chat aux addons.
-        assert list(g._ADDON_SENT.values()) == []
+        assert addon_sent(g) == []
         lua.execute("_GUILD = true")
         g._ADVANCE(10)
-        (first,) = list(g._ADDON_SENT.values())
+        (first,) = addon_sent(g)
         # Nom complet, classe, niveau, carte, coordonnées, zone, talents, sur le canal de guilde.
         assert (first.prefix, first.kind) == ("WFG", "GUILD")
         assert (
@@ -882,31 +892,28 @@ class TestPositions:
         )
         # Immobile : rien de plus à la lecture suivante.
         g._ADVANCE(10)
-        assert len(list(g._ADDON_SENT.values())) == 1
+        assert len(addon_sent(g)) == 1
         # Déplacé : nouvel envoi.
         lua.execute("_MAP.x = 0.52")
         g._ADVANCE(10)
-        second = list(g._ADDON_SENT.values())[-1]
+        second = addon_sent(g)[-1]
         assert second.kind == "GUILD" and "\t0.5200\t" in second.text
         # Changement de zone : envoi 2 s plus tard, même en combat.
         lua.execute("_COMBAT = true; _ZONE = 'Marais des Chagrins'")
         g._FIRE("ZONE_CHANGED_NEW_AREA")
         g._FIRE("ZONE_CHANGED")
         g._ADVANCE(2)
-        assert (
-            len(list(g._ADDON_SENT.values())) == 3
-            and "Marais des Chagrins" in list(g._ADDON_SENT.values())[-1].text
-        )
+        assert len(addon_sent(g)) == 3 and "Marais des Chagrins" in addon_sent(g)[-1].text
         lua.execute("_COMBAT = false")
         # Immobile : battement de cœur au bout de 60 s.
         g._ADVANCE(50)
-        assert len(list(g._ADDON_SENT.values())) == 3
+        assert len(addon_sent(g)) == 3
         g._ADVANCE(10)
-        assert len(list(g._ADDON_SENT.values())) == 4
+        assert len(addon_sent(g)) == 4
         # En instance (pas de coordonnées) : carte seule.
         lua.execute("_MAP.x = nil; _INSTANCE = 'party'")
         g._ADVANCE(10)
-        assert list(g._ADDON_SENT.values())[-1].text.split("\t")[6:9] == ["1429", "", ""]
+        assert addon_sent(g)[-1].text.split("\t")[6:9] == ["1429", "", ""]
         assert len(list(g.WoWForeverGuildeDB.errors.values())) == 0, list(
             g.WoWForeverGuildeDB.errors.values()
         )
@@ -1041,17 +1048,17 @@ class TestPositions:
         receive(lua, JAINA)
         g._NS.Positions.SetSharing(False)
         assert g.WoWForeverGuildeDB.settings.sharePosition is False
-        assert list(g._ADDON_SENT.values())[-1].text == "L\t1\tPlayer-1-000ABC01"
+        assert addon_sent(g)[-1].text == "L\t1\tPlayer-1-000ABC01"
         assert list(g._NS.Positions.peers.items()) == [] and list(g._PINS.added.items()) == []
         assert any("Position masquée" in m for m in list(g._CHAT.values()))
         receive(lua, JAINA)
         g._ADVANCE(60)
-        assert list(g._NS.Positions.peers.items()) == [] and len(list(g._ADDON_SENT.values())) == 2
+        assert list(g._NS.Positions.peers.items()) == [] and len(addon_sent(g)) == 2
         g._NS.Positions.SetSharing(True)
-        assert list(g._ADDON_SENT.values())[-1].text.startswith("P\t1\tPlayer-1-000ABC01\t")
+        assert addon_sent(g)[-1].text.startswith("P\t1\tPlayer-1-000ABC01\t")
         # Déconnexion : on prévient les autres.
         g._FIRE("PLAYER_LOGOUT")
-        assert list(g._ADDON_SENT.values())[-1].text == "L\t1\tPlayer-1-000ABC01"
+        assert addon_sent(g)[-1].text == "L\t1\tPlayer-1-000ABC01"
 
     def test_lfg_flag_travels_with_the_position_and_shows_in_tooltip_and_list(self):
         lua = boot()
@@ -1060,7 +1067,7 @@ class TestPositions:
         login(lua)
         lua.execute(FAKE_PINS)
         g.SlashCmdList.WOWFOREVERGUILDE("lfg Gnomeregan ce soir")
-        assert list(g._ADDON_SENT.values())[-1].text.endswith("\tAmélioration 0/8/1\tGnomeregan ce soir")
+        assert addon_sent(g)[-1].text.endswith("\tAmélioration 0/8/1\tGnomeregan ce soir")
         assert any("Gnomeregan ce soir" in m for m in list(g._CHAT.values()))
         receive(lua, JAINA + "\tStratholme")
         peer = g._NS.Positions.peers["Player-1-00000JAI"]
@@ -1068,9 +1075,7 @@ class TestPositions:
         g._NS.MapUI.ShowTooltip(peer, None)
         assert "cherche groupe : Stratholme" in list(g.GameTooltip.lines.values())
         g.SlashCmdList.WOWFOREVERGUILDE("lfg")
-        assert g._NS.Positions.lfg is None and list(g._ADDON_SENT.values())[-1].text.endswith(
-            "\tAmélioration 0/8/1\t"
-        )
+        assert g._NS.Positions.lfg is None and addon_sent(g)[-1].text.endswith("\tAmélioration 0/8/1\t")
         # Liste : section « Cherchent un groupe » en tête, puis les zones (la mienne d'abord), sans les hors-ligne ni moi.
         g.SlashCmdList.WOWFOREVERGUILDE("qui")
         frame = g.WoWForeverGuildeRoster
@@ -1106,17 +1111,17 @@ class TestPositions:
         lua.execute("_GUILD = true")  # les messages addon passent par le canal de guilde
         login(lua)
         lua.execute(FAKE_PINS)
-        sent_before = len(list(g._ADDON_SENT.values()))
+        sent_before = len(addon_sent(g))
         # Un joueur hostile me frappe hors instance : rien ne part tout seul (ça spammerait en zone contestée).
         lua.execute(
             "_CLEU = { 0, 'SWING_DAMAGE', false, 'Player-1-00000EVIL', 'Garrosh', 0x548, 0, 'Player-1-000ABC01', 'Thrall', 0x511, 0, 120 }"
         )
         g._FIRE("COMBAT_LOG_EVENT_UNFILTERED")
-        assert len(list(g._ADDON_SENT.values())) == sent_before
+        assert len(addon_sent(g)) == sent_before
         # /mf sos avec un joueur ciblé : appel avec son nom et sa classe.
         lua.execute("_TARGET = { name = 'Garrosh', class = 'WARRIOR', player = true }")
         g.SlashCmdList.WOWFOREVERGUILDE("sos")
-        sent = list(g._ADDON_SENT.values())
+        sent = addon_sent(g)
         assert len(sent) == sent_before + 1
         assert (
             sent[-1].text
@@ -1126,13 +1131,13 @@ class TestPositions:
         # Un seul appel par minute : le second est refusé avec le délai restant.
         g._ADVANCE(10)
         g.SlashCmdList.WOWFOREVERGUILDE("sos")
-        assert len(list(g._ADDON_SENT.values())) == len(sent)
+        assert len(addon_sent(g)) == len(sent)
         assert any("réessaie dans 50 s" in m for m in list(g._CHAT.values()))
         # Cible monstre ou pas de cible : appel sans agresseur. Le bouton fait la même chose que la commande.
         g._ADVANCE(51)
         lua.execute("_TARGET = { name = 'Sanglier', class = nil, player = false }")
         g._NS.Positions.SOS()
-        assert list(g._ADDON_SENT.values())[-1].text.endswith("\tForêt d'Elwynn\t\t\t")
+        assert addon_sent(g)[-1].text.endswith("\tForêt d'Elwynn\t\t\t")
         # Refusé sans partage de position.
         g._ADVANCE(61)
         g._NS.Positions.SetSharing(False)
@@ -1348,7 +1353,7 @@ class TestWanted:
         lua.execute("_TARGET = nil")
         g._ADVANCE(1)
         # La ligne « D » porte, après les neuf champs d'origine : tueur joueur, sa classe, carte, x, y du mort.
-        (line,) = [s.text for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]
+        (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         fields = line.split("\t")
         assert fields[7:10] == ["Garrosh Hurlenfer", "Forêt d'Elwynn", ""]
         assert fields[11:] == ["1", "WARRIOR", "1429", "0.2500", "0.7500"]
@@ -1468,7 +1473,7 @@ class TestWanted:
         """)
         g._FIRE("PLAYER_DEAD")
         g._ADVANCE(1)
-        (line,) = [s.text for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]
+        (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         assert len(line.encode("utf-8")) <= 255
         info = g._NS.ParseDeathLine(line)
         assert (info.zone, info.sub, info.player, info.kclass, info.map) == (
@@ -1478,6 +1483,164 @@ class TestWanted:
             "WARRIOR",
             1429,
         )
+
+
+class TestWantedKills:
+    """Lot 2 : kills par la guilde (message de victoire honorable), message « K », poignée de main « W »."""
+
+    def test_honorable_kill_of_a_wanted_player_cashes_the_bounty(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+        # Garrosh a tué Jaina : prime 1.
+        receive(
+            lua,
+            f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\t\t{g._CLOCK.now}\t1\tWARRIOR\t1411\t0.4000\t0.6000",
+        )
+        entry = g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"]
+        # Je l'abats : le message de victoire honorable nomme la victime (le prénom seul suffit s'il est unique).
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
+        )
+        assert (entry.kills, entry.points) == (1, 1)
+        assert (entry.last.kind, entry.last.by, entry.last.map, entry.last.x) == (
+            "kill",
+            "Thrall Fils-de-Durotan",
+            1429,
+            0.3,
+        )
+        char = g._NS.char
+        assert (char.counters.pk, char.counters.bounty) == (1, 1)
+        pk = [e for e in char.events.values() if e.k == "pk"][-1]
+        assert (pk.name, pk.prime, pk.map, pk.zone) == ("Garrosh", 1, 1429, "Forêt d'Elwynn")
+        (k,) = wanted_sent(g, "K")
+        assert k.split("\t")[:9] == [
+            "K",
+            "1",
+            "Player-1-000ABC01",
+            "Thrall Fils-de-Durotan",
+            "SHAMAN",
+            "Garrosh Hurlenfer",
+            "1",
+            "1",
+            str(g._CLOCK.now),
+        ]
+        toast = g.WoWForeverGuildeDeath
+        assert (
+            toast.shown is True
+            and "Prime encaissée" in toast.header.text
+            and "Garrosh Hurlenfer" in toast.text.text
+        )
+        assert (
+            toast.footer.text
+            == "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffGarrosh Hurlenfer|r · 1 point · Forêt d'Elwynn"
+        )
+        assert any("Prime :" in m and "a abattu" in m for m in list(g._CHAT.values()))
+        # La tête de mort suit : là où il est tombé.
+        ((icon, pin),) = list(g._PINS.added.items())
+        assert (pin.map, pin.x, pin.y) == (1429, 0.3, 0.3)
+        g._NS.MapUI.ShowWantedTooltip(entry, icon)
+        lines = list(g.GameTooltip.lines.values())
+        assert lines[1:3] == ["WARRIOR · prime 1", "abattu 1 fois par la guilde"]
+        assert (
+            lines[3] == "abattu par |cff0070ddThrall Fils-de-Durotan|r ici · à l'instant"
+            and lines[5] == "Victimes : Jaina"
+        )
+        # Crédit de groupe : l'écho de mon « K » et celui d'un coéquipier pour le même kill ne comptent pas deux fois.
+        receive(lua, k, "Thrall-Forever")
+        receive(
+            lua,
+            f"K\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\tGarrosh Hurlenfer\t1\t1\t{g._CLOCK.now}\t1429\t0.3000\t0.3000\tForêt d'Elwynn\t\tWARRIOR",
+        )
+        assert entry.kills == 1
+        # Un joueur qui n'est pas recherché : événement pk sans prime, rien d'envoyé, pas de toast.
+        toast.shown = False
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN", "Sylvanas meurt, victoire honorable (Points d'honneur estimés : 50)"
+        )
+        assert (char.counters.pk, char.counters.bounty, toast.shown) == (2, 1, False)
+        assert len(wanted_sent(g, "K")) == 1 and "sylvanas" not in dict(g.WoWForeverGuildeDB.wanted)
+        # Un « K » d'un guildien pour un ennemi que je ne connaissais pas : créé avec sa prime, toast.
+        receive(
+            lua,
+            f"K\t1\tPlayer-1-00000UTH\tUther Lumière\tPALADIN\tVol'jin\t3\t1\t{g._CLOCK.now}\t1411\t0.1000\t0.2000\tDurotar\tOrgrimmar\tSHAMAN",
+            "Uther-Forever",
+        )
+        voljin = g.WoWForeverGuildeDB.wanted["vol'jin"]
+        assert (voljin.points, voljin.kills, voljin["class"], voljin.last.by) == (
+            3,
+            1,
+            "SHAMAN",
+            "Uther Lumière",
+        )
+        assert toast.shown is True and toast.footer.text.endswith("· 3 points · Durotar")
+        # Les motifs viennent des chaînes du jeu (avec et sans rang).
+        patterns = list(g._NS.Wanted.HonorPatterns().values())
+        assert patterns[0] == "^(.-) meurt, victoire honorable Rang : " and patterns[1].startswith(
+            "^(.-) meurt, victoire honorable %("
+        )
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+        # L'export porte les événements pk et les compteurs ; le site en fera les chasseurs de primes.
+        payload = decode_export(logout_code(lua))
+        c = payload["characters"][0]
+        assert c["counters"]["pk"] == 2 and c["counters"]["bounty"] == 1
+        assert [(e["name"], e["prime"]) for e in c["events"] if e["k"] == "pk"] == [
+            ("Garrosh", 1),
+            ("Sylvanas", 0),
+        ]
+
+    def test_handshake_shares_the_table_with_a_member_who_logs_in(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        g._ADVANCE(1)  # 8 s après la connexion : je demande le tableau
+        assert wanted_sent(g, "W") == ["W\t1"]
+        # Je connais deux ennemis ; un membre se connecte et demande : je réponds entre 1 et 6 s, en une ligne.
+        receive(
+            lua,
+            f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\t\t{g._CLOCK.now}\t1\tWARRIOR\t1411\t0.4000\t0.6000",
+        )
+        receive(
+            lua,
+            f"D\t1\tPlayer-1-00000UTH\tUther\tLumière\tPALADIN\t58\tVol'jin\tDurotar\t\t{g._CLOCK.now - 100}\t1\tSHAMAN\t1411\t0.1000\t0.2000",
+            "Uther-Forever",
+        )
+        receive(lua, "W\t1")
+        g._ADVANCE(7)
+        digests = [t for t in wanted_sent(g, "W") if t != "W\t1"]
+        assert len(digests) == 1
+        items = digests[0].split("\t")[2:]
+        assert items[0].startswith("Garrosh Hurlenfer|WARRIOR|1|0|") and items[1].startswith(
+            "Vol'jin|SHAMAN|1|0|"
+        )
+        # Quelqu'un répond avant moi : je me tais ; son résumé relève Garrosh au maximum de chaque valeur.
+        lua.execute("_ADDON_SENT = {}")
+        receive(lua, "W\t1")
+        receive(
+            lua, f"W\t1\tGarrosh Hurlenfer|WARRIOR|4|2|{g._CLOCK.now}|1411|0.5000|0.5000", "Uther-Forever"
+        )
+        g._ADVANCE(7)
+        assert wanted_sent(g, "W") == []
+        garrosh = g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"]
+        assert (garrosh.points, garrosh.kills, garrosh.last.kind, garrosh.last.x) == (4, 2, "seen", 0.5)
+        rows = list(g._NS.WantedUI.Lines().values())
+        assert (
+            "prime 4" in rows[1].text
+            and "abattu 2 fois" in rows[1].text
+            and "vu pour la dernière fois" in rows[1].text
+        )
+        # Résumé long : découpé en lignes de 255 octets au plus, toutes décodables.
+        lua.execute(
+            f"for i = 1, 30 do _NS.Wanted.RecordDeath({{ player = true, killer = 'Ennemi numéro ' .. i, guid = 'G' .. i, name = 'V', t = {g._CLOCK.now} + i }}) end"
+        )
+        lines = list(g._NS.Wanted.EncodeDigest().values())
+        assert len(lines) > 1 and all(len(line.encode("utf-8")) <= 255 for line in lines)
+        assert sum(len(list(g._NS.Wanted.DecodeDigest(line)["items"].values())) for line in lines) == 32
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
 
 class TestPureModules:

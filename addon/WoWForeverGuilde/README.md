@@ -47,8 +47,17 @@ transporte le code jusqu'au site.
   une ligne de chat, et une **tête de mort rouge** (8e marqueur de raid, prime en chiffre) sur la carte et la minimap
   là où il a frappé, qui pâlit puis disparaît après 5 min. Fenêtre `/mf wanted` (bouton dans `/mf`) : ennemis par
   prime décroissante, dernière victime, lieu, âge ; survol : la même infobulle que sur la carte. Réglage « Alertes
-  Wanted ». À venir : détection des kills par la guilde (message de victoire honorable) et poignée de main entre
-  clients (lot 2), tableau et Roxor « Chasseur de primes » sur le site (lot 3).
+  Wanted ». **Kills par la guilde** (lot 2, 0.6.0) : le journal de combat étant interdit, c'est le **message de chat de
+  victoire honorable** (`CHAT_MSG_COMBAT_HONOR_GAIN`, motif construit depuis `COMBATLOG_HONORGAIN` et sa variante sans
+  rang, affiché par `/mf api`) qui nomme le joueur abattu ; tout le groupe le reçoit (crédit de groupe). Chaque kill de
+  joueur est un événement `pk` du journal avec la prime encaissée (compteurs `pk` et `bounty`, d'où les chasseurs de
+  primes du site) ; si l'ennemi est recherché (nom exact, ou prénom seul s'il est unique au tableau) : kill au tableau
+  (dédoublonné à la minute par ennemi : coéquipiers, écho), message « K » aux guildiens, toast or « Prime encaissée »
+  avec une phrase troll (`Phrases.lua`, `{chasseur}`, `{ennemi}`, `{prime}`, `{zone}`), tête de mort déplacée là où il
+  est tombé. **Poignée de main « W »** : 8 s après la connexion on demande le tableau ; un membre répond avec un résumé
+  (nom, classe, prime, kills, dernière position ; lignes de 255 octets, 40 ennemis au plus) après un délai aléatoire
+  de 1 à 6 s, sauf si quelqu'un a déjà répondu ; le receveur garde le maximum de chaque valeur. À venir : tableau et
+  Roxor « Chasseur de primes » sur le site (lot 3).
 - `RosterUI.lua` : liste « Guilde en jeu » (`/mf qui`) : membres en ligne par zone d'après le roster de guilde (même
   sans addon), enrichis des positions reçues ; section « Cherchent un groupe » ; clic → même menu que la carte.
 - `Libs/` : LibStub, LibDeflate (export), CallbackHandler-1.0 et HereBeDragons-2.0 (+ Pins) pour la carte ;

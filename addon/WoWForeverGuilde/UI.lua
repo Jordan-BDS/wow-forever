@@ -83,10 +83,11 @@ UI.MakeCheck = makeCheck
 -- --- fenêtre principale ---------------------------------------------------------------------------
 
 local main
-local STATUS_ORDER = { "identity", "talents", "professions", "reputation", "pvp", "pve", "gathering" }
+local STATUS_ORDER = { "identity", "talents", "professions", "reputation", "pvp", "pve", "gathering", "wanted" }
 local STATUS_LABEL = {
   identity = L.STATUS_IDENTITY, talents = L.STATUS_TALENTS, professions = L.STATUS_PROFESSIONS,
   reputation = L.STATUS_REPUTATION, pvp = L.STATUS_PVP, pve = L.STATUS_PVE, gathering = L.STATUS_GATHERING,
+  wanted = L.STATUS_WANTED,
 }
 
 local function collector(name)
@@ -412,4 +413,11 @@ end
 --- Appel à l'aide d'un membre dans ma zone.
 function UI.ShowAlert(peer, text)
   UI.ShowToast(L.ALERT_HEADER, text, ns.Positions.Where(peer), { 1, 0.62, 0.2 }, true)
+end
+
+--- Prime encaissée : un recherché abattu par un membre (moi ou un autre). Or, son si les morts en ont un.
+function UI.ShowBounty(entry, phrase, by, byClass, prime, place)
+  local footer = string.format(L.BOUNTY_FOOTER, ns.ClassColored(by, byClass), ns.ClassColored(entry.name, entry.class),
+    string.format(prime > 1 and L.POINTS_PLURAL or L.POINTS_SINGULAR, prime), place ~= "" and place or L.WHERE_UNKNOWN)
+  UI.ShowToast(L.BOUNTY_HEADER, phrase, footer, { 1, 0.82, 0 }, ns.db.settings.soundDeaths)
 end

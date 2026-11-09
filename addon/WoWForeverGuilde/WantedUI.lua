@@ -22,8 +22,14 @@ local function line(entry)
   local last = entry.last
   if last then
     local place = ns.Wanted.Where(entry)
-    parts[#parts + 1] = "|cffbcbcbc" .. string.format(L.WANTED_LAST, ns.ClassColored(last.victim or "?", last.victimClass),
-      place ~= "" and place or L.WHERE_UNKNOWN, ns.UI.Ago(last.t)) .. "|r"
+    place = place ~= "" and place or L.WHERE_UNKNOWN
+    if last.kind == "kill" then
+      parts[#parts + 1] = "|cff9ad19a" .. string.format(L.WANTED_LAST_KILL, ns.ClassColored(last.by or "?", last.byClass), place, ns.UI.Ago(last.t)) .. "|r"
+    elseif last.kind == "seen" then
+      parts[#parts + 1] = "|cffbcbcbc" .. string.format(L.WANTED_LAST_SEEN, ns.UI.Ago(last.t)) .. "|r"
+    else
+      parts[#parts + 1] = "|cffbcbcbc" .. string.format(L.WANTED_LAST, ns.ClassColored(last.victim or "?", last.victimClass), place, ns.UI.Ago(last.t)) .. "|r"
+    end
   end
   return "  " .. table.concat(parts, " · ")
 end

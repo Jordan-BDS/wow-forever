@@ -24,3 +24,18 @@ ns.PHRASES = {
   "{tueur} fait savoir que {personnage} est en fantôme dans {zone}. Venez le rez si ça vous chante.",
   "Niveau {niveau} et toujours pas à l'abri de {tueur} : {personnage} vient de le prouver dans {zone}.",
 }
+
+-- Gabarits des primes encaissées (un recherché abattu par un membre). Variables : {chasseur}, {ennemi}, {prime}
+-- (« 3 points »), {zone}.
+ns.BOUNTY_PHRASES = {
+  "{chasseur} vient d'encaisser la prime sur {ennemi} ({prime}) dans {zone}. Justice est faite.",
+  "{ennemi} a enfin trouvé plus fort que lui : {chasseur}. {prime} de prime encaissés dans {zone}.",
+  "Avis à la population : {ennemi} a été abattu par {chasseur} dans {zone}. Sa tête valait {prime}.",
+  "{chasseur} 1 – {ennemi} 0. Une prime de {prime} change de mains dans {zone}.",
+  "Wanted, mort ou vif : {ennemi} a choisi mort. Merci {chasseur}, {prime} au tableau de chasse.",
+  "{ennemi} a croisé {chasseur} dans {zone}. Le cimetière, c'est par là. Prime : {prime}.",
+  "Tête mise à prix, tête tombée : {ennemi} par {chasseur}, {prime} encaissés.",
+  "{chasseur} rappelle à {ennemi} que la guilde a de la mémoire. {prime}, {zone}.",
+  "{ennemi} voulait une revanche. {chasseur} a livré, dans {zone}. {prime} de prime.",
+  "Le mandat d'arrêt contre {ennemi} a été exécuté par {chasseur}. Honoraires : {prime}.",
+}
