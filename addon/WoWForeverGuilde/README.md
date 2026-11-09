@@ -42,7 +42,9 @@ transporte le code jusqu'au site.
   ou le champ de la liste) diffusée avec la position. Appel à l'aide : **manuel seulement** (bouton dans `/mf` et
   dans la liste, ou `/mf sos` ; la cible est nommée si c'est un joueur), jamais automatique pour ne pas spammer en
   zone contestée ; un envoi par minute ; chez les autres, toast et son dans la même zone, ligne de chat ailleurs,
-  anneau rouge sur le point 2 min.
+  anneau rouge sur le point 2 min. La ligne « P » porte la version de l'addon (0.6.2) : une version plus récente
+  vue chez un guildien donne une ligne de chat puis, hors combat et hors instance, le popup « Recharger (/reload) »,
+  une fois par version et par session.
 - `Wanted.lua`, `WantedUI.lua` : têtes mises à prix (lot 1, 0.5.0). Un joueur adverse qui tue un membre prend un point
   de prime, jamais remis à zéro ; le tableau (`db.wanted`, niveau compte) se nourrit des messages « D » reçus, la
   sienne comprise (l'écho du jeu est reconnu comme doublon : même victime, même heure). La ligne « D » porte depuis la

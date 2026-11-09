@@ -1221,6 +1221,14 @@ lu (identifiant, nom, événement) et ce que le collecteur en a fait, `/mf trace
 butins comptés ou refusés ; l'étape « Récolte » des Tests en jeu dit quoi vérifier. Sans accès au client, la cause
 exacte reste à confirmer en jeu avec ces deux commandes.
 
+**Popup de mise à jour (addon 0.6.2, 9 novembre 2026)** : le compagnon se met à jour seul (au lancement puis toutes
+les heures) et recopie l'addon embarqué dans le dossier du jeu, mais le client ne charge la nouvelle version qu'au
+`/reload` ou à la reconnexion. La position partagée porte désormais la **version de l'addon** (14e champ de la ligne
+« P », ignoré par les anciennes versions) ; quand un guildien connecté a une version plus récente que la mienne, une
+ligne de chat le dit tout de suite, puis un popup « Recharger (/reload) / Plus tard » s'ouvre dès qu'on est hors
+combat et hors instance (`ReloadUI` est refusé en combat), une fois par version et par session. Sans compagnon, le
+message rappelle le zip du site.
+
 **Page Wanted (site, 9 novembre 2026)** : `/wanted` (onglet de la section Guilde, lien depuis les Classements et
 l'accueil) : par période, totaux (têtes mises à prix, points de prime, recherchés abattus, chasseurs, membres tués),
 une carte par ennemi (classe, recherché depuis, zones où il sévit, prime, abattu, victimes, dernière victime, dernier

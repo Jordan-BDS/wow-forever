@@ -243,11 +243,51 @@ local function onLogin()
   if ns.UI and ns.UI.OnLogin then ns.Safe("UI.OnLogin", ns.UI.OnLogin, entry) end
 end
 
+--- Vrai si `other` (« a.b.c ») est plus récente que `mine`. « dev » ou forme inconnue : jamais.
+function ns.VersionNewer(other, mine)
+  local function parts(v)
+    local out = {}
+    for n in tostring(v or ""):gmatch("%d+") do out[#out + 1] = tonumber(n) end
+    return out
+  end
+  local a, b = parts(other), parts(mine)
+  if #a == 0 or #b == 0 then return false end
+  for i = 1, math.max(#a, #b) do
+    local x, y = a[i] or 0, b[i] or 0
+    if x ~= y then return x > y end
+  end
+  return false
+end
+
+-- Mise à jour : un guildien annonce sa version avec sa position. Plus récente que la mienne → une ligne de chat
+-- tout de suite, puis le popup de rechargement dès qu'on est hors combat et hors instance (ReloadUI est refusé en
+-- combat), une fois par version et par session. Le compagnon a normalement déjà copié la nouvelle version dans
+-- le dossier du jeu : le /reload suffit ; sinon relancer le compagnon ou prendre le zip sur le site.
+ns.upgrade = { seen = nil, asked = {} }
+
+function ns.TryUpgradePopup()
+  local version = ns.upgrade.seen
+  if not version or ns.upgrade.asked[version] then return end
+  if ns.InCombat() or (IsInInstance and IsInInstance()) then return end
+  ns.upgrade.asked[version] = true
+  if ns.UI and ns.UI.SuggestUpgrade then ns.UI.SuggestUpgrade(version) end
+end
+
+function ns.NoticeVersion(version)
+  if not ns.VersionNewer(version, ns.VERSION) or ns.upgrade.asked[version] then return end
+  if not ns.upgrade.seen or ns.VersionNewer(version, ns.upgrade.seen) then
+    ns.upgrade.seen = version
+    ns.Print(ns.L.UPGRADE_CHAT, version, tostring(ns.VERSION))
+  end
+  ns.TryUpgradePopup()
+end
+
 function ns.Tick()
   local entry = ns.char
   if not entry then return end
   local t = ns.now()
   ns.Journal.Rollover(entry, t)
+  ns.TryUpgradePopup()
   if ns.db.settings.reloadReminder and not ns.reloadAsked and ns.UI and ns.UI.SuggestReload then
     local unsaved = t - (ns.lastWrite or ns.sessionStart or t)
     local calm = not ns.InCombat() and not (IsInInstance and IsInInstance()) and not (IsInGroup and IsInGroup())

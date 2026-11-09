@@ -104,11 +104,13 @@ local function pack(fields)
   return cut(line, 255)
 end
 
---- Ligne « P » : position, résumé de talents, recherche de groupe.
+--- Ligne « P » : position, résumé de talents, recherche de groupe, version de l'addon (0.6.2 ; les anciennes
+--- versions ignorent ce champ, les nouvelles s'en servent pour proposer un /reload à qui est en retard).
 function Positions.Encode(char, map, x, y)
   local fields = baseFields("P", char, map, x, y)
   fields[12] = field(ns.TalentSummary and ns.TalentSummary() or "")
   fields[13] = field(Positions.lfg or "")
+  fields[14] = field(ns.VERSION or "")
   return pack(fields)
 end
 
@@ -137,7 +139,7 @@ function Positions.Decode(text)
     zone = fields[10], sub = fields[11],
   }
   if kind == "P" then
-    msg.spec, msg.lfg = fields[12], fields[13] or ""
+    msg.spec, msg.lfg, msg.version = fields[12], fields[13] or "", fields[14] or ""
   else
     msg.attacker, msg.attackerClass = fields[12], fields[13] or ""
   end
@@ -310,6 +312,7 @@ local function onAddonMessage(prefix, text, channel, sender)
   if ns.MapUI then ns.MapUI.Update(peer) end
   if ns.RosterUI then ns.RosterUI.Refresh() end
   if msg.kind == "G" then announceAlert(peer) end
+  if msg.kind == "P" and msg.version ~= "" and ns.NoticeVersion then ns.Safe("upgrade.notice", ns.NoticeVersion, msg.version) end
 end
 
 local function prune()

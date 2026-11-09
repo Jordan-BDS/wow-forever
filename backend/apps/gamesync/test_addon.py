@@ -928,7 +928,7 @@ class TestPositions:
         assert (first.prefix, first.kind) == ("WFG", "GUILD")
         assert (
             first.text
-            == "P\t1\tPlayer-1-000ABC01\tThrall Fils-de-Durotan\tSHAMAN\t60\t1429\t0.5000\t0.5000\tForêt d'Elwynn\t\tAmélioration 0/8/1\t"
+            == f"P\t1\tPlayer-1-000ABC01\tThrall Fils-de-Durotan\tSHAMAN\t60\t1429\t0.5000\t0.5000\tForêt d'Elwynn\t\tAmélioration 0/8/1\t\t{toc_version()}"
         )
         # Immobile : rien de plus à la lecture suivante.
         g._ADVANCE(10)
@@ -1107,7 +1107,7 @@ class TestPositions:
         login(lua)
         lua.execute(FAKE_PINS)
         g.SlashCmdList.WOWFOREVERGUILDE("lfg Gnomeregan ce soir")
-        assert addon_sent(g)[-1].text.endswith("\tAmélioration 0/8/1\tGnomeregan ce soir")
+        assert addon_sent(g)[-1].text.endswith("\tAmélioration 0/8/1\tGnomeregan ce soir\t" + toc_version())
         assert any("Gnomeregan ce soir" in m for m in list(g._CHAT.values()))
         receive(lua, JAINA + "\tStratholme")
         peer = g._NS.Positions.peers["Player-1-00000JAI"]
@@ -1115,7 +1115,9 @@ class TestPositions:
         g._NS.MapUI.ShowTooltip(peer, None)
         assert "cherche groupe : Stratholme" in list(g.GameTooltip.lines.values())
         g.SlashCmdList.WOWFOREVERGUILDE("lfg")
-        assert g._NS.Positions.lfg is None and addon_sent(g)[-1].text.endswith("\tAmélioration 0/8/1\t")
+        assert g._NS.Positions.lfg is None and addon_sent(g)[-1].text.endswith(
+            "\tAmélioration 0/8/1\t\t" + toc_version()
+        )
         # Liste : section « Cherchent un groupe » en tête, puis les zones (la mienne d'abord), sans les hors-ligne ni moi.
         g.SlashCmdList.WOWFOREVERGUILDE("qui")
         frame = g.WoWForeverGuildeRoster
@@ -1357,6 +1359,34 @@ _NS.MapUI.UsePins(lib)
         assert len(list(g.WoWForeverGuildeDB.errors.values())) == 0, list(
             g.WoWForeverGuildeDB.errors.values()
         )
+
+    def test_newer_addon_version_seen_from_a_guildmate_suggests_a_reload(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        # Version égale, plus ancienne ou absente (ancien addon) : rien.
+        receive(lua, JAINA + "\t\t" + toc_version())  # 13e champ : recherche de groupe vide ; 14e : version
+        receive(lua, JAINA + "\t\t0.1.0")
+        receive(lua, JAINA)
+        assert g._POPUP is None and not any("disponible" in m for m in list(g._CHAT.values()))
+        # Plus récente, mais en combat : ligne de chat tout de suite, popup remis à la sortie du combat.
+        lua.execute("_COMBAT = true")
+        receive(lua, JAINA + "\t\t9.9.9")
+        assert any("Addon 9.9.9 disponible" in m and toc_version() in m for m in list(g._CHAT.values()))
+        assert g._POPUP is None
+        lua.execute("_COMBAT = false")
+        g._ADVANCE(60)
+        assert g._POPUP.which == "WFG_UPGRADE" and "9.9.9" in g._POPUP.text and toc_version() in g._POPUP.text
+        # Une seule fois par version et par session ; accepter recharge l'interface.
+        g._POPUP = None
+        receive(lua, JAINA + "\t\t9.9.9")
+        g._ADVANCE(60)
+        assert g._POPUP is None
+        g.StaticPopupDialogs.WFG_UPGRADE.OnAccept()
+        assert g._RELOADED is True
+        assert g._NS.VersionNewer("0.10.0", "0.9.9") and not g._NS.VersionNewer("dev", "0.6.1")
+        assert not g._NS.VersionNewer("0.6.1", "0.6.1") and g._NS.VersionNewer("1.0", "0.9.9.9")
 
     def test_position_line_stays_under_255_bytes_and_still_decodes(self):
         lua = boot()
