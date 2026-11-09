@@ -95,9 +95,16 @@ end
 local function rememberTarget()
   local target = readUnit("target")
   if not target then return end
+  local okDead, dead = pcall(UnitIsDeadOrGhost or function() end, "target")
+  if okDead and ns.plain(dead) == true then return end -- un cadavre n'est ni un tueur ni une cible vivante
   target.at = ns.now()
   lastHostile = target
   rememberPlayer(target, target.at)
+end
+
+--- Pour le Wanted : la dernière cible hostile lisible, ciblée vivante ({ name, player, class, at }).
+function ns.LastHostile()
+  return lastHostile
 end
 
 --- Les unités lisibles autour de moi : cible, survol, focus, cible de la cible, et les plaques de nom affichées.

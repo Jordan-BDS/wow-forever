@@ -1262,7 +1262,17 @@ lu dans les 3 s, le kill compte, nommé d'après le joueur adverse mort regardé
 de suite) si son nom est lisible, sans nom sinon (compteur et événement `pk` à nom vide, que le site ignore pour le
 tableau) ; message et compteur pour un même kill ne comptent qu'une fois, dans les deux ordres. `/mf api` affiche
 le dernier message reçu et ce qu'on en a tiré (« motif », « recherché », « compteur », « aucun joueur reconnu »,
-« (secret) »), et le compteur lu : si un kill reste muet, c'est cette ligne qu'il faut copier. Le **popup « Prime
+« (secret) »), et le compteur lu : si un kill reste muet, c'est cette ligne qu'il faut copier. Toujours muet en jeu
+avec la 0.6.4 (addon à jour, aucun popup) : la 0.6.5 ajoute un **second filet** qui ne dépend ni du message ni de
+l'honneur, pour la cible qui n'en rapporte pas ou le client qui se tait. Mon adversaire ciblé, vu vivant dans les
+dix dernières minutes (souvenir de la dernière cible hostile du collecteur des morts, qui ignore désormais les
+cadavres), est un cadavre, lu quand ses valeurs sont lisibles (`UNIT_HEALTH` de la cible, changement de cible, fin
+de combat) : sans kill lu dans les 3 s, le kill compte à son nom (« cadavre » dans `/mf api`), un même cadavre une
+fois (pas de second compte tant qu'il n'a pas été revu vivant), et deux pistes pour un même nom dans la fenêtre ne
+comptent qu'une fois. Limite assumée : un adversaire que je ciblais, tué par quelqu'un d'autre, m'est crédité
+(crédit de groupe élargi). **`/mf prime <nom>`** joue le popup « Prime encaissée » pour un nom du tableau sans rien
+enregistrer ni envoyer, et dit si le nom n'est pas au tableau (alors aucun kill ne fera de popup : l'ennemi n'est pas
+connu de ce client, poignée de main « W » ou compagnon à vérifier). Le **popup « Prime
 encaissée »** (toast or, phrase troll, pied « X abat Y · prime · lieu »), chez le chasseur et chez chaque guildien
 qui reçoit le « K », s'affiche désormais que les alertes Wanted soient cochées ou non, comme l'avis « WANTED » d'une
 mort PvP ; la case ne gouverne plus que la ligne de chat, la prime dans l'avis de décès et les têtes de mort

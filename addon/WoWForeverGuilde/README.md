@@ -42,7 +42,7 @@ transporte le code jusqu'au site.
   ou le champ de la liste) diffusée avec la position. Appel à l'aide : **manuel seulement** (bouton dans `/mf` et
   dans la liste, ou `/mf sos` ; la cible est nommée si c'est un joueur), jamais automatique pour ne pas spammer en
   zone contestée ; un envoi par minute ; chez les autres, toast et son dans la même zone, ligne de chat ailleurs,
-  anneau rouge sur le point 2 min. La ligne « P » porte la version de l'addon (0.6.4) : une version plus récente
+  anneau rouge sur le point 2 min. La ligne « P » porte la version de l'addon (0.6.5) : une version plus récente
   vue chez un guildien donne une ligne de chat puis, hors combat et hors instance, le popup « Recharger (/reload) »,
   une fois par version et par session.
 - `Wanted.lua`, `WantedUI.lua` : têtes mises à prix (lot 1, 0.5.0). Un joueur adverse qui tue un membre prend un point
@@ -68,7 +68,11 @@ transporte le code jusqu'au site.
   (`PLAYER_PVP_KILLS_CHANGED`, `GetPVPLifetimeStats`) sans message reconnu dans les 3 s, le kill compte, nommé d'après
   le joueur adverse mort regardé (cible, survol, focus) si son nom est lisible, sans nom sinon (compteur et
   événement `pk`, pas de Wanted). `/mf api` affiche la chaîne, les motifs, le dernier message reçu et ce qu'on en a
-  tiré (« motif », « recherché », « compteur » ou « aucun joueur reconnu »), et le compteur lu. Le popup « Prime
+  tiré (« motif », « recherché », « compteur », « cadavre » ou « aucun joueur reconnu »), et le compteur lu. Second
+  filet (0.6.5) : mon adversaire ciblé, vu vivant dans les 10 dernières minutes, est un cadavre (lu à la santé de la
+  cible, au changement de cible, à la fin du combat) sans kill lu dans les 3 s : le kill compte à son nom, un même
+  cadavre une fois ; deux pistes pour un même nom dans la fenêtre ne comptent qu'une fois. `/mf prime <nom>` joue le
+  popup pour un nom du tableau sans rien enregistrer, et dit si le nom n'y est pas. Le popup « Prime
   encaissée » s'affiche chez le chasseur et chez les guildiens qui reçoivent le « K », alertes Wanted cochées ou non
   (0.6.4 ; la case ne gouverne que la ligne de chat, la prime dans l'avis de décès et les têtes de mort). Chaque kill de
   joueur est un événement `pk` du journal avec la prime encaissée (compteurs `pk` et `bounty`, d'où les chasseurs de

@@ -11,8 +11,12 @@
 -- d'affichage (lien de joueur, couleur) sont retirés avant lecture ; un message d'une forme inconnue qui nomme un
 -- seul ennemi du tableau compte quand même. Filet (0.6.4) : si le compteur de victoires honorables du personnage
 -- bouge (PLAYER_PVP_KILLS_CHANGED) sans message reconnu dans les WANTED_KILL_WINDOW s, le kill compte, nommé
--- d'après le joueur mort regardé (cible, survol, focus) si son nom est lisible, sans nom sinon. `/mf api` dit ce
--- qu'a donné le dernier message. Pas de message pour une cible qui ne rapporte pas d'honneur. Chaque kill de
+-- d'après le joueur mort regardé (cible, survol, focus) si son nom est lisible, sans nom sinon. Second filet
+-- (0.6.5) : mon adversaire ciblé, vu vivant dans les SEEN_PLAYERS_TTL dernières secondes, est un cadavre (lu quand
+-- ses valeurs sont lisibles : santé de la cible, changement de cible, fin de combat) sans kill lu dans la fenêtre :
+-- le kill compte à son nom, un même cadavre une fois. `/mf api` dit ce qu'a donné le dernier message ; `/mf prime
+-- <nom>` joue le popup pour un nom du tableau sans rien enregistrer (le popup marche-t-il, l'ennemi est-il connu ?).
+-- Pas de message pour une cible qui ne rapporte pas d'honneur (d'où le second filet). Chaque kill de
 -- joueur est un événement `pk` du journal (prime encaissée = prime de l'ennemi à ce moment, compteurs `pk` et
 -- `bounty`) ; s'il est recherché, message « K » aux guildiens, popup « Prime encaissée » chez tous (alertes Wanted ou
 -- non, la ligne de chat seulement avec), tête de mort déplacée.
@@ -158,8 +162,27 @@ end
 -- --- kills -----------------------------------------------------------------------------------------------
 
 local lastHonor = nil -- /mf api : dernier message de victoire honorable { t, text, name, how }
-local lastKillAt = 0 -- heure du dernier kill compté (message ou compteur) : les deux pistes ne comptent qu'une fois
+local lastKillAt = 0 -- heure du dernier kill compté, toutes pistes : message, compteur, cadavre
+local recentKills = {} -- { name, t } des derniers kills comptés : un même adversaire ne compte pas deux fois d'un coup
 local killsBaseline = nil -- victoires honorables du personnage à la dernière lecture (GetPVPLifetimeStats)
+local pendingCorpse = nil -- cadavre ciblé en attente de la fenêtre (un seul à la fois)
+
+--- Même personnage : noms égaux, ou le prénom seul d'un côté égal au prénom de l'autre.
+local function sameName(a, b)
+  a, b = Wanted.Key(a), Wanted.Key(b)
+  if a == "" or b == "" then return false end
+  if a == b then return true end
+  if a:find("%s") and b:find("%s") then return false end
+  return a:match("^(%S+)") == b:match("^(%S+)")
+end
+
+--- Heure du dernier kill compté pour ce nom dans les `within` dernières secondes, nil sinon.
+local function countedRecently(name, t, within)
+  for _, kill in ipairs(recentKills) do
+    if t - kill.t <= within and sameName(kill.name, name) then return kill.t end
+  end
+  return nil
+end
 
 --- Chaînes du client qui nomment un joueur abattu (le nom en tête, puis le texte propre à chaque variante), et
 --- celles connues des clients Forever (classique) et retail (12.0) en secours, si le client n'en expose aucune.
@@ -316,6 +339,66 @@ function Wanted.OnKillsChanged(char)
   end)
 end
 
+--- Mon adversaire ciblé est un cadavre : second filet, quand ni message ni compteur n'ont parlé (cible sans honneur,
+--- client muet). Lu quand les valeurs de la cible sont lisibles (santé de la cible, changement de cible, fin de
+--- combat) ; il faut l'avoir ciblé vivant dans les SEEN_PLAYERS_TTL dernières secondes (souvenir du collecteur des
+--- morts, qui ignore les cadavres) et après le dernier kill compté à son nom : un même cadavre compte une fois.
+function Wanted.OnTargetMaybeDead(char)
+  local ok, exists = pcall(UnitExists or function() end, "target")
+  if not (ok and ns.plain(exists)) then return end
+  local okPlayer, player = pcall(UnitIsPlayer or function() end, "target")
+  local okDead, dead = pcall(UnitIsDeadOrGhost or function() end, "target")
+  local okFriend, friend = pcall(UnitIsFriend or function() end, "player", "target")
+  if not (okPlayer and ns.plain(player) == true and okDead and ns.plain(dead) == true) then return end
+  if okFriend and ns.plain(friend) == true then return end
+  local okName, name = pcall(UnitName or function() end, "target")
+  name = okName and ns.plain(name) or nil
+  if type(name) ~= "string" or name == "" then return end
+  local remembered = ns.LastHostile and ns.LastHostile()
+  if not (remembered and remembered.player and sameName(remembered.name, name)) then return end
+  local at = ns.now()
+  if at - (remembered.at or 0) > ns.Data.SEEN_PLAYERS_TTL then return end
+  local counted = countedRecently(name, at, ns.Data.SEEN_PLAYERS_TTL)
+  if counted and counted >= (remembered.at or 0) then return end -- ce cadavre est déjà compté
+  if pendingCorpse and sameName(pendingCorpse, name) then return end
+  pendingCorpse = name
+  C_Timer.After(ns.Data.WANTED_KILL_WINDOW, function()
+    pendingCorpse = nil
+    if lastKillAt >= at then return end -- message ou compteur ont parlé entre-temps
+    lastHonor = { t = ns.now(), text = string.format("(cadavre de %s ciblé, ni message ni compteur)", name), name = name, how = "cadavre" }
+    ns.Trace("cadavre de « %s » ciblé sans message ni compteur : kill", name)
+    if char then ns.Safe("wanted.corpse", Wanted.RecordKill, char, name, nil, ns.InBattleground()) end
+  end)
+end
+
+--- /mf prime <nom> : joue le popup « Prime encaissée » pour un nom du tableau, sans rien enregistrer ni envoyer.
+--- Dit si le nom est inconnu du tableau (alors aucun kill ne pourra le faire apparaître).
+function Wanted.Rehearse(name)
+  name = (tostring(name or ""):gsub("^%s+", ""):gsub("%s+$", ""))
+  if name == "" then
+    ns.Print(L.PRIME_TEST_USAGE)
+    return
+  end
+  local entry = Wanted.Match(name)
+  if not entry then
+    local names, n = {}, 0
+    for _, e in ipairs(Wanted.Sorted()) do
+      n = n + 1
+      if n <= 5 then names[#names + 1] = e.name end
+    end
+    ns.Print(L.PRIME_TEST_NONE, name, n, n > 0 and table.concat(names, ", ") or "aucun")
+    return
+  end
+  local zone = (GetZoneText and ns.plain(GetZoneText())) or ""
+  if type(zone) ~= "string" then zone = "" end
+  local c = ns.char or {}
+  local prime = entry.points or 0
+  if ns.UI and ns.UI.ShowBounty then
+    ns.UI.ShowBounty(entry, Wanted.BountyPhrase(entry, myName(), prime, zone), myName(), c.class, prime, zone)
+  end
+  ns.Print(L.PRIME_TEST_OK, ns.ClassColored(entry.name, entry.class), prime)
+end
+
 --- /mf api : le dernier message de victoire honorable lu et ce qu'on en a tiré, et le compteur du client.
 function Wanted.HonorSource()
   local counter = killsBaseline and tostring(killsBaseline) or "illisibles"
@@ -412,6 +495,7 @@ end
 --- bataille ou en arène (`battleground`) : le compteur et l'événement (marqué `bg`), rien d'autre.
 function Wanted.RecordKill(char, name, t, battleground)
   t = t or ns.now()
+  if name ~= "" and countedRecently(name, t, ns.Data.WANTED_KILL_WINDOW) then return nil end -- déjà compté par une autre piste
   local entry = (not battleground) and Wanted.Match(name) or nil
   local prime = entry and entry.points or 0
   local map, x, y = here()
@@ -428,6 +512,8 @@ function Wanted.RecordKill(char, name, t, battleground)
   if x and y then event.x, event.y = x, y end
   ns.Journal.Event(char, "pk", event, t)
   lastKillAt = t
+  table.insert(recentKills, { name = name, t = t })
+  while #recentKills > ns.Data.WANTED_VICTIMS do table.remove(recentKills, 1) end
   if not entry then return nil end
   if killSeen(entry, t) then return entry, false end
   markKill(entry, t, myName(), char.class, map, x, y, zone, sub)
@@ -619,7 +705,10 @@ end
 
 ns.RegisterCollector({
   name = "wanted",
-  events = { CHAT_MSG_COMBAT_HONOR_GAIN = true, PLAYER_PVP_KILLS_CHANGED = true, CHAT_MSG_ADDON = true },
+  events = {
+    CHAT_MSG_COMBAT_HONOR_GAIN = true, PLAYER_PVP_KILLS_CHANGED = true, CHAT_MSG_ADDON = true,
+    UNIT_HEALTH = true, PLAYER_TARGET_CHANGED = true, PLAYER_REGEN_ENABLED = true,
+  },
   onLogin = function()
     killsBaseline = lifetimeKills()
     C_Timer.After(5, function() ns.Safe("wanted.tick", Wanted.Tick) end)
@@ -631,6 +720,10 @@ ns.RegisterCollector({
       Wanted.OnHonorMessage(char, (...))
     elseif event == "PLAYER_PVP_KILLS_CHANGED" then
       Wanted.OnKillsChanged(char)
+    elseif event == "UNIT_HEALTH" then
+      if ns.plain((...)) == "target" then Wanted.OnTargetMaybeDead(char) end
+    elseif event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_REGEN_ENABLED" then
+      Wanted.OnTargetMaybeDead(char)
     else
       onAddonMessage(...)
     end

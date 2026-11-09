@@ -1549,8 +1549,9 @@ class TestWanted:
         assert (pk.name, pk.prime, pk.bg) == ("Garrosh", 0, True)
         assert list(g.WoWForeverGuildeDB.wanted.keys()) == []
         assert [s.text for s in addon_sent(g) if s.text.startswith("K\t")] == []
-        # De retour dehors, tout reprend.
+        # De retour dehors, tout reprend (plus tard : deux kills du même nom dans la fenêtre ne comptent qu'une fois).
         lua.execute("_INSTANCE = nil; _INSTANCE_NAME = nil")
+        g._ADVANCE(5)
         g._FIRE(
             "CHAT_MSG_COMBAT_HONOR_GAIN",
             "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
@@ -1875,6 +1876,99 @@ class TestWantedKills:
         g._FIRE("PLAYER_PVP_KILLS_CHANGED")
         g._ADVANCE(3)
         assert char.counters.pk == 5
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_dead_target_counts_the_kill_when_neither_message_nor_counter_spoke(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        receive(
+            lua,
+            f"D	1	Player-1-00000JAI	Jaina	Portvaillant	MAGE	60	Garrosh Hurlenfer	Durotar		{g._CLOCK.now}	1	WARRIOR	1411	0.4000	0.6000",
+        )
+        entry = g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"]
+        char = g._NS.char
+        toast = g.WoWForeverGuildeDeath
+        toast.shown = False
+        # Ciblé vivant, combat, puis son cadavre sous ma cible : rien ne parle, le kill compte après la fenêtre.
+        lua.execute(
+            "_TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true }"
+        )
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        g._FIRE("PLAYER_REGEN_DISABLED")
+        lua.execute("_TARGET.dead = true")
+        g._FIRE("UNIT_HEALTH", "target")
+        assert (char.counters.pk or 0) == 0
+        g._ADVANCE(3)
+        assert (entry.kills, char.counters.pk, char.counters.bounty) == (1, 1, 1)
+        assert toast.shown is True and "Prime encaissée" in toast.header.text
+        assert g._NS.Wanted.HonorSource().startswith(
+            "dernier message « (cadavre de Garrosh Hurlenfer ciblé, ni message ni compteur) » → Garrosh Hurlenfer (cadavre)"
+        )
+        # Le même cadavre, re-ciblé ou à la fin du combat : une seule fois.
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        g._FIRE("PLAYER_REGEN_ENABLED")
+        g._ADVANCE(3)
+        assert (entry.kills, char.counters.pk) == (1, 1)
+        # Le message de victoire honorable qui arrive juste après ne compte pas deux fois.
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
+        )
+        assert (entry.kills, char.counters.pk) == (1, 1)
+        # Message pendant la fenêtre du cadavre : le message compte, le cadavre se tait.
+        g._ADVANCE(120)
+        lua.execute(
+            "_TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true }"
+        )
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        lua.execute("_TARGET.dead = true")
+        g._FIRE("UNIT_HEALTH", "target")
+        g._ADVANCE(1)
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
+        )
+        g._ADVANCE(3)
+        assert (entry.kills, char.counters.pk) == (2, 2)
+        assert [e for e in char.events.values() if e.k == "pk"][-1].name == "Garrosh"
+        # Un cadavre jamais ciblé vivant, ou allié, ne compte pas.
+        g._ADVANCE(120)
+        lua.execute(
+            "_TARGET = { name = 'Sylvanas', class = 'HUNTER', hostile = true, player = true, dead = true }"
+        )
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        g._ADVANCE(3)
+        lua.execute("_TARGET = { name = 'Uther Lumière', class = 'PALADIN', hostile = false, player = true }")
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        lua.execute("_TARGET.dead = true")
+        g._FIRE("UNIT_HEALTH", "target")
+        g._ADVANCE(3)
+        assert char.counters.pk == 2
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_mf_prime_rehearses_the_popup_without_recording(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        g.SlashCmdList.WOWFOREVERGUILDE("prime Garrosh")
+        assert g.WoWForeverGuildeDeath is None  # aucun popup : le cadre n'a même pas été construit
+        assert any("n'est pas au tableau (0 recherchés : aucun)" in m for m in list(g._CHAT.values()))
+        receive(
+            lua,
+            f"D	1	Player-1-00000JAI	Jaina	Portvaillant	MAGE	60	Garrosh Hurlenfer	Durotar		{g._CLOCK.now}	1	WARRIOR	1411	0.4000	0.6000",
+        )
+        g.SlashCmdList.WOWFOREVERGUILDE("prime garrosh")
+        toast = g.WoWForeverGuildeDeath
+        assert toast.shown is True and "Prime encaissée" in toast.header.text
+        assert "Garrosh Hurlenfer" in toast.footer.text
+        assert any("Essai : popup pour" in m and "(prime 1)" in m for m in list(g._CHAT.values()))
+        char = g._NS.char
+        assert (char.counters.pk or 0) == 0 and wanted_sent(g, "K") == []
+        assert g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"].kills == 0
+        g.SlashCmdList.WOWFOREVERGUILDE("prime")
+        assert any("/mf prime <nom>" in m for m in list(g._CHAT.values()))
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_honorable_kill_of_a_wanted_player_cashes_the_bounty(self):

@@ -375,5 +375,6 @@ SlashCmdList.WOWFOREVERGUILDE = function(raw)
     ns.traceUntil = ns.now() + ns.Data.TRACE_SECONDS
     ns.Print(ns.L.TRACE_ON, ns.Data.TRACE_SECONDS)
   elseif msg:match("^lfg") then ns.Positions.SetLFG(raw:gsub("^%s*[Ll][Ff][Gg]", ""))
+  elseif msg:match("^prime") then ns.Safe("wanted.rehearse", ns.Wanted.Rehearse, (raw:gsub("^%s*[Pp][Rr][Ii][Mm][Ee]", "")))
   elseif ns.UI then ns.UI.Toggle() end
 end
