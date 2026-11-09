@@ -93,7 +93,10 @@ seul. Cahier des charges, étape 11.
   porte la prime, une tête de mort rouge marque 5 min sur la carte l'endroit où il a frappé, et `/mf wanted` liste les
   têtes mises à prix. Quand un membre (ou son groupe) abat un recherché, lu dans le message de victoire honorable,
   tout le monde a le toast « Prime encaissée » et la tête de mort se déplace ; à la connexion, un guildien transmet
-  le tableau à celui qui arrive. Tout circule par les mêmes messages addon de guilde ; le site suivra (lot 3).
+  le tableau à celui qui arrive. Tout circule par les mêmes messages addon de guilde. Sur le site : tableau Wanted
+  et classements « Joueurs abattus » et « Primes encaissées » sur la page Classements, Roxor hebdo « Chasseur de
+  primes », carte « Tête mise à prix » à côté des Roxors ; le compagnon recopie le tableau de la guilde dans l'addon
+  au lancement, jeu fermé ; le GM retire un nom dans l'administration.
 - **Tests hors du jeu** : l'addon tourne dans un environnement WoW simulé (`backend/apps/gamesync/wow_stub.lua`)
   via `lupa` (Lua 5.1, comme le client) : `cd backend && uv run pytest apps/gamesync/test_addon.py`. Une session
   complète y est jouée et le code produit est décodé puis importé par le site.

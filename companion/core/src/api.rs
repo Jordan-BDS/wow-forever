@@ -141,11 +141,33 @@ pub struct StateCharacter {
     pub bases: std::collections::BTreeMap<String, i64>,
 }
 
+/// Une tête mise à prix du tableau Wanted de la guilde, à recopier dans `db.wanted` de l'addon.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct StateWanted {
+    pub name: String,
+    #[serde(default)]
+    pub class: Option<String>,
+    #[serde(default)]
+    pub points: i64,
+    #[serde(default)]
+    pub kills: i64,
+    #[serde(default)]
+    pub last_t: Option<i64>,
+    #[serde(default)]
+    pub map: Option<i64>,
+    #[serde(default)]
+    pub x: Option<f64>,
+    #[serde(default)]
+    pub y: Option<f64>,
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct SiteState {
     pub seed_at: i64,
     #[serde(default)]
     pub characters: Vec<StateCharacter>,
+    #[serde(default)]
+    pub wanted: Vec<StateWanted>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -6,6 +6,7 @@ from .models import (
     IgnoredCharacter,
     ImportBatch,
     PairingCode,
+    WantedExclusion,
     WeeklyTitle,
 )
 
@@ -43,3 +44,9 @@ class IgnoredCharacterAdmin(admin.ModelAdmin):
 @admin.register(WeeklyTitle)
 class WeeklyTitleAdmin(admin.ModelAdmin):
     list_display = ["week_start", "label", "user", "character", "value"]
+
+
+@admin.register(WantedExclusion)
+class WantedExclusionAdmin(admin.ModelAdmin):
+    list_display = ["name", "reason", "created_at"]
+    search_fields = ["name"]

@@ -1366,7 +1366,7 @@ l'affichage doit le dire.
 |---|---|---|
 | 1, addon | « D » enrichi, tableau local, avis de décès avec prime, tête de mort sur la carte, `/mf wanted` | aucune, API déjà validées — ✅ addon 0.5.0 (9 novembre 2026) |
 | 2, addon | détection des kills, message « K », toast « Abattu », poignée de main « W » | message de victoire honorable à vérifier en jeu — ✅ addon 0.6.0 (9 novembre 2026), chaîne à confirmer |
-| 3, site | import des nouveaux événements, cartes Classements et accueil, Roxor, retour par le compagnon, retrait GM | lots 1 et 2 |
+| 3, site | import des nouveaux événements, cartes Classements et accueil, Roxor, retour par le compagnon, retrait GM | lots 1 et 2 — ✅ site et compagnon 0.6.0 (9 novembre 2026) |
 
 **Décidé le 9 novembre 2026** : pas de remise à zéro de la prime quand l'ennemi est abattu ; crédit à tout le groupe ;
 dernière position sur la carte avec un symbole parlant (tête de mort), affichée 5 minutes ; Roxor hebdo « Chasseur de
@@ -1405,6 +1405,23 @@ si un résumé est déjà passé ; le résumé tient en lignes de 255 octets (no
 carte, x, y par ennemi, 40 ennemis au plus, primes fortes d'abord) ; le receveur garde le **maximum** de chaque valeur
 et la position la plus récente (« vu pour la dernière fois »). Testé dans l'environnement simulé (`TestWantedKills`).
 À valider en jeu : la chaîne exacte de victoire honorable sur Forever et l'arrivée du message pour un kill du groupe.
+
+**Réalisation du lot 3 (site et compagnon, 9 novembre 2026)** : rien de stocké, tout vient des instantanés comme les
+classements (`apps/gamesync/wanted.py`). Les événements `death` à tueur joueur donnent les **têtes mises à prix**
+(un point par mort de membre, jamais remis à zéro ; victimes distinctes, dernière victime, classe du tueur, dernière
+position connue), les événements `pk` les **kills** (reconnus par le nom exact ou le prénom seul s'il est unique,
+comptés une fois par ennemi et par minute : crédit de groupe ; chasseurs distincts, dernier chasseur). La page
+Classements gagne, dans le groupe PvP, **« Joueurs abattus »** (compteur `pk`) et **« Primes encaissées »** (compteur
+`bounty`), le **Roxor hebdo « Chasseur de primes »** (primes encaissées sur la semaine close, ligne du récapitulatif
+Discord avec l'unité « points de prime »), le **tableau Wanted** par période (ennemi, prime, abattu, dernière victime,
+dernier chasseur) et, à côté des Roxors, la carte **« Tête mise à prix »** : l'ennemi le plus recherché depuis le
+début. L'accueil montre la course au Roxor et les têtes mises à prix de la semaine dans « Futurs Roxors ». Le **GM
+retire un nom** (PNJ homonyme, erreur) dans l'administration (« noms retirés du tableau Wanted », la casse ne compte
+pas). **Retour vers l'addon** : l'état servi au compagnon (`/api/sync/state/`) porte le tableau de toute la guilde
+depuis le début (nom, jeton de classe, prime, kills, dernière heure et position, 200 ennemis au plus) ; le compagnon le
+recopie dans `db.wanted` jeu fermé en gardant le **maximum** de chaque valeur et la position la plus récente, sans
+rien retirer : un joueur seul en ligne, ou qui réinstalle, a quand même les têtes mises à prix. Testé côté site
+(`test_rankings.py`, classe `TestWanted`) et côté compagnon (`seed.rs`).
 
 ### Confidentialité et confiance
 

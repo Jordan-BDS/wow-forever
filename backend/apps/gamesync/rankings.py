@@ -23,6 +23,7 @@ from .encounters import ENCOUNTERS, GUILD_KILL_MIN_MEMBERS, INSTANCE_ORDER, INST
 from .models import CharacterSnapshot, WeeklyTitle
 from .progress import delta, latest_snapshots, number
 from .services import PARIS
+from .wanted import guild_wanted
 
 SEASON_START = date(2026, 11, 4)
 PERIODS = ("week", "month", "season", "all")
@@ -66,6 +67,20 @@ CATEGORIES: list[Category] = [
         note="Dès le premier champ de bataille joué sur la période.",
     ),
     Category(
+        "pk",
+        "Joueurs abattus",
+        "pvp",
+        counter="pk",
+        note="Lus dans le message de victoire honorable ; tout le groupe est crédité.",
+    ),
+    Category(
+        "bounty",
+        "Primes encaissées",
+        "pvp",
+        counter="bounty",
+        note="Prime de l'ennemi au moment où il est abattu (tableau Wanted).",
+    ),
+    Category(
         "gathering_total",
         "Ressources récoltées",
         "gathering",
@@ -93,6 +108,7 @@ WEEKLY_TITLES: list[tuple[str, str, str]] = [
     ("crafting", "MacGyver", "crafted_total"),
     ("quests", "Larbin de Hurlevent", "quests"),
     ("fishing", "Nat Pagle", "fishing"),
+    ("bounty", "Chasseur de primes", "bounty"),
 ]
 
 
@@ -324,6 +340,7 @@ def compute_rankings(
             "gathering_total",
             "crafted_total",
             "deaths",
+            "pk",
         )
     }
     shown = current_titles(now)
@@ -340,6 +357,8 @@ def compute_rankings(
         "titles": shown,
         "progression": guild_progression(snapshots),
         "mobs": guild_mobs(snapshots, start, end),
+        "wanted": guild_wanted(snapshots, start, end),
+        "most_wanted": next(iter(guild_wanted(snapshots, None, end, limit=1)), None),
         "mob_of_week": {
             "current": next(iter(guild_mobs(snapshots, week_start, week_end, limit=1)), None),
             "previous": next(

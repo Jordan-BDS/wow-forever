@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::api::{SiteState, StateCharacter};
+use crate::api::{SiteState, StateCharacter, StateWanted};
 use crate::error::{CoreError, Result};
 use crate::luatable::{from_json, parse_file, write_file, Key, Table, Value};
 
@@ -125,6 +125,68 @@ fn complete_entry(entry: &mut Table, state: &StateCharacter, seed_at: i64, now: 
     entry.set("seed", Value::Table(seed));
 }
 
+/// Le tableau Wanted de la guilde : le maximum de chaque valeur entre ce fichier et le site, la dernière position
+/// la plus récente (« vu pour la dernière fois ») ; rien n'est retiré, les victimes et heures de kill locales restent.
+fn complete_wanted(db: &mut Table, wanted: &[StateWanted], now: i64) {
+    if wanted.is_empty() {
+        return;
+    }
+    let table = db.table_mut("wanted");
+    for enemy in wanted {
+        let key = enemy
+            .name
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase();
+        if key.is_empty() {
+            continue;
+        }
+        let entry = table.table_mut(&key);
+        if entry.get("name").is_none() {
+            entry.set("name", Value::Str(enemy.name.clone()));
+        }
+        if entry.get("class").is_none() {
+            if let Some(class) = enemy.class.as_deref().filter(|c| !c.is_empty()) {
+                entry.set("class", Value::Str(class.to_string()));
+            }
+        }
+        let points = entry.get_num("points").unwrap_or(0.0).max(enemy.points as f64);
+        entry.set("points", Value::Num(points));
+        let kills = entry.get_num("kills").unwrap_or(0.0).max(enemy.kills as f64);
+        entry.set("kills", Value::Num(kills));
+        if entry.get("first").is_none() {
+            entry.set("first", Value::Num(enemy.last_t.unwrap_or(now) as f64));
+        }
+        for list in ["victims", "kill_times"] {
+            if entry.get(list).is_none() {
+                entry.set(list, Value::Table(Table::default()));
+            }
+        }
+        if let Some(t) = enemy.last_t {
+            let local = entry
+                .get_table("last")
+                .and_then(|last| last.get_num("t"))
+                .unwrap_or(0.0);
+            if t as f64 > local {
+                let mut last = Table::default();
+                last.set("kind", Value::Str("seen".into()));
+                last.set("t", Value::Num(t as f64));
+                if let Some(map) = enemy.map {
+                    last.set("map", Value::Num(map as f64));
+                }
+                if let (Some(x), Some(y)) = (enemy.x, enemy.y) {
+                    last.set("x", Value::Num(x));
+                    last.set("y", Value::Num(y));
+                }
+                last.set("zone", Value::Str(String::new()));
+                last.set("sub", Value::Str(String::new()));
+                entry.set("last", Value::Table(last));
+            }
+        }
+    }
+}
+
 /// Complète (ou crée) le fichier `SavedVariables` d'un compte WoW avec l'état du site. Écriture atomique.
 pub fn complete_file(path: &Path, state: &SiteState, now: i64) -> Result<Completion> {
     let existing = match fs::read_to_string(path) {
@@ -158,6 +220,7 @@ pub fn complete_file(path: &Path, state: &SiteState, now: i64) -> Result<Complet
         let entry = characters.table_mut(&character.guid);
         complete_entry(entry, character, state.seed_at, now);
     }
+    complete_wanted(db, &state.wanted, now);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -242,6 +305,43 @@ WoWForeverGuildeDB = {
 
     fn character<'a>(db: &'a Table, guid: &str) -> &'a Table {
         db.get_table("characters").unwrap().get_table(guid).unwrap()
+    }
+
+    #[test]
+    fn completes_the_wanted_board_keeping_local_maxima() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("WoWForeverGuilde.lua");
+        let existing = EXISTING.replace(
+            "\t[\"characters\"] = {",
+            "\t[\"wanted\"] = {\n\t\t[\"garrosh hurlenfer\"] = {\n\t\t\t[\"name\"] = \"Garrosh Hurlenfer\",\n\t\t\t[\"points\"] = 5,\n\t\t\t[\"kills\"] = 0,\n\t\t\t[\"last\"] = {\n\t\t\t\t[\"t\"] = 1764000000,\n\t\t\t},\n\t\t},\n\t},\n\t[\"characters\"] = {",
+        );
+        assert_ne!(existing, EXISTING);
+        std::fs::write(&path, existing).unwrap();
+        let mut state = state();
+        state.wanted = serde_json::from_value(serde_json::json!([
+            { "name": "Garrosh Hurlenfer", "class": "WARRIOR", "points": 3, "kills": 2, "last_t": 1764000700, "map": 1411, "x": 0.4, "y": 0.6 },
+            { "name": "Vol'jin", "class": "SHAMAN", "points": 1, "kills": 0, "last_t": null, "map": null, "x": null, "y": null }
+        ]))
+        .unwrap();
+        complete_file(&path, &state, 1764200001).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let assignments = parse_file(&text).unwrap();
+        let Value::Table(db) = &assignments.iter().find(|(n, _)| n == DB_NAME).unwrap().1 else {
+            panic!("pas une table");
+        };
+        let wanted = db.get_table("wanted").unwrap();
+        let garrosh = wanted.get_table("garrosh hurlenfer").unwrap();
+        assert_eq!(garrosh.get_num("points"), Some(5.0)); // le maximum des deux : la prime locale était plus haute
+        assert_eq!(garrosh.get_num("kills"), Some(2.0));
+        assert_eq!(garrosh.get_str("class"), Some("WARRIOR"));
+        let last = garrosh.get_table("last").unwrap();
+        assert_eq!(
+            (last.get_num("t"), last.get_num("map"), last.get_str("kind")),
+            (Some(1764000700.0), Some(1411.0), Some("seen"))
+        );
+        let voljin = wanted.get_table("vol'jin").unwrap();
+        assert_eq!((voljin.get_num("points"), voljin.get_str("name")), (Some(1.0), Some("Vol'jin")));
+        assert!(voljin.get("last").is_none() && voljin.get_table("victims").is_some());
     }
 
     #[test]

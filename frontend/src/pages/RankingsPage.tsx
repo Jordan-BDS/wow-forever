@@ -87,7 +87,9 @@ export function RankingsPage() {
     <>
       <PageTitle>Classements de la guilde</PageTitle>
 
-      {data.titles.length > 0 && <TitlesRow titles={data.titles} mob={data.mob_of_week.previous} />}
+      {data.titles.length > 0 && (
+        <TitlesRow titles={data.titles} mob={data.mob_of_week.previous} wanted={data.most_wanted} />
+      )}
 
       <h2 className="font-display text-lg">Classements</h2>
       <p className="mb-4 text-sm text-muted">
@@ -137,6 +139,8 @@ export function RankingsPage() {
 
       <GuildProgression data={data} />
 
+      <WantedBoard wanted={data.wanted} periodLabel={periodLabel} />
+
       <HuntingBoard mobs={data.mobs} meId={me.id} periodLabel={periodLabel} />
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -150,9 +154,11 @@ export function RankingsPage() {
 function TitlesRow({
   titles,
   mob,
+  wanted,
 }: {
   titles: Rankings["titles"];
   mob: Rankings["mob_of_week"]["previous"];
+  wanted: Rankings["most_wanted"];
 }) {
   return (
     <section className="mb-8">
@@ -162,7 +168,92 @@ function TitlesRow({
           {weekSpan(titles[0].week_start)} · attribués lundi à minuit, figés ensuite
         </span>
       </div>
-      <TitleCards titles={titles} mob={mob} />
+      <TitleCards titles={titles} mob={mob} wanted={wanted} />
+    </section>
+  );
+}
+
+function WantedBoard({ wanted, periodLabel }: { wanted: Rankings["wanted"]; periodLabel: string }) {
+  const gamedata = useGameData();
+  if (wanted.length === 0) return null;
+  return (
+    <section className="mt-8">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="font-display text-lg text-danger">Wanted — têtes mises à prix</h2>
+        <span className="text-xs text-muted">
+          {periodLabel} · un point par membre tué, jamais remis à zéro
+        </span>
+      </div>
+      <Card className="space-y-3 border-danger/40">
+        <div className="nav-scroll -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[40rem] whitespace-nowrap text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-muted">
+                <th className="w-8 py-1.5 pr-2">#</th>
+                <th className="py-1.5 pr-3">Ennemi</th>
+                <th className="py-1.5 pr-3 text-right">Prime</th>
+                <th className="py-1.5 pr-3 text-right">Abattu</th>
+                <th className="py-1.5 pr-3">Dernière victime</th>
+                <th className="py-1.5">Dernier chasseur</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wanted.map((e, i) => (
+                <tr key={e.key} className="border-t border-border/60">
+                  <td className={clsx("py-1.5 pr-2", i < 3 ? "text-danger" : "text-muted")}>{i + 1}</td>
+                  <td className="py-1.5 pr-3">
+                    <ClassName playerClass={findClass(gamedata.data, e.class)}>{e.name}</ClassName>
+                    {e.victims > 1 && <span className="ml-1 text-xs text-muted">{e.victims} victimes</span>}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right font-mono text-danger">{e.points}</td>
+                  <td className="py-1.5 pr-3 text-right font-mono">{e.kills || "—"}</td>
+                  <td className="py-1.5 pr-3">
+                    {e.last_death ? (
+                      <>
+                        <Link to={`/personnages/${e.last_death.victim.character.id}`}>
+                          <ClassName
+                            playerClass={findClass(gamedata.data, e.last_death.victim.character.player_class)}
+                          >
+                            {e.last_death.victim.character.name}
+                          </ClassName>
+                        </Link>
+                        <span className="text-muted">
+                          {" · "}
+                          {e.last_death.zone || "?"}
+                          {" · "}
+                          {formatDateTime(e.last_death.at)}
+                        </span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="py-1.5">
+                    {e.last_kill ? (
+                      <>
+                        <Link to={`/membres/${e.last_kill.by.user.id}`}>
+                          {e.last_kill.by.user.display_name}
+                        </Link>
+                        <span className="text-muted">
+                          {" · "}
+                          {formatDateTime(e.last_kill.at)}
+                        </span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs text-muted">
+          Lu par l'addon : le tueur d'un membre (joueur ciblé) et les joueurs abattus (message de victoire
+          honorable). Un kill compte une fois par minute pour tout le groupe ; un PNJ homonyme se retire
+          depuis l'administration.
+        </p>
+      </Card>
     </section>
   );
 }

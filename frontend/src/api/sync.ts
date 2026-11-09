@@ -118,6 +118,27 @@ export type GuildMob = {
   } | null;
 };
 
+type WantedWho = {
+  user: { id: number; display_name: string };
+  character: { id: number; name: string; player_class: string };
+};
+
+/** Une tête mise à prix : un joueur adverse qui a tué des membres (un point par mort, jamais remis à zéro). */
+export type WantedEnemy = {
+  key: string;
+  name: string;
+  /** Slug de classe du site (jeton de l'addon en minuscules), vide si inconnu. */
+  class: string;
+  points: number;
+  kills: number;
+  victims: number;
+  victim_names: string[];
+  hunters: number;
+  last_death: { at: string; zone: string; victim: WantedWho } | null;
+  last_kill: { at: string; zone: string; by: WantedWho } | null;
+  last_seen: { at: string; map: number; x: number; y: number } | null;
+};
+
 export type Rankings = {
   period: RankingPeriod;
   by: RankingBy;
@@ -136,6 +157,8 @@ export type Rankings = {
     bosses: ProgressionBoss[];
   }[];
   mobs: GuildMob[];
+  wanted: WantedEnemy[];
+  most_wanted: WantedEnemy | null;
   mob_of_week: { current: GuildMob | null; previous: GuildMob | null };
   levels: { label: string; count: number }[];
   week_totals: Record<string, number>;

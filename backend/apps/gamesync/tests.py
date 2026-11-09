@@ -106,6 +106,7 @@ class TestPairing:
         # État fusionné pour la complétion d'un autre PC : vide tant qu'aucun personnage n'est importé.
         empty = api_client.get("/api/sync/state/")
         assert empty.status_code == 200 and empty.data["characters"] == [] and empty.data["seed_at"] > 0
+        assert empty.data["wanted"] == []
         me = api_client.get("/api/sync/companion/me/")
         assert (
             me.status_code == 200

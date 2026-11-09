@@ -313,7 +313,10 @@ def companion_state(user) -> dict:
         )
         kept.extend(s.pk for s in merged.sources)
     CharacterSnapshot.objects.filter(pk__in=kept, kept=False).update(kept=True)
-    return {"seed_at": _epoch(timezone.now()), "characters": characters}
+    from .wanted import companion_wanted  # import local : wanted.py lit ce module
+
+    # Le tableau Wanted de toute la guilde : un joueur seul en ligne a quand même les têtes mises à prix.
+    return {"seed_at": _epoch(timezone.now()), "characters": characters, "wanted": companion_wanted()}
 
 
 def number(value: Any) -> float:

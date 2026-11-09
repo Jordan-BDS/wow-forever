@@ -16,6 +16,7 @@ const RACES: { key: string; title: string }[] = [
   { key: "crafted_total", title: "MacGyver" },
   { key: "quests", title: "Larbin de Hurlevent" },
   { key: "fishing", title: "Nat Pagle" },
+  { key: "bounty", title: "Chasseur de primes" },
 ];
 
 /** Accueil, tout en haut : les Roxors de la semaine passée (définitifs). Rien tant qu'aucun n'est attribué. */
@@ -33,7 +34,7 @@ export function WeekTitles() {
           Tous les classements
         </Link>
       </div>
-      <TitleCards titles={data.titles} mob={data.mob_of_week.previous} />
+      <TitleCards titles={data.titles} mob={data.mob_of_week.previous} wanted={data.most_wanted} />
     </section>
   );
 }
@@ -82,6 +83,26 @@ export function WeekWidget() {
             </ol>
           </div>
         ))}
+        {data.wanted.length > 0 && (
+          <div className="text-sm">
+            <div className="text-danger">Wanted</div>
+            <div className="text-xs text-muted">Têtes mises à prix cette semaine</div>
+            <ol className="mt-2 space-y-1">
+              {data.wanted.slice(0, 3).map((e, i) => (
+                <li key={e.key} className="flex justify-between gap-6">
+                  <span className="truncate">
+                    <span className="mr-1 inline-block w-5 text-right text-muted">{i + 1}.</span>
+                    <ClassName playerClass={findClass(gamedata.data, e.class)}>{e.name}</ClassName>
+                  </span>
+                  <span className="shrink-0 font-mono text-muted">
+                    {e.points} pt{e.points > 1 ? "s" : ""}
+                    {e.kills > 0 ? ` · ${e.kills}× abattu` : ""}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
         {data.mobs.length > 0 && (
           <div className="text-sm">
             <div className="text-gold-light">Souffre-douleur</div>

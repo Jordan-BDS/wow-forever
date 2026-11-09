@@ -56,8 +56,9 @@ transporte le code jusqu'au site.
   avec une phrase troll (`Phrases.lua`, `{chasseur}`, `{ennemi}`, `{prime}`, `{zone}`), tête de mort déplacée là où il
   est tombé. **Poignée de main « W »** : 8 s après la connexion on demande le tableau ; un membre répond avec un résumé
   (nom, classe, prime, kills, dernière position ; lignes de 255 octets, 40 ennemis au plus) après un délai aléatoire
-  de 1 à 6 s, sauf si quelqu'un a déjà répondu ; le receveur garde le maximum de chaque valeur. À venir : tableau et
-  Roxor « Chasseur de primes » sur le site (lot 3).
+  de 1 à 6 s, sauf si quelqu'un a déjà répondu ; le receveur garde le maximum de chaque valeur. Côté site (lot 3) :
+  tableau Wanted, classements « Joueurs abattus » et « Primes encaissées », Roxor « Chasseur de primes » ; le
+  compagnon recopie le tableau de la guilde dans `db.wanted` au lancement, jeu fermé (maximum de chaque valeur).
 - `RosterUI.lua` : liste « Guilde en jeu » (`/mf qui`) : membres en ligne par zone d'après le roster de guilde (même
   sans addon), enrichis des positions reçues ; section « Cherchent un groupe » ; clic → même menu que la carte.
 - `Libs/` : LibStub, LibDeflate (export), CallbackHandler-1.0 et HereBeDragons-2.0 (+ Pins) pour la carte ;

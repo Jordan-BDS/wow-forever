@@ -13,7 +13,7 @@ from apps.notifications.models import Notification
 
 from . import progress, rankings, services, titles
 from .format import encode_export
-from .models import WeeklyTitle
+from .models import WantedExclusion, WeeklyTitle
 
 pytestmark = pytest.mark.django_db
 
@@ -309,6 +309,90 @@ class TestRankings:
         assert response.status_code == 200 and response.data["by"] == "character"
         assert response.data["levels"][-1] == {"label": "60", "count": 1}
         assert as_user(member).get("/api/sync/rankings/", {"period": "bidon"}).data["period"] == "week"
+
+
+class TestWanted:
+    """Têtes mises à prix : points par mort de membre, kills dédoublonnés par minute, exclusion GM, compagnon."""
+
+    def test_wanted_board_bounty_hunters_and_exclusion(self, member, other_member):
+        # Lundi 21 septembre, 17h : dans la semaine en cours (les événements sont filtrés par leur heure).
+        t0 = int(datetime(2026, 9, 21, 17, 0, tzinfo=PARIS).timestamp())
+        garrosh = {"killer": "Garrosh Hurlenfer", "player": True, "kclass": "WARRIOR"}
+        import_for(
+            member,
+            character(
+                "Player-1-T", "Thrall",
+                counters={"pk": 2, "bounty": 2},
+                journal={"2026-09-20": {"pk": 0, "bounty": 0}},
+                events=[
+                    {"k": "death", "t": t0, "zone": "Durotar", "level": 60, "map": 1411, "x": 0.4, "y": 0.6, **garrosh},
+                    {"k": "death", "t": t0 + 10, "zone": "Durotar", "killer": "Sanglier"},  # créature : rien
+                    {"k": "death", "t": t0 - 10 * 86400, "zone": "Durotar", **garrosh},  # hors semaine
+                    {"k": "pk", "t": t0 + 600, "name": "Garrosh", "prime": 1, "zone": "Durotar", "map": 1411, "x": 0.5, "y": 0.5},
+                    {"k": "pk", "t": t0 + 700, "name": "Sylvanas", "prime": 0},  # pas recherchée : hors tableau
+                ],
+            ),
+        )  # fmt: skip
+        import_for(
+            other_member,
+            character(
+                "Player-1-G", "Garona",
+                counters={"pk": 1, "bounty": 1},
+                journal={"2026-09-20": {"pk": 0, "bounty": 0}},
+                events=[
+                    {"k": "death", "t": t0 + 60, "zone": "Orgrimmar", **garrosh},
+                    {"k": "pk", "t": t0 + 605, "name": "Garrosh Hurlenfer", "prime": 2, "zone": "Durotar"},  # même kill, crédit de groupe
+                    {"k": "death", "t": t0 + 120, "zone": "Orgrimmar", "killer": "Vol'jin", "player": True, "kclass": "SHAMAN"},
+                ],
+            ),
+        )  # fmt: skip
+        result = rankings.compute_rankings("week", "player", now=NOW)
+        board = result["wanted"]
+        assert [
+            (e["name"], e["class"], e["points"], e["kills"], e["victims"], e["hunters"]) for e in board
+        ] == [
+            ("Garrosh Hurlenfer", "warrior", 2, 1, 2, 2),
+            ("Vol'jin", "shaman", 1, 0, 1, 0),
+        ]
+        top = board[0]
+        assert (
+            top["last_death"]["victim"]["character"]["name"] == "Garona"
+            and top["last_death"]["zone"] == "Orgrimmar"
+        )
+        # Le kill de Garona (5 s après) est le même : dédoublonné, le dernier chasseur reste Thrall.
+        assert top["last_kill"]["by"]["user"]["id"] == member.pk and top["last_kill"]["at"].startswith(
+            "2026-09-21T15:10"
+        )
+        assert (top["last_seen"]["map"], top["last_seen"]["x"], top["last_seen"]["y"]) == (1411, 0.5, 0.5)
+        assert sorted(top["victim_names"]) == ["Garona", "Thrall"]
+        # Catégories PvP et Roxor « Chasseur de primes » : différence des compteurs, comme le reste.
+        cats = {c["key"]: c for c in result["categories"]}
+        assert [(e["user"]["id"], e["value"]) for e in cats["pk"]["entries"]] == [
+            (member.pk, 2.0),
+            (other_member.pk, 1.0),
+        ]
+        assert [(e["user"]["id"], e["value"]) for e in cats["bounty"]["entries"]] == [
+            (member.pk, 2.0),
+            (other_member.pk, 1.0),
+        ]
+        assert ("bounty", "Chasseur de primes", "bounty") in rankings.WEEKLY_TITLES
+        assert titles.format_value("bounty", 3.0) == "3 points de prime"
+        assert result["week_totals"]["pk"] == 3.0
+        # Depuis le début : la vieille mort compte aussi, la prime n'est jamais remise à zéro.
+        assert result["most_wanted"]["points"] == 3
+        assert rankings.compute_rankings("all", "player", now=NOW)["wanted"][0]["points"] == 3
+        # Le compagnon reçoit le tableau de toute la guilde, dans les termes de l'addon.
+        state = progress.companion_state(member)
+        assert state["wanted"] == [
+            {"name": "Garrosh Hurlenfer", "class": "WARRIOR", "points": 3, "kills": 1, "last_t": t0 + 600, "map": 1411, "x": 0.5, "y": 0.5},
+            {"name": "Vol'jin", "class": "SHAMAN", "points": 1, "kills": 0, "last_t": t0 + 120, "map": None, "x": None, "y": None},
+        ]  # fmt: skip
+        # Retrait par le GM (la casse ne compte pas).
+        WantedExclusion.objects.create(name="Garrosh  HURLENFER", reason="PNJ homonyme")
+        assert [e["name"] for e in rankings.compute_rankings("week", "player", now=NOW)["wanted"]] == [
+            "Vol'jin"
+        ]
+        assert progress.companion_state(member)["wanted"][0]["name"] == "Vol'jin"
 
 
 class TestTitles:

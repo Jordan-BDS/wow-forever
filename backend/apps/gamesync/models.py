@@ -181,3 +181,25 @@ class WeeklyTitle(models.Model):
 
     def __str__(self) -> str:
         return f"{self.label} — semaine du {self.week_start} : {self.user}"
+
+
+class WantedExclusion(models.Model):
+    """Nom retiré du tableau Wanted par le GM (PNJ homonyme pris pour un joueur, erreur de lecture)."""
+
+    name = models.CharField(
+        "Nom", max_length=64, unique=True, help_text="Tel que l'addon l'a lu ; la casse ne compte pas."
+    )
+    reason = models.CharField("Raison", max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "nom retiré du tableau Wanted"
+        verbose_name_plural = "noms retirés du tableau Wanted"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def save(self, *args, **kwargs):
+        self.name = " ".join(self.name.split()).lower()
+        super().save(*args, **kwargs)

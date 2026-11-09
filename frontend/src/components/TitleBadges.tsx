@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useGameData } from "@/api/hooks";
-import type { GuildMob, WeeklyTitle } from "@/api/sync";
+import type { GuildMob, WantedEnemy, WeeklyTitle } from "@/api/sync";
 import { ClassName } from "@/components/game";
 import { findClass } from "@/lib/game";
 
@@ -153,6 +153,22 @@ const Fish = (
   </svg>
 );
 
+const Crosshair = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="8" />
+    <circle cx="12" cy="12" r="2" />
+    <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+  </svg>
+);
+
 const THEMES: Record<string, Theme> = {
   gathering: { accent: "#d9b84a", glow: "rgba(217,184,74,.25)", icon: Pickaxe, unit: "ressources" },
   bg: { accent: "#e0604a", glow: "rgba(224,96,74,.25)", icon: Swords, unit: "joueurs tués" },
@@ -162,6 +178,7 @@ const THEMES: Record<string, Theme> = {
   crafting: { accent: "#c08457", glow: "rgba(192,132,87,.25)", icon: Hammer, unit: "objets" },
   quests: { accent: "#4fc7b5", glow: "rgba(79,199,181,.25)", icon: Scroll, unit: "quêtes" },
   fishing: { accent: "#5aa9e6", glow: "rgba(90,169,230,.25)", icon: Fish, unit: "poissons" },
+  bounty: { accent: "#ff5c5c", glow: "rgba(255,92,92,.25)", icon: Crosshair, unit: "points de prime" },
 };
 const DEFAULT_THEME: Theme = { accent: "#d9b84a", glow: "rgba(217,184,74,.25)", icon: Flame, unit: "" };
 
@@ -171,13 +188,28 @@ function value(t: WeeklyTitle, unit: string): string {
 }
 
 /** Ordre d'affichage commun aux cartes et aux « Futurs Roxors ». */
-const TITLE_ORDER = ["gathering", "bg", "boss", "kills", "shame", "crafting", "quests", "fishing"];
+const TITLE_ORDER = ["gathering", "bg", "boss", "kills", "shame", "crafting", "quests", "fishing", "bounty"];
 
 const MOB_THEME: Theme = { accent: "#c47bff", glow: "rgba(196,123,255,.25)", icon: Paw, unit: "fois tué" };
+const WANTED_THEME: Theme = {
+  accent: "#ff5c5c",
+  glow: "rgba(255,92,92,.25)",
+  icon: Skull,
+  unit: "points de prime",
+};
 
 /** Cartes des Roxors de la semaine passée : icône, accent, gagnant en grand, personnage à la couleur de classe.
- *  Avec `mob`, une sixième carte : la créature la plus tuée par la guilde cette semaine-là. */
-export function TitleCards({ titles, mob }: { titles: WeeklyTitle[]; mob?: GuildMob | null }) {
+ *  Avec `mob`, une carte de plus : la créature la plus tuée par la guilde cette semaine-là ; avec `wanted`, la
+ *  tête la plus mise à prix depuis le début (la prime n'est jamais remise à zéro). */
+export function TitleCards({
+  titles,
+  mob,
+  wanted,
+}: {
+  titles: WeeklyTitle[];
+  mob?: GuildMob | null;
+  wanted?: WantedEnemy | null;
+}) {
   const gamedata = useGameData();
   const ordered = [...titles].sort((a, b) => TITLE_ORDER.indexOf(a.key) - TITLE_ORDER.indexOf(b.key));
   return (
@@ -261,6 +293,39 @@ export function TitleCards({ titles, mob }: { titles: WeeklyTitle[]; mob?: Guild
                   <span className="text-muted"> ({mob.top.kills})</span>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {wanted && (
+        <div
+          className="relative overflow-hidden rounded-lg border bg-surface p-4"
+          style={{
+            borderColor: WANTED_THEME.accent,
+            backgroundImage: `radial-gradient(circle at 100% 0%, ${WANTED_THEME.glow}, transparent 60%)`,
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <span
+              className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 bg-bg [&>svg]:size-6"
+              style={{ borderColor: WANTED_THEME.accent, color: WANTED_THEME.accent }}
+            >
+              {WANTED_THEME.icon}
+            </span>
+            <div className="min-w-0">
+              <div className="text-[11px] uppercase tracking-[.14em]" style={{ color: WANTED_THEME.accent }}>
+                Tête mise à prix
+              </div>
+              <div className="truncate font-display text-xl leading-tight text-text">
+                <ClassName playerClass={findClass(gamedata.data, wanted.class)}>{wanted.name}</ClassName>
+              </div>
+              <div className="mt-0.5 font-mono text-sm" style={{ color: WANTED_THEME.accent }}>
+                {wanted.points} {WANTED_THEME.unit}
+              </div>
+              <div className="text-sm text-muted">
+                {wanted.victims} membre{wanted.victims > 1 ? "s" : ""} tué{wanted.victims > 1 ? "s" : ""}
+                {wanted.kills > 0 ? ` · abattu ${wanted.kills} fois` : " · jamais abattu"}
+              </div>
             </div>
           </div>
         </div>
