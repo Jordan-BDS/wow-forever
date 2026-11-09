@@ -1228,6 +1228,14 @@ chasseur, détail dépliable des morts et des kills avec les coéquipiers et la 
 primes » (participations et primes telles que l'addon les a vues) et « Souffre-douleurs de la Horde » (membres les
 plus tués par des joueurs). Endpoint `/api/sync/wanted/?period=`, cache d'une minute, même exclusion GM.
 
+**Homonymes (site, 9 novembre 2026)** : un membre a rejoué un personnage du même prénom que son main, avec un autre
+nom de famille, et le site le refusait (« existe déjà sur le site ») : l'unicité et le contrôle d'homonymie ne
+regardaient que le prénom, alors que Forever donne un nom de famille à chacun. Désormais l'unicité porte sur prénom
+et nom de famille (contrainte `unique_character_full_name_ci`), l'import ne refuse qu'un prénom **et** un nom déjà pris
+(un nom de famille vide d'un côté reste ambigu, donc refusé, et la note cite le nom complet), et la création manuelle
+par un officier suit la même règle. Les listes du site affichent toujours le prénom, le nom complet au survol et sur
+la fiche.
+
 ### API Battle.net de Forever : sonde et archive brute (7 novembre 2026, site seulement)
 
 L'API Battle.net couvre WoW Forever depuis le 5 novembre, sans documentation de Blizzard : espaces de noms

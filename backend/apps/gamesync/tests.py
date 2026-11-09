@@ -268,6 +268,22 @@ class TestImport:
             ),
         )
         assert response.data["snapshots"][0]["status"] == "refused"
+        # Même prénom, autre nom de famille (reroll d'un membre, ou un autre joueur) : créé, Forever donne
+        # un nom de famille. Même prénom et même nom chez un autre joueur : refusé.
+        response = do_import(
+            as_user(member),
+            export_code(
+                character_payload(guid="Player-1-0004", name="Thrall", surname="Fils-de-Personne"),
+                character_payload(guid="Player-1-0005", name="Thrall", surname="Fils-de-Durotan"),
+            ),
+        )
+        statuses = {s["guid"]: s for s in response.data["snapshots"]}
+        assert statuses["Player-1-0004"]["status"] == "created"
+        assert (
+            statuses["Player-1-0005"]["status"] == "refused"
+            and "Fils-de-Durotan" in statuses["Player-1-0005"]["note"]
+        )
+        assert Character.objects.filter(name="Thrall").count() == 2
 
     def test_candidate_goes_pending_then_merge(self, as_user, member):
         candidate = Character.objects.create(

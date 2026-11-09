@@ -109,13 +109,7 @@ class CharacterSerializer(serializers.ModelSerializer):
     # --- validations ---------------------------------------------------------
 
     def validate_name(self, value: str) -> str:
-        value = value.strip()
-        duplicates = Character.objects.filter(name__iexact=value)
-        if self.instance:
-            duplicates = duplicates.exclude(pk=self.instance.pk)
-        if duplicates.exists():
-            raise serializers.ValidationError("Un personnage porte déjà ce nom dans la guilde.")
-        return value
+        return value.strip()
 
     def validate_professions(self, value):
         slugs = [p["profession"].slug for p in value]
@@ -144,6 +138,16 @@ class CharacterSerializer(serializers.ModelSerializer):
         off_role = attrs.get("off_role", current.off_role if current else "")
         spec = attrs.get("specialization", current.specialization if current else None)
         errors = {}
+
+        # Homonymie sur prénom et nom de famille (Forever donne un nom de famille) ; un nom vide reste ambigu.
+        name = attrs.get("name", current.name if current else "")
+        surname = (attrs.get("surname", current.surname if current else "") or "").strip().lower()
+        if name:
+            duplicates = Character.objects.filter(name__iexact=name)
+            if current is not None:
+                duplicates = duplicates.exclude(pk=current.pk)
+            if any(not surname or not d.surname or d.surname.lower() == surname for d in duplicates):
+                errors["name"] = "Un personnage porte déjà ce nom dans la guilde."
 
         if race and player_class and not race.classes.filter(pk=player_class.pk).exists():
             errors["race"] = f"Un {race.name} ne peut pas être {player_class.name}."

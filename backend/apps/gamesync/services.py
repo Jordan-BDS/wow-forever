@@ -475,6 +475,17 @@ def _process_character(batch: ImportBatch, raw: Any, summary: dict[str, int]) ->
     return _create(batch, parsed, raw, summary)
 
 
+def _homonym(parsed: ParsedCharacter) -> Character | None:
+    """Un personnage du site qui porte déjà ce nom : même prénom et même nom de famille (Forever donne un
+    nom de famille, deux « Arthas » de familles différentes coexistent) ; un nom de famille vide d'un côté
+    ou de l'autre reste ambigu, donc homonyme."""
+    surname = parsed.surname.lower()
+    for other in Character.objects.select_related("owner").filter(name__iexact=parsed.name):
+        if not surname or not other.surname or other.surname.lower() == surname:
+            return other
+    return None
+
+
 def _create(
     batch: ImportBatch, parsed: ParsedCharacter, raw: dict, summary: dict[str, int], note: str = ""
 ) -> CharacterSnapshot:
@@ -485,11 +496,11 @@ def _create(
         return _snapshot(
             batch, parsed, raw, status=SnapshotStatus.REFUSED, note="Classe ou race inconnue du site"
         )
-    homonym = Character.objects.select_related("owner").filter(name__iexact=parsed.name).first()
+    homonym = _homonym(parsed)
     if homonym is not None:
         return _snapshot(
             batch, parsed, raw, status=SnapshotStatus.REFUSED,
-            note=f"« {homonym.name} » existe déjà sur le site (joueur : {homonym.owner.display_name}).",
+            note=f"« {homonym.full_name} » existe déjà sur le site (joueur : {homonym.owner.display_name}).",
         )  # fmt: skip
     character = Character.objects.create(
         owner=user,
