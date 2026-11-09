@@ -104,7 +104,7 @@ local function pack(fields)
   return cut(line, 255)
 end
 
---- Ligne « P » : position, résumé de talents, recherche de groupe, version de l'addon (0.6.3 ; les anciennes
+--- Ligne « P » : position, résumé de talents, recherche de groupe, version de l'addon (0.6.4 ; les anciennes
 --- versions ignorent ce champ, les nouvelles s'en servent pour proposer un /reload à qui est en retard).
 function Positions.Encode(char, map, x, y)
   local fields = baseFields("P", char, map, x, y)

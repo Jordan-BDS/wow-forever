@@ -42,7 +42,7 @@ transporte le code jusqu'au site.
   ou le champ de la liste) diffusée avec la position. Appel à l'aide : **manuel seulement** (bouton dans `/mf` et
   dans la liste, ou `/mf sos` ; la cible est nommée si c'est un joueur), jamais automatique pour ne pas spammer en
   zone contestée ; un envoi par minute ; chez les autres, toast et son dans la même zone, ligne de chat ailleurs,
-  anneau rouge sur le point 2 min. La ligne « P » porte la version de l'addon (0.6.3) : une version plus récente
+  anneau rouge sur le point 2 min. La ligne « P » porte la version de l'addon (0.6.4) : une version plus récente
   vue chez un guildien donne une ligne de chat puis, hors combat et hors instance, le popup « Recharger (/reload) »,
   une fois par version et par session.
 - `Wanted.lua`, `WantedUI.lua` : têtes mises à prix (lot 1, 0.5.0). Un joueur adverse qui tue un membre prend un point
@@ -60,8 +60,17 @@ transporte le code jusqu'au site.
   là où il a frappé, qui pâlit puis disparaît après 5 min. Fenêtre `/mf wanted` (bouton dans `/mf`) : ennemis par
   prime décroissante, dernière victime, lieu, âge ; survol : la même infobulle que sur la carte. Réglage « Alertes
   Wanted ». **Kills par la guilde** (lot 2, 0.6.0) : le journal de combat étant interdit, c'est le **message de chat de
-  victoire honorable** (`CHAT_MSG_COMBAT_HONOR_GAIN`, motif construit depuis `COMBATLOG_HONORGAIN` et sa variante sans
-  rang, affiché par `/mf api`) qui nomme le joueur abattu ; tout le groupe le reçoit (crédit de groupe). Chaque kill de
+  victoire honorable** (`CHAT_MSG_COMBAT_HONOR_GAIN`) qui nomme le joueur abattu ; tout le groupe le reçoit (crédit de
+  groupe). Le motif est construit depuis toutes les chaînes `COMBATLOG_HONORGAIN*` du client (nom en tête, texte
+  jusqu'au marqueur suivant, quel qu'il soit), avec les chaînes des clients classique et 12.0 en secours ; les codes
+  d'affichage (lien de joueur, couleur) sont retirés, et un message d'une forme inconnue qui nomme un seul ennemi du
+  tableau compte quand même (0.6.4). Filet (0.6.4) : quand le compteur de victoires honorables du client bouge
+  (`PLAYER_PVP_KILLS_CHANGED`, `GetPVPLifetimeStats`) sans message reconnu dans les 3 s, le kill compte, nommé d'après
+  le joueur adverse mort regardé (cible, survol, focus) si son nom est lisible, sans nom sinon (compteur et
+  événement `pk`, pas de Wanted). `/mf api` affiche la chaîne, les motifs, le dernier message reçu et ce qu'on en a
+  tiré (« motif », « recherché », « compteur » ou « aucun joueur reconnu »), et le compteur lu. Le popup « Prime
+  encaissée » s'affiche chez le chasseur et chez les guildiens qui reçoivent le « K », alertes Wanted cochées ou non
+  (0.6.4 ; la case ne gouverne que la ligne de chat, la prime dans l'avis de décès et les têtes de mort). Chaque kill de
   joueur est un événement `pk` du journal avec la prime encaissée (compteurs `pk` et `bounty`, d'où les chasseurs de
   primes du site) ; si l'ennemi est recherché (nom exact, ou prénom seul s'il est unique au tableau) : kill au tableau
   (dédoublonné à la minute par ennemi : coéquipiers, écho), message « K » aux guildiens, toast or « Prime encaissée »

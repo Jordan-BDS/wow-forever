@@ -6,9 +6,16 @@
 --
 -- Lot 2 : kills par la guilde. Forever interdit le journal de combat : on lit le message de chat de victoire
 -- honorable (« X meurt, victoire honorable… », CHAT_MSG_COMBAT_HONOR_GAIN), que tout le groupe reçoit (crédit de
--- groupe, décidé le 9 novembre 2026). Pas de message pour une cible qui ne rapporte pas d'honneur. Chaque kill de
+-- groupe, décidé le 9 novembre 2026). Le motif vient des chaînes du client (toutes les variantes
+-- COMBATLOG_HONORGAIN*, nom en tête), avec celles connues des clients Forever et retail en secours ; les codes
+-- d'affichage (lien de joueur, couleur) sont retirés avant lecture ; un message d'une forme inconnue qui nomme un
+-- seul ennemi du tableau compte quand même. Filet (0.6.4) : si le compteur de victoires honorables du personnage
+-- bouge (PLAYER_PVP_KILLS_CHANGED) sans message reconnu dans les WANTED_KILL_WINDOW s, le kill compte, nommé
+-- d'après le joueur mort regardé (cible, survol, focus) si son nom est lisible, sans nom sinon. `/mf api` dit ce
+-- qu'a donné le dernier message. Pas de message pour une cible qui ne rapporte pas d'honneur. Chaque kill de
 -- joueur est un événement `pk` du journal (prime encaissée = prime de l'ennemi à ce moment, compteurs `pk` et
--- `bounty`) ; s'il est recherché, message « K » aux guildiens, toast « prime encaissée », tête de mort déplacée.
+-- `bounty`) ; s'il est recherché, message « K » aux guildiens, popup « Prime encaissée » chez tous (alertes Wanted ou
+-- non, la ligne de chat seulement avec), tête de mort déplacée.
 -- Les kills d'un même ennemi à moins de WANTED_KILL_DEDUPE s ne comptent qu'une fois dans son tableau (le groupe
 -- envoie autant de « K » que de chasseurs). En champ de bataille ou en arène, le kill compte (compteur `pk`, événement
 -- `pk` marqué `bg`) mais ne touche pas au Wanted : ni prime, ni « K », ni toast, et le site l'ignore pour le tableau
@@ -150,35 +157,171 @@ end
 
 -- --- kills -----------------------------------------------------------------------------------------------
 
---- Motifs Lua construits depuis les chaînes du jeu « %s meurt, victoire honorable Rang : %s (…) » et sa variante
---- sans rang : on garde le début jusqu'au deuxième marqueur, le nom capturé par le premier.
+local lastHonor = nil -- /mf api : dernier message de victoire honorable { t, text, name, how }
+local lastKillAt = 0 -- heure du dernier kill compté (message ou compteur) : les deux pistes ne comptent qu'une fois
+local killsBaseline = nil -- victoires honorables du personnage à la dernière lecture (GetPVPLifetimeStats)
+
+--- Chaînes du client qui nomment un joueur abattu (le nom en tête, puis le texte propre à chaque variante), et
+--- celles connues des clients Forever (classique) et retail (12.0) en secours, si le client n'en expose aucune.
+local HONOR_GLOBALS = {
+  "COMBATLOG_HONORGAIN", "COMBATLOG_HONORGAIN_NO_RANK", "COMBATLOG_HONORGAIN_EXHAUSTION1",
+  "COMBATLOG_HONORGAIN_NO_RANK_EXHAUSTION1",
+}
+local HONOR_FALLBACKS = {
+  "%s meurt, victoire honorable Rang : %s (Points d'honneur estimés : %d)",
+  "%s meurt, victoire honorable (Points d'honneur estimés : %d)",
+  "%s meurt, victoire honorable. Grade : %s (Points d'honneur estimés : %d)",
+  "%s meurt (victoire honorable : %s). Vous gagnez %d points d’honneur.",
+  "%s meurt (victoire honorable). Vous gagnez %d points d’honneur.",
+  "%s dies, honorable kill Rank: %s (Estimated Honor Points: %d)",
+  "%s dies, honorable kill (Estimated Honor Points: %d)",
+}
+
+local function escape(s)
+  return (s:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0"))
+end
+
+--- Motif Lua d'une chaîne de victoire honorable : le texte avant le nom, le nom capturé, puis le texte jusqu'au
+--- marqueur suivant (« %s », « %d », « %.2f », « %2$s »…). nil si la chaîne ne nomme personne ou ne dit rien
+--- après le nom (un tel motif prendrait n'importe quel message, celui des points d'honneur reçus compris).
+function Wanted.HonorPattern(template)
+  if type(template) ~= "string" then return nil end
+  local s, e = template:find("%%%d*%$?s")
+  if not s then return nil end
+  local rest = template:sub(e + 1)
+  local head = rest:match("^(.-)%%[%d%.%$]*[sdfgcq%%]") or rest
+  if head == "" then return nil end
+  return "^" .. escape(template:sub(1, s - 1)) .. "(.-)" .. escape(head)
+end
+
 local patterns
 function Wanted.HonorPatterns()
   if patterns then return patterns end
   patterns = {}
-  local templates = {
-    COMBATLOG_HONORGAIN or "%s meurt, victoire honorable Rang : %s (Points d'honneur estimés : %d)",
-    COMBATLOG_HONORGAIN_NO_RANK or "%s meurt, victoire honorable (Points d'honneur estimés : %d)",
-  }
-  for _, template in ipairs(templates) do
-    if type(template) == "string" and template:find("%%s") then
-      local rest = template:gsub("^%%s", "", 1) -- le nom est le premier marqueur
-      local head = rest:match("^(.-)%%[sd]") or rest -- jusqu'au marqueur suivant
-      head = head:gsub("[%^%$%(%)%.%[%]%*%+%-%?]", "%%%0")
-      patterns[#patterns + 1] = "^(.-)" .. head
+  local seen = {}
+  local function add(template)
+    local pattern = Wanted.HonorPattern(template)
+    if pattern and not seen[pattern] then
+      seen[pattern] = true
+      patterns[#patterns + 1] = pattern
     end
   end
+  for _, name in ipairs(HONOR_GLOBALS) do add(ns.plain(_G[name])) end
+  for _, template in ipairs(HONOR_FALLBACKS) do add(template) end
   return patterns
 end
 
---- Nom du joueur abattu d'après un message de victoire honorable, nil sinon.
+--- Texte d'un message de chat sans ses codes d'affichage : couleurs, liens (de joueur : on garde le nom), textures.
+function Wanted.CleanMessage(msg)
+  msg = tostring(msg):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", ""):gsub("|H.-|h%[?(.-)%]?|h", "%1")
+  return (msg:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+--- Le seul ennemi du tableau dont le nom complet ou le prénom figure dans le texte, en mot entier ; nil si aucun ou
+--- plusieurs.
+function Wanted.NamedIn(text)
+  local lower = " " .. tostring(text or ""):lower() .. " "
+  local found = nil
+  for key, entry in pairs(table_() or {}) do
+    local hit = false
+    for _, needle in ipairs({ key, key:match("^(%S+)") or "" }) do
+      local s, e = lower:find(needle, 1, true)
+      while s and needle ~= "" and not hit do
+        local before, after = lower:sub(s - 1, s - 1), lower:sub(e + 1, e + 1)
+        if not before:match("[%w\128-\255]") and not after:match("[%w\128-\255]") then hit = true end
+        s, e = lower:find(needle, e + 1, true)
+      end
+      if hit then break end
+    end
+    if hit then
+      if found and found ~= entry then return nil end -- deux ennemis nommés : on ne tranche pas
+      found = entry
+    end
+  end
+  return found and found.name or nil
+end
+
+--- Nom du joueur abattu d'après un message de victoire honorable (déjà nettoyé) et d'où il vient : « motif »
+--- (chaîne du client), « recherché » (message d'une forme inconnue qui nomme un seul ennemi du tableau). nil sinon.
 function Wanted.KilledName(msg)
   if type(msg) ~= "string" then return nil end
   for _, pattern in ipairs(Wanted.HonorPatterns()) do
     local name = msg:match(pattern)
-    if name and name ~= "" then return name end
+    if name and name ~= "" then return name, "motif" end
   end
+  local named = Wanted.NamedIn(msg)
+  if named then return named, "recherché" end
   return nil
+end
+
+--- Message CHAT_MSG_COMBAT_HONOR_GAIN reçu : le kill s'il nomme un joueur abattu ; sinon on note ce qu'on a lu.
+function Wanted.OnHonorMessage(char, msg)
+  local plain = ns.plain(msg)
+  local text = type(plain) == "string" and Wanted.CleanMessage(plain) or nil
+  local name, how = Wanted.KilledName(text)
+  lastHonor = { t = ns.now(), text = text or (msg ~= nil and "(secret)" or "(vide)"), name = name, how = how }
+  ns.Trace("victoire honorable : « %s » → %s", lastHonor.text, name and (name .. " (" .. how .. ")") or "aucun nom")
+  if name and char then Wanted.RecordKill(char, name, nil, ns.InBattleground()) end
+end
+
+--- Victoires honorables du personnage d'après le client (à vie, sinon de la session) ; nil si illisible.
+local function lifetimeKills()
+  local fn = GetPVPLifetimeStats or GetPVPSessionStats
+  if type(fn) ~= "function" then return nil end
+  local ok, hk = pcall(fn)
+  return ok and tonumber(ns.plain(hk)) or nil
+end
+
+--- Joueur adverse mort que je regarde (cible, survol, focus) : son nom s'il est lisible, "" sinon.
+local function deadPlayerAround()
+  for _, unit in ipairs({ "target", "mouseover", "focus" }) do
+    local ok, exists = pcall(UnitExists or function() end, unit)
+    if ok and ns.plain(exists) then
+      local okPlayer, player = pcall(UnitIsPlayer or function() end, unit)
+      local okDead, dead = pcall(UnitIsDeadOrGhost or function() end, unit)
+      local okFriend, friend = pcall(UnitIsFriend or function() end, "player", unit)
+      if okPlayer and ns.plain(player) == true and okDead and ns.plain(dead) == true and not (okFriend and ns.plain(friend) == true) then
+        local okName, name = pcall(UnitName or function() end, unit)
+        name = okName and ns.plain(name) or nil
+        if type(name) == "string" and name ~= "" then return name end
+      end
+    end
+  end
+  return ""
+end
+
+--- Le compteur de victoires honorables du personnage a bougé (PLAYER_PVP_KILLS_CHANGED) : filet quand le message
+--- de chat manque ou n'est pas reconnu. On lui laisse WANTED_KILL_WINDOW s ; sans kill lu entre-temps, celui-ci
+--- compte, nommé d'après le joueur mort regardé (lu tout de suite : la cible peut disparaître), sans nom sinon
+--- (compteur `pk` et événement, mais pas de Wanted faute de nom).
+function Wanted.OnKillsChanged(char)
+  local hk = lifetimeKills()
+  if hk == nil then return end
+  local before = killsBaseline
+  killsBaseline = hk
+  if before == nil or hk <= before then return end
+  local at = ns.now()
+  if at - lastKillAt < ns.Data.WANTED_KILL_WINDOW then
+    ns.Trace("victoires honorables %d → %d : kill déjà lu dans le message", before, hk)
+    return
+  end
+  local victim = deadPlayerAround()
+  C_Timer.After(ns.Data.WANTED_KILL_WINDOW, function()
+    if lastKillAt >= at then return end -- le message est arrivé entre-temps
+    local unread = lastHonor and at - lastHonor.t < ns.Data.WANTED_KILL_WINDOW and lastHonor.text or "(aucun message)"
+    lastHonor = { t = ns.now(), text = string.format("%s, victoires honorables %d → %d", unread, before, hk),
+      name = victim ~= "" and victim or nil, how = "compteur" }
+    ns.Trace("victoires honorables %d → %d sans message reconnu : kill de « %s »", before, hk, victim)
+    if char then ns.Safe("wanted.kills", Wanted.RecordKill, char, victim, nil, ns.InBattleground()) end
+  end)
+end
+
+--- /mf api : le dernier message de victoire honorable lu et ce qu'on en a tiré, et le compteur du client.
+function Wanted.HonorSource()
+  local counter = killsBaseline and tostring(killsBaseline) or "illisibles"
+  if not lastHonor then return "aucun message cette session · victoires honorables lues : " .. counter end
+  return string.format("dernier message « %s » → %s · victoires honorables lues : %s", lastHonor.text,
+    lastHonor.name and string.format("%s (%s)", lastHonor.name, lastHonor.how) or "aucun joueur reconnu", counter)
 end
 
 --- Kill déjà compté dans le tableau de l'ennemi (un autre chasseur du groupe, ou l'écho de mon propre « K ») ?
@@ -239,10 +382,13 @@ local function send(text)
   return ns.Positions.Send(text)
 end
 
+--- Un recherché abattu (par moi, ou un « K » reçu) : le popup « Prime encaissée » toujours, comme l'avis « WANTED »
+--- d'une mort PvP (décision du 9 novembre 2026) ; la ligne de chat seulement avec les alertes Wanted.
 local function announceKill(entry, by, byClass, zone, sub, prime)
-  if not ns.db.settings.wantedAlerts then return end
   local place = zone ~= "" and zone or (sub ~= "" and sub or L.WHERE_UNKNOWN)
-  ns.Print(L.BOUNTY_CHAT, ns.ClassColored(by, byClass), ns.ClassColored(entry.name, entry.class), place, prime, entry.kills or 0)
+  if ns.db.settings.wantedAlerts then
+    ns.Print(L.BOUNTY_CHAT, ns.ClassColored(by, byClass), ns.ClassColored(entry.name, entry.class), place, prime, entry.kills or 0)
+  end
   if ns.UI and ns.UI.ShowBounty then
     ns.UI.ShowBounty(entry, Wanted.BountyPhrase(entry, by, prime, place), by, byClass, prime, place)
   end
@@ -281,6 +427,7 @@ function Wanted.RecordKill(char, name, t, battleground)
   if map then event.map = map end
   if x and y then event.x, event.y = x, y end
   ns.Journal.Event(char, "pk", event, t)
+  lastKillAt = t
   if not entry then return nil end
   if killSeen(entry, t) then return entry, false end
   markKill(entry, t, myName(), char.class, map, x, y, zone, sub)
@@ -472,16 +619,18 @@ end
 
 ns.RegisterCollector({
   name = "wanted",
-  events = { CHAT_MSG_COMBAT_HONOR_GAIN = true, CHAT_MSG_ADDON = true },
+  events = { CHAT_MSG_COMBAT_HONOR_GAIN = true, PLAYER_PVP_KILLS_CHANGED = true, CHAT_MSG_ADDON = true },
   onLogin = function()
+    killsBaseline = lifetimeKills()
     C_Timer.After(5, function() ns.Safe("wanted.tick", Wanted.Tick) end)
     C_Timer.After(ns.Data.WANTED_HANDSHAKE_DELAY, function() ns.Safe("wanted.request", Wanted.Request) end)
     C_Timer.NewTicker(ns.Data.POSITION_TICK, function() ns.Safe("wanted.tick", Wanted.Tick) end)
   end,
   onEvent = function(char, event, ...)
     if event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
-      local name = Wanted.KilledName(ns.plain((...)))
-      if name and char then Wanted.RecordKill(char, name, nil, ns.InBattleground()) end
+      Wanted.OnHonorMessage(char, (...))
+    elseif event == "PLAYER_PVP_KILLS_CHANGED" then
+      Wanted.OnKillsChanged(char)
     else
       onAddonMessage(...)
     end

@@ -147,7 +147,10 @@ _QUESTS_DONE = { [7848] = true }
 C_QuestLog = { IsQuestFlaggedCompleted = function(id) return _QUESTS_DONE[id] == true end }
 function GetNumSavedInstances() return 1 end
 function GetSavedInstanceInfo() return "Cœur du Magma", 409, 300000, 9, true, false, 0, true, 40, "Normal", 10, 7 end
-function GetPVPLifetimeStats() return 2340, 12 end
+_HK = 2340 -- victoires honorables à vie du personnage (PLAYER_PVP_KILLS_CHANGED quand ça bouge)
+function GetPVPLifetimeStats() return _HK, 12 end
+function UnitIsDeadOrGhost(unit) local u = unitData(unit) return u ~= nil and u.dead == true end
+function UnitIsFriend(a, b) local u = unitData(b) return u ~= nil and u.hostile ~= true end
 -- Champ de bataille : _BG = { status = "none"|"queued"|"confirm"|"active", map = "...", winner = nil|0|1 }.
 _BG = { status = "none" }
 function GetMaxBattlefieldID() return 1 end

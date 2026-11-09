@@ -1715,6 +1715,168 @@ class TestWanted:
 class TestWantedKills:
     """Lot 2 : kills par la guilde (message de victoire honorable), message « K », poignée de main « W »."""
 
+    def test_bounty_popup_shows_even_with_wanted_alerts_off(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; WoWForeverGuildeDB.settings.wantedAlerts = false")
+        receive(
+            lua,
+            f"D	1	Player-1-00000JAI	Jaina	Portvaillant	MAGE	60	Garrosh Hurlenfer	Durotar		{g._CLOCK.now}	1	WARRIOR	1411	0.4000	0.6000",
+        )
+        toast = g.WoWForeverGuildeDeath
+        toast.shown = False
+        chat_before = len(list(g._CHAT.values()))
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
+        )
+        # Mon kill : popup or « Prime encaissée », sans ligne de chat.
+        assert toast.shown is True and "Prime encaissée" in toast.header.text
+        assert toast.footer.text.startswith(
+            "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffGarrosh Hurlenfer|r · 1 point"
+        )
+        assert not any("Prime :" in m for m in list(g._CHAT.values())[chat_before:])
+        # Le « K » d'un guildien pour un autre recherché : popup aussi.
+        toast.shown = False
+        receive(
+            lua,
+            f"K	1	Player-1-00000UTH	Uther Lumière	PALADIN	Vol'jin	3	1	{g._CLOCK.now}	1411	0.1000	0.2000	Durotar	Orgrimmar	SHAMAN",
+            "Uther-Forever",
+        )
+        assert toast.shown is True and "Vol'jin" in toast.footer.text
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_honorable_kill_is_read_from_the_retail_strings_links_and_unknown_messages(self):
+        # Chaînes du client 12.0 (frFR), nom en lien de joueur, message des points reçus (même événement, pas un kill),
+        # message d'une forme inconnue qui nomme un recherché.
+        lua = boot()
+        g = lua.globals()
+        lua.execute("""
+          COMBATLOG_HONORGAIN = "%s meurt (victoire honorable : %s). Vous gagnez %d points d’honneur."
+          COMBATLOG_HONORGAIN_NO_RANK = "%s meurt (victoire honorable). Vous gagnez %d points d’honneur."
+          COMBATLOG_HONORGAIN_EXHAUSTION1 = "%s meurt (victoire honorable : %s). Vous gagnez %d points d’honneur (bonus de %s de %s)."
+        """)
+        login(lua)
+        lua.execute("_GUILD = true")
+        receive(
+            lua,
+            f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\t\t{g._CLOCK.now}\t1\tWARRIOR\t1411\t0.4000\t0.6000",
+        )
+        entry = g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"]
+        char = g._NS.char
+        patterns = list(g._NS.Wanted.HonorPatterns().values())
+        assert (
+            patterns[0] == "^(.-) meurt %(victoire honorable : "
+            and patterns[1] == "^(.-) meurt %(victoire honorable%)%. Vous gagnez "
+        )
+        assert g._NS.Wanted.HonorSource() == "aucun message cette session · victoires honorables lues : 2340"
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "|Hplayer:Garrosh Hurlenfer|h[Garrosh Hurlenfer]|h meurt (victoire honorable : Grunt). Vous gagnez 15 points d’honneur.",
+        )
+        assert (entry.kills, char.counters.pk, char.counters.bounty) == (1, 1, 1)
+        assert g._NS.Wanted.HonorSource() == (
+            "dernier message « Garrosh Hurlenfer meurt (victoire honorable : Grunt). Vous gagnez 15 points d’honneur. »"
+            " → Garrosh Hurlenfer (motif) · victoires honorables lues : 2340"
+        )
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Sylvanas meurt (victoire honorable). Vous gagnez 12 points d’honneur.",
+        )
+        assert char.counters.pk == 2
+        # Les points reçus arrivent par le même événement : pas un kill.
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", "Vous avez reçu 27 points d’honneur.")
+        assert char.counters.pk == 2
+        assert g._NS.Wanted.HonorSource().endswith(
+            "→ aucun joueur reconnu · victoires honorables lues : 2340"
+        )
+        # Forme inconnue : le seul recherché nommé compte ; nommé par son prénom aussi ; un inconnu, non.
+        g._ADVANCE(61)
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", "Honneur : Garrosh Hurlenfer tombe sous vos coups (+14).")
+        assert (entry.kills, char.counters.pk) == (2, 3)
+        assert g._NS.Wanted.HonorSource().endswith(
+            "→ Garrosh Hurlenfer (recherché) · victoires honorables lues : 2340"
+        )
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", "Honneur : Sylvanas tombe sous vos coups (+14).")
+        assert char.counters.pk == 3
+        # Message secret : rien, mais /mf api le dit.
+        lua.execute("_FIRE('CHAT_MSG_COMBAT_HONOR_GAIN', _SECRET)")
+        assert char.counters.pk == 3 and g._NS.Wanted.HonorSource().startswith("dernier message « (secret) »")
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_kill_counter_is_a_safety_net_when_the_honor_message_is_missing(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        receive(
+            lua,
+            f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\t\t{g._CLOCK.now}\t1\tWARRIOR\t1411\t0.4000\t0.6000",
+        )
+        entry = g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"]
+        char = g._NS.char
+        # Le compteur bouge, aucun message : après le délai, le kill compte, nommé d'après la cible morte.
+        lua.execute(
+            "_TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true, dead = true }; _HK = 2341"
+        )
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        lua.execute("_TARGET = nil")
+        assert (char.counters.pk or 0) == 0
+        g._ADVANCE(3)
+        assert (entry.kills, char.counters.pk, char.counters.bounty) == (1, 1, 1)
+        assert [e for e in char.events.values() if e.k == "pk"][-1].name == "Garrosh Hurlenfer"
+        assert len(wanted_sent(g, "K")) == 1
+        assert g._NS.Wanted.HonorSource() == (
+            "dernier message « (aucun message), victoires honorables 2340 → 2341 » → Garrosh Hurlenfer (compteur)"
+            " · victoires honorables lues : 2341"
+        )
+        # Message et compteur pour le même kill : une fois, dans les deux ordres.
+        g._ADVANCE(61)
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
+        )
+        lua.execute("_HK = 2342")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        assert (entry.kills, char.counters.pk) == (2, 2)
+        g._ADVANCE(61)
+        lua.execute("_HK = 2343")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(1)
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
+        )
+        g._ADVANCE(3)
+        assert (entry.kills, char.counters.pk) == (3, 3)
+        # Un message d'une forme inconnue qui ne nomme personne, puis le compteur : le kill compte, sans nom (pas de Wanted).
+        g._ADVANCE(61)
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", "Vous avez vaincu un adversaire.")
+        lua.execute("_HK = 2344")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        assert (entry.kills, char.counters.pk) == (3, 4)
+        last = [e for e in char.events.values() if e.k == "pk"][-1]
+        assert (last.name, last.prime) == ("", 0)
+        assert g._NS.Wanted.HonorSource().startswith(
+            "dernier message « Vous avez vaincu un adversaire., victoires honorables 2343 → 2344 » → aucun joueur reconnu"
+        )
+        # Une cible morte alliée ne nomme pas le kill.
+        g._ADVANCE(61)
+        lua.execute(
+            "_TARGET = { name = 'Uther Lumière', class = 'PALADIN', hostile = false, player = true, dead = true }; _HK = 2345"
+        )
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        assert char.counters.pk == 5 and [e for e in char.events.values() if e.k == "pk"][-1].name == ""
+        # Le compteur qui ne bouge pas, ou illisible : rien.
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        assert char.counters.pk == 5
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_honorable_kill_of_a_wanted_player_cashes_the_bounty(self):
         lua = boot()
         g = lua.globals()

@@ -133,7 +133,10 @@ local PROBES = {
     "C_ChatInfo.SendAddonMessage", "IsInGuild", "GetNumGuildMembers", "GetGuildRosterInfo",
   } },
   { "mort", { "C_DeathInfo.GetDeathRecapEvents", "GetDeathRecapEvents", "GetDeathRecapLink" } },
-  { "wanted", { "UnitIsPlayer", "COMBATLOG_HONORGAIN", "COMBATLOG_HONORGAIN_NO_RANK", "COMBATLOG_XPGAIN_FIRSTPERSON" } },
+  { "wanted", {
+    "UnitIsPlayer", "UnitIsDeadOrGhost", "GetPVPLifetimeStats", "GetPVPSessionStats", "COMBATLOG_HONORGAIN",
+    "COMBATLOG_HONORGAIN_NO_RANK", "COMBATLOG_XPGAIN_FIRSTPERSON",
+  } },
   { "récolte", { "C_Spell.GetSpellName", "GetSpellInfo", "UnitChannelInfo" } },
 }
 
@@ -173,10 +176,12 @@ function ns.Diagnostic()
     map and string.format("carte %s%s", tostring(map), x and string.format(" (%.2f, %.2f)", x, y) or " sans coordonnées") or "illisible",
     pins and "bibliothèque chargée" or "bibliothèque absente",
     (ns.DeathSource and ns.DeathSource()) or "aucune mort cette session")
-  -- Chaîne de victoire honorable du client, telle que lue pour détecter les kills de joueurs (Wanted).
-  lines[#lines + 1] = string.format("victoire honorable · chaîne : %s · motif : %s",
+  -- Chaîne de victoire honorable du client, telle que lue pour détecter les kills de joueurs (Wanted), le dernier
+  -- message reçu et ce qu'on en a tiré, le compteur de kills du client.
+  lines[#lines + 1] = string.format("victoire honorable · chaîne : %s · motif : %s · %s",
     type(COMBATLOG_HONORGAIN) == "string" and COMBATLOG_HONORGAIN or "absente",
-    (ns.Wanted and ns.Wanted.HonorPatterns and table.concat(ns.Wanted.HonorPatterns(), " | ")) or "aucun")
+    (ns.Wanted and ns.Wanted.HonorPatterns and table.concat(ns.Wanted.HonorPatterns(), " | ")) or "aucun",
+    (ns.Wanted and ns.Wanted.HonorSource and ns.Wanted.HonorSource()) or "rien lu")
   -- Récolte : le dernier sort lu (identifiant, nom, événement) et ce que le collecteur en a fait ; la pêche se
   -- diagnostique ainsi en jeu (sort non reconnu, ou butin hors fenêtre dans /mf trace).
   lines[#lines + 1] = "récolte · " .. ((ns.GatherSource and ns.GatherSource()) or "aucun sort de récolte lu cette session")

@@ -1247,6 +1247,27 @@ ne donne ni prime, ni message « K », ni toast, et le site ignore ces événeme
 dans l'environnement simulé (`TestWanted`) ; à valider en jeu : la lisibilité du nom des plaques et de
 `UnitIsPlayer` une fois mort sur le client Forever.
 
+**Kill d'un recherché non compté (addon 0.6.4, 9 novembre 2026)** : en jeu, abattre un porteur de prime n'a rien
+donné (ni prime, ni « K », ni toast). Sans voir le client, trois faiblesses du lecteur sont levées d'un coup. Le
+motif de victoire honorable n'était construit que depuis `COMBATLOG_HONORGAIN` et sa variante sans rang, et
+s'arrêtait au marqueur `%s` ou `%d` suivant : une variante (bonus de repos `_EXHAUSTION1`) ou un marqueur `%.2f`
+(chaîne classique « %s meurt, victoire honorable (%.2f points d'honneur) ») le rendaient muet. Désormais toutes les
+chaînes `COMBATLOG_HONORGAIN*` du client servent, le texte capturé va jusqu'au premier marqueur quel qu'il soit, et
+les chaînes connues des clients classique (« Rang : », « Grade : ») et 12.0 (« %s meurt (victoire honorable : %s).
+Vous gagnez %d points d’honneur. », vérifiée dans les ressources frFR publiques) sont en secours. Les codes
+d'affichage d'un message (lien `|Hplayer:…|h`, couleur) sont retirés avant lecture. Un message d'une forme inconnue
+qui nomme un seul ennemi du tableau (nom complet ou prénom, mot entier) compte quand même. Et un **filet** : si le
+compteur de victoires honorables du personnage bouge (`PLAYER_PVP_KILLS_CHANGED`, `GetPVPLifetimeStats`) sans kill
+lu dans les 3 s, le kill compte, nommé d'après le joueur adverse mort regardé (cible, survol, focus, nom lu tout
+de suite) si son nom est lisible, sans nom sinon (compteur et événement `pk` à nom vide, que le site ignore pour le
+tableau) ; message et compteur pour un même kill ne comptent qu'une fois, dans les deux ordres. `/mf api` affiche
+le dernier message reçu et ce qu'on en a tiré (« motif », « recherché », « compteur », « aucun joueur reconnu »,
+« (secret) »), et le compteur lu : si un kill reste muet, c'est cette ligne qu'il faut copier. Le **popup « Prime
+encaissée »** (toast or, phrase troll, pied « X abat Y · prime · lieu »), chez le chasseur et chez chaque guildien
+qui reçoit le « K », s'affiche désormais que les alertes Wanted soient cochées ou non, comme l'avis « WANTED » d'une
+mort PvP ; la case ne gouverne plus que la ligne de chat, la prime dans l'avis de décès et les têtes de mort
+(demande du 9 novembre 2026). Testé dans l'environnement simulé (`TestWantedKills`).
+
 **Page Wanted (site, 9 novembre 2026)** : `/wanted` (onglet de la section Guilde, lien depuis les Classements et
 l'accueil) : par période, totaux (têtes mises à prix, points de prime, recherchés abattus, chasseurs, membres tués),
 une carte par ennemi (classe, recherché depuis, zones où il sévit, prime, abattu, victimes, dernière victime, dernier
@@ -1439,7 +1460,9 @@ sautant au-delà de 255 octets. Chez les autres : prime dans l'avis de décès (
 recherché, prime N »), ligne de chat, tête de mort rouge (8e marqueur de raid) avec la prime en chiffre sur la carte
 et la minimap, qui pâlit (100 % → 40 %) puis disparaît après 5 min ; infobulle nom, classe, prime, dernière victime
 « ici », lieu, victimes. Ma propre mort nourrit mon tableau tout de suite, l'écho du jeu est un doublon muet. Réglage
-« Alertes Wanted » (défaut coché) : décoché, ni prime dans l'avis ni tête de mort, le tableau se remplit quand même.
+« Alertes Wanted » (défaut coché) : décoché, ni prime dans l'avis ni tête de mort, le tableau se remplit quand même
+(depuis la 0.6.4, les popups « WANTED » et « Prime encaissée » s'affichent dans tous les cas, seules les lignes
+de chat suivent la case).
 Le compagnon conserve `db.wanted` quand il recopie l'état du site (il ne touche qu'aux personnages). Testé dans
 l'environnement simulé (`test_addon.py`, classe `TestWanted`) ; à valider en jeu : `UnitIsPlayer` et `UnitClass` sur
 une cible adverse hors combat, et la texture du marqueur de raid sur le client Forever.
@@ -1461,7 +1484,8 @@ connexion, demande « W » sur le canal de guilde ; chaque membre qui a un table
 si un résumé est déjà passé ; le résumé tient en lignes de 255 octets (nom, classe, prime, kills, dernière heure,
 carte, x, y par ennemi, 40 ennemis au plus, primes fortes d'abord) ; le receveur garde le **maximum** de chaque valeur
 et la position la plus récente (« vu pour la dernière fois »). Testé dans l'environnement simulé (`TestWantedKills`).
-À valider en jeu : la chaîne exacte de victoire honorable sur Forever et l'arrivée du message pour un kill du groupe.
+À valider en jeu : la chaîne exacte de victoire honorable sur Forever et l'arrivée du message pour un kill du groupe
+(`/mf api`, ligne « victoire honorable », depuis la 0.6.4).
 
 **Réalisation du lot 3 (site et compagnon, 9 novembre 2026)** : rien de stocké, tout vient des instantanés comme les
 classements (`apps/gamesync/wanted.py`). Les événements `death` à tueur joueur donnent les **têtes mises à prix**
@@ -1500,6 +1524,6 @@ rien retirer : un joueur seul en ligne, ou qui réinstalle, a quand même les t�
   identifiants de rencontre.
 - Signature de l'exécutable Windows et distribution macOS : selon le nombre de joueurs concernés.
 - Wanted : chaîne et événement de chat de la victoire honorable sur Forever, et forme du nom (prénom et nom ?) donné
-  par le récapitulatif de mort pour un joueur, à vérifier en jeu avant le lot 2.
+  par le récapitulatif de mort pour un joueur, à vérifier en jeu (`/mf api` après un kill, addon 0.6.4).
 - Si un espace d'API Blizzard apparaît : import de la partie identité / équipement / talents sans compagnon, en
   complément de l'addon pour le reste.
