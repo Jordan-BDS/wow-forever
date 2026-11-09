@@ -89,6 +89,9 @@ seul. Cahier des charges, étape 11.
   messages addon dans le canal de guilde, jamais hors du jeu. Avec : points sur la minimap,
   liste « Guilde en jeu » par zone (`/mf qui`, roster + positions), recherche de groupe (`/mf lfg texte`) et appel à
   l'aide manuel (bouton ou `/mf sos`, jamais automatique).
+- **Wanted** : un joueur adverse qui tue un membre prend un point de prime, jamais remis à zéro ; l'avis de décès
+  porte la prime, une tête de mort rouge marque 5 min sur la carte l'endroit où il a frappé, et `/mf wanted` liste les
+  têtes mises à prix. Tout circule par les mêmes messages addon de guilde ; le site suivra (lot 3).
 - **Tests hors du jeu** : l'addon tourne dans un environnement WoW simulé (`backend/apps/gamesync/wow_stub.lua`)
   via `lupa` (Lua 5.1, comme le client) : `cd backend && uv run pytest apps/gamesync/test_addon.py`. Une session
   complète y est jouée et le code produit est décodé puis importé par le site.

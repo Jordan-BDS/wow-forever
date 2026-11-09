@@ -72,7 +72,7 @@ const SECTIONS: Section[] = [
         id: "version",
         title: "Version de l'addon chargée",
         commands: ['/dump C_AddOns.GetAddOnMetadata("WoWForeverGuilde", "Version")'],
-        expected: "La version de la dernière release (0.4.5 au 8 novembre).",
+        expected: "La version de la dernière release (0.5.0 au 9 novembre).",
         otherwise:
           "Autre chose : le compagnon n'a pas recopié l'addon. Bouton « Réinstaller l'addon » puis /reload.",
       },

@@ -1,6 +1,6 @@
 # Cahier des charges — Plateforme de guilde WoW Forever
 
-> Document vivant, construit étape par étape. Dernière mise à jour : 2026-10-28.
+> Document vivant, construit étape par étape. Dernière mise à jour : 2026-11-09.
 
 ## Sommaire
 
@@ -1294,6 +1294,99 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
 - **Équité** : les compteurs ne comptent qu'avec l'addon installé ; chaque tableau indique « depuis le JJ/MM »
   pour les joueurs arrivés en cours de période. Un joueur peut se retirer d'une catégorie depuis son profil.
 
+### Wanted : têtes mises à prix (proposition du 9 novembre 2026, rien de codé)
+
+Idée : quand un joueur adverse tue un membre de la guilde, il gagne un point « Wanted » ; la guilde tient un **tableau
+des ennemis à abattre**, l'addon prévient quand un recherché frappe encore ou quand un guildien l'abat, et sa
+**dernière position connue** s'affiche sur la carte.
+
+**Ce que l'existant donne déjà.** Le tueur d'une mort est résolu une seconde après `PLAYER_DEAD` (récapitulatif de
+mort, cible, dernière cible hostile mémorisée) et part aux guildiens connectés par le message addon « D » ; la
+position du joueur (carte, x, y) est lisible à tout moment ; les points de carte et de minimap existent (HereBeDragons,
+anneau rouge des appels à l'aide) ; le site lit les événements horodatés des exports et en tire classements, Roxors et
+récapitulatif Discord. Trois trous : le message « D » ne dit pas si le tueur est **un joueur** (la mémoire de cible le
+sait, mais l'information n'est pas recopiée dans l'événement de mort), ni sa classe, ni la position du mort ; **qui l'on
+abat** n'est pas lu (le PvP ne compte que le total de victoires honorables du jeu) ; la **position d'un ennemi**
+n'existe pas : on ne connaît que celle du guildien au moment de sa mort, c'est « là où il a frappé il y a N minutes »,
+l'affichage doit le dire.
+
+**Fiabilité des détections.**
+
+- *Mort par un joueur* : fiable quand la victime a ciblé son agresseur (`UnitIsPlayer` lu au ciblage, hors combat).
+  Un voleur jamais ciblé reste inconnu, donc sans Wanted de toute façon. Faux positif possible sur un PNJ homonyme,
+  rare avec les noms « prénom nom » de Forever ; le GM peut retirer un nom.
+- *Kill d'un ennemi* : la piste solide est le **message de chat de victoire honorable** (`CHAT_MSG_COMBAT_HONOR_GAIN`,
+  chaîne `COMBATLOG_HONORGAIN` : « X meurt, victoire honorable… »), même mécanique que les créatures tuées via le
+  message d'expérience, prouvée sur Forever. Limites : pas de message si la cible ne rapporte pas d'honneur (grise,
+  déshonorante), chaîne exacte à confirmer en jeu (à ajouter à la sonde `/mf api`), et **tout le groupe reçoit le
+  message**. Repli heuristique : cible joueur ennemi qui passe à l'état mort, nom lisible seulement hors combat.
+- *Identité de l'ennemi* : clé = nom complet affiché (prénom et nom). Le GUID n'est lisible que s'il a été ciblé hors
+  combat ; on le garde quand on l'a.
+
+**Couche jeu (temps réel, entre addons, canal de guilde).**
+
+- Message « D » enrichi de façon rétrocompatible (le parseur actuel ne lit que les neuf premiers champs) : joueur
+  oui/non, classe du tueur, carte, x, y ; les champs longs sautent déjà au-delà de 255 octets.
+- Nouveau message « K » : un guildien a abattu un ennemi (nom, classe si connue, position, heure).
+- Poignée de main « W » à la connexion : le premier pair qui répond envoie son tableau par paquets, pour que l'absent
+  récupère les points marqués pendant son absence ; dédoublonnage par victime et horodatage. Chaque client garde le
+  tableau dans ses SavedVariables.
+- Affichage : la mort par un ennemi connu **devient l'avis de décès lui-même**, avec sa prime (« Wanted, 3 points »),
+  pour ne pas empiler deux toasts dans l'unique cadre flottant ; toast « Abattu » façon phrases trolls quand un
+  guildien tue un recherché ; **dernière position connue** sur la carte et la minimap (décidé le 9 novembre 2026),
+  avec un **symbole parlant** et non un point couleur de classe : la tête de mort du jeu (icône de marque de raid
+  n° 8, `UI-RaidTargetingIcon_8`), plus grande que les points de membre, teintée rouge, avec la prime en chiffre à
+  côté ; elle pâlit avec le temps puis disparaît **après 5 minutes** (décidé le 9 novembre 2026 ; infobulle : nom,
+  classe, prime, victimes, « il y a X min », « là où il a tué Untel ») ; onglet « Wanted » dans `/mf` et `/mf wanted` ; réglage « Alertes
+  Wanted » à côté des réglages de morts.
+
+**Couche site (autoritaire, avec latence).**
+
+- Les exports n'arrivent qu'à la déconnexion ou au `/reload` : le tableau du site a des heures de retard, le direct vit
+  en jeu, l'historique sur le site, comme pour le reste.
+- Import : l'événement `death` gagne joueur, classe, position ; nouvel événement `pk` pour un kill. Seul l'export de la
+  victime donne un point, seul celui du tueur donne un kill. **Crédit de groupe** (décidé le 9 novembre 2026) : tout
+  le groupe qui reçoit le message de victoire honorable compte le kill, un seul kill par ennemi et par minute dans le
+  tableau de l'ennemi, un kill pour chaque chasseur dans le classement des chasseurs.
+- Règle de prime (décidée le 9 novembre 2026) : chaque guildien tué par l'ennemi ajoute un point ; **la prime ne
+  repart jamais à zéro**, l'abattre n'efface rien : la tête vaut toujours autant, le tableau affiche en regard combien
+  de fois la guilde l'a abattu. Les chasseurs encaissent la prime au moment du kill (valeur de la prime ce jour-là)
+  pour leur classement, sans la consommer.
+- Page Classements, groupe PvP : cartes « Têtes mises à prix » et « Chasseurs de primes » ; **Roxor hebdo « Chasseur
+  de primes »** (décidé le 9 novembre 2026 : primes encaissées sur la semaine) et une ligne de plus dans le
+  récapitulatif Discord existant ; **pas d'annonce Discord en direct**
+  (décision du 28 octobre sur les morts).
+- Retour vers l'addon : le compagnon recopie déjà l'état du site dans les SavedVariables jeu fermé ; le tableau
+  consolidé de la guilde suit le même chemin, un joueur seul en ligne a quand même la liste.
+- Admin : retrait d'un nom par le GM. Noms de joueurs adverses conservés sur le site privé, jamais publiés.
+
+**Lots.**
+
+| Lot | Contenu | Dépendance |
+|---|---|---|
+| 1, addon | « D » enrichi, tableau local, avis de décès avec prime, tête de mort sur la carte, `/mf wanted` | aucune, API déjà validées — ✅ addon 0.5.0 (9 novembre 2026) |
+| 2, addon | détection des kills, message « K », toast « Abattu », poignée de main « W » | message de victoire honorable à vérifier en jeu |
+| 3, site | import des nouveaux événements, cartes Classements et accueil, Roxor, retour par le compagnon, retrait GM | lots 1 et 2 |
+
+**Décidé le 9 novembre 2026** : pas de remise à zéro de la prime quand l'ennemi est abattu ; crédit à tout le groupe ;
+dernière position sur la carte avec un symbole parlant (tête de mort), affichée 5 minutes ; Roxor hebdo « Chasseur de
+primes ». Plus rien à trancher : la proposition est prête à être réalisée, lot par lot.
+
+**Réalisation du lot 1 (addon 0.5.0, 9 novembre 2026)** : `Wanted.lua` (tableau `db.wanted` au niveau du compte,
+clé = nom en minuscules, prime, classe, vingt dernières victimes pour le dédoublonnage, dernière position = celle de la
+victime) et `WantedUI.lua` (fenêtre `/mf wanted`, bouton dans `/mf`). Le collecteur PvE note désormais si le tueur est
+un joueur (`UnitIsPlayer` lu au ciblage, rapproché du nom donné par le récapitulatif), sa classe et la carte et les
+coordonnées du mort dans l'événement `death` (`player`, `kclass`, `map`, `x`, `y`) ; la ligne « D » les porte en cinq
+champs ajoutés après les neuf d'origine (les anciennes versions ne lisent que ceux-là), la sous-zone puis la zone
+sautant au-delà de 255 octets. Chez les autres : prime dans l'avis de décès (en-tête « WANTED », pied « tueur
+recherché, prime N »), ligne de chat, tête de mort rouge (8e marqueur de raid) avec la prime en chiffre sur la carte
+et la minimap, qui pâlit (100 % → 40 %) puis disparaît après 5 min ; infobulle nom, classe, prime, dernière victime
+« ici », lieu, victimes. Ma propre mort nourrit mon tableau tout de suite, l'écho du jeu est un doublon muet. Réglage
+« Alertes Wanted » (défaut coché) : décoché, ni prime dans l'avis ni tête de mort, le tableau se remplit quand même.
+Le compagnon conserve `db.wanted` quand il recopie l'état du site (il ne touche qu'aux personnages). Testé dans
+l'environnement simulé (`test_addon.py`, classe `TestWanted`) ; à valider en jeu : `UnitIsPlayer` et `UnitClass` sur
+une cible adverse hors combat, et la texture du marqueur de raid sur le client Forever.
+
 ### Confidentialité et confiance
 
 - Les données viennent du client du joueur : elles ne sont pas vérifiables et ne servent qu'à la vie de la guilde
@@ -1303,6 +1396,8 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
 - Catégorie sensible (temps de jeu) désactivée par défaut, activable par le joueur dans l'addon ou le compagnon, et
   masquable des classements.
 - Suppression d'un personnage ou du compte : exports bruts et compteurs supprimés avec.
+- Noms de joueurs adverses (tableau Wanted, s'il est réalisé) : conservés sur le site privé pour la guilde, jamais
+  publiés, retirables par le GM.
 
 ### Points ouverts
 
@@ -1311,5 +1406,7 @@ Page **Classements** dans la navigation principale, plus un widget « Cette sema
 - Reconnaissance des boss et des derniers boss d'instance : table d'instances de l'étape 7 à compléter avec les
   identifiants de rencontre.
 - Signature de l'exécutable Windows et distribution macOS : selon le nombre de joueurs concernés.
+- Wanted : chaîne et événement de chat de la victoire honorable sur Forever, et forme du nom (prénom et nom ?) donné
+  par le récapitulatif de mort pour un joueur, à vérifier en jeu avant le lot 2.
 - Si un espace d'API Blizzard apparaît : import de la partie identité / équipement / talents sans compagnon, en
   complément de l'addon pour le reste.

@@ -70,7 +70,7 @@ class TestLoading:
         ns = lua.globals()._NS
         names = sorted(ns.collectors[i].name for i in range(1, len(ns.collectors) + 1))
         assert names == sorted(
-            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions", "mapui"]
+            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions", "wanted", "mapui"]
         )  # fmt: skip
         assert lua.globals().SlashCmdList.WOWFOREVERGUILDE is not None
         # Icône de la guilde (portrait de Samwise, « Temp ») sur les fenêtres et dans la liste des addons.
@@ -1327,6 +1327,156 @@ _NS.MapUI.UsePins(lib)
             0.1235,
             "",
             "Amélioration 0/8/1",
+        )
+
+
+class TestWanted:
+    """Têtes mises à prix : un joueur qui tue un membre prend un point, dernière position sur la carte 5 min."""
+
+    def test_death_by_a_player_marks_him_wanted_with_his_last_position(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        lua.execute("""
+          _GUILD = true
+          _MAP = { id = 1429, x = 0.25, y = 0.75 }
+          _TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true }
+        """)
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        g._FIRE("PLAYER_DEAD")
+        lua.execute("_TARGET = nil")
+        g._ADVANCE(1)
+        # La ligne « D » porte, après les neuf champs d'origine : tueur joueur, sa classe, carte, x, y du mort.
+        (line,) = [s.text for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]
+        fields = line.split("\t")
+        assert fields[7:10] == ["Garrosh Hurlenfer", "Forêt d'Elwynn", ""]
+        assert fields[11:] == ["1", "WARRIOR", "1429", "0.2500", "0.7500"]
+        death = [e for e in g._NS.char.events.values() if e.k == "death"][-1]
+        assert (death.player, death.kclass, death.map, death.x, death.y) == (
+            True,
+            "WARRIOR",
+            1429,
+            0.25,
+            0.75,
+        )
+        # Ma propre mort nourrit mon tableau tout de suite ; l'écho de mon message est un doublon.
+        entry = g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"]
+        assert (entry.name, entry["class"], entry.points, entry.kills) == (
+            "Garrosh Hurlenfer",
+            "WARRIOR",
+            1,
+            0,
+        )
+        assert (entry.last.victim, entry.last.map, entry.last.x, entry.last.zone) == (
+            "Thrall",
+            1429,
+            0.25,
+            "Forêt d'Elwynn",
+        )
+        assert any(
+            "Wanted :" in m and "Garrosh Hurlenfer" in m and "Prime portée à 1" in m
+            for m in list(g._CHAT.values())
+        )
+        receive(lua, line, "Thrall-Forever")
+        assert entry.points == 1 and len(list(entry.victims.values())) == 1
+        # L'avis de décès porte la prime : un seul cadre flottant, pas deux.
+        toast = g.WoWForeverGuildeDeath
+        assert toast.shown is True and "WANTED" in toast.header.text
+        assert toast.footer.text == "Niveau 60 · Chaman · tueur recherché, prime 1"
+        # Tête de mort rouge sur la carte, là où il a frappé, avec la prime en chiffre.
+        ((icon, pin),) = list(g._PINS.added.items())
+        assert (pin.map, pin.x, pin.y) == (1429, 0.25, 0.75)
+        assert icon.points.text == "1" and icon.alpha > 0.99
+        assert icon.skull.texture == "Interface\\TargetingFrame\\UI-RaidTargetingIcons"
+        # Il tue Jaina ailleurs : la prime monte (jamais remise à zéro), la tête de mort suit la dernière victime.
+        jaina = f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\tOrgrimmar\t{g._CLOCK.now}\t1\tWARRIOR\t1411\t0.4000\t0.6000"
+        receive(lua, jaina)
+        assert entry.points == 2 and len(list(entry.victims.values())) == 2
+        assert (entry.last.victim, entry.last.map) == ("Jaina", 1411)
+        ((icon, pin),) = list(g._PINS.added.items())
+        assert (pin.map, pin.x, pin.y) == (1411, 0.4, 0.6) and icon.points.text == "2"
+        assert toast.footer.text == "Niveau 60 · Mage · tueur recherché, prime 2"
+        g._NS.MapUI.ShowWantedTooltip(entry, icon)
+        lines = list(g.GameTooltip.lines.values())
+        assert lines[0] == "|cffffffffGarrosh Hurlenfer|r  WANTED"
+        assert lines[1:5] == [
+            "WARRIOR · prime 2",
+            "a tué |cff69ccf0Jaina|r ici · à l'instant",
+            "Durotar · Orgrimmar",
+            "Victimes : Jaina, Thrall",
+        ]
+        # Ancienne version en face (neuf champs) ou créature : avis de décès ordinaire, pas de prime.
+        receive(
+            lua,
+            f"D\t1\tPlayer-1-00000UTH\tUther\tLumière\tPALADIN\t58\tGarrosh Hurlenfer\tMarais\t\t{g._CLOCK.now}",
+            "Uther-Forever",
+        )
+        assert (
+            entry.points == 2
+            and "WANTED" not in toast.header.text
+            and toast.footer.text == "Niveau 58 · PALADIN"
+        )
+        receive(
+            lua,
+            f"D\t1\tPlayer-1-00000UTH\tUther\tLumière\tPALADIN\t58\tSanglier\tMarais\t\t{g._CLOCK.now}\t0\t\t1429\t0.1000\t0.1000",
+            "Uther-Forever",
+        )
+        assert "sanglier" not in dict(g.WoWForeverGuildeDB.wanted)
+        # Fenêtre /mf wanted : une ligne par ennemi, prime décroissante.
+        g.SlashCmdList.WOWFOREVERGUILDE("wanted")
+        assert g.WoWForeverGuildeWanted.shown is True
+        rows = list(g._NS.WantedUI.Lines().values())
+        assert (
+            len(rows) == 2
+            and "Garrosh Hurlenfer" in rows[1].text
+            and "prime 2" in rows[1].text
+            and "Jaina" in rows[1].text
+        )
+        # Cinq minutes plus tard la tête de mort a disparu ; la prime, elle, reste.
+        g._ADVANCE(301)
+        assert list(g._PINS.added.items()) == [] and entry.points == 2
+        # Alertes Wanted décochées : ni prime dans l'avis, ni tête de mort ; recochées : elle revient si encore fraîche.
+        g._NS.Wanted.SetAlerts(False)
+        receive(
+            lua,
+            f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\t\t{g._CLOCK.now}\t1\tWARRIOR\t1411\t0.5000\t0.5000",
+        )
+        assert entry.points == 3 and list(g._PINS.added.items()) == [] and "WANTED" not in toast.header.text
+        g._NS.Wanted.SetAlerts(True)
+        assert len(list(g._PINS.added.items())) == 1
+        # L'export porte les nouveaux champs de la mort ; le tableau Wanted reste local (le site le recalcule).
+        payload = decode_export(logout_code(lua))
+        death = next(e for e in payload["characters"][0]["events"] if e["k"] == "death")
+        assert (death["player"], death["kclass"], death["map"], death["x"], death["y"]) == (
+            True,
+            "WARRIOR",
+            1429,
+            0.25,
+            0.75,
+        )
+        assert "wanted" not in payload and list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_death_line_drops_subzone_then_zone_to_stay_under_255_bytes(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("""
+          _GUILD = true
+          _SUBZONE = string.rep('Sous-zone interminable ', 12)
+          _TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true }
+        """)
+        g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
+        (line,) = [s.text for s in g._ADDON_SENT.values() if s.text.startswith("D\t")]
+        assert len(line.encode("utf-8")) <= 255
+        info = g._NS.ParseDeathLine(line)
+        assert (info.zone, info.sub, info.player, info.kclass, info.map) == (
+            "Forêt d'Elwynn",
+            "",
+            True,
+            "WARRIOR",
+            1429,
         )
 
 

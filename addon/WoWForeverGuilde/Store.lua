@@ -42,7 +42,9 @@ function Store.Init()
   if s.minimapDots == nil then s.minimapDots = true end
   if s.gankAlerts == nil then s.gankAlerts = true end
   if s.rosterMyZone == nil then s.rosterMyZone = false end
+  if s.wantedAlerts == nil then s.wantedAlerts = true end
   s.excluded = s.excluded or {}
+  db.wanted = db.wanted or {} -- têtes mises à prix, niveau compte (donnée de guilde, pas de personnage)
   -- Migrations futures : if db.version < 2 then ... end
   db.version = Store.DB_VERSION
   ns.db = db

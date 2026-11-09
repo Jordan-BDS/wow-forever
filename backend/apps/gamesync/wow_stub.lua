@@ -217,9 +217,11 @@ local function newFrame(kind, name)
   for _, m in ipairs({ "SetSize", "SetPoint", "SetMovable", "EnableMouse", "RegisterForDrag", "SetFrameStrata", "SetBackdrop",
       "SetWidth", "SetJustifyH", "SetTextColor", "SetShadowOffset", "SetAlpha", "SetMultiLine", "SetAutoFocus", "SetFontObject",
       "SetScrollChild", "SetFocus", "HighlightText", "ClearFocus", "SetChecked", "StartMoving", "StopMovingOrSizing",
-      "SetAllPoints", "SetTexture", "SetClampedToScreen", "ClearAllPoints", "SetHeight", "SetMaxLetters", "SetTextInsets" }) do
+      "SetAllPoints", "SetTexture", "SetClampedToScreen", "ClearAllPoints", "SetHeight", "SetMaxLetters", "SetTextInsets",
+      "SetTexCoord" }) do
     f[m] = noop
   end
+  function f:SetAlpha(a) self.alpha = a end
   function f:SetText(t) self.text = t end
   function f:GetText() return self.text end
   function f:GetChecked() return self.checked end

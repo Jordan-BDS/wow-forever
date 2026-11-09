@@ -3,6 +3,8 @@
 -- zone, talents, recherche de groupe, attaque en cours, âge) ; clic gauche → menu Inviter / Chuchoter. Les points
 -- superposés (même endroit) sont regroupés dans l'infobulle et le menu. Anneau rouge pendant un appel à l'aide.
 -- Les membres de mon groupe ou de mon raid n'ont pas de point : le jeu les affiche déjà, le nôtre ferait doublon.
+-- Wanted : tête de mort rouge (8e marqueur de raid), plus grande que les points, avec la prime en chiffre, posée là où
+-- l'ennemi a tué un membre ; elle pâlit puis disparaît au bout de WANTED_TTL s (Wanted.lua la rafraîchit).
 local ADDON, ns = ...
 
 local MapUI = {}
@@ -10,6 +12,8 @@ ns.MapUI = MapUI
 local L = ns.L
 
 local DOT = "Interface\\CharacterFrame\\TempPortraitAlphaMask" -- disque blanc, teinté par classe
+local SKULLS = "Interface\\TargetingFrame\\UI-RaidTargetingIcons" -- planche des marqueurs de raid, crâne en case 8
+local SKULL_COORDS = { 0.75, 1, 0.25, 0.5 }
 local MAX_ROWS = 6
 local ROW_HEIGHT = 48
 
@@ -302,3 +306,107 @@ function MapUI.OpenMenu(peer)
 end
 
 function MapUI.Menu() return menu end -- tests
+
+-- --- têtes mises à prix ---------------------------------------------------------------------------------------
+
+local wantedIcons = {} -- clé d'ennemi → { map = cadre carte, mini = cadre minimap }
+local wantedPool = {}
+
+local function newSkull(size)
+  local f = CreateFrame("Button", nil, UIParent)
+  f:SetSize(size, size)
+  f.skull = f:CreateTexture(nil, "ARTWORK")
+  f.skull:SetAllPoints()
+  f.skull:SetTexture(SKULLS)
+  f.skull:SetTexCoord(unpack(SKULL_COORDS))
+  f.skull:SetVertexColor(1, 0.25, 0.25)
+  f.points = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  f.points:SetPoint("LEFT", f, "RIGHT", 1, 0)
+  f.points:SetTextColor(1, 0.3, 0.3)
+  f:EnableMouse(true)
+  if f.SetPassThroughButtons then pcall(f.SetPassThroughButtons, f, "RightButton") end
+  f:SetScript("OnEnter", function(self) MapUI.ShowWantedTooltip(self.entry, self) end)
+  f:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+  return f
+end
+
+local function paintSkull(icon, entry, alpha)
+  icon.entry = entry
+  icon.points:SetText(tostring(entry.points or 0))
+  icon:SetAlpha(alpha)
+end
+
+--- Pose (ou déplace) la tête de mort d'un ennemi à sa dernière position connue ; la retire si elle est trop vieille,
+--- sans coordonnées, ou si les alertes Wanted sont décochées. Opacité : pleine au moment du kill, 40 % à la fin.
+function MapUI.UpdateWanted(entry)
+  local lib = pins()
+  if not lib or not ns.Wanted then return end
+  local key = ns.Wanted.Key(entry.name)
+  local now = ns.now()
+  if not (ns.db and ns.db.settings.wantedAlerts) or not ns.Wanted.Fresh(entry, now) then
+    MapUI.RemoveWanted(key)
+    return
+  end
+  local last = entry.last
+  local pair = wantedIcons[key]
+  if not pair then
+    pair = table.remove(wantedPool) or { map = newSkull(22), mini = newSkull(14) }
+    wantedIcons[key] = pair
+  end
+  local alpha = 1 - 0.6 * math.min(1, math.max(0, (now - (last.t or now)) / ns.Data.WANTED_TTL))
+  paintSkull(pair.map, entry, alpha)
+  lib:RemoveWorldMapIcon(ns, pair.map)
+  if not lib:AddWorldMapIconMap(ns, pair.map, last.map, last.x, last.y, HBD_PINS_WORLDMAP_SHOW_WORLD or 3) then
+    MapUI.RemoveWanted(key)
+    return
+  end
+  if lib.RemoveMinimapIcon then lib:RemoveMinimapIcon(ns, pair.mini) end
+  pair.mini:Hide()
+  if minimapWanted() and lib.AddMinimapIconMap then
+    paintSkull(pair.mini, entry, alpha)
+    lib:AddMinimapIconMap(ns, pair.mini, last.map, last.x, last.y, true, true)
+  end
+end
+
+function MapUI.RemoveWanted(key)
+  local pair = wantedIcons[key]
+  if not pair then return end
+  wantedIcons[key] = nil
+  local lib = pins()
+  if lib then
+    lib:RemoveWorldMapIcon(ns, pair.map)
+    if lib.RemoveMinimapIcon then lib:RemoveMinimapIcon(ns, pair.mini) end
+  end
+  pair.map.entry, pair.mini.entry = nil, nil
+  pair.map:Hide()
+  pair.mini:Hide()
+  wantedPool[#wantedPool + 1] = pair
+end
+
+function MapUI.WantedIcons() return wantedIcons end -- tests
+
+--- Infobulle d'une tête de mort : nom coloré, classe, prime, kills de la guilde, dernière victime ici, victimes.
+function MapUI.ShowWantedTooltip(entry, owner)
+  if not entry or not GameTooltip then return end
+  GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+  GameTooltip:ClearLines()
+  GameTooltip:AddDoubleLine(ns.ClassColored(entry.name, entry.class), L.WANTED_TAG, 1, 1, 1, 1, 0.3, 0.3)
+  local class = ns.ClassLabel(entry.class)
+  local prime = string.format(L.WANTED_PRIME, entry.points or 0)
+  GameTooltip:AddLine(class ~= "" and (class .. " · " .. prime) or prime, 1, 0.82, 0)
+  if (entry.kills or 0) > 0 then GameTooltip:AddLine(string.format(L.WANTED_KILLED_BY_GUILD, entry.kills), 0.6, 0.8, 1) end
+  local last = entry.last
+  if last then
+    local victim = ns.ClassColored(last.victim or "?", last.victimClass)
+    GameTooltip:AddLine(string.format(L.WANTED_HERE, victim, ns.UI.Ago(last.t)), 0.85, 0.85, 0.85)
+    local place = ns.Wanted.Where(entry)
+    if place ~= "" then GameTooltip:AddLine(place, 0.6, 0.6, 0.6) end
+  end
+  local names = {}
+  for i = #(entry.victims or {}), math.max(1, #(entry.victims or {}) - 4), -1 do
+    local v = entry.victims[i]
+    if v then names[#names + 1] = v.name or "?" end
+  end
+  if #names > 0 then GameTooltip:AddLine(string.format(L.WANTED_VICTIMS, table.concat(names, ", ")), 0.6, 0.6, 0.6) end
+  GameTooltip:Show()
+end

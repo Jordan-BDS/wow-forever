@@ -92,6 +92,11 @@ ns.Data.ENVIRONMENTAL = {
 -- Annonces de mort et positions : messages addon sur le canal de guilde (le client moderne interdit les canaux aux addons).
 ns.Data.DEATH_PREFIX = "D\t1\t" -- message addon de mort (préfixe WFG, canal de guilde)
 
+-- Wanted : têtes mises à prix (joueurs adverses qui ont tué un membre), tableau local nourri par les messages « D ».
+ns.Data.WANTED_TTL = 300 -- s : la tête de mort reste sur la carte 5 min là où l'ennemi a tué un membre (décision du 9 novembre 2026)
+ns.Data.WANTED_VICTIMS = 20 -- dernières victimes gardées par ennemi (sert aussi au dédoublonnage)
+ns.Data.WANTED_MAX = 200 -- ennemis gardés : au-delà, les primes les plus faibles et les plus anciennes sautent
+
 -- Partage de position (messages addon, préfixe enregistré auprès du client).
 ns.Data.ADDON_PREFIX = "WFG"
 ns.Data.POSITION_TICK = 10 -- s entre deux lectures de la position

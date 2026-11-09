@@ -4,10 +4,12 @@
 -- du client (coup fatal, lu DEATH_RECAP_DELAY s plus tard, hors combat), la cible au moment de mourir si elle était
 -- encore lisible, puis la dernière cible hostile mémorisée (nom lu à son ciblage, gardé KILLER_MEMORY s avant le combat
 -- et tout le combat). L'annonce part après ce délai ; le compteur et l'événement du journal sont immédiats.
+-- Wanted : si le tueur est un joueur (lu au ciblage, `UnitIsPlayer`), l'événement le dit (`player`), avec sa classe
+-- (`kclass`) et la position du mort (`map`, `x`, `y`) : c'est « là où il a frappé », la seule position connue de lui.
 local ADDON, ns = ...
 
 local inInstance = false
-local lastHostile = nil -- { name, player, at } : dernière cible hostile dont le nom était lisible
+local lastHostile = nil -- { name, player, class, at } : dernière cible hostile dont le nom était lisible
 local combatSince = nil -- début du combat en cours (PLAYER_REGEN_DISABLED)
 local deathsThisSession = 0 -- identifiant du récapitulatif : le client les numérote par session
 local lastSource = nil -- d'où venait le tueur de la dernière mort, pour /mf api (« Tests en jeu »)
@@ -37,8 +39,9 @@ local function text(fn, ...)
   return type(value) == "string" and value or ""
 end
 
---- Nom de la cible si elle existe, est hostile et lisible ; nil sinon.
-local function hostileTargetName()
+--- La cible si elle existe, est hostile et lisible : { name, player, class } ; nil sinon. `player` et `class` sont
+--- lus sous protection (en combat ils peuvent être secrets) : alors faux et "".
+local function hostileTarget()
   local ok, exists = pcall(UnitExists or function() end, "target")
   if not (ok and ns.plain(exists)) then return nil end
   if UnitCanAttack then
@@ -46,23 +49,27 @@ local function hostileTargetName()
     if okAttack and ns.plain(hostile) == false then return nil end
   end
   local name = text(UnitName, "target")
-  return name ~= "" and name or nil
+  if name == "" then return nil end
+  local okPlayer, player = pcall(UnitIsPlayer or function() end, "target")
+  local okClass, _, class = pcall(UnitClass or function() end, "target")
+  class = okClass and ns.plain(class) or nil
+  return { name = name, player = okPlayer and ns.plain(player) == true, class = type(class) == "string" and class or "" }
 end
 
 --- Ciblage : on retient la dernière cible hostile lisible (hors combat le nom est en clair ; en combat il est
 --- secret et on garde la précédente).
 local function rememberTarget()
-  local name = hostileTargetName()
-  if not name then return end
-  local okPlayer, player = pcall(UnitIsPlayer or function() end, "target")
-  lastHostile = { name = name, player = okPlayer and ns.plain(player) == true, at = ns.now() }
+  local target = hostileTarget()
+  if not target then return end
+  target.at = ns.now()
+  lastHostile = target
 end
 
 --- Souvenir encore valable : ciblé pendant le combat en cours, ou dans les KILLER_MEMORY s qui l'ont précédé.
 local function rememberedKiller(t)
   if not lastHostile then return nil end
   local since = (combatSince or t) - ns.Data.KILLER_MEMORY
-  return lastHostile.at >= since and lastHostile.name or nil
+  return lastHostile.at >= since and lastHostile or nil
 end
 
 --- Récapitulatif de mort du client : nom de la source du coup fatal, ou cause environnementale (chute, lave…).
@@ -84,15 +91,29 @@ local function recapKiller(recapID)
   return nil, nil, true
 end
 
+--- Le tueur nommé était-il un joueur, et de quelle classe ? D'après la cible ou le souvenir qui porte ce nom
+--- (le récapitulatif ne donne qu'un nom). Inconnu → nil : la mort ne fera pas de Wanted.
+local function killerIdentity(name, target, remembered)
+  for _, seen in ipairs({ target, remembered }) do
+    if seen and seen.name == name then return seen.player == true, seen.class or "" end
+  end
+  return nil, ""
+end
+
 --- Complète l'événement de mort (tueur ou cause) puis annonce. `target` : cible lisible au moment de mourir ;
 --- `remembered` : souvenir valable à ce moment-là (tous deux figés à PLAYER_DEAD, la mémoire est remise à zéro ensuite).
 local function resolveDeath(char, death, target, remembered, recapID)
   local name, env, recapApi = recapKiller(recapID)
   local source = (name or env) and "récap" or nil
-  if not source and target then name, source = target, "cible" end
-  if not source and remembered then name, source = remembered, "mémoire" end
+  if not source and target then name, source = target.name, "cible" end
+  if not source and remembered then name, source = remembered.name, "mémoire" end
   death.killer = name
   death.env = env
+  if name then
+    local player, class = killerIdentity(name, target, remembered)
+    if player then death.player = true end
+    if class ~= "" then death.kclass = class end
+  end
   lastSource = string.format("tueur d'après %s (récap %s)", source or "rien, inconnu", recapApi and "présent" or "absent")
   if ns.OnDeath then ns.Safe("deaths.announce", ns.OnDeath, char, death) end
 end
@@ -146,9 +167,17 @@ ns.RegisterCollector({
       ns.Journal.Increment(char, "deaths")
       deathsThisSession = deathsThisSession + 1
       local zone, sub = text(GetZoneText), text(GetSubZoneText)
-      local okTarget, target = pcall(hostileTargetName)
+      local okTarget, target = pcall(hostileTarget)
       local remembered = rememberedKiller(t)
       local death = ns.Journal.Event(char, "death", { zone = zone, sub = sub, level = char.level })
+      -- Où je meurs (carte et coordonnées), pour la dernière position connue du tueur s'il est un joueur.
+      if ns.Positions and ns.Positions.Here then
+        local okHere, map, x, y = pcall(ns.Positions.Here)
+        if okHere and map then
+          death.map = map
+          if x and y then death.x, death.y = math.floor(x * 10000 + 0.5) / 10000, math.floor(y * 10000 + 0.5) / 10000 end
+        end
+      end
       local recapID = deathsThisSession
       C_Timer.After(ns.Data.DEATH_RECAP_DELAY, function()
         ns.Safe("deaths.resolve", resolveDeath, char, death, okTarget and target or nil, remembered, recapID)

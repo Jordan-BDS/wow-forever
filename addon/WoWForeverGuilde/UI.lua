@@ -99,7 +99,7 @@ local function defaultStatus(char, name)
 end
 
 local function buildMain()
-  main = makeFrame("WoWForeverGuildeFrame", 700, 460, L.TITLE)
+  main = makeFrame("WoWForeverGuildeFrame", 700, 482, L.TITLE)
   main.version = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   main.version:SetPoint("LEFT", main.title, "RIGHT", 10, 0)
   main.version:SetText("v" .. tostring(ns.VERSION))
@@ -119,35 +119,39 @@ local function buildMain()
   main.sendCheck = makeCheck(main, L.SEND_CHARACTER,
     function() return ns.char and not ns.Store.IsExcluded(ns.char.guid) end,
     function(on) if ns.char then ns.db.settings.excluded[ns.char.guid] = (not on) and true or nil end UI.Refresh() end)
-  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 206)
+  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 228)
   main.positionCheck = makeCheck(main, L.SHARE_POSITION,
     function() return ns.db.settings.sharePosition end,
     function(on) ns.Positions.SetSharing(on) end)
-  main.positionCheck:SetPoint("BOTTOMLEFT", 12, 184)
+  main.positionCheck:SetPoint("BOTTOMLEFT", 12, 206)
   main.minimapCheck = makeCheck(main, L.SHARE_MINIMAP,
     function() return ns.db.settings.minimapDots end,
     function(on) ns.MapUI.SetMinimap(on) end)
-  main.minimapCheck:SetPoint("BOTTOMLEFT", 12, 162)
+  main.minimapCheck:SetPoint("BOTTOMLEFT", 12, 184)
   main.gankCheck = makeCheck(main, L.GANK_ALERTS,
     function() return ns.db.settings.gankAlerts end,
     function(on) ns.db.settings.gankAlerts = on end)
-  main.gankCheck:SetPoint("BOTTOMLEFT", 12, 140)
+  main.gankCheck:SetPoint("BOTTOMLEFT", 12, 162)
   main.playCheck = makeCheck(main, L.SHARE_PLAYTIME,
     function() return ns.db.settings.sharePlaytime end,
     function(on) ns.db.settings.sharePlaytime = on end)
-  main.playCheck:SetPoint("BOTTOMLEFT", 12, 118)
+  main.playCheck:SetPoint("BOTTOMLEFT", 12, 140)
   main.showDeaths = makeCheck(main, L.SHOW_DEATHS,
     function() return ns.db.settings.showDeaths end,
     function(on) ns.db.settings.showDeaths = on end)
-  main.showDeaths:SetPoint("BOTTOMLEFT", 12, 96)
+  main.showDeaths:SetPoint("BOTTOMLEFT", 12, 118)
   main.soundDeaths = makeCheck(main, L.SOUND_DEATHS,
     function() return ns.db.settings.soundDeaths end,
     function(on) ns.db.settings.soundDeaths = on end)
-  main.soundDeaths:SetPoint("BOTTOMLEFT", 12, 74)
+  main.soundDeaths:SetPoint("BOTTOMLEFT", 12, 96)
   main.announceDeaths = makeCheck(main, L.ANNOUNCE_DEATHS,
     function() return ns.db.settings.announceDeaths end,
     function(on) ns.db.settings.announceDeaths = on end)
-  main.announceDeaths:SetPoint("BOTTOMLEFT", 12, 52)
+  main.announceDeaths:SetPoint("BOTTOMLEFT", 12, 74)
+  main.wantedCheck = makeCheck(main, L.WANTED_ALERTS,
+    function() return ns.db.settings.wantedAlerts end,
+    function(on) ns.Wanted.SetAlerts(on) end)
+  main.wantedCheck:SetPoint("BOTTOMLEFT", 12, 52)
 
   -- Colonne état
   main.statusHeader = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -174,16 +178,19 @@ local function buildMain()
   main.session = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   main.session:SetPoint("BOTTOMRIGHT", -16, 74)
   -- Une seule rangée de boutons, alignés en bas de la fenêtre.
-  main.rosterButton = makeButton(main, L.ROSTER_BUTTON, 140)
+  main.rosterButton = makeButton(main, L.ROSTER_BUTTON, 118)
   main.rosterButton:SetPoint("BOTTOMLEFT", 12, 12)
   main.rosterButton:SetScript("OnClick", function() ns.RosterUI.Toggle() end)
-  main.sosButton = makeButton(main, L.SOS_BUTTON, 140)
-  main.sosButton:SetPoint("LEFT", main.rosterButton, "RIGHT", 8, 0)
+  main.wantedButton = makeButton(main, L.WANTED_BUTTON, 90)
+  main.wantedButton:SetPoint("LEFT", main.rosterButton, "RIGHT", 8, 0)
+  main.wantedButton:SetScript("OnClick", function() ns.WantedUI.Toggle() end)
+  main.sosButton = makeButton(main, L.SOS_BUTTON, 118)
+  main.sosButton:SetPoint("LEFT", main.wantedButton, "RIGHT", 8, 0)
   main.sosButton:SetScript("OnClick", function() ns.Positions.SOS() end)
-  main.exportButton = makeButton(main, L.EXPORT, 150)
+  main.exportButton = makeButton(main, L.EXPORT, 130)
   main.exportButton:SetPoint("LEFT", main.sosButton, "RIGHT", 8, 0)
   main.exportButton:SetScript("OnClick", function() UI.ShowExport() end)
-  main.saveButton = makeButton(main, L.SAVE_NOW, 190)
+  main.saveButton = makeButton(main, L.SAVE_NOW, 170)
   main.saveButton:SetPoint("LEFT", main.exportButton, "RIGHT", 8, 0)
   main.saveButton:SetScript("OnClick", function() ReloadUI() end)
   main.hint = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -386,14 +393,20 @@ function UI.ShowToast(headerText, text, footer, color, sound)
   end)
 end
 
-function UI.ShowDeath(info, phrase)
+--- Avis de décès ; `wanted` : l'entrée du tueur dans le tableau Wanted, quand c'est un joueur recherché, et que
+--- les alertes Wanted sont cochées : l'en-tête et le pied portent alors la prime (un seul cadre flottant, pas deux).
+function UI.ShowDeath(info, phrase, wanted)
   local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[(info.class or ""):upper()]
   local coloredName = color and ("|c" .. (color.colorStr or "ffffffff") .. info.name .. "|r") or info.name
   -- Remplacement littéral : un nom n'est pas un motif Lua.
   local at = phrase:find(info.name, 1, true)
   if at then phrase = phrase:sub(1, at - 1) .. coloredName .. phrase:sub(at + #info.name) end
-  UI.ShowToast(L.DEATH_HEADER, phrase, string.format(L.DEATH_FOOTER, info.level or 0, ns.ClassLabel(info.class)),
-    { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths)
+  local header, footer = L.DEATH_HEADER, string.format(L.DEATH_FOOTER, info.level or 0, ns.ClassLabel(info.class))
+  if wanted and ns.db.settings.wantedAlerts then
+    header = L.DEATH_WANTED_HEADER
+    footer = string.format(L.DEATH_WANTED_FOOTER, info.level or 0, ns.ClassLabel(info.class), wanted.points or 0)
+  end
+  UI.ShowToast(header, phrase, footer, { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths)
 end
 
 --- Appel à l'aide d'un membre dans ma zone.

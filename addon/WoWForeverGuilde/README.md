@@ -39,6 +39,16 @@ transporte le code jusqu'au site.
   dans la liste, ou `/mf sos` ; la cible est nommée si c'est un joueur), jamais automatique pour ne pas spammer en
   zone contestée ; un envoi par minute ; chez les autres, toast et son dans la même zone, ligne de chat ailleurs,
   anneau rouge sur le point 2 min.
+- `Wanted.lua`, `WantedUI.lua` : têtes mises à prix (lot 1, 0.5.0). Un joueur adverse qui tue un membre prend un point
+  de prime, jamais remis à zéro ; le tableau (`db.wanted`, niveau compte) se nourrit des messages « D » reçus, la
+  sienne comprise (l'écho du jeu est reconnu comme doublon : même victime, même heure). La ligne « D » porte depuis la
+  0.5.0 cinq champs de plus, ignorés par les anciennes versions : tueur joueur (lu au ciblage par `UnitIsPlayer`), sa
+  classe, carte, x, y du mort. Chez les autres : l'avis de décès porte la prime (en-tête « WANTED », pied « prime N »),
+  une ligne de chat, et une **tête de mort rouge** (8e marqueur de raid, prime en chiffre) sur la carte et la minimap
+  là où il a frappé, qui pâlit puis disparaît après 5 min. Fenêtre `/mf wanted` (bouton dans `/mf`) : ennemis par
+  prime décroissante, dernière victime, lieu, âge ; survol : la même infobulle que sur la carte. Réglage « Alertes
+  Wanted ». À venir : détection des kills par la guilde (message de victoire honorable) et poignée de main entre
+  clients (lot 2), tableau et Roxor « Chasseur de primes » sur le site (lot 3).
 - `RosterUI.lua` : liste « Guilde en jeu » (`/mf qui`) : membres en ligne par zone d'après le roster de guilde (même
   sans addon), enrichis des positions reçues ; section « Cherchent un groupe » ; clic → même menu que la carte.
 - `Libs/` : LibStub, LibDeflate (export), CallbackHandler-1.0 et HereBeDragons-2.0 (+ Pins) pour la carte ;
