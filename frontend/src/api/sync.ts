@@ -64,10 +64,13 @@ export type CharacterProgress = {
 export type RankingPeriod = "week" | "month" | "season" | "all";
 export type RankingBy = "player" | "character";
 
+/** Personnage cité par les classements : prénom, nom de famille (Forever) et classe. */
+export type CharacterRef = { id: number; name: string; surname?: string; player_class: string };
+
 export type RankingEntry = {
   rank: number;
   user: { id: number; display_name: string };
-  character: { id: number; name: string; player_class: string } | null;
+  character: CharacterRef | null;
   value: number;
   previous_rank: number | null;
   since: string | null;
@@ -91,7 +94,7 @@ export type WeeklyTitle = {
   week_start: string;
   value: number;
   user: { id: number; display_name: string };
-  character: { id: number; name: string; player_class: string } | null;
+  character: CharacterRef | null;
 };
 
 export type ProgressionBoss = {
@@ -114,13 +117,13 @@ export type GuildMob = {
   top: {
     kills: number;
     user: { id: number; display_name: string };
-    character: { id: number; name: string; player_class: string };
+    character: CharacterRef;
   } | null;
 };
 
 type WantedWho = {
   user: { id: number; display_name: string };
-  character: { id: number; name: string; player_class: string };
+  character: CharacterRef;
 };
 
 /** Une tête mise à prix : un joueur adverse qui a tué des membres (un point par mort, jamais remis à zéro). */

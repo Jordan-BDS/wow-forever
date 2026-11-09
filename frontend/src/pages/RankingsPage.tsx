@@ -12,7 +12,7 @@ import {
   type Rankings,
 } from "@/api/sync";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { ClassName } from "@/components/game";
+import { CharacterName, ClassName } from "@/components/game";
 import { TitleCards } from "@/components/TitleBadges";
 import { Card, PageTitle, Pill, Spinner } from "@/components/ui";
 import { findClass, formatDateTime, weekSpan } from "@/lib/game";
@@ -191,11 +191,11 @@ function WantedBoard({ wanted, periodLabel }: { wanted: Rankings["wanted"]; peri
                     {e.last_death ? (
                       <>
                         <Link to={`/personnages/${e.last_death.victim.character.id}`}>
-                          <ClassName
+                          <CharacterName
+                            name={e.last_death.victim.character.name}
+                            surname={e.last_death.victim.character.surname}
                             playerClass={findClass(gamedata.data, e.last_death.victim.character.player_class)}
-                          >
-                            {e.last_death.victim.character.name}
-                          </ClassName>
+                          />
                         </Link>
                         <span className="text-muted">
                           {" · "}
@@ -289,9 +289,11 @@ function RankingCard({ category, by, meId }: { category: RankingCategory; by: Ra
                       <span className="text-muted">
                         {" · "}
                         <Link to={`/personnages/${e.character.id}`}>
-                          <ClassName playerClass={findClass(gamedata.data, e.character.player_class)}>
-                            {e.character.name}
-                          </ClassName>
+                          <CharacterName
+                            name={e.character.name}
+                            surname={e.character.surname}
+                            playerClass={findClass(gamedata.data, e.character.player_class)}
+                          />
                         </Link>
                       </span>
                     )}
@@ -455,9 +457,11 @@ function HuntingBoard({
                           <span className="text-muted">
                             {" · "}
                             <Link to={`/personnages/${m.top.character.id}`}>
-                              <ClassName playerClass={findClass(gamedata.data, m.top.character.player_class)}>
-                                {m.top.character.name}
-                              </ClassName>
+                              <CharacterName
+                                name={m.top.character.name}
+                                surname={m.top.character.surname}
+                                playerClass={findClass(gamedata.data, m.top.character.player_class)}
+                              />
                             </Link>
                             {" · "}
                             <span className="font-mono">{m.top.kills}</span>

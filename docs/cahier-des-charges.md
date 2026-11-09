@@ -1233,8 +1233,10 @@ nom de famille, et le site le refusait (« existe déjà sur le site ») : l'uni
 regardaient que le prénom, alors que Forever donne un nom de famille à chacun. Désormais l'unicité porte sur prénom
 et nom de famille (contrainte `unique_character_full_name_ci`), l'import ne refuse qu'un prénom **et** un nom déjà pris
 (un nom de famille vide d'un côté reste ambigu, donc refusé, et la note cite le nom complet), et la création manuelle
-par un officier suit la même règle. Les listes du site affichent toujours le prénom, le nom complet au survol et sur
-la fiche.
+par un officier suit la même règle. Les listes du site (personnages, roster, page d'un membre, classements, Roxors,
+tableau de chasse, Wanted) affichent désormais le **nom de famille** en retrait après le prénom, les classements et
+le Wanted le transmettant dans leurs réponses ; les inscriptions aux événements et les artisans des recettes gardent le
+prénom seul.
 
 ### API Battle.net de Forever : sonde et archive brute (7 novembre 2026, site seulement)
 

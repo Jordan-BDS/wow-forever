@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { useGameData } from "@/api/hooks";
 import { useWantedReport, type RankingPeriod, type WantedEnemyDetail, type WantedReport } from "@/api/sync";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { ClassName } from "@/components/game";
+import { CharacterName, ClassName } from "@/components/game";
 import { Card, PageTitle, Pill, Spinner } from "@/components/ui";
 import { findClass, formatDateTime } from "@/lib/game";
 
@@ -233,9 +233,11 @@ function Who({
   return (
     <>
       <Link to={`/personnages/${who.character.id}`}>
-        <ClassName playerClass={findClass(gamedata, who.character.player_class)}>
-          {who.character.name}
-        </ClassName>
+        <CharacterName
+          name={who.character.name}
+          surname={who.character.surname}
+          playerClass={findClass(gamedata, who.character.player_class)}
+        />
       </Link>
       <span className="text-muted">
         {" "}
@@ -282,9 +284,11 @@ function HuntersCard({ hunters, meId }: { hunters: WantedReport["hunters"]; meId
                     <span className="text-muted">
                       {" · "}
                       <Link to={`/personnages/${h.character.id}`}>
-                        <ClassName playerClass={findClass(gamedata.data, h.character.player_class)}>
-                          {h.character.name}
-                        </ClassName>
+                        <CharacterName
+                          name={h.character.name}
+                          surname={h.character.surname}
+                          playerClass={findClass(gamedata.data, h.character.player_class)}
+                        />
                       </Link>
                     </span>
                   </td>
@@ -329,9 +333,11 @@ function VictimsCard({ victims, meId }: { victims: WantedReport["victims"]; meId
                   <td className={clsx("w-8 py-1.5 pr-2", i < 3 ? "text-danger" : "text-muted")}>{i + 1}</td>
                   <td className="py-1.5">
                     <Link to={`/personnages/${v.character.id}`}>
-                      <ClassName playerClass={findClass(gamedata.data, v.character.player_class)}>
-                        {v.character.name}
-                      </ClassName>
+                      <CharacterName
+                        name={v.character.name}
+                        surname={v.character.surname}
+                        playerClass={findClass(gamedata.data, v.character.player_class)}
+                      />
                     </Link>
                     <span className="text-muted">
                       {" · "}

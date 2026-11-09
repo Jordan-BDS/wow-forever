@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { useGameData } from "@/api/hooks";
 import type { GuildMob, WantedEnemy, WeeklyTitle } from "@/api/sync";
-import { ClassName } from "@/components/game";
+import { CharacterName, ClassName } from "@/components/game";
 import { findClass } from "@/lib/game";
 
 type Theme = { accent: string; glow: string; icon: React.ReactNode; unit: string };
@@ -248,9 +248,11 @@ export function TitleCards({
                 {t.character && (
                   <div className="text-sm">
                     <Link to={`/personnages/${t.character.id}`}>
-                      <ClassName playerClass={findClass(gamedata.data, t.character.player_class)}>
-                        {t.character.name}
-                      </ClassName>
+                      <CharacterName
+                        name={t.character.name}
+                        surname={t.character.surname}
+                        playerClass={findClass(gamedata.data, t.character.player_class)}
+                      />
                     </Link>
                   </div>
                 )}
@@ -286,9 +288,11 @@ export function TitleCards({
                 <div className="text-sm">
                   <span className="text-muted">surtout par </span>
                   <Link to={`/personnages/${mob.top.character.id}`}>
-                    <ClassName playerClass={findClass(gamedata.data, mob.top.character.player_class)}>
-                      {mob.top.character.name}
-                    </ClassName>
+                    <CharacterName
+                      name={mob.top.character.name}
+                      surname={mob.top.character.surname}
+                      playerClass={findClass(gamedata.data, mob.top.character.player_class)}
+                    />
                   </Link>
                   <span className="text-muted"> ({mob.top.kills})</span>
                 </div>

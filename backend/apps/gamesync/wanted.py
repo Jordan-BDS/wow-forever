@@ -46,6 +46,7 @@ def _who(character) -> dict:
         "character": {
             "id": character.pk,
             "name": character.name,
+            "surname": character.surname,
             "player_class": character.player_class.slug,
         },
     }

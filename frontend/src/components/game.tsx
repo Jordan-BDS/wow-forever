@@ -3,6 +3,30 @@ import type { GameRole, PlayerClass } from "@/api/client";
 import { ROLE_COLOR, ROLE_LABEL } from "@/lib/game";
 
 /** Nom coloré à la couleur de classe (fond sombre : le blanc du prêtre reste lisible). */
+/** Prénom à la couleur de classe, nom de famille en retrait : deux personnages du même prénom se distinguent. */
+export function CharacterName({
+  name,
+  surname,
+  playerClass,
+  className,
+}: {
+  name: string;
+  surname?: string | null;
+  playerClass: PlayerClass | undefined;
+  className?: string;
+}) {
+  return (
+    <ClassName
+      playerClass={playerClass}
+      className={className}
+      title={surname ? `${name} ${surname}` : undefined}
+    >
+      {name}
+      {surname && <span className="ml-1 text-xs font-normal text-muted">{surname}</span>}
+    </ClassName>
+  );
+}
+
 export function ClassName({
   playerClass,
   children,

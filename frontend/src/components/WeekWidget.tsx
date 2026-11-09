@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { useGameData } from "@/api/hooks";
 import { formatValue, useRankings } from "@/api/sync";
-import { ClassName } from "@/components/game";
+import { CharacterName, ClassName } from "@/components/game";
 import { TitleCards } from "@/components/TitleBadges";
 import { Card } from "@/components/ui";
 import { findClass, weekSpan } from "@/lib/game";
@@ -69,9 +69,11 @@ export function WeekWidget() {
                     <span className="mr-1 inline-block w-5 text-right text-muted">{e.rank}.</span>
                     {e.character ? (
                       <Link to={`/personnages/${e.character.id}`}>
-                        <ClassName playerClass={findClass(gamedata.data, e.character.player_class)}>
-                          {e.character.name}
-                        </ClassName>
+                        <CharacterName
+                          name={e.character.name}
+                          surname={e.character.surname}
+                          playerClass={findClass(gamedata.data, e.character.player_class)}
+                        />
                       </Link>
                     ) : (
                       <Link to={`/membres/${e.user.id}`}>{e.user.display_name}</Link>

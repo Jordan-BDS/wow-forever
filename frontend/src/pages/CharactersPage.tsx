@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import type { Character, GameRole } from "@/api/client";
 import { useCharacters, useGameData } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { ClassName, GameRoleTag, LevelBadge } from "@/components/game";
+import { CharacterName, GameRoleTag, LevelBadge } from "@/components/game";
 import { RolesToConfirmBadge, SyncBadge } from "@/components/SyncBadge";
 import { PageTitle, Spinner } from "@/components/ui";
 import { findClass, findRace, specName } from "@/lib/game";
@@ -66,13 +66,12 @@ function CharacterCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <ClassName
+          <CharacterName
+            name={character.name}
+            surname={character.surname}
             playerClass={playerClass}
             className="block truncate font-display text-xl"
-            title={character.full_name || character.name}
-          >
-            {character.name}
-          </ClassName>
+          />
           <div className="text-xs text-muted">
             {race?.name} · {playerClass?.name}
             {character.specialization && ` · ${specName(gamedata, character.specialization)}`}

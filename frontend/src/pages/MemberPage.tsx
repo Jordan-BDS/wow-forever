@@ -2,7 +2,7 @@ import { Link, Navigate, useParams } from "react-router";
 import { useCharacters, useGameData, useGuildAvailability, useMembers } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { AvailabilityGrid } from "@/components/AvailabilityGrid";
-import { ClassDot, ClassName, GameRoleTag, LevelBadge } from "@/components/game";
+import { CharacterName, ClassDot, GameRoleTag, LevelBadge } from "@/components/game";
 import { Button, Card, PageTitle, RoleBadge, Spinner } from "@/components/ui";
 import { namesByCell } from "@/lib/availability";
 import { findClass } from "@/lib/game";
@@ -64,7 +64,7 @@ export function MemberPage() {
                   <li key={c.id} className="flex items-center justify-between gap-3">
                     <Link to={`/personnages/${c.id}`} className="flex items-center gap-2 hover:text-gold">
                       <ClassDot playerClass={playerClass} />
-                      <ClassName playerClass={playerClass}>{c.name}</ClassName>
+                      <CharacterName name={c.name} surname={c.surname} playerClass={playerClass} />
                       {c.is_main && <span className="text-xs text-muted">main</span>}
                     </Link>
                     <span className="flex items-center gap-3">

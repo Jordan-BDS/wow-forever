@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import type { Character, GameRole } from "@/api/client";
 import { useCharacters, useGameData } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { ClassDot, ClassName, GameRoleTag, LevelBadge } from "@/components/game";
+import { CharacterName, ClassDot, ClassName, GameRoleTag, LevelBadge } from "@/components/game";
 import { Button, Card, PageTitle, Select, Spinner } from "@/components/ui";
 import { GAME_ROLES, ROLE_LABEL, findClass, specName } from "@/lib/game";
 import { isOfficerOrAbove } from "@/lib/roles";
@@ -204,7 +204,7 @@ function CharacterRow({
         <Link to={`/personnages/${character.id}`} className="flex items-center gap-2 hover:text-gold">
           {isAlt && <span className="ml-3 text-muted">↳</span>}
           <ClassDot playerClass={playerClass} />
-          <ClassName playerClass={playerClass}>{character.name}</ClassName>
+          <CharacterName name={character.name} surname={character.surname} playerClass={playerClass} />
         </Link>
       </td>
       <td className="px-3 py-2">

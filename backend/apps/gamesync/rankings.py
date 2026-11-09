@@ -147,6 +147,7 @@ class Entry:
     rank: int = 0
     previous_rank: int | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    character_surname: str = ""
 
 
 def _snapshot_values(
@@ -239,6 +240,7 @@ def category_entries(
                     main.name if main else "",
                     main.player_class.slug if main else "",
                     value,
+                    character_surname=main.surname if main else "",
                 )
             )
         return _rank(entries)
@@ -250,7 +252,16 @@ def category_entries(
                 continue
             c = snapshots[character_id].character
             entries.append(
-                Entry(c.owner_id, c.owner.display_name, c.pk, c.name, c.player_class.slug, value, since)
+                Entry(
+                    c.owner_id,
+                    c.owner.display_name,
+                    c.pk,
+                    c.name,
+                    c.player_class.slug,
+                    value,
+                    since,
+                    character_surname=c.surname,
+                )
             )
         return _rank(entries)
 
@@ -259,7 +270,16 @@ def category_entries(
         c = snapshots[character_id].character
         entry = per_user.get(c.owner_id)
         if entry is None:
-            entry = Entry(c.owner_id, c.owner.display_name, c.pk, c.name, c.player_class.slug, 0.0, since)
+            entry = Entry(
+                c.owner_id,
+                c.owner.display_name,
+                c.pk,
+                c.name,
+                c.player_class.slug,
+                0.0,
+                since,
+                character_surname=c.surname,
+            )
             per_user[c.owner_id] = entry
         if category.key == "bg_rate":
             entry.value = max(entry.value, value)  # un taux ne s'additionne pas : on garde le meilleur perso
@@ -274,6 +294,7 @@ def category_entries(
                 c.name,
                 c.player_class.slug,
             )
+            entry.character_surname = c.surname
     return _rank([e for e in per_user.values() if e.value > 0])
 
 
@@ -315,6 +336,7 @@ def compute_rankings(
                         "character": {
                             "id": e.character_id,
                             "name": e.character_name,
+                            "surname": e.character_surname,
                             "player_class": e.character_class,
                         }
                         if e.character_id
@@ -398,6 +420,7 @@ def current_titles(now: datetime) -> list[dict]:
             "character": {
                 "id": t.character_id,
                 "name": t.character.name,
+                "surname": t.character.surname,
                 "player_class": t.character.player_class.slug,
             }
             if t.character
@@ -566,6 +589,7 @@ def guild_mobs(
                     "character": {
                         "id": character.pk,
                         "name": character.name,
+                        "surname": character.surname,
                         "player_class": character.player_class.slug,
                     },
                 }
