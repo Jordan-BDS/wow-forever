@@ -18,6 +18,14 @@ function ns.plain(value)
   return value
 end
 
+--- En champ de bataille ou en arène : le Wanted est hors jeu (ni annonce de mort, ni point, ni prime).
+function ns.InBattleground()
+  local ok, inside, kind = pcall(IsInInstance or function() end)
+  if not ok then return false end
+  kind = ns.plain(kind)
+  return ns.plain(inside) == true and (kind == "pvp" or kind == "arena") or false
+end
+
 function ns.Print(fmt, ...)
   local text = select("#", ...) > 0 and string.format(fmt, ...) or fmt
   DEFAULT_CHAT_FRAME:AddMessage(ns.L.CHAT_PREFIX .. text)

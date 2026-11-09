@@ -42,14 +42,20 @@ transporte le code jusqu'au site.
   ou le champ de la liste) diffusée avec la position. Appel à l'aide : **manuel seulement** (bouton dans `/mf` et
   dans la liste, ou `/mf sos` ; la cible est nommée si c'est un joueur), jamais automatique pour ne pas spammer en
   zone contestée ; un envoi par minute ; chez les autres, toast et son dans la même zone, ligne de chat ailleurs,
-  anneau rouge sur le point 2 min. La ligne « P » porte la version de l'addon (0.6.2) : une version plus récente
+  anneau rouge sur le point 2 min. La ligne « P » porte la version de l'addon (0.6.3) : une version plus récente
   vue chez un guildien donne une ligne de chat puis, hors combat et hors instance, le popup « Recharger (/reload) »,
   une fois par version et par session.
 - `Wanted.lua`, `WantedUI.lua` : têtes mises à prix (lot 1, 0.5.0). Un joueur adverse qui tue un membre prend un point
   de prime, jamais remis à zéro ; le tableau (`db.wanted`, niveau compte) se nourrit des messages « D » reçus, la
   sienne comprise (l'écho du jeu est reconnu comme doublon : même victime, même heure). La ligne « D » porte depuis la
-  0.5.0 cinq champs de plus, ignorés par les anciennes versions : tueur joueur (lu au ciblage par `UnitIsPlayer`), sa
-  classe, carte, x, y du mort. Chez les autres : l'avis de décès porte la prime (en-tête « WANTED », pied « prime N »),
+  0.5.0 cinq champs de plus, ignorés par les anciennes versions : tueur joueur, sa classe, carte, x, y du mort.
+  Joueur ou créature (`UnitIsPlayer`, secret en combat) se lit sur la cible ou le souvenir qui porte le nom du tueur,
+  sinon parmi les joueurs hostiles lus dans les 10 dernières minutes (cible, survol, plaques de nom), sinon sur les
+  unités encore autour une fois mort (0.6.3 ; `/mf api` dit d'où vient la réponse). Chez les autres : toute mort
+  PvP est un avis « WANTED » (pied « tué par un joueur », tueur coloré à sa classe, même phrase qu'en PvE) ; avec
+  les alertes Wanted, l'avis porte la prime (pied « tueur recherché, prime N »). En champ de bataille ou en arène
+  (0.6.3) : ni annonce de mort, ni point, ni prime ; le kill compte dans « Joueurs abattus » (événement `pk` marqué
+  `bg`, que le site ignore pour le tableau). L'avis porte aussi
   une ligne de chat, et une **tête de mort rouge** (8e marqueur de raid, prime en chiffre) sur la carte et la minimap
   là où il a frappé, qui pâlit puis disparaît après 5 min. Fenêtre `/mf wanted` (bouton dans `/mf`) : ennemis par
   prime décroissante, dernière victime, lieu, âge ; survol : la même infobulle que sur la carte. Réglage « Alertes

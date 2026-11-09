@@ -342,6 +342,7 @@ class TestWanted:
                 events=[
                     {"k": "death", "t": t0 + 60, "zone": "Orgrimmar", **garrosh},
                     {"k": "pk", "t": t0 + 605, "name": "Garrosh Hurlenfer", "prime": 2, "zone": "Durotar"},  # même kill, crédit de groupe
+                    {"k": "pk", "t": t0 + 900, "name": "Garrosh Hurlenfer", "prime": 0, "bg": True},  # en champ de bataille : hors tableau
                     {"k": "death", "t": t0 + 120, "zone": "Orgrimmar", "killer": "Vol'jin", "player": True, "kclass": "SHAMAN"},
                 ],
             ),

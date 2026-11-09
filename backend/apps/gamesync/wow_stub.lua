@@ -43,22 +43,29 @@ function IsInGroup() return _IN_GROUP == true end
 function IsInRaid() return false end
 function GetNumGroupMembers() return 0 end
 _TARGET = nil -- { name = "Garrosh", class = "WARRIOR", player = true, hostile = true }
+_UNITS = {} -- autres unités lisibles, par jeton : _UNITS.mouseover, _UNITS.nameplate1… = { name, class, player, hostile }
+local function unitData(unit) if unit == "target" then return _TARGET end return _UNITS[unit] end
 COMBATLOG_XPGAIN_FIRSTPERSON = "%s meurt, vous gagnez %d points d'expérience."
 COMBATLOG_XPGAIN_FIRSTPERSON_GROUP = "%s meurt, vous gagnez %d points d'expérience. (+%d bonus de groupe)"
 COMBATLOG_HONORGAIN = "%s meurt, victoire honorable Rang : %s (Points d'honneur estimés : %d)"
 COMBATLOG_HONORGAIN_NO_RANK = "%s meurt, victoire honorable (Points d'honneur estimés : %d)"
-function UnitCanAttack(a, b) return b == "target" and _TARGET ~= nil and _TARGET.hostile == true end
-function UnitExists(unit) return unit == "target" and _TARGET ~= nil end
+function UnitCanAttack(a, b) local u = unitData(b) return u ~= nil and u.hostile == true end
+function UnitExists(unit) return unitData(unit) ~= nil end
+C_NamePlate = { GetNamePlates = function()
+  local plates = {}
+  for token in pairs(_UNITS) do if token:match("^nameplate") then plates[#plates + 1] = { namePlateUnitToken = token } end end
+  return plates
+end }
 function UnitIsInMyGuild() return false end
 
 -- Personnage joué.
 _PLAYER = { guid = "Player-1-000ABC01", name = "Thrall Fils-de-Durotan", realm = "Forever", class = { "Chaman", "SHAMAN" },
             race = { "Orc", "Orc" }, level = 60, faction = "Horde" }
 function UnitGUID(unit) if unit == "player" then return _PLAYER.guid end end
-function UnitName(unit) if unit == "target" then return _TARGET and _TARGET.name end return (_PLAYER.name:match("^(%S+)")), nil end
+function UnitName(unit) if unit ~= "player" then local u = unitData(unit) return u and u.name end return (_PLAYER.name:match("^(%S+)")), nil end
 function UnitFullName(unit) return _PLAYER.name, _PLAYER.realm end
 function GetRealmName() return _PLAYER.realm end
-function UnitClass(unit) if unit == "target" then return _TARGET and _TARGET.class, _TARGET and _TARGET.class end return _PLAYER.class[1], _PLAYER.class[2] end
+function UnitClass(unit) if unit ~= "player" then local u = unitData(unit) return u and u.class, u and u.class end return _PLAYER.class[1], _PLAYER.class[2] end
 function UnitRace() return _PLAYER.race[1], _PLAYER.race[2] end
 function UnitLevel() return _PLAYER.level end
 function UnitFactionGroup() return _PLAYER.faction end
@@ -193,7 +200,7 @@ end
 C_GuildInfo = { GuildRoster = function() _ROSTER_REQUESTED = (_ROSTER_REQUESTED or 0) + 1 end }
 _PLAYER_INFO = { ["Player-1-00000EVIL"] = { "Guerrier", "WARRIOR" } }
 function GetPlayerInfoByGUID(guid) local p = _PLAYER_INFO[guid] if p then return p[1], p[2] end end
-function UnitIsPlayer(unit) return unit == "target" and _TARGET ~= nil and _TARGET.player == true end
+function UnitIsPlayer(unit) local u = unitData(unit) return u ~= nil and u.player == true end
 function StartDuel() end
 function hooksecurefunc(name, fn)
   local orig = _G[name]

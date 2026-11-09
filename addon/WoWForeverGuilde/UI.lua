@@ -416,6 +416,16 @@ function UI.ShowDeath(info, phrase, wanted)
   local at = phrase:find(info.name, 1, true)
   if at then phrase = phrase:sub(1, at - 1) .. coloredName .. phrase:sub(at + #info.name) end
   local header, footer = L.DEATH_HEADER, string.format(L.DEATH_FOOTER, info.level or 0, ns.ClassLabel(info.class))
+  if info.player then
+    -- Mort PvP : toujours dite « WANTED », même sans les alertes Wanted (alors sans la prime), et le tueur à la
+    -- couleur de sa classe (seuls les joueurs en ont une). La phrase, elle, reste tirée du même lot.
+    header, footer = L.DEATH_WANTED_HEADER, string.format(L.DEATH_PVP_FOOTER, info.level or 0, ns.ClassLabel(info.class))
+    local killer = info.killer or ""
+    if killer ~= "" and info.kclass and info.kclass ~= "" then
+      local from = phrase:find(killer, 1, true)
+      if from then phrase = phrase:sub(1, from - 1) .. ns.ClassColored(killer, info.kclass) .. phrase:sub(from + #killer) end
+    end
+  end
   if wanted and ns.db.settings.wantedAlerts then
     header = L.DEATH_WANTED_HEADER
     footer = string.format(L.DEATH_WANTED_FOOTER, info.level or 0, ns.ClassLabel(info.class), wanted.points or 0)

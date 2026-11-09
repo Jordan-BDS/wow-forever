@@ -695,7 +695,7 @@ dependencies = [
 
 [[package]]
 name = "companion-core"
-version = "0.6.2"
+version = "0.6.3"
 dependencies = [
  "dirs 6.0.0",
  "hex",
@@ -6149,7 +6149,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "wow-forever-guilde-companion"
-version = "0.6.2"
+version = "0.6.3"
 dependencies = [
  "companion-core",
  "env_logger",

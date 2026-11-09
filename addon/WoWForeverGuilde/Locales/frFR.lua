@@ -130,6 +130,7 @@ ns.L = setmetatable({
   DEATH_FOOTER = "Niveau %d · %s",
   DEATH_WANTED_HEADER = SKULL .. " Avis de décès · WANTED " .. SKULL,
   DEATH_WANTED_FOOTER = "Niveau %d · %s · tueur recherché, prime %d",
+  DEATH_PVP_FOOTER = "Niveau %d · %s · tué par un joueur",
   KILLER_UNKNOWN = "quelque chose",
   ENV_FALLING = "une chute",
   ENV_DROWNING = "la noyade",

@@ -10,7 +10,9 @@
 -- joueur est un événement `pk` du journal (prime encaissée = prime de l'ennemi à ce moment, compteurs `pk` et
 -- `bounty`) ; s'il est recherché, message « K » aux guildiens, toast « prime encaissée », tête de mort déplacée.
 -- Les kills d'un même ennemi à moins de WANTED_KILL_DEDUPE s ne comptent qu'une fois dans son tableau (le groupe
--- envoie autant de « K » que de chasseurs). Poignée de main « W » : à la connexion on demande le tableau ; un
+-- envoie autant de « K » que de chasseurs). En champ de bataille ou en arène, le kill compte (compteur `pk`, événement
+-- `pk` marqué `bg`) mais ne touche pas au Wanted : ni prime, ni « K », ni toast, et le site l'ignore pour le tableau
+-- (décision du 9 novembre 2026). Poignée de main « W » : à la connexion on demande le tableau ; un
 -- membre répond avec un résumé (prime, kills, dernière position) après un délai aléatoire, sauf si quelqu'un l'a
 -- déjà fait ; le receveur garde le maximum de chaque valeur.
 local ADDON, ns = ...
@@ -260,10 +262,11 @@ function Wanted.BountyPhrase(entry, by, prime, place)
 end
 
 --- Un joueur abattu par moi ou mon groupe (message de victoire honorable). Toujours un événement `pk` du journal
---- avec la prime encaissée ; s'il est recherché, kill au tableau (dédoublonné), message « K », toast.
-function Wanted.RecordKill(char, name, t)
+--- avec la prime encaissée ; s'il est recherché, kill au tableau (dédoublonné), message « K », toast. En champ de
+--- bataille ou en arène (`battleground`) : le compteur et l'événement (marqué `bg`), rien d'autre.
+function Wanted.RecordKill(char, name, t, battleground)
   t = t or ns.now()
-  local entry = Wanted.Match(name)
+  local entry = (not battleground) and Wanted.Match(name) or nil
   local prime = entry and entry.points or 0
   local map, x, y = here()
   x, y = round4(x), round4(y)
@@ -274,6 +277,7 @@ function Wanted.RecordKill(char, name, t)
   ns.Journal.Increment(char, "pk")
   if prime > 0 then ns.Journal.Increment(char, "bounty", prime) end
   local event = { name = name, prime = prime, zone = zone }
+  if battleground then event.bg = true end
   if map then event.map = map end
   if x and y then event.x, event.y = x, y end
   ns.Journal.Event(char, "pk", event, t)
@@ -477,7 +481,7 @@ ns.RegisterCollector({
   onEvent = function(char, event, ...)
     if event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
       local name = Wanted.KilledName(ns.plain((...)))
-      if name and char then Wanted.RecordKill(char, name) end
+      if name and char then Wanted.RecordKill(char, name, nil, ns.InBattleground()) end
     else
       onAddonMessage(...)
     end

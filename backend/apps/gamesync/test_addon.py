@@ -345,7 +345,7 @@ class TestSession:
         g._ADVANCE(1)
         deaths = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         assert len(deaths) == 1 and "\tLoup des Tarides\t" in deaths[0]
-        assert g._NS.DeathSource() == "tueur d'après mémoire (récap absent)"
+        assert g._NS.DeathSource() == "tueur d'après mémoire (récap absent), joueur non d'après mémoire"
         # Un souvenir trop vieux, sans combat entre-temps, ne compte pas ; une cible amicale n'est jamais retenue.
         lua.execute("_ADDON_SENT = {}; _TARGET = { name = 'Kobold', hostile = true }")
         g._FIRE("PLAYER_TARGET_CHANGED")
@@ -382,7 +382,7 @@ class TestSession:
         events = g._NS.char.events
         assert events[1].killer == "Majordome Executus" and events[1].env is None
         assert events[2].env == "Falling" and events[2].killer is None
-        assert g._NS.DeathSource() == "tueur d'après récap (récap présent)"
+        assert g._NS.DeathSource() == "tueur d'après récap (récap présent), joueur sans objet"  # une chute
         assert g._NS.char.counters.deaths == 2
 
     def test_collector_errors_are_listed_by_slash_command_and_recalled_at_login(self):
@@ -1408,6 +1408,161 @@ _NS.MapUI.UsePins(lib)
 class TestWanted:
     """Têtes mises à prix : un joueur qui tue un membre prend un point, dernière position sur la carte 5 min."""
 
+    def test_death_by_a_player_never_targeted_is_recognised_from_the_units_around(self):
+        # Un voleur sorti de nulle part : jamais ciblé, mais sa plaque de nom est encore là quand on lit le récapitulatif.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("""
+          _GUILD = true
+          _RECAPS = { [1] = { { sourceName = 'Garrosh Hurlenfer', amount = 900 } } }
+          C_DeathInfo = { GetDeathRecapEvents = function(id) return _RECAPS[id] end }
+          _UNITS = { nameplate3 = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true } }
+        """)
+        g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
+        (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
+        fields = line.split("\t")
+        assert fields[7] == "Garrosh Hurlenfer" and fields[11:13] == ["1", "WARRIOR"]
+        assert g._NS.DeathSource() == "tueur d'après récap (récap présent), joueur oui d'après autour"
+        assert g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"].points == 1
+        # Une créature autour qui porte le nom du récapitulatif : pas un joueur, pas de Wanted.
+        lua.execute("""
+          _RECAPS[2] = { { sourceName = 'Sanglier des Tarides', amount = 300 } }
+          _UNITS = { nameplate1 = { name = 'Sanglier des Tarides', hostile = true } }
+        """)
+        g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
+        line = [s.text for s in addon_sent(g) if s.text.startswith("D\t")][-1]
+        assert line.split("\t")[11:13] == ["0", ""]
+        assert g._NS.DeathSource() == "tueur d'après récap (récap présent), joueur non d'après autour"
+        assert "sanglier des tarides" not in [k for k in g.WoWForeverGuildeDB.wanted]
+
+    def test_death_by_a_player_seen_before_the_fight_is_wanted_even_if_names_were_secret(self):
+        # Sa plaque de nom est passée hors combat (lisible) ; en combat la cible est secrète ; le récapitulatif ne donne
+        # que son prénom. Le joueur vu dans les 10 dernières minutes est reconnu.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("""
+          _GUILD = true
+          _UNITS = { nameplate1 = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true } }
+        """)
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        lua.execute("_UNITS = {}; _TARGET = { name = _SECRET, hostile = true }")
+        g._FIRE("PLAYER_REGEN_DISABLED")
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        lua.execute("""
+          _RECAPS = { [1] = { { sourceName = 'Garrosh', amount = 900 } } }
+          C_DeathInfo = { GetDeathRecapEvents = function(id) return _RECAPS[id] end }
+        """)
+        g._FIRE("PLAYER_DEAD")
+        lua.execute("_TARGET = nil")
+        g._ADVANCE(1)
+        (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
+        fields = line.split("\t")
+        assert fields[7] == "Garrosh" and fields[11:13] == ["1", "WARRIOR"]
+        assert g._NS.DeathSource() == "tueur d'après récap (récap présent), joueur oui d'après joueur vu"
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+        # Vu il y a plus de dix minutes : oublié, le tueur redevient inconnu.
+        lua.execute("_RECAPS[2] = _RECAPS[1]")
+        g._ADVANCE(601)
+        g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
+        line = [s.text for s in addon_sent(g) if s.text.startswith("D\t")][-1]
+        assert line.split("\t")[11:13] == ["0", ""]
+        assert g._NS.DeathSource() == "tueur d'après récap (récap présent), joueur inconnu"
+
+    def test_death_keeps_the_remembered_player_when_the_client_clears_the_target(self):
+        # Ciblé hors combat, puis le client vide la cible à la mort et il n'y a pas de récapitulatif : le souvenir
+        # donne le tueur ET dit que c'est un joueur.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(
+            "_GUILD = true; _TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true }"
+        )
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        lua.execute("_TARGET = nil")
+        g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
+        (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
+        fields = line.split("\t")
+        assert fields[7] == "Garrosh Hurlenfer" and fields[11:13] == ["1", "WARRIOR"]
+        assert g._NS.DeathSource() == "tueur d'après mémoire (récap absent), joueur oui d'après mémoire"
+        assert g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"].points == 1
+
+    def test_pvp_death_notice_always_says_wanted_and_colors_the_killer(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("WoWForeverGuildeDB.settings.wantedAlerts = false")
+        now = g._CLOCK.now
+        pvp = f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\t\t{now}\t1\tMAGE\t1411\t0.4000\t0.6000"
+        receive(lua, pvp)
+        toast = g.WoWForeverGuildeDeath
+        # Alertes Wanted coupées : l'avis dit quand même WANTED et « tué par un joueur », sans la prime ; tueur coloré
+        # à sa classe ; la phrase vient du même lot que les morts PvE.
+        assert toast.shown is True and "WANTED" in toast.header.text
+        assert toast.footer.text == "Niveau 60 · Mage · tué par un joueur"
+        assert "|cff69ccf0Jaina|r" in toast.text.text and "|cff69ccf0Garrosh Hurlenfer|r" in toast.text.text
+        assert g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"].points == 1
+        assert not any("Wanted :" in m for m in list(g._CHAT.values()))
+        # Alertes actives : la prime remplace la mention.
+        lua.execute("WoWForeverGuildeDB.settings.wantedAlerts = true")
+        receive(lua, pvp.replace("00000JAI", "00000JA2"))
+        assert "WANTED" in toast.header.text
+        assert toast.footer.text == "Niveau 60 · Mage · tueur recherché, prime 2"
+        # Mort PvE : ni WANTED ni couleur sur la créature.
+        pve = f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tSanglier des Tarides\tDurotar\t\t{now}\t0\t\t1411\t0.4000\t0.6000"
+        receive(lua, pve)
+        assert "WANTED" not in toast.header.text and toast.footer.text == "Niveau 60 · Mage"
+        assert "|cff69ccf0Jaina|r" in toast.text.text and "|cffffffffSanglier" not in toast.text.text
+
+    def test_battlegrounds_and_arenas_neither_announce_deaths_nor_count_wanted(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("""
+          _GUILD = true
+          _INSTANCE = 'pvp'; _INSTANCE_NAME = 'Goulet des Chanteguerres'
+          _TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true }
+        """)
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
+        # La mort compte au journal, mais rien ne part, l'événement n'a pas de tueur joueur, le tableau reste vide.
+        assert g._NS.char.counters.deaths == 1
+        assert [s.text for s in addon_sent(g) if s.text.startswith("D\t")] == []
+        death = [e for e in g._NS.char.events.values() if e.k == "death"][-1]
+        assert death.player is None and death.kclass is None
+        assert g._NS.DeathSource() == "mort en champ de bataille ou en arène : ni annonce, ni Wanted"
+        assert list(g.WoWForeverGuildeDB.wanted.keys()) == []
+        # Une victoire honorable en champ de bataille : le kill compte (événement marqué `bg`), mais ni prime, ni
+        # tableau Wanted, ni message « K ».
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
+        )
+        assert (g._NS.char.counters.pk, g._NS.char.counters.bounty) == (1, None)
+        (pk,) = [e for e in g._NS.char.events.values() if e.k == "pk"]
+        assert (pk.name, pk.prime, pk.bg) == ("Garrosh", 0, True)
+        assert list(g.WoWForeverGuildeDB.wanted.keys()) == []
+        assert [s.text for s in addon_sent(g) if s.text.startswith("K\t")] == []
+        # De retour dehors, tout reprend.
+        lua.execute("_INSTANCE = nil; _INSTANCE_NAME = nil")
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
+        )
+        assert g._NS.char.counters.pk == 2
+        assert [e for e in g._NS.char.events.values() if e.k == "pk"][-1].bg is None
+        g._FIRE("PLAYER_DEAD")
+        lua.execute("_TARGET = nil")
+        g._ADVANCE(1)
+        (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
+        assert line.split("\t")[11:13] == ["1", "WARRIOR"]
+
     def test_death_by_a_player_marks_him_wanted_with_his_last_position(self):
         lua = boot()
         g = lua.globals()
@@ -1511,13 +1666,15 @@ class TestWanted:
         # Cinq minutes plus tard la tête de mort a disparu ; la prime, elle, reste.
         g._ADVANCE(301)
         assert list(g._PINS.added.items()) == [] and entry.points == 2
-        # Alertes Wanted décochées : ni prime dans l'avis, ni tête de mort ; recochées : elle revient si encore fraîche.
+        # Alertes Wanted décochées : ni prime dans l'avis, ni tête de mort, mais l'avis dit quand même WANTED (mort
+        # PvP) ; recochées : la tête de mort revient si encore fraîche.
         g._NS.Wanted.SetAlerts(False)
         receive(
             lua,
             f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\t\t{g._CLOCK.now}\t1\tWARRIOR\t1411\t0.5000\t0.5000",
         )
-        assert entry.points == 3 and list(g._PINS.added.items()) == [] and "WANTED" not in toast.header.text
+        assert entry.points == 3 and list(g._PINS.added.items()) == [] and "WANTED" in toast.header.text
+        assert toast.footer.text == "Niveau 60 · Mage · tué par un joueur"
         g._NS.Wanted.SetAlerts(True)
         assert len(list(g._PINS.added.items())) == 1
         # L'export porte les nouveaux champs de la mort ; le tableau Wanted reste local (le site le recalcule).

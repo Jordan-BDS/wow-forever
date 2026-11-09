@@ -126,6 +126,7 @@ ns.Data.FISHING_WINDOW = 30 -- s : le bouchon met jusqu'à 30 s à mordre après
 ns.Data.LOOT_CLOSED_GRACE = 1 -- s après la fermeture de la fenêtre de butin : le message de butin peut suivre
 ns.Data.CRAFT_DEDUPE = 1 -- s : sort réussi puis résultat de fabrication de la même recette = une seule fabrication
 ns.Data.KILLER_MEMORY = 60 -- s : une cible hostile ciblée dans ce délai avant le combat (ou pendant) est le tueur présumé
+ns.Data.SEEN_PLAYERS_TTL = 600 -- s : un joueur hostile lu (cible, survol, plaque) reste connu comme joueur ce temps-là, pour le Wanted
 ns.Data.DEATH_RECAP_DELAY = 1 -- s après la mort avant de lire le récapitulatif du client et d'annoncer
 ns.Data.TOAST_SECONDS = 10 -- durée d'affichage des textes flottants (avis de décès, appel à l'aide)
 ns.Data.MAX_MOBS = 500 -- créatures distinctes gardées par personnage (clé = nom affiché)

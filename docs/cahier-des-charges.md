@@ -1229,6 +1229,24 @@ ligne de chat le dit tout de suite, puis un popup « Recharger (/reload) / Plus 
 combat et hors instance (`ReloadUI` est refusé en combat), une fois par version et par session. Sans compagnon, le
 message rappelle le zip du site.
 
+**Mort PvP explicite et tueur reconnu autour (addon 0.6.3, 9 novembre 2026)** : première mort PvP en jeu sans
+Wanted (ni prime, ni tête de mort). Deux causes dans le collecteur : l'identité du tueur mémorisé n'était jamais
+relue quand le client avait vidé la cible à la mort (parcours d'une liste commençant par `nil`), et un joueur
+jamais ciblé, ou ciblé seulement en combat (nom secret), restait « inconnu » alors que le récapitulatif donnait son
+nom. Désormais le nom du récapitulatif est rapproché, dans l'ordre : de la cible, du souvenir, des **joueurs
+hostiles lus dans les dix dernières minutes** (`NAME_PLATE_UNIT_ADDED`, `UPDATE_MOUSEOVER_UNIT`, ciblage), puis
+des **unités encore autour** une fois mort (cible, survol, focus, plaques de nom via `C_NamePlate.GetNamePlates`),
+prénom seul accepté d'un côté comme de l'autre ; `/mf api` dit d'où vient la réponse (« joueur oui d'après
+autour »). Côté affichage, **toute mort PvP est un avis « WANTED »** (en-tête, pied « tué par un joueur », tueur
+coloré à sa classe), alertes Wanted ou non ; avec les alertes, le pied porte la prime comme avant. La phrase reste
+tirée du même lot qu'en PvE (décision du 9 novembre 2026). **En champ de bataille ou en arène** (`IsInInstance`
+« pvp » ou « arena »), le Wanted est hors jeu : la mort compte au journal mais n'est ni annoncée ni rapprochée d'un
+joueur ; une victoire honorable compte dans « Joueurs abattus » (compteur `pk`, événement `pk` marqué `bg`) mais
+ne donne ni prime, ni message « K », ni toast, et le site ignore ces événements pour le tableau Wanted (décision du
+9 novembre 2026). Testé
+dans l'environnement simulé (`TestWanted`) ; à valider en jeu : la lisibilité du nom des plaques et de
+`UnitIsPlayer` une fois mort sur le client Forever.
+
 **Page Wanted (site, 9 novembre 2026)** : `/wanted` (onglet de la section Guilde, lien depuis les Classements et
 l'accueil) : par période, totaux (têtes mises à prix, points de prime, recherchés abattus, chasseurs, membres tués),
 une carte par ennemi (classe, recherché depuis, zones où il sévit, prime, abattu, victimes, dernière victime, dernier
@@ -1350,8 +1368,10 @@ l'affichage doit le dire.
 **Fiabilité des détections.**
 
 - *Mort par un joueur* : fiable quand la victime a ciblé son agresseur (`UnitIsPlayer` lu au ciblage, hors combat).
-  Un voleur jamais ciblé reste inconnu, donc sans Wanted de toute façon. Faux positif possible sur un PNJ homonyme,
-  rare avec les noms « prénom nom » de Forever ; le GM peut retirer un nom.
+  Depuis la 0.6.3, le nom donné par le récapitulatif est aussi rapproché des joueurs hostiles lus dans les dix
+  dernières minutes (plaques de nom, survol, cible) et des unités encore autour une fois mort : un voleur jamais
+  ciblé est reconnu si sa plaque est là. Faux positif possible sur un PNJ homonyme, rare avec les noms
+  « prénom nom » de Forever ; le GM peut retirer un nom.
 - *Kill d'un ennemi* : la piste solide est le **message de chat de victoire honorable** (`CHAT_MSG_COMBAT_HONOR_GAIN`,
   chaîne `COMBATLOG_HONORGAIN` : « X meurt, victoire honorable… »), même mécanique que les créatures tuées via le
   message d'expérience, prouvée sur Forever. Limites : pas de message si la cible ne rapporte pas d'honneur (grise,

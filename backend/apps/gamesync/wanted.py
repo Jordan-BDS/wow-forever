@@ -96,7 +96,8 @@ def _match(enemies: dict[str, dict], name: str) -> dict | None:
 
 def _collect(snapshots: dict, start: date | None, end: date) -> tuple[dict[str, dict], list[dict]]:
     """Ennemis (clé → état complet) et participations aux kills (une par événement `pk` reconnu, doublons du
-    groupe compris : elles servent aux chasseurs, pas au compteur de l'ennemi)."""
+    groupe compris : elles servent aux chasseurs, pas au compteur de l'ennemi). Un `pk` marqué `bg` (champ de
+    bataille, arène) compte dans le compteur du personnage mais pas ici."""
     lo, hi = _bounds(start, end)
     excluded = set(WantedExclusion.objects.values_list("name", flat=True))
     enemies: dict[str, dict] = {}
@@ -134,6 +135,8 @@ def _collect(snapshots: dict, start: date | None, end: date) -> tuple[dict[str, 
                     enemy["last_seen"] = {"t": t, "position": position}
                 enemy["first"] = t if enemy["first"] is None else min(enemy["first"], t)
             elif kind == "pk" and isinstance(event.get("name"), str) and event["name"].strip():
+                if event.get("bg") is True:
+                    continue
                 kills.append((event, t, character))
     # Les kills après les morts : il faut connaître les noms complets pour reconnaître un prénom seul.
     participations: list[dict] = []
