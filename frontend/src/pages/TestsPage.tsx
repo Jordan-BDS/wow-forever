@@ -72,7 +72,7 @@ const SECTIONS: Section[] = [
         id: "version",
         title: "Version de l'addon chargée",
         commands: ['/dump C_AddOns.GetAddOnMetadata("WoWForeverGuilde", "Version")'],
-        expected: "La version de la dernière release (0.6.8 au 10 novembre).",
+        expected: "La version de la dernière release (0.6.9 au 11 novembre).",
         otherwise:
           "Autre chose : le compagnon n'a pas recopié l'addon. Bouton « Réinstaller l'addon » puis /reload.",
       },
@@ -398,7 +398,7 @@ function AddonErrorsCard() {
   const asText = list
     .map(
       (e) =>
-        `${e.at ? formatDateTime(e.at) : "?"} · ${e.user.display_name}${e.device ? ` (${e.device})` : ""} · addon ${e.addon}${
+        `${e.at ? formatDateTime(e.at) : "?"} · ${e.users.join(", ")}${e.count > 1 ? ` · ×${e.count}` : ""} · addon ${e.addons.join(", ")}${
           e.client ? ` · client ${e.client}` : ""
         }\n  ${e.where || "?"} : ${e.error}`,
     )
@@ -416,7 +416,7 @@ function AddonErrorsCard() {
     <Card className={clsx("space-y-3", list.length > 0 && "border-danger/40")}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-display text-xl">Erreurs remontées par les addons</h2>
-        <span className="text-xs text-muted">14 derniers jours · toute la guilde · dédoublonnées</span>
+        <span className="text-xs text-muted">7 derniers jours · toute la guilde · les identiques regroupées</span>
       </div>
       {errors.isError ? (
         <p className="text-sm text-danger">Impossible de charger les erreurs.</p>
@@ -454,13 +454,14 @@ function ErrorRow({ e }: { e: AddonError }) {
     <li className="rounded-md border border-border bg-bg/60 p-3 text-sm">
       <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
         <span className="text-text">{e.at ? formatDateTime(e.at) : "heure inconnue"}</span>
-        <span>{e.user.display_name}</span>
-        {e.device && <span>· {e.device}</span>}
-        <span>· addon {e.addon}</span>
+        {e.count > 1 && <span className="text-gold-light">×{e.count}</span>}
+        <span>{e.users.join(", ")}</span>
+        {e.count === 1 && e.device && <span>· {e.device}</span>}
+        <span>· addon {e.addons.join(", ")}</span>
         {e.client && <span>· client {e.client}</span>}
         <span>· reçu {formatDateTime(e.received_at)}</span>
       </div>
-      <div className="mt-1 font-mono text-[12.5px] break-words whitespace-pre-wrap">
+      <div className="mt-1 max-h-48 overflow-y-auto font-mono text-[12.5px] break-words whitespace-pre-wrap">
         <span className="text-gold-light">{e.where || "?"}</span> : {e.error}
       </div>
     </li>

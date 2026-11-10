@@ -296,8 +296,8 @@ MAX_ADDON_ERRORS = 50
 
 
 def _addon_errors(raw: Any) -> list[dict]:
-    """Erreurs des collecteurs telles que l'addon les exporte, nettoyées et bornées (8000 caractères : le diagnostic
-    `/mf api` en fait plus de 2000 et sa fin, les kills annoncés, était coupée)."""
+    """Erreurs des collecteurs telles que l'addon les exporte, nettoyées et bornées (8000 caractères : le
+    diagnostic `/mf api` en fait plus de 2000 et sa fin, les kills annoncés, était coupée)."""
     if not isinstance(raw, list):
         return []
     out = []
@@ -316,9 +316,18 @@ def _addon_errors(raw: Any) -> list[dict]:
     return out
 
 
-def addon_errors(days: int = 14, limit: int = 200) -> list[dict]:
+# Relevés volumineux et propres à chaque envoi (`/mf api`, journal des kills) : les plus récents de chacun
+# suffisent.
+REPORT_KINDS = ("diagnostic", "vh")
+REPORTS_PER_USER = 2
+
+
+def addon_errors(days: int = 7, limit: int = 100) -> list[dict]:
     """Erreurs remontées par tous les addons de la guilde sur les derniers jours, dédoublonnées : l'addon
-    renvoie à chaque export les mêmes 50 dernières. Plus récentes en premier."""
+    renvoie à chaque export les mêmes 50 dernières. Plus récentes en premier. La même erreur (même endroit,
+    même texte) chez plusieurs joueurs ou à plusieurs heures ne fait qu'une ligne : la plus récente, avec
+    `count`, les joueurs (`users`) et les versions (`addons`) concernés ; des relevés (diagnostic, journal des
+    kills), seuls les deux derniers de chaque joueur sont gardés."""
     since = timezone.now() - timedelta(days=days)
     batches = (
         ImportBatch.objects.filter(received_at__gte=since)
@@ -347,7 +356,21 @@ def addon_errors(days: int = 14, limit: int = 200) -> list[dict]:
                 }
             )
     out.sort(key=lambda e: e["at"] or e["received_at"], reverse=True)
-    return out[:limit]
+    grouped: dict[tuple, dict] = {}
+    reports: dict[tuple, int] = {}
+    for e in out:
+        if e["where"] in REPORT_KINDS:
+            mine = (e["user"]["id"], e["where"])
+            reports[mine] = reports.get(mine, 0) + 1
+            if reports[mine] > REPORTS_PER_USER:
+                continue
+        row = grouped.setdefault((e["where"], e["error"]), {**e, "count": 0, "users": [], "addons": []})
+        row["count"] += 1
+        if e["user"]["display_name"] not in row["users"]:
+            row["users"].append(e["user"]["display_name"])
+        if e["addon"] and e["addon"] not in row["addons"]:
+            row["addons"].append(e["addon"])
+    return list(grouped.values())[:limit]
 
 
 @transaction.atomic

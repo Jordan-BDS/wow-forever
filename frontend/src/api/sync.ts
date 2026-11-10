@@ -194,9 +194,13 @@ export type AddonError = {
   client: string;
   where: string;
   error: string;
+  /** La même erreur (même endroit, même texte) regroupée : nombre d'occurrences, joueurs et versions concernés. */
+  count: number;
+  users: string[];
+  addons: string[];
 };
 
-/** GM : erreurs des collecteurs remontées par les addons de la guilde (14 jours). */
+/** GM : erreurs des collecteurs remontées par les addons de la guilde (7 jours), les identiques regroupées. */
 export function useAddonErrors(enabled: boolean) {
   return useQuery({
     queryKey: ["sync", "addon-errors"] as const,

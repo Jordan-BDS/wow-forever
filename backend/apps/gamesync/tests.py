@@ -631,6 +631,25 @@ class TestAddonErrors:
             ("pve.onEvent", member.display_name, "0.3.1"),
         ]
         assert data[0]["at"] is None and data[1]["at"].startswith(NOW.strftime("%Y-%m-%d"))
+        # La même erreur chez un autre joueur, à une autre heure et sur une autre version : une seule ligne,
+        # la plus récente, qui dit combien de fois et chez qui. Des relevés (`/mf api`), les deux derniers par
+        # joueur.
+        again = [{**errors[0], "t": int(NOW.timestamp()) - 30, "addon": "0.6.8"}]
+        again += [
+            {
+                "t": int(NOW.timestamp()) - 40 + i,
+                "where": "diagnostic",
+                "error": f"relevé {i}",
+                "addon": "0.6.8",
+            }
+            for i in range(3)
+        ]
+        do_import(as_user(gm), export_code(character_payload(), errors=again))
+        data = as_user(gm).get("/api/sync/addon-errors/").data["errors"]
+        (row,) = [e for e in data if e["where"] == "pve.onEvent"]
+        assert row["count"] == 2 and row["user"]["display_name"] == gm.display_name
+        assert row["users"] == [gm.display_name, member.display_name] and row["addons"] == ["0.6.8", "0.3.1"]
+        assert [e["error"] for e in data if e["where"] == "diagnostic"] == ["relevé 2", "relevé 1"]
 
 
 class TestLatestRelease:
