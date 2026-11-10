@@ -613,14 +613,14 @@ class TestAddonErrors:
                 "error": "PvE.lua:63: attempt to index nil",
                 "addon": "0.3.1",
             },
-            {"t": 0, "where": "", "error": "x" * 3000},
+            {"t": 0, "where": "", "error": "x" * 9000},
             "pas un dict",
         ]
         first = do_import(as_user(member), export_code(character_payload(), errors=errors))
         assert first.status_code == 201
         batch = ImportBatch.objects.get(pk=first.data["id"])
         assert batch.errors[0]["where"] == "pve.onEvent" and batch.errors[1]["t"] is None
-        assert len(batch.errors) == 2 and len(batch.errors[1]["error"]) == 2000
+        assert len(batch.errors) == 2 and len(batch.errors[1]["error"]) == 8000
         # Second export : les mêmes erreurs reviennent, une seule fois dans la liste du GM.
         do_import(as_user(member), export_code(character_payload(level=59), errors=errors[:1]))
         assert as_user(member).get("/api/sync/addon-errors/").status_code == 403

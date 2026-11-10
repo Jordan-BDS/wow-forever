@@ -296,7 +296,8 @@ MAX_ADDON_ERRORS = 50
 
 
 def _addon_errors(raw: Any) -> list[dict]:
-    """Erreurs des collecteurs telles que l'addon les exporte, nettoyées et bornées."""
+    """Erreurs des collecteurs telles que l'addon les exporte, nettoyées et bornées (8000 caractères : le diagnostic
+    `/mf api` en fait plus de 2000 et sa fin, les kills annoncés, était coupée)."""
     if not isinstance(raw, list):
         return []
     out = []
@@ -308,7 +309,7 @@ def _addon_errors(raw: Any) -> list[dict]:
             {
                 "t": int(t) if isinstance(t, (int, float)) and not isinstance(t, bool) and t > 0 else None,
                 "where": str(item.get("where") or "")[:80],
-                "error": str(item.get("error") or "")[:2000],
+                "error": str(item.get("error") or "")[:8000],
                 "addon": str(item.get("addon") or "")[:32],
             }
         )
