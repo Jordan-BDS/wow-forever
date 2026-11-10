@@ -234,6 +234,8 @@ local function newFrame(kind, name)
   function f:CreateFontString() local s = newFrame("FontString") s.SetText = function(self, t) self.text = t end s.GetText = function(self) return self.text end return s end
   function f:CreateTexture() local s = newFrame("Texture") s.SetVertexColor = function(self, r, g, b) self.color = { r, g, b } end s.SetTexture = function(self, t) self.texture = t end return s end
   function f:IsMouseOver() return self.mouseOver == true end
+  -- Réservé hors combat par le jeu : en combat l'appel est refusé (compté dans _BLOCKED), sans erreur Lua.
+  function f:SetPassThroughButtons(button) if _COMBAT == true then _BLOCKED = (_BLOCKED or 0) + 1 else self.passThrough = button end end
   local noop = function() end
   for _, m in ipairs({ "SetSize", "SetPoint", "SetMovable", "EnableMouse", "RegisterForDrag", "SetFrameStrata", "SetBackdrop",
       "SetWidth", "SetJustifyH", "SetTextColor", "SetShadowOffset", "SetAlpha", "SetMultiLine", "SetAutoFocus", "SetFontObject",

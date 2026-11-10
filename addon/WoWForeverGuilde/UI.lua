@@ -390,8 +390,13 @@ local function buildToast()
 end
 
 --- Texte flottant TOAST_SECONDS s : en-tête, phrase colorée, pied, et son d'avertissement si demandé.
-function UI.ShowToast(headerText, text, footer, color, sound)
-  if not toast then buildToast() end
+--- Un texte encore à l'écran depuis moins de TOAST_MIN_SECONDS s n'est pas écrasé : le suivant attend son tour
+--- (0.6.8 ; deux kills à 2 s d'écart, et le premier popup n'était jamais lu). Exception : un texte de même `key`
+--- que celui à l'écran le corrige sur place (la même mort annoncée PvE puis PvP : un seul avis).
+local waiting, shownAt, shownKey, nextTimer = {}, nil, nil, nil
+
+local function display(headerText, text, footer, color, sound, key)
+  shownAt, shownKey = ns.now(), key
   toast.header:SetText(headerText)
   toast.text:SetText(text)
   toast.text:SetTextColor(color[1], color[2], color[3])
@@ -405,6 +410,34 @@ function UI.ShowToast(headerText, text, footer, color, sound)
     UIFrameFadeOut(toast, 1, 1, 0)
     C_Timer.After(1, function() toast:Hide() end)
   end)
+end
+
+local function showNext()
+  nextTimer = nil
+  local item = table.remove(waiting, 1)
+  if not item then return end
+  display(item[1], item[2], item[3], item[4], item[5], item[6])
+  if #waiting > 0 then nextTimer = C_Timer.NewTimer(ns.Data.TOAST_MIN_SECONDS, showNext) end
+end
+
+function UI.ShowToast(headerText, text, footer, color, sound, key)
+  if not toast then buildToast() end
+  local busy = toast:IsShown() and shownAt and ns.now() - shownAt < ns.Data.TOAST_MIN_SECONDS
+  if (not busy and #waiting == 0) or (key and toast:IsShown() and key == shownKey) then
+    display(headerText, text, footer, color, sound, key)
+    return
+  end
+  for i, item in ipairs(waiting) do
+    if key and item[6] == key then -- encore en attente : corrigé à sa place dans la file
+      waiting[i] = { headerText, text, footer, color, sound, key }
+      return
+    end
+  end
+  waiting[#waiting + 1] = { headerText, text, footer, color, sound, key }
+  while #waiting > ns.Data.TOAST_QUEUE do table.remove(waiting, 1) end
+  if not nextTimer then
+    nextTimer = C_Timer.NewTimer(math.max(0.1, ns.Data.TOAST_MIN_SECONDS - (ns.now() - (shownAt or 0))), showNext)
+  end
 end
 
 --- Avis de décès ; `wanted` : l'entrée du tueur dans le tableau Wanted, quand c'est un joueur recherché, et que
@@ -430,7 +463,7 @@ function UI.ShowDeath(info, phrase, wanted)
     header = L.DEATH_WANTED_HEADER
     footer = string.format(L.DEATH_WANTED_FOOTER, info.level or 0, ns.ClassLabel(info.class), wanted.points or 0)
   end
-  UI.ShowToast(header, phrase, footer, { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths)
+  UI.ShowToast(header, phrase, footer, { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths, "mort:" .. tostring(info.name))
 end
 
 --- Appel à l'aide d'un membre dans ma zone.
@@ -440,16 +473,19 @@ end
 
 --- Victoire honorable : un joueur adverse abattu par un membre (moi ou un autre), hors champ de bataille. Vert,
 --- sans son (il y en a bien plus que de morts) ; chasseur et victime à la couleur de leur classe.
-function UI.ShowKill(victim, victimClass, by, byClass, phrase, place)
-  for _, who in ipairs({ { victim, victimClass }, { by, byClass } }) do
-    local at = phrase:find(who[1], 1, true) -- remplacement littéral : un nom n'est pas un motif Lua
-    if at and who[2] and who[2] ~= "" then
-      phrase = phrase:sub(1, at - 1) .. ns.ClassColored(who[1], who[2]) .. phrase:sub(at + #who[1])
+--- `hunters` : { { name, class }, … }, tous ceux du kill ; un chasseur de plus complète le popup sur place (même clé).
+function UI.ShowKill(victim, victimClass, hunters, phrase, place)
+  local who = { { victim, victimClass } }
+  for _, h in ipairs(hunters) do who[#who + 1] = { h.name, h.class } end
+  for _, w in ipairs(who) do
+    local at = phrase:find(w[1], 1, true) -- remplacement littéral : un nom n'est pas un motif Lua
+    if at and w[2] and w[2] ~= "" then
+      phrase = phrase:sub(1, at - 1) .. ns.ClassColored(w[1], w[2]) .. phrase:sub(at + #w[1])
     end
   end
-  local footer = string.format(L.KILL_FOOTER, ns.ClassColored(by, byClass), ns.ClassColored(victim, victimClass),
-    place ~= "" and place or L.WHERE_UNKNOWN)
-  UI.ShowToast(L.KILL_HEADER, phrase, footer, { 0.45, 0.9, 0.45 }, false)
+  local footer = string.format(#hunters > 1 and L.KILL_FOOTER_PLURAL or L.KILL_FOOTER, ns.Wanted.HunterNames(hunters, true),
+    ns.ClassColored(victim, victimClass), place ~= "" and place or L.WHERE_UNKNOWN)
+  UI.ShowToast(L.KILL_HEADER, phrase, footer, { 0.45, 0.9, 0.45 }, false, "kill:" .. tostring(victim))
 end
 
 --- Prime encaissée : un recherché abattu par un membre (moi ou un autre). Or, son si les morts en ont un.

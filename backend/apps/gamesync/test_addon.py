@@ -1016,6 +1016,28 @@ class TestPositions:
         g._NS.MapUI.OpenMenu(peer)
         assert row.invite.text == "Déjà dans le groupe" and row.invite.enabled is False
 
+    def test_a_pin_created_in_combat_waits_for_the_end_of_combat_to_pass_right_clicks(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute(FAKE_PINS)
+        # Une position arrive en plein combat : le point est posé, l'appel réservé attend (rien de refusé par le jeu).
+        lua.execute("_COMBAT = true")
+        receive(lua, JAINA)
+        ((icon, _pin),) = list(g._PINS.added.items())
+        assert g._BLOCKED is None and icon.passThrough is None
+        lua.execute("_COMBAT = false")
+        g._FIRE("PLAYER_REGEN_ENABLED")
+        assert g._BLOCKED is None and icon.passThrough == "RightButton"
+        # Hors combat : tout de suite. La tête de mort d'un recherché suit la même règle.
+        receive(
+            lua,
+            f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\t\t{g._CLOCK.now}\t1\tWARRIOR\t1411\t0.4000\t0.6000",
+        )
+        skull = g._NS.MapUI.WantedIcons()["garrosh hurlenfer"].map
+        assert skull.passThrough == "RightButton" and g._BLOCKED is None
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_group_members_have_no_pin_because_the_game_already_shows_them(self):
         lua = boot()
         g = lua.globals()
@@ -1567,6 +1589,7 @@ class TestWanted:
         assert not any("Wanted :" in m for m in list(g._CHAT.values()))
         # Alertes actives : la prime remplace la mention.
         lua.execute("WoWForeverGuildeDB.settings.wantedAlerts = true")
+        toast.shown = False  # le popup précédent a fait son temps
         receive(lua, pvp.replace("00000JAI", "00000JA2"))
         assert "WANTED" in toast.header.text
         assert toast.footer.text == "Niveau 60 · Mage · tueur recherché, prime 2"
@@ -1680,6 +1703,7 @@ class TestWanted:
         assert icon.skull.texture == "Interface\\TargetingFrame\\UI-RaidTargetingIcons"
         # Il tue Jaina ailleurs : la prime monte (jamais remise à zéro), la tête de mort suit la dernière victime.
         jaina = f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\tOrgrimmar\t{g._CLOCK.now}\t1\tWARRIOR\t1411\t0.4000\t0.6000"
+        toast.shown = False  # le popup précédent a fait son temps
         receive(lua, jaina)
         assert entry.points == 2 and len(list(entry.victims.values())) == 2
         assert (entry.last.victim, entry.last.map) == ("Jaina", 1411)
@@ -1696,6 +1720,7 @@ class TestWanted:
             "Victimes : Jaina, Thrall",
         ]
         # Ancienne version en face (neuf champs) ou créature : avis de décès ordinaire, pas de prime.
+        toast.shown = False  # le popup précédent a fait son temps
         receive(
             lua,
             f"D\t1\tPlayer-1-00000UTH\tUther\tLumière\tPALADIN\t58\tGarrosh Hurlenfer\tMarais\t\t{g._CLOCK.now}",
@@ -2017,6 +2042,7 @@ class TestWantedKills:
             lua,
             f"D	1	Player-1-00000JAI	Jaina	Portvaillant	MAGE	60	Garrosh Hurlenfer	Durotar		{g._CLOCK.now}	1	WARRIOR	1411	0.4000	0.6000",
         )
+        g.WoWForeverGuildeDeath.shown = False  # l'avis de décès a fait son temps
         g.SlashCmdList.WOWFOREVERGUILDE("prime garrosh")
         toast = g.WoWForeverGuildeDeath
         assert toast.shown is True and "Prime encaissée" in toast.header.text
@@ -2059,14 +2085,26 @@ class TestWantedKills:
         # Aucune phrase tirée ne cite le niveau ou la classe de la victime, que le jeu ne dit pas.
         for _ in range(60):
             assert "{" not in g._NS.Wanted.KillPhrase("Sylvanas", "Thrall", "Durotar")
-        # Crédit de groupe : mon écho et le « H » d'un coéquipier pour la même victime ne refont pas de popup.
+        # Mon écho ne refait pas de popup. Crédit de groupe : le « H » d'un coéquipier pour la même victime n'en
+        # fait pas un second, il ajoute son nom au mien (même phrase, pied au pluriel) ; sa répétition ne change rien.
         toast.shown = False
         receive(lua, h, "Thrall-Forever")
-        receive(
-            lua,
-            f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Sylvanas	{g._CLOCK.now}	Durotar		",
-        )
         assert toast.shown is False
+        toast.shown = True
+        phrase = toast.text.text
+        mate = f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Sylvanas	{g._CLOCK.now}	Durotar		"
+        receive(lua, mate)
+        assert (
+            toast.footer.text
+            == "|cff0070ddThrall Fils-de-Durotan|r et |cff69ccf0Jaina Portvaillant|r abattent |cffffffffSylvanas|r"
+            " · Forêt d'Elwynn"
+        )
+        if "Thrall Fils-de-Durotan" in phrase:
+            assert "|cff0070ddThrall Fils-de-Durotan|r et |cff69ccf0Jaina Portvaillant|r" in toast.text.text
+        toast.shown = False
+        receive(lua, mate)
+        assert toast.shown is False and len(wanted_sent(g, "H")) == 1
+        g._ADVANCE(20)
         # Le kill d'un guildien sur un autre joueur : popup chez moi, chasseur et victime à leur couleur de classe.
         receive(
             lua,
@@ -2094,6 +2132,69 @@ class TestWantedKills:
         )
         assert toast.shown is False and len(wanted_sent(g, "H")) == 1
         assert g._NS.char.counters.pk == 2
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_a_player_killed_again_gets_a_new_popup_and_popups_wait_their_turn(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+        honor = "Sylvanas meurt, victoire honorable (Points d'honneur estimés : 50)"
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", honor)
+        toast = g.WoWForeverGuildeDeath
+        assert toast.shown is True and len(wanted_sent(g, "H")) == 1
+        # Elle revient et je la retue 30 s plus tard : nouveau popup, nouveau « H » (avant : rien pendant 60 s).
+        g._ADVANCE(30)
+        toast.shown = False
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", honor)
+        assert toast.shown is True and len(wanted_sent(g, "H")) == 2
+        # Chez un guildien, pareil : deux kills de Jaina sur Nazgrel à 30 s d'écart font deux popups, mais la
+        # répétition du second (même chasseur, même heure de kill), même 40 s après, n'en refait pas.
+        g._ADVANCE(30)
+        first = f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Nazgrel	{g._CLOCK.now}	Durotar		"
+        toast.shown = False
+        receive(lua, first)
+        assert toast.shown is True
+        g._ADVANCE(30)
+        second = f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Nazgrel	{g._CLOCK.now}	Durotar		"
+        toast.shown = False
+        receive(lua, second)
+        assert toast.shown is True
+        g._ADVANCE(40)
+        toast.shown = False
+        receive(lua, second)
+        assert toast.shown is False
+        # Le « H » d'un coéquipier pour le même kill (autre chasseur, quelques secondes après) : pas de second
+        # popup, son nom s'ajoute à celui déjà affiché ; sa répétition tardive ne refait rien.
+        g._ADVANCE(60)
+        kill = g._CLOCK.now
+        receive(lua, f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Rexxar	{kill}	Durotar		")
+        assert toast.shown is True and "Rexxar" in toast.footer.text
+        g._ADVANCE(2)
+        mate = f"H	1	Player-1-00000UTH	Uther Lumière	PALADIN	Rexxar	{kill + 1}	Durotar		"
+        receive(lua, mate, "Uther-Forever")
+        assert toast.footer.text == (
+            "|cff69ccf0Jaina Portvaillant|r et |cffffffffUther Lumière|r abattent |cffffffffRexxar|r · Durotar"
+        )
+        third = f"H	1	Player-1-00000VAR	Varian Wrynn	WARRIOR	Rexxar	{kill + 2}	Durotar		"
+        receive(lua, third, "Varian-Forever")
+        assert toast.footer.text.startswith(
+            "|cff69ccf0Jaina Portvaillant|r, |cffffffffUther Lumière|r et |cffffffffVarian Wrynn|r abattent "
+        )
+        g._ADVANCE(30)
+        toast.shown = False
+        receive(lua, mate, "Uther-Forever")
+        assert toast.shown is False
+        # Deux popups coup sur coup : le premier reste 4 s à l'écran, le second attend son tour au lieu de l'écraser.
+        g._ADVANCE(60)
+        receive(lua, f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Saurfang	{g._CLOCK.now}	Durotar		")
+        g._ADVANCE(1)
+        receive(lua, f"H	1	Player-1-00000UTH	Uther Lumière	PALADIN	Zaela	{g._CLOCK.now}	Durotar		", "Uther-Forever")
+        assert "Saurfang" in toast.footer.text
+        g._ADVANCE(2)
+        assert "Saurfang" in toast.footer.text
+        g._ADVANCE(1)
+        assert toast.shown is True and "Zaela" in toast.footer.text
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_a_kill_announcement_is_retried_when_refused_and_repeated_out_of_combat(self):
@@ -2188,6 +2289,7 @@ class TestWantedKills:
         )
         entry = g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"]
         # Je l'abats : le message de victoire honorable nomme la victime (le prénom seul suffit s'il est unique).
+        g.WoWForeverGuildeDeath.shown = False  # l'avis de décès a fait son temps
         g._FIRE(
             "CHAT_MSG_COMBAT_HONOR_GAIN",
             "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
@@ -2253,6 +2355,7 @@ class TestWantedKills:
         assert toast.shown is True and "Victoire honorable" in toast.header.text
         assert len(wanted_sent(g, "K")) == 1 and "sylvanas" not in dict(g.WoWForeverGuildeDB.wanted)
         # Un « K » d'un guildien pour un ennemi que je ne connaissais pas : créé avec sa prime, toast.
+        toast.shown = False  # le popup précédent a fait son temps
         receive(
             lua,
             f"K\t1\tPlayer-1-00000UTH\tUther Lumière\tPALADIN\tVol'jin\t3\t1\t{g._CLOCK.now}\t1411\t0.1000\t0.2000\tDurotar\tOrgrimmar\tSHAMAN",

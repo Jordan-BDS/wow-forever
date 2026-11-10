@@ -76,7 +76,9 @@ transporte le code jusqu'au site.
   joueur qui n'est pas recherché (0.6.6) : message « H » aux guildiens et popup vert « Victoire honorable » chez
   tous, hors champ de bataille et arène, avec une phrase du lot des avis de décès (la victime dans le rôle du mort ;
   les phrases qui citent son niveau ou sa classe sont écartées, le jeu ne les dit pas), sans son, un seul popup par
-  victime à la minute (coéquipiers, écho), gouverné par « Afficher les morts des autres » ; si la victime est
+  kill (écho et répétition du même chasseur ; un coéquipier qui annonce le même kill dans les 15 s ajoute son nom
+  au popup déjà affiché, « A et B abattent X », 5 noms au plus ; le même joueur retué plus tard a son popup,
+  0.6.8 ; un popup reste 4 s au moins, le suivant attend son tour), gouverné par « Afficher les morts des autres » ; si la victime est
   recherchée chez celui qui reçoit, c'est une prime encaissée. Envoi tenace du « K » et du « H » (0.6.7) : refusé
   par le jeu, il est retenté toutes les 5 s ; parti en combat, il est répété une fois à la sortie du combat ; plus
   rien 45 s après le kill ; `/mf api` dit ce qu'a donné le dernier envoi et combien on en a reçu. Le popup « Prime

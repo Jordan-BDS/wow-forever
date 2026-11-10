@@ -513,47 +513,86 @@ function Wanted.AnnounceSource()
   return string.format("%s · K et H reçus : %d", sentText, received)
 end
 
-local announced = {} -- { name, t } des kills déjà affichés (prime ou victoire honorable), à mon horloge
+local announced = {} -- { name, t, guid, killT } des kills déjà affichés (prime ou victoire honorable), t à mon horloge
 
---- Ce joueur abattu a-t-il déjà son popup depuis moins de WANTED_KILL_DEDUPE s (le groupe annonce autant de fois
---- qu'il a de chasseurs) ?
-local function announcedRecently(name, t)
+--- Ce joueur abattu a-t-il déjà son popup ? Deux cas : le même kill du même chasseur (`guid`, `killT` : son écho,
+--- sa répétition hors combat), ou un popup pour cette victime depuis moins de WANTED_HONOR_DEDUPE s (le groupe
+--- annonce autant de fois qu'il a de chasseurs). Au-delà, c'est un nouveau kill : le même joueur retué 30 s plus
+--- tard a son popup (0.6.8 ; avant, rien pendant une minute).
+--- Renvoie vrai, puis le popup encore dans sa fenêtre (nil pour une simple répétition) : un autre chasseur du
+--- même kill s'y ajoute.
+local function announcedRecently(name, t, guid, killT)
+  local recent = nil
   for _, kill in ipairs(announced) do
-    if math.abs(t - kill.t) < ns.Data.WANTED_KILL_DEDUPE and sameName(kill.name, name) then return true end
+    if sameName(kill.name, name) then
+      if guid and guid ~= "" and kill.guid == guid and kill.killT == killT then return true, nil end
+      if math.abs(t - kill.t) < ns.Data.WANTED_HONOR_DEDUPE then recent = kill end
+    end
   end
-  return false
+  return recent ~= nil, recent
 end
 
-local function markAnnounced(name, t)
-  table.insert(announced, { name = name, t = t })
+local function markAnnounced(name, t, guid, killT)
+  local kill = { name = name, t = t, guid = guid, killT = killT }
+  table.insert(announced, kill)
   while #announced > ns.Data.WANTED_VICTIMS do table.remove(announced, 1) end
+  return kill
+end
+
+--- « Thrall », « Thrall et Jaina », « Thrall, Jaina et Uther » ; `colored` : chacun à la couleur de sa classe.
+function Wanted.HunterNames(hunters, colored)
+  local names = {}
+  for i, h in ipairs(hunters) do names[i] = colored and ns.ClassColored(h.name, h.class) or h.name end
+  if #names <= 1 then return names[1] or "" end
+  return table.concat(names, ", ", 1, #names - 1) .. L.AND .. names[#names]
 end
 
 --- Phrase d'une victoire honorable : le lot des avis de décès, la victime dans le rôle du mort et le chasseur dans
 --- celui du tueur. Le message du jeu ne dit ni le niveau ni la classe de la victime : les phrases qui les citent
 --- sont laissées de côté.
-function Wanted.KillPhrase(victim, by, place)
-  local phrases = {}
-  for _, phrase in ipairs(ns.PHRASES or {}) do
-    if not phrase:find("{niveau}", 1, true) and not phrase:find("{classe}", 1, true) then phrases[#phrases + 1] = phrase end
+--- `template` : le gabarit à réutiliser (un chasseur de plus sur le même popup) ; renvoie la phrase et son gabarit.
+function Wanted.KillPhrase(victim, by, place, template)
+  if not template then
+    local phrases = {}
+    for _, phrase in ipairs(ns.PHRASES or {}) do
+      if not phrase:find("{niveau}", 1, true) and not phrase:find("{classe}", 1, true) then phrases[#phrases + 1] = phrase end
+    end
+    template = #phrases > 0 and phrases[math.random(1, #phrases)] or "{tueur} a abattu {personnage}"
   end
-  if #phrases == 0 then return string.format("%s a abattu %s", by, victim) end
   local values = { personnage = victim, tueur = by, zone = place ~= "" and place or "nulle part" }
-  local text = phrases[math.random(1, #phrases)]:gsub("{(%w+)}", function(key) return values[key] or ("{" .. key .. "}") end)
-  return (text:gsub("^%l", string.upper))
+  local text = template:gsub("{(%w+)}", function(key) return values[key] or ("{" .. key .. "}") end)
+  return (text:gsub("^%l", string.upper)), template
 end
 
 --- Une victoire honorable sur un joueur qui n'est pas recherché (la mienne, ou un « H » reçu) : popup « Victoire
 --- honorable », une fois par victime dans la fenêtre, avec « Afficher les morts des autres ». Faux si un popup
---- (celui-ci ou une prime) est déjà passé pour cette victime.
-local function announceHonor(victim, victimClass, by, byClass, zone, sub)
+--- (celui-ci ou une prime) est déjà passé pour ce kill. `guid`, `killT` : le chasseur et l'heure de son kill, qui
+--- identifient ses répétitions (retenus même pour un doublon : la répétition d'un coéquipier arrive plus tard).
+local function announceHonor(victim, victimClass, by, byClass, zone, sub, guid, killT)
   local t = ns.now()
-  if announcedRecently(victim, t) then return false end
-  markAnnounced(victim, t)
-  if not ns.db.settings.showDeaths then return true end
+  local seen, popup = announcedRecently(victim, t, guid, killT)
+  if seen then
+    if not popup then return false end -- répétition d'un « H » déjà lu
+    markAnnounced(victim, t - ns.Data.WANTED_HONOR_DEDUPE, guid, killT) -- sans rallonger la fenêtre de la victime
+    -- Kill à plusieurs (0.6.8) : le chasseur s'ajoute au popup déjà affiché, qui se complète sur place.
+    local hunters = popup.hunters
+    if not hunters or #hunters >= ns.Data.WANTED_HUNTERS then return false end
+    for _, h in ipairs(hunters) do
+      if sameName(h.name, by) then return false end
+    end
+    hunters[#hunters + 1] = { name = by, class = byClass }
+    if ns.db.settings.showDeaths and ns.UI and ns.UI.ShowKill then
+      local phrase = Wanted.KillPhrase(popup.name, Wanted.HunterNames(hunters), popup.place, popup.template)
+      ns.UI.ShowKill(popup.name, popup.class, hunters, phrase, popup.place)
+    end
+    return false
+  end
+  local popup = markAnnounced(victim, t, guid, killT)
   local place = zone ~= "" and zone or (sub ~= "" and sub or L.WHERE_UNKNOWN)
-  if ns.UI and ns.UI.ShowKill then
-    ns.UI.ShowKill(victim, victimClass, by, byClass, Wanted.KillPhrase(victim, by, place), place)
+  local phrase, template = Wanted.KillPhrase(victim, by, place)
+  popup.hunters, popup.class, popup.place, popup.template = { { name = by, class = byClass } }, victimClass, place, template
+  if ns.db.settings.showDeaths and ns.UI and ns.UI.ShowKill then
+    ns.UI.ShowKill(victim, victimClass, popup.hunters, phrase, place)
   end
   return true
 end
@@ -631,7 +670,7 @@ function Wanted.RecordKill(char, name, t, battleground)
     -- Pas recherché : victoire honorable annoncée à la guilde, sauf en champ de bataille et sans nom lisible.
     if not battleground and name ~= "" then
       local class = ns.SeenPlayerClass and ns.SeenPlayerClass(name) or ""
-      if announceHonor(name, class, myName(), char.class, zone, sub) then
+      if announceHonor(name, class, myName(), char.class, zone, sub, char.guid, t) then
         announceToGuild(Wanted.EncodeHonor(name, class, t, zone, sub))
       end
     end
@@ -784,7 +823,7 @@ local function onAddonMessage(prefix, text, channel, sender)
         byClass = msg.byClass, zone = msg.zone, sub = msg.sub,
       }, sender)
     else
-      ok, err = pcall(announceHonor, msg.name, msg.class, msg.by, msg.byClass, msg.zone, msg.sub)
+      ok, err = pcall(announceHonor, msg.name, msg.class, msg.by, msg.byClass, msg.zone, msg.sub, msg.guid, msg.t)
     end
     if not ok then ns.Store.LogError("wanted.honor", err) end
   elseif kind == "W" then

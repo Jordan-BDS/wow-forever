@@ -59,6 +59,14 @@ end
 
 -- --- points --------------------------------------------------------------------------------------------
 
+--- Clic droit laissé à la carte. Le jeu réserve SetPassThroughButtons hors combat (ADDON_ACTION_BLOCKED sinon,
+--- sans nom de fonction sur Forever) ; or un point se crée quand une position ou une mort arrive, souvent en
+--- combat : l'appel attend alors la fin du combat.
+local function passRightClick(f)
+  if not f.SetPassThroughButtons then return end
+  ns.Defer(function() ns.Risky("SetPassThroughButtons", pcall, f.SetPassThroughButtons, f, "RightButton") end)
+end
+
 local function newIcon(size)
   local f = CreateFrame("Button", nil, UIParent)
   f:SetSize(size, size)
@@ -71,7 +79,7 @@ local function newIcon(size)
   f.dot:SetSize(size - 4, size - 4)
   f.dot:SetTexture(DOT)
   f:EnableMouse(true)
-  if f.SetPassThroughButtons then pcall(f.SetPassThroughButtons, f, "RightButton") end -- clic droit : la carte
+  passRightClick(f)
   f:SetScript("OnEnter", function(self) MapUI.ShowTooltip(self.peer, self) end)
   f:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
   f:SetScript("OnMouseUp", function(self, button)
@@ -324,7 +332,7 @@ local function newSkull(size)
   f.points:SetPoint("LEFT", f, "RIGHT", 1, 0)
   f.points:SetTextColor(1, 0.3, 0.3)
   f:EnableMouse(true)
-  if f.SetPassThroughButtons then pcall(f.SetPassThroughButtons, f, "RightButton") end
+  passRightClick(f)
   f:SetScript("OnEnter", function(self) MapUI.ShowWantedTooltip(self.entry, self) end)
   f:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
   return f
