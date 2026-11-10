@@ -182,6 +182,8 @@ function ns.Diagnostic()
     type(COMBATLOG_HONORGAIN) == "string" and COMBATLOG_HONORGAIN or "absente",
     (ns.Wanted and ns.Wanted.HonorPatterns and table.concat(ns.Wanted.HonorPatterns(), " | ")) or "aucun",
     (ns.Wanted and ns.Wanted.HonorSource and ns.Wanted.HonorSource()) or "rien lu")
+  -- Annonce du kill à la guilde : le jeu a-t-il pris le « K » ou le « H », et en reçoit-on ?
+  lines[#lines + 1] = "annonce des kills · " .. ((ns.Wanted and ns.Wanted.AnnounceSource and ns.Wanted.AnnounceSource()) or "rien")
   -- Récolte : le dernier sort lu (identifiant, nom, événement) et ce que le collecteur en a fait ; la pêche se
   -- diagnostique ainsi en jeu (sort non reconnu, ou butin hors fenêtre dans /mf trace).
   lines[#lines + 1] = "récolte · " .. ((ns.GatherSource and ns.GatherSource()) or "aucun sort de récolte lu cette session")

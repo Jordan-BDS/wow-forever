@@ -77,7 +77,9 @@ transporte le code jusqu'au site.
   tous, hors champ de bataille et arène, avec une phrase du lot des avis de décès (la victime dans le rôle du mort ;
   les phrases qui citent son niveau ou sa classe sont écartées, le jeu ne les dit pas), sans son, un seul popup par
   victime à la minute (coéquipiers, écho), gouverné par « Afficher les morts des autres » ; si la victime est
-  recherchée chez celui qui reçoit, c'est une prime encaissée. Le popup « Prime
+  recherchée chez celui qui reçoit, c'est une prime encaissée. Envoi tenace du « K » et du « H » (0.6.7) : refusé
+  par le jeu, il est retenté toutes les 5 s ; parti en combat, il est répété une fois à la sortie du combat ; plus
+  rien 45 s après le kill ; `/mf api` dit ce qu'a donné le dernier envoi et combien on en a reçu. Le popup « Prime
   encaissée » s'affiche chez le chasseur et chez les guildiens qui reçoivent le « K », alertes Wanted cochées ou non
   (0.6.4 ; la case ne gouverne que la ligne de chat, la prime dans l'avis de décès et les têtes de mort). Chaque kill de
   joueur est un événement `pk` du journal avec la prime encaissée (compteurs `pk` et `bounty`, d'où les chasseurs de

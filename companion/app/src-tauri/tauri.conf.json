@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "WoW Forever Guilde",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "identifier": "fr.wowforever.guilde.compagnon",
   "build": {
     "frontendDist": "../dist",

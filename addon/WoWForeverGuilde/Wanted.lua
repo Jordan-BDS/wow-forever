@@ -468,6 +468,51 @@ local function send(text)
   return ns.Positions.Send(text)
 end
 
+local lastAnnounce = nil -- /mf api : dernier « K » ou « H » envoyé { kind, t, tries, sent, result, repeated }
+
+--- Envoi d'un « K » ou d'un « H » (0.6.7). Le kill tombe en plein combat : le jeu peut refuser l'envoi, et un
+--- guildien en combat peut recevoir un texte illisible. Le message part donc tout de suite, puis une seconde fois
+--- dès que je suis hors combat ; un envoi refusé est retenté toutes les WANTED_RESEND_DELAY s. Tout s'arrête
+--- WANTED_RESEND_MAX s après le kill, avant la fin de la fenêtre de dédoublonnage des receveurs (un message répété
+--- ne refait ni popup ni kill chez eux).
+local function announceToGuild(text)
+  local state = { kind = text:sub(1, 1), t = ns.now(), tries = 1, repeated = false }
+  lastAnnounce = state
+  state.sent, state.result = send(text)
+  if state.sent and not ns.InCombat() then return end
+  local deadline = state.t + ns.Data.WANTED_RESEND_MAX
+  local function again()
+    if ns.now() > deadline then return end
+    if not ns.InCombat() or not state.sent then
+      state.tries = state.tries + 1
+      local sent, result = send(text)
+      state.result = result
+      if sent then
+        state.repeated = state.sent -- déjà parti une fois : c'est la répétition hors combat
+        state.sent = true
+        if not ns.InCombat() then return end
+      end
+    end
+    C_Timer.After(ns.Data.WANTED_RESEND_DELAY, function() ns.Safe("wanted.resend", again) end)
+  end
+  C_Timer.After(ns.Data.WANTED_RESEND_DELAY, function() ns.Safe("wanted.resend", again) end)
+end
+
+local received = 0 -- « K » et « H » lisibles reçus cette session, les miens (écho) compris
+
+--- /mf api : ce qu'a donné le dernier « K » ou « H » envoyé à la guilde (réponse du jeu, nombre d'essais), et
+--- combien j'en ai reçu de lisibles (l'écho des miens compris : zéro après un envoi accepté, rien ne revient).
+function Wanted.AnnounceSource()
+  local a = lastAnnounce
+  local sentText = "aucun K ni H envoyé cette session"
+  if a then
+    sentText = string.format("dernier %s envoyé : %s · %d essai%s%s", a.kind,
+      a.sent and "accepté" or ("refusé (" .. tostring(a.result) .. ")"), a.tries, a.tries > 1 and "s" or "",
+      a.repeated and " · répété hors combat" or "")
+  end
+  return string.format("%s · K et H reçus : %d", sentText, received)
+end
+
 local announced = {} -- { name, t } des kills déjà affichés (prime ou victoire honorable), à mon horloge
 
 --- Ce joueur abattu a-t-il déjà son popup depuis moins de WANTED_KILL_DEDUPE s (le groupe annonce autant de fois
@@ -587,14 +632,14 @@ function Wanted.RecordKill(char, name, t, battleground)
     if not battleground and name ~= "" then
       local class = ns.SeenPlayerClass and ns.SeenPlayerClass(name) or ""
       if announceHonor(name, class, myName(), char.class, zone, sub) then
-        send(Wanted.EncodeHonor(name, class, t, zone, sub))
+        announceToGuild(Wanted.EncodeHonor(name, class, t, zone, sub))
       end
     end
     return nil
   end
   if killSeen(entry, t) then return entry, false end
   markKill(entry, t, myName(), char.class, map, x, y, zone, sub)
-  send(Wanted.EncodeKill(entry, t, map, x, y, zone, sub))
+  announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub))
   announceKill(entry, myName(), char.class, zone, sub, prime)
   return entry, true
 end
@@ -711,6 +756,7 @@ local function onAddonMessage(prefix, text, channel, sender)
   text, sender = ns.plain(text), ns.plain(sender)
   if type(text) ~= "string" then return end
   local kind = text:sub(1, 1)
+  if kind == "K" or kind == "H" then received = received + 1 end
   if kind == "K" then
     local msg = Wanted.DecodeKill(text)
     if not msg then return end

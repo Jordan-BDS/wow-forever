@@ -2096,6 +2096,57 @@ class TestWantedKills:
         assert g._NS.char.counters.pk == 2
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_a_kill_announcement_is_retried_when_refused_and_repeated_out_of_combat(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+        source = g._NS.Wanted.AnnounceSource
+        assert source() == "aucun K ni H envoyé cette session · K et H reçus : 0"
+        # Le jeu refuse l'envoi (code 3) : mon popup passe, le « H » est retenté toutes les 5 s jusqu'à passer.
+        lua.execute("_REAL_SEND = C_ChatInfo.SendAddonMessage; C_ChatInfo.SendAddonMessage = function() return 3 end")
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN", "Sylvanas meurt, victoire honorable (Points d'honneur estimés : 50)"
+        )
+        assert g.WoWForeverGuildeDeath.shown is True and wanted_sent(g, "H") == []
+        g._ADVANCE(5)
+        assert source() == "dernier H envoyé : refusé (3) · 2 essais · K et H reçus : 0"
+        lua.execute("C_ChatInfo.SendAddonMessage = _REAL_SEND")
+        g._ADVANCE(5)
+        assert len(wanted_sent(g, "H")) == 1
+        assert source() == "dernier H envoyé : accepté · 3 essais · K et H reçus : 0"
+        g._ADVANCE(60)
+        assert len(wanted_sent(g, "H")) == 1  # parti hors combat : pas de répétition
+        # En combat : parti tout de suite, puis une seconde fois à la sortie du combat (un receveur en combat a pu
+        # ne pas le lire) ; chez qui l'a déjà lu, la répétition ne refait pas de popup.
+        lua.execute("_COMBAT = true")
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN", "Nazgrel meurt, victoire honorable (Points d'honneur estimés : 50)"
+        )
+        assert len(wanted_sent(g, "H")) == 2
+        g._ADVANCE(10)
+        assert len(wanted_sent(g, "H")) == 2
+        lua.execute("_COMBAT = false")
+        g._ADVANCE(5)
+        sent = wanted_sent(g, "H")
+        assert len(sent) == 3 and sent[1] == sent[2]
+        assert source() == "dernier H envoyé : accepté · 2 essais · répété hors combat · K et H reçus : 0"
+        g._ADVANCE(60)
+        assert len(wanted_sent(g, "H")) == 3
+        # Un combat qui dure : plus d'essai 45 s après le kill.
+        lua.execute("_COMBAT = true")
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN", "Rexxar meurt, victoire honorable (Points d'honneur estimés : 50)"
+        )
+        g._ADVANCE(50)
+        lua.execute("_COMBAT = false")
+        g._ADVANCE(30)
+        assert len(wanted_sent(g, "H")) == 4
+        # Mon écho et le « H » d'un guildien sont comptés pour /mf api.
+        receive(lua, sent[2], "Thrall-Forever")
+        assert source().endswith("K et H reçus : 1")
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_a_guild_kill_on_someone_wanted_here_cashes_the_bounty(self):
         lua = boot()
         g = lua.globals()
