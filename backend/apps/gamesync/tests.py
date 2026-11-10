@@ -494,6 +494,13 @@ class TestTalentsImport:
     def points(self, character):
         return TalentBuild.objects.get(character=character, name=services.IN_GAME).points
 
+    def test_a_talent_known_by_one_spell_takes_the_rank_the_game_gives(self, shaman):
+        # Talent Forever : l'index ne connaît que le sort du rang 1, répété pour chaque rang.
+        tree = TalentTree.objects.get(pk=263)
+        Talent.objects.create(id=9, tree=tree, name="Nouveau", row=0, column=3, rank_spells=[1326079] * 3)
+        services._apply_talents(shaman, {"api": "traits", "spells": {"1326079": 2}})
+        assert self.points(shaman) == [9, 9]
+
     def test_grid_keys_are_one_based_rows_and_columns_per_tree(self, shaman):
         grid = {"1-1-2": 5, "2-1-3": 4, "2-7-2": 1, "9-9-9": 3}
         services._apply_talents(shaman, {"api": "classic", "grid": grid, "points": {"1-1": 1}})

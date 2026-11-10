@@ -6,7 +6,7 @@ from pathlib import Path
 
 import httpx
 
-from .importer import TABLES
+from .importer import TABLES, TRAIT_TABLES
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def download_tables(build: str, directory: Path, force: bool = False) -> list[st
     directory.mkdir(parents=True, exist_ok=True)
     downloaded = []
     with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as client:
-        for table in TABLES:
+        for table in TABLES + TRAIT_TABLES:
             target = directory / f"{table}.csv"
             if target.exists() and not force:
                 continue
@@ -38,6 +38,9 @@ def download_tables(build: str, directory: Path, force: bool = False) -> list[st
             params = {"build": build, "locale": locale or "frFR"}
             logger.info("Téléchargement %s (%s)", name, params["locale"])
             response = client.get(f"{API}/db2/{name}/csv", params=params)
+            if table in TRAIT_TABLES and response.status_code in (400, 404):
+                logger.info("Table %s absente de ce client : talents lus dans la table Talent", name)
+                continue
             response.raise_for_status()
             target.write_text(response.text, encoding="utf-8")
             downloaded.append(table)

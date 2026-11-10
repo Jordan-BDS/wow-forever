@@ -704,7 +704,8 @@ def _talent_ranks(trees: list[TalentTree], talents: dict) -> dict[int, int] | No
         by_spell: dict[int, tuple[Talent, int]] = {}
         for talent in Talent.objects.filter(tree__in=trees):
             for position, spell_id in enumerate(talent.rank_spells, start=1):
-                by_spell[int(spell_id)] = (talent, position)
+                # Premier rang qui porte ce sort : un talent dont on ne connaît qu'un sort le répète.
+                by_spell.setdefault(int(spell_id), (talent, position))
         for key, rank in spells.items():
             if not str(key).isdigit() or not isinstance(rank, int) or rank <= 0:
                 continue

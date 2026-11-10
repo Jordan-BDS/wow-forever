@@ -1,7 +1,9 @@
+import shutil
 from pathlib import Path
 
 import pytest
 
+from apps.characters.models import Character, TalentBuild
 from apps.gamedata.importer import import_directory
 from apps.gamedata.models import (
     Enchantment,
@@ -102,7 +104,8 @@ def imported(db):
 class TestImporter:
     def test_counts_and_idempotence(self, imported):
         assert {k: v for k, v in imported.counts.items() if k != "items"} == {
-            "item_sets": 1, "enchantments": 2, "talent_trees": 3, "talents": 49, "recipes": 2,
+            "item_sets": 1, "enchantments": 2, "talent_trees": 3, "talents": 49, "talents_removed": 0,
+            "recipes": 2, "talent_builds_pruned": 0,
         }  # fmt: skip
         assert imported.counts["items"] == Item.objects.count() > 10
         again = import_directory(SAMPLE, build="sample", product="wowf")
@@ -157,6 +160,86 @@ class TestImporter:
         import_directory(SAMPLE, build="sample", product="wowf")
         assert Item.objects.get(pk=999999).name == "Objet Forever"
         assert Item.objects.get(pk=19019).name == "Renommé"
+
+
+TRAITS = {
+    "SkillLineXTraitTree": "ID,SkillLineID,TraitTreeID,Variant\n1,237,1112,0\n",
+    # Subtilité des arcanes (talent 74) déplacée en rangée 1 ; un talent nouveau qui en dépend ; un nœud mort
+    # parqué hors grille ; Embrasement (talent 26) au début du bloc Feu, posé à 10 près ; un nœud d'un arbre
+    # qui n'est pas un arbre de classe.
+    "TraitNode": (
+        "ID,TraitTreeID,PosX,PosY,Type,Flags,TraitSubTreeID\n"
+        "500001,1112,1620,2730,0,0,0\n"
+        "500002,1112,2220,3330,0,8,0\n"
+        "500003,1112,102800,5740,0,0,0\n"
+        "500004,1112,5020,2120,0,0,0\n"
+        "500005,1058,1020,2130,0,0,0\n"
+    ),
+    "TraitNodeXTraitNodeEntry": (
+        "ID,TraitNodeID,TraitNodeEntryID,_Index\n"
+        "1,500001,600001,0\n2,500002,600002,0\n3,500003,600001,0\n4,500004,600004,0\n5,500005,600002,0\n"
+    ),
+    "TraitNodeEntry": (
+        "ID,TraitDefinitionID,MaxRanks,NodeEntryType,TraitSubTreeID\n"
+        "600001,700001,3,1,0\n600002,700002,2,1,0\n600004,700004,2,1,0\n"
+    ),
+    "TraitDefinition": (
+        "OverrideName_lang,OverrideSubtext_lang,OverrideDescription_lang,ID,SpellID,OverrideIcon,"
+        "OverridesSpellID,VisibleSpellID\n"
+        ",,,700001,11210,0,0,0\nBarrage de projectiles,,,700002,400588,0,0,0\n,,,700004,11069,0,0,0\n"
+    ),
+    "TraitEdge": (
+        "ID,VisualStyle,LeftTraitNodeID,RightTraitNodeID,Type\n1,1,500001,500002,2\n2,1,500004,500002,0\n"
+    ),
+}
+
+
+@pytest.fixture
+def with_traits(db, tmp_path):
+    """Le jeu d'essai, plus un arbre de traits de mage : c'est lui qui fait foi quand il existe."""
+    seed()
+    import_directory(SAMPLE, build="sample", product="wowf")
+    directory = tmp_path / "wago"
+    shutil.copytree(SAMPLE, directory)
+    for table, content in TRAITS.items():
+        (directory / f"{table}.csv").write_text(content, encoding="utf-8")
+    return directory
+
+
+class TestTraitTalents:
+    def test_class_trees_are_rebuilt_from_the_trait_tree(self, with_traits):
+        run = import_directory(with_traits, build="sample", product="wowf")
+        assert (run.counts["talents"], run.counts["talents_removed"]) == (3, 47)  # 74 et 26 restent
+        arcane, fire = TalentTree.objects.get(pk=81), TalentTree.objects.get(pk=41)
+        subtlety = Talent.objects.get(pk=74)  # même sort qu'en Classic : même identifiant
+        assert (subtlety.tree, subtlety.row, subtlety.column) == (arcane, 1, 1)
+        assert subtlety.rank_spells == [11210, 12592, 12592]  # trois rangs en jeu, deux sorts connus
+        barrage = Talent.objects.get(pk=500002)  # talent nouveau : identifiant du nœud
+        assert barrage.name == "Barrage de projectiles"
+        assert (barrage.tree, barrage.row, barrage.column) == (arcane, 2, 2)
+        assert barrage.rank_spells == [400588, 400588] and barrage.prerequisite == subtlety
+        ignite = Talent.objects.get(pk=26)
+        assert (ignite.tree, ignite.row, ignite.column, ignite.max_rank) == (fire, 0, 0, 2)
+        assert ignite.rank_spells == [11069, 12338] and ignite.prerequisite is None  # arête décorative
+        again = import_directory(with_traits, build="sample", product="wowf")
+        assert (again.counts["talents"], again.counts["talents_removed"]) == (3, 0)
+
+    def test_saved_builds_lose_the_points_that_no_longer_fit(self, with_traits, member):
+        mage = PlayerClass.objects.get(slug="mage")
+        character = Character.objects.create(
+            owner=member, name="Jaina", player_class=mage, race=Race.objects.get(slug="human"), level=60
+        )
+        gone = Talent.objects.filter(tree_id=61).first().pk
+        # Deux points de Subtilité (rang max 2 avant l'import), un talent qui disparaît, cinq d'Embrasement.
+        build = TalentBuild.objects.create(character=character, name="Plan", points=[74, 74, gone] + [26] * 5)
+        untouched = TalentBuild.objects.create(character=character, name="Feu", points=[26, 26])
+        run = import_directory(with_traits, build="sample", product="wowf")
+        build.refresh_from_db()
+        untouched.refresh_from_db()
+        # Subtilité est passée en rangée 1 : ses points ne tiennent qu'après cinq points en rangée 0, qui
+        # n'existent plus dans l'arbre des Arcanes. Embrasement n'a plus que deux rangs.
+        assert build.points == [26, 26] and untouched.points == [26, 26]
+        assert run.counts["talent_builds_pruned"] == 1
 
 
 class TestIndexApi:

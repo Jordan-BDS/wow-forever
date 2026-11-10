@@ -56,6 +56,17 @@ TABLES = [
     "ItemAppearance",
 ]
 
+# Arbres de talents de Forever : refaits dans le système de traits du client moderne. Tables facultatives
+# (absentes d'un client Classic) : sans elles, les talents viennent de la seule table `Talent`.
+TRAIT_TABLES = [
+    "SkillLineXTraitTree",
+    "TraitNode",
+    "TraitNodeXTraitNodeEntry",
+    "TraitNodeEntry",
+    "TraitDefinition",
+    "TraitEdge",
+]
+
 EFFECT_CREATE_ITEM = 24
 EFFECT_ENCHANT_ITEM = 53
 ENCHANT_EFFECT_STAT = 5
@@ -289,6 +300,160 @@ def import_enchantments(data: ClientData) -> dict[str, int]:
 # --- talents ------------------------------------------------------------------------
 
 
+# Grille d'un arbre de traits de classe (unités de l'éditeur du client) : trois blocs de quatre colonnes, un
+# par arbre de talents dans l'ordre des onglets, case de 600 de côté. Relevé sur le build 1.60.1.70862.
+# Un nœud posé à 10 près reste dans sa case ; au-delà de la tolérance, c'est un nœud mort parqué hors grille.
+TRAIT_BLOCK_ORIGINS = (1020, 5020, 9080)
+TRAIT_TOP = 2130
+TRAIT_CELL = 600
+TRAIT_COLUMNS = 4
+TRAIT_ROWS = 9
+TRAIT_TOLERANCE = 100
+TRAIT_EDGE_PREREQUISITES = {2, 3}  # TraitEdge.Type : suffisant / requis pour débloquer (0 = décoratif)
+
+
+def trait_cell(x: int, y: int) -> tuple[int, int, int] | None:
+    """(bloc, rangée, colonne) d'un nœud d'après sa position, None s'il est hors de la grille."""
+    row = round((y - TRAIT_TOP) / TRAIT_CELL)
+    if not 0 <= row < TRAIT_ROWS or abs(y - TRAIT_TOP - row * TRAIT_CELL) > TRAIT_TOLERANCE:
+        return None
+    for block, origin in enumerate(TRAIT_BLOCK_ORIGINS):
+        column = round((x - origin) / TRAIT_CELL)
+        if 0 <= column < TRAIT_COLUMNS and abs(x - origin - column * TRAIT_CELL) <= TRAIT_TOLERANCE:
+            return block, row, column
+    return None
+
+
+def _classic_talents(data: ClientData, tree_ids: set[int]) -> list[Talent]:
+    """Talents de la table `Talent` (arbres Classic)."""
+    talents = []
+    for row in read(data.directory, "Talent"):
+        tab_id = to_int(row["TabID"])
+        if tab_id not in tree_ids:
+            continue
+        ranks = [to_int(row[f"SpellRank_{i}"]) for i in range(9)]
+        ranks = [r for r in ranks if r]
+        if not ranks:
+            continue
+        # Nom et icône : premier rang dont le sort est connu (certains sorts manquent dans les exports).
+        name = next(
+            (data.spell_names[str(r)] for r in ranks if data.spell_names.get(str(r))), f"Talent {row['ID']}"
+        )
+        icon = next((data.spell_icon(str(r)) for r in ranks if data.spell_icon(str(r))), "")
+        talents.append(
+            Talent(
+                id=to_int(row["ID"]),
+                tree_id=tab_id,
+                name=name,
+                icon=icon,
+                row=to_int(row["TierID"]),
+                column=to_int(row["ColumnIndex"]),
+                rank_spells=ranks,
+                prerequisite_id=to_int(row["PrereqTalent_0"]) or None,
+                prerequisite_rank=to_int(row["PrereqRank_0"]),
+            )
+        )
+    return talents
+
+
+def _trait_talents(
+    data: ClientData, trees: list[TalentTree], classic: list[Talent]
+) -> dict[int, list[Talent]]:
+    """Talents lus dans les arbres de traits, par classe (id de PlayerClass → talents) : case d'après la
+    position du nœud, rang max et sort d'après son entrée, prérequis d'après les arêtes. Un talent qui
+    existait en Classic (même sort) garde son identifiant, donc sa place dans les builds enregistrés ; un
+    talent nouveau prend l'identifiant de son nœud. Les classes sans arbre de traits ne sont pas dans le
+    résultat."""
+    tabs_by_class: dict[int, list[TalentTree]] = defaultdict(list)
+    for tree in sorted(trees, key=lambda t: t.order):
+        tabs_by_class[tree.player_class_id].append(tree)
+    class_of_tab = {tree.id: tree.player_class_id for tree in trees}
+    by_spell: dict[int, tuple[Talent, int]] = {}
+    for talent in classic:
+        for position, spell_id in enumerate(talent.rank_spells):
+            by_spell.setdefault(spell_id, (talent, position))
+
+    definitions = {r["ID"]: r for r in read(data.directory, "TraitDefinition")}
+    entries = {r["ID"]: r for r in read(data.directory, "TraitNodeEntry")}
+    entry_of_node: dict[str, dict] = {}
+    for link in sorted(read(data.directory, "TraitNodeXTraitNodeEntry"), key=lambda r: to_int(r["_Index"])):
+        if link["TraitNodeEntryID"] in entries:
+            entry_of_node.setdefault(link["TraitNodeID"], entries[link["TraitNodeEntryID"]])
+    class_trees = {r["TraitTreeID"] for r in read(data.directory, "SkillLineXTraitTree")}
+    nodes_by_tree: dict[str, list[dict]] = defaultdict(list)
+    for node in read(data.directory, "TraitNode"):
+        if node["TraitTreeID"] in class_trees:
+            nodes_by_tree[node["TraitTreeID"]].append(node)
+
+    result: dict[int, list[Talent]] = {}
+    talent_of_node: dict[str, Talent] = {}
+    for trait_tree, nodes in sorted(nodes_by_tree.items()):
+        placed = []
+        votes: dict[int, int] = defaultdict(int)
+        for node in sorted(nodes, key=lambda n: to_int(n["ID"])):
+            cell = trait_cell(to_int(node["PosX"]), to_int(node["PosY"]))
+            entry = entry_of_node.get(node["ID"])
+            definition = definitions.get(entry["TraitDefinitionID"]) if entry else None
+            spell = to_int(definition["SpellID"]) if definition else 0
+            if cell is None or not spell:
+                logger.warning(
+                    "Arbre de traits %s : nœud %s ignoré (position %s, %s ; sort %s)",
+                    trait_tree, node["ID"], node["PosX"], node["PosY"], spell,
+                )  # fmt: skip
+                continue
+            placed.append((node, cell, entry, definition, spell))
+            if spell in by_spell:
+                votes[class_of_tab[by_spell[spell][0].tree_id]] += 1
+        if not votes:
+            logger.warning("Arbre de traits %s : aucune classe reconnue, ignoré", trait_tree)
+            continue
+        # La classe de l'arbre : celle dont il reprend le plus de talents Classic.
+        class_id = max(votes, key=lambda c: (votes[c], -c))
+        tabs = tabs_by_class[class_id]
+        talents: list[Talent] = []
+        used: set[int] = set()
+        cells: set[tuple[int, int, int]] = set()
+        for node, cell, entry, definition, spell in placed:
+            block, row, column = cell
+            if block >= len(tabs) or cell in cells:
+                logger.warning("Arbre de traits %s : nœud %s ignoré (case %s)", trait_tree, node["ID"], cell)
+                continue
+            cells.add(cell)
+            max_rank = max(1, to_int(entry["MaxRanks"], 1))
+            # Les sorts des rangs suivants ne sont connus que pour un talent Classic ; sinon, et au-delà, le
+            # dernier sort connu est répété : la longueur de la liste reste le rang max.
+            ranks = [spell]
+            talent_id = to_int(node["ID"])
+            old = by_spell.get(spell)
+            if old and class_of_tab[old[0].tree_id] == class_id:
+                ranks = old[0].rank_spells[old[1] : old[1] + max_rank]
+                if old[0].id not in used:
+                    talent_id = old[0].id
+            used.add(talent_id)
+            ranks = ranks + [ranks[-1]] * (max_rank - len(ranks))
+            name = definition["OverrideName_lang"] or data.spell_names.get(str(spell), "")
+            name = name or f"Talent {talent_id}"
+            icon = data.icons.get(definition["OverrideIcon"], "") or data.spell_icon(str(spell))
+            talent = Talent(
+                id=talent_id, tree_id=tabs[block].id, name=name[:80], icon=icon, row=row, column=column,
+                rank_spells=ranks, prerequisite_id=None, prerequisite_rank=0,
+            )  # fmt: skip
+            talents.append(talent)
+            talent_of_node[node["ID"]] = talent
+        result[class_id] = talents
+
+    for edge in read(data.directory, "TraitEdge"):
+        if to_int(edge["Type"]) not in TRAIT_EDGE_PREREQUISITES:
+            continue
+        required = talent_of_node.get(edge["LeftTraitNodeID"])
+        talent = talent_of_node.get(edge["RightTraitNodeID"])
+        if required is None or talent is None or required.tree_id != talent.tree_id:
+            continue
+        if talent.prerequisite_id is None:
+            talent.prerequisite_id = required.id  # rang requis 0 : le rang max du prérequis
+    return result
+
+
 def import_talents(data: ClientData) -> dict[str, int]:
     classes = {c.slug: c for c in PlayerClass.objects.all()}
     trees = []
@@ -308,34 +473,14 @@ def import_talents(data: ClientData) -> dict[str, int]:
     tree_count = upsert(TalentTree, trees, ["player_class", "name", "background", "order"])
     tree_ids = {t.id for t in trees}
 
-    talents = []
-    for row in read(data.directory, "Talent"):
-        tab_id = to_int(row["TabID"])
-        if tab_id not in tree_ids:
-            continue
-        ranks = [to_int(row[f"SpellRank_{i}"]) for i in range(9)]
-        ranks = [r for r in ranks if r]
-        if not ranks:
-            continue
-        # Nom et icône : premier rang dont le sort est connu (certains sorts manquent dans les exports).
-        name = next(
-            (data.spell_names[str(r)] for r in ranks if data.spell_names.get(str(r))), f"Talent {row['ID']}"
-        )
-        icon = next((data.spell_icon(str(r)) for r in ranks if data.spell_icon(str(r))), "")
-        prerequisite = to_int(row["PrereqTalent_0"]) or None
-        talents.append(
-            Talent(
-                id=to_int(row["ID"]),
-                tree_id=tab_id,
-                name=name,
-                icon=icon,
-                row=to_int(row["TierID"]),
-                column=to_int(row["ColumnIndex"]),
-                rank_spells=ranks,
-                prerequisite_id=prerequisite,
-                prerequisite_rank=to_int(row["PrereqRank_0"]),
-            )
-        )
+    talents = _classic_talents(data, tree_ids)
+    if has_trait_tables(data.directory):
+        # Les classes qui ont un arbre de traits sont lues là : c'est lui que le jeu affiche.
+        from_traits = _trait_talents(data, trees, talents)
+        class_of_tab = {tree.id: tree.player_class_id for tree in trees}
+        talents = [t for t in talents if class_of_tab[t.tree_id] not in from_traits]
+        for class_talents in from_traits.values():
+            talents.extend(class_talents)
     known = {t.id for t in talents}
     for talent in talents:
         if talent.prerequisite_id not in known:
@@ -350,7 +495,9 @@ def import_talents(data: ClientData) -> dict[str, int]:
     for talent in talents:
         talent.prerequisite_id = talent._prereq
     upsert(Talent, [t for t in talents if t.prerequisite_id], ["prerequisite", "prerequisite_rank"])
-    return {"talent_trees": tree_count, "talents": count}
+    # Les talents que le jeu n'a plus quittent l'index ; les builds enregistrés sont nettoyés après l'import.
+    removed, _ = Talent.objects.filter(tree_id__in=tree_ids).exclude(id__in=known).delete()
+    return {"talent_trees": tree_count, "talents": count, "talents_removed": removed}
 
 
 # --- recettes -----------------------------------------------------------------------
@@ -435,6 +582,10 @@ def missing_tables(directory: Path) -> list[str]:
     return [table for table in TABLES if not (Path(directory) / f"{table}.csv").exists()]
 
 
+def has_trait_tables(directory: Path) -> bool:
+    return all((Path(directory) / f"{table}.csv").exists() for table in TRAIT_TABLES)
+
+
 @transaction.atomic
 def import_directory(directory: Path, build: str = "", product: str = "") -> ImportRun:
     data = ClientData(Path(directory))
@@ -443,5 +594,9 @@ def import_directory(directory: Path, build: str = "", product: str = "") -> Imp
     counts.update(import_enchantments(data))
     counts.update(import_talents(data))
     counts.update(import_recipes(data))
+    # Import tardif : l'app des personnages dépend de celle-ci, pas l'inverse.
+    from apps.characters.talent_rules import prune_builds
+
+    counts["talent_builds_pruned"] = prune_builds()
     logger.info("Import %s %s : %s", product, build, counts)
     return ImportRun.objects.create(build=build, product=product, counts=counts)
