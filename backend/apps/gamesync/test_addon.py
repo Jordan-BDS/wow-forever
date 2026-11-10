@@ -2168,7 +2168,10 @@ class TestWantedKills:
         # popup, son nom s'ajoute à celui déjà affiché ; sa répétition tardive ne refait rien.
         g._ADVANCE(60)
         kill = g._CLOCK.now
-        receive(lua, f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Rexxar	{kill}	Durotar		")
+        receive(
+            lua,
+            f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Rexxar	{kill}	Durotar		",
+        )
         assert toast.shown is True and "Rexxar" in toast.footer.text
         g._ADVANCE(2)
         mate = f"H	1	Player-1-00000UTH	Uther Lumière	PALADIN	Rexxar	{kill + 1}	Durotar		"
@@ -2187,15 +2190,58 @@ class TestWantedKills:
         assert toast.shown is False
         # Deux popups coup sur coup : le premier reste 4 s à l'écran, le second attend son tour au lieu de l'écraser.
         g._ADVANCE(60)
-        receive(lua, f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Saurfang	{g._CLOCK.now}	Durotar		")
+        receive(
+            lua,
+            f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Saurfang	{g._CLOCK.now}	Durotar		",
+        )
         g._ADVANCE(1)
-        receive(lua, f"H	1	Player-1-00000UTH	Uther Lumière	PALADIN	Zaela	{g._CLOCK.now}	Durotar		", "Uther-Forever")
+        receive(
+            lua,
+            f"H	1	Player-1-00000UTH	Uther Lumière	PALADIN	Zaela	{g._CLOCK.now}	Durotar		",
+            "Uther-Forever",
+        )
         assert "Saurfang" in toast.footer.text
         g._ADVANCE(2)
         assert "Saurfang" in toast.footer.text
         g._ADVANCE(1)
         assert toast.shown is True and "Zaela" in toast.footer.text
+        # /mf api raconte les derniers popups : affiché, mis en attente, sorti de la file.
+        source = g._NS.UI.ToastSource()
+        assert "il y a 4 s affiché « Jaina Portvaillant abat Saurfang · Durotar »" in source
+        assert "il y a 3 s mis en attente « Uther Lumière abat Zaela · Durotar »" in source
+        assert source.endswith(
+            "il y a 0 s sorti de la file « Uther Lumière abat Zaela · Durotar » · en attente : 0"
+        )
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_the_kill_log_of_the_session_goes_to_the_site_with_the_errors(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+        assert g._NS.Wanted.KillLog() == ""
+        # Un kill lu dans le message, un message illisible (valeur secrète en combat), un « H » reçu.
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN", "Sylvanas meurt, victoire honorable (Points d'honneur estimés : 50)"
+        )
+        lua.execute("_COMBAT = true")
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", "Vous avez vaincu un adversaire.")
+        lua.execute("_COMBAT = false")
+        receive(
+            lua, f"H\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\tNazgrel\t{g._CLOCK.now}\tDurotar\t\t"
+        )
+        lines = g._NS.Wanted.KillLog().split(" | ")
+        assert [line.split(" ", 1)[1] for line in lines] == [
+            "message « Sylvanas meurt, victoire honorable (Points d'honne » → Sylvanas (motif)",
+            "kill « Sylvanas » : popup, H accepté",
+            "combat message « Vous avez vaincu un adversaire. » → aucun nom",
+            "reçu H de Jaina Portvaillant : Nazgrel → popup",
+        ]
+        # Rien dans les erreurs tant qu'on joue ; à la déconnexion, le journal part avec elles (où = « vh »).
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+        g._FIRE("PLAYER_LOGOUT")
+        (entry,) = list(g.WoWForeverGuildeDB.errors.values())
+        assert entry.where == "vh" and "kill « Sylvanas » : popup, H accepté" in entry.error
 
     def test_a_kill_announcement_is_retried_when_refused_and_repeated_out_of_combat(self):
         lua = boot()
@@ -2205,7 +2251,9 @@ class TestWantedKills:
         source = g._NS.Wanted.AnnounceSource
         assert source() == "aucun K ni H envoyé cette session · K et H reçus : 0"
         # Le jeu refuse l'envoi (code 3) : mon popup passe, le « H » est retenté toutes les 5 s jusqu'à passer.
-        lua.execute("_REAL_SEND = C_ChatInfo.SendAddonMessage; C_ChatInfo.SendAddonMessage = function() return 3 end")
+        lua.execute(
+            "_REAL_SEND = C_ChatInfo.SendAddonMessage; C_ChatInfo.SendAddonMessage = function() return 3 end"
+        )
         g._FIRE(
             "CHAT_MSG_COMBAT_HONOR_GAIN", "Sylvanas meurt, victoire honorable (Points d'honneur estimés : 50)"
         )

@@ -237,6 +237,21 @@ function Wanted.HonorPatterns()
   return patterns
 end
 
+-- Journal des kills de la session (0.6.9) : chaque piste (message de victoire honorable, compteur, cadavre) et ce
+-- qu'elle a donné, chaque « K » ou « H » reçu. Noté avec les erreurs à la déconnexion et au /reload (où = « vh ») :
+-- le GM lit sur le site pourquoi un kill n'a pas eu son popup, sans rien demander au joueur.
+local killLog = {}
+local function logKill(fmt, ...)
+  local line = string.format("%s%s " .. fmt, date and date("%H:%M:%S", ns.now()) or tostring(ns.now()),
+    ns.InCombat() and " combat" or "", ...)
+  killLog[#killLog + 1] = ns.Positions.Cut(line, 130)
+  while #killLog > ns.Data.KILL_LOG_LINES do table.remove(killLog, 1) end
+end
+
+function Wanted.KillLog()
+  return table.concat(killLog, " | ")
+end
+
 --- Texte d'un message de chat sans ses codes d'affichage : couleurs, liens (de joueur : on garde le nom), textures.
 function Wanted.CleanMessage(msg)
   msg = tostring(msg):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", ""):gsub("|H.-|h%[?(.-)%]?|h", "%1")
@@ -287,6 +302,7 @@ function Wanted.OnHonorMessage(char, msg)
   local name, how = Wanted.KilledName(text)
   lastHonor = { t = ns.now(), text = text or (msg ~= nil and "(secret)" or "(vide)"), name = name, how = how }
   ns.Trace("victoire honorable : « %s » → %s", lastHonor.text, name and (name .. " (" .. how .. ")") or "aucun nom")
+  logKill("message « %s » → %s", ns.Positions.Cut(lastHonor.text, 50), name and (name .. " (" .. how .. ")") or "aucun nom")
   if name and char then Wanted.RecordKill(char, name, nil, ns.InBattleground()) end
 end
 
@@ -322,10 +338,16 @@ end
 --- (compteur `pk` et événement, mais pas de Wanted faute de nom).
 function Wanted.OnKillsChanged(char)
   local hk = lifetimeKills()
-  if hk == nil then return end
+  if hk == nil then
+    logKill("compteur illisible")
+    return
+  end
   local before = killsBaseline
   killsBaseline = hk
-  if before == nil or hk <= before then return end
+  if before == nil or hk <= before then
+    logKill("compteur %s → %d : rien à compter", tostring(before), hk)
+    return
+  end
   local at = ns.now()
   if at - lastKillAt < ns.Data.WANTED_KILL_WINDOW then
     ns.Trace("victoires honorables %d → %d : kill déjà lu dans le message", before, hk)
@@ -338,6 +360,7 @@ function Wanted.OnKillsChanged(char)
     lastHonor = { t = ns.now(), text = string.format("%s, victoires honorables %d → %d", unread, before, hk),
       name = victim ~= "" and victim or nil, how = "compteur" }
     ns.Trace("victoires honorables %d → %d sans message reconnu : kill de « %s »", before, hk, victim)
+    logKill("compteur %d → %d sans message : « %s »", before, hk, victim)
     if char then ns.Safe("wanted.kills", Wanted.RecordKill, char, victim, nil, ns.InBattleground()) end
   end)
 end
@@ -370,6 +393,7 @@ function Wanted.OnTargetMaybeDead(char)
     if lastKillAt >= at then return end -- message ou compteur ont parlé entre-temps
     lastHonor = { t = ns.now(), text = string.format("(cadavre de %s ciblé, ni message ni compteur)", name), name = name, how = "cadavre" }
     ns.Trace("cadavre de « %s » ciblé sans message ni compteur : kill", name)
+    logKill("cadavre ciblé : %s", name)
     if char then ns.Safe("wanted.corpse", Wanted.RecordKill, char, name, nil, ns.InBattleground()) end
   end)
 end
@@ -647,7 +671,10 @@ end
 --- bataille ou en arène (`battleground`) : le compteur et l'événement (marqué `bg`), rien d'autre.
 function Wanted.RecordKill(char, name, t, battleground)
   t = t or ns.now()
-  if name ~= "" and countedRecently(name, t, ns.Data.WANTED_KILL_WINDOW) then return nil end -- déjà compté par une autre piste
+  if name ~= "" and countedRecently(name, t, ns.Data.WANTED_KILL_WINDOW) then -- déjà compté par une autre piste
+    logKill("kill « %s » : déjà compté", name)
+    return nil
+  end
   local entry = (not battleground) and Wanted.Match(name) or nil
   local prime = entry and entry.points or 0
   local map, x, y = here()
@@ -672,13 +699,22 @@ function Wanted.RecordKill(char, name, t, battleground)
       local class = ns.SeenPlayerClass and ns.SeenPlayerClass(name) or ""
       if announceHonor(name, class, myName(), char.class, zone, sub, char.guid, t) then
         announceToGuild(Wanted.EncodeHonor(name, class, t, zone, sub))
+        logKill("kill « %s » : popup, H %s", name, lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
+      else
+        logKill("kill « %s » : popup déjà passé, pas de H", name)
       end
+    else
+      logKill("kill « %s » : %s, ni popup ni H", name, battleground and "champ de bataille" or "sans nom")
     end
     return nil
   end
-  if killSeen(entry, t) then return entry, false end
+  if killSeen(entry, t) then
+    logKill("kill « %s » : recherché, déjà au tableau", name)
+    return entry, false
+  end
   markKill(entry, t, myName(), char.class, map, x, y, zone, sub)
   announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub))
+  logKill("kill « %s » : prime, K %s", name, lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
   announceKill(entry, myName(), char.class, zone, sub, prime)
   return entry, true
 end
@@ -793,7 +829,10 @@ end
 local function onAddonMessage(prefix, text, channel, sender)
   if ns.plain(prefix) ~= PREFIX or ns.plain(channel) ~= "GUILD" then return end
   text, sender = ns.plain(text), ns.plain(sender)
-  if type(text) ~= "string" then return end
+  if type(text) ~= "string" then
+    logKill("message addon illisible de %s", tostring(sender))
+    return
+  end
   local kind = text:sub(1, 1)
   if kind == "K" or kind == "H" then received = received + 1 end
   if kind == "K" then
@@ -804,7 +843,8 @@ local function onAddonMessage(prefix, text, channel, sender)
       return
     end
     ns.Trace("reçu K de %s : %s abattu", tostring(sender), msg.name)
-    local ok, err = pcall(Wanted.RecordKillMessage, msg, sender)
+    local ok, err, shown = pcall(Wanted.RecordKillMessage, msg, sender)
+    logKill("reçu K de %s : %s → %s", tostring(msg.by), msg.name, shown and "popup" or "déjà au tableau")
     if not ok then ns.Store.LogError("wanted.kill", err) end
   elseif kind == "H" then
     local msg = Wanted.DecodeHonor(text)
@@ -816,14 +856,17 @@ local function onAddonMessage(prefix, text, channel, sender)
     ns.Trace("reçu H de %s : %s abattu", tostring(sender), msg.name)
     -- Recherché chez moi sans l'être chez le chasseur (les tableaux diffèrent) : c'est une prime encaissée.
     local entry = Wanted.Match(msg.name)
-    local ok, err
+    local ok, err, shown
     if entry then
-      ok, err = pcall(Wanted.RecordKillMessage, {
+      ok, err, shown = pcall(Wanted.RecordKillMessage, {
         name = entry.name, class = msg.class, points = entry.points or 0, kills = 0, t = msg.t, by = msg.by,
         byClass = msg.byClass, zone = msg.zone, sub = msg.sub,
       }, sender)
+      logKill("reçu H de %s : %s → %s", tostring(msg.by), msg.name, shown and "prime" or "déjà au tableau")
     else
       ok, err = pcall(announceHonor, msg.name, msg.class, msg.by, msg.byClass, msg.zone, msg.sub, msg.guid, msg.t)
+      logKill("reçu H de %s : %s → %s", tostring(msg.by), msg.name,
+        (ok and err) and (ns.db.settings.showDeaths and "popup" or "popup décoché") or "déjà annoncé")
     end
     if not ok then ns.Store.LogError("wanted.honor", err) end
   elseif kind == "W" then
@@ -909,6 +952,9 @@ ns.RegisterCollector({
     else
       onAddonMessage(...)
     end
+  end,
+  onLogout = function()
+    if #killLog > 0 then ns.Store.LogError("vh", Wanted.KillLog()) end
   end,
   status = function()
     local n, kills = 0, 0

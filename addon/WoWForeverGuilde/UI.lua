@@ -395,6 +395,23 @@ end
 --- que celui à l'écran le corrige sur place (la même mort annoncée PvE puis PvP : un seul avis).
 local waiting, shownAt, shownKey, nextTimer = {}, nil, nil, nil
 
+-- /mf api : les derniers popups et ce qu'ils sont devenus (affiché, mis en attente, corrigé sur place, sorti de la
+-- file, éjecté), pour comprendre en jeu un popup qui manque.
+local toastLog = {}
+local function logToast(what, footer)
+  local label = tostring(footer or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
+  toastLog[#toastLog + 1] = { t = ns.now(), what = what, label = label:sub(1, 60) }
+  while #toastLog > 8 do table.remove(toastLog, 1) end
+  ns.Trace("popup %s : %s", what, label)
+end
+
+function UI.ToastSource()
+  if #toastLog == 0 then return "aucun popup cette session" end
+  local parts = {}
+  for i, e in ipairs(toastLog) do parts[i] = string.format("il y a %d s %s « %s »", ns.now() - e.t, e.what, e.label) end
+  return table.concat(parts, " ; ") .. string.format(" · en attente : %d", #waiting)
+end
+
 local function display(headerText, text, footer, color, sound, key)
   shownAt, shownKey = ns.now(), key
   toast.header:SetText(headerText)
@@ -406,16 +423,21 @@ local function display(headerText, text, footer, color, sound, key)
   toast:Show()
   UIFrameFadeIn(toast, 0.3, 0, 1)
   if sound and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then PlaySound(SOUNDKIT.RAID_WARNING, "Master") end
+  local at = shownAt
   toast.timer = C_Timer.NewTimer(ns.Data.TOAST_SECONDS, function()
     UIFrameFadeOut(toast, 1, 1, 0)
-    C_Timer.After(1, function() toast:Hide() end)
+    -- Un texte arrivé pendant le fondu ne doit pas être caché par la fin du précédent.
+    C_Timer.After(1, function() if shownAt == at and toast.fading == at then toast:Hide() end end)
+    toast.fading = at
   end)
+  toast.fading = nil
 end
 
 local function showNext()
   nextTimer = nil
   local item = table.remove(waiting, 1)
   if not item then return end
+  logToast("sorti de la file", item[3])
   display(item[1], item[2], item[3], item[4], item[5], item[6])
   if #waiting > 0 then nextTimer = C_Timer.NewTimer(ns.Data.TOAST_MIN_SECONDS, showNext) end
 end
@@ -424,17 +446,20 @@ function UI.ShowToast(headerText, text, footer, color, sound, key)
   if not toast then buildToast() end
   local busy = toast:IsShown() and shownAt and ns.now() - shownAt < ns.Data.TOAST_MIN_SECONDS
   if (not busy and #waiting == 0) or (key and toast:IsShown() and key == shownKey) then
+    logToast((busy or #waiting > 0) and "corrigé sur place" or "affiché", footer)
     display(headerText, text, footer, color, sound, key)
     return
   end
   for i, item in ipairs(waiting) do
     if key and item[6] == key then -- encore en attente : corrigé à sa place dans la file
       waiting[i] = { headerText, text, footer, color, sound, key }
+      logToast("corrigé dans la file", footer)
       return
     end
   end
   waiting[#waiting + 1] = { headerText, text, footer, color, sound, key }
-  while #waiting > ns.Data.TOAST_QUEUE do table.remove(waiting, 1) end
+  logToast("mis en attente", footer)
+  while #waiting > ns.Data.TOAST_QUEUE do logToast("éjecté de la file", table.remove(waiting, 1)[3]) end
   if not nextTimer then
     nextTimer = C_Timer.NewTimer(math.max(0.1, ns.Data.TOAST_MIN_SECONDS - (ns.now() - (shownAt or 0))), showNext)
   end

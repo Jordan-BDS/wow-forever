@@ -101,6 +101,7 @@ ns.Data.WANTED_KILL_WINDOW = 3 -- s : délai laissé au message de victoire hono
 ns.Data.WANTED_RESEND_DELAY = 5 -- s entre deux essais d'envoi d'un « K » ou d'un « H » (refus du jeu, combat en cours)
 ns.Data.WANTED_RESEND_MAX = 45 -- s après le kill : plus d'essai (sous WANTED_KILL_DEDUPE, pour ne pas recompter un « K »)
 ns.Data.WANTED_HONOR_DEDUPE = 15 -- s : deux victoires honorables sur la même victime à moins de ce délai (le groupe) font un popup
+ns.Data.KILL_LOG_LINES = 14 -- lignes du journal des kills de la session, noté avec les erreurs à la déconnexion
 ns.Data.WANTED_HUNTERS = 5 -- chasseurs nommés au plus dans un popup de victoire honorable (kill à plusieurs)
 ns.Data.TOAST_MIN_SECONDS = 4 -- s : un texte flottant reste au moins ce temps avant de céder la place au suivant
 ns.Data.TOAST_QUEUE = 5 -- textes flottants en attente au plus (les plus anciens sautent)
