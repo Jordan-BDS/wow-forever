@@ -94,6 +94,23 @@ function ns.DeathPhrase(info)
   return (text:gsub("^%l", string.upper)) -- « une chute remercie… » → « Une chute remercie… »
 end
 
+local recentDeaths = {} -- guid du mort → { t = heure de réception, player = tueur joueur } de la dernière annonce gardée
+
+--- Deux annonces pour une même mort (le client peut signaler la mort deux fois, et la seconde lecture du tueur
+--- diffère alors de la première : une annonce PvE et une PvP) : vrai si celle-ci est à ignorer. Dans les
+--- DEATH_DEDUPE s après une annonce du même personnage, seule une mort PvP qui suit une mort PvE passe (elle
+--- remplace le popup et prend son point Wanted) ; la mort PvP l'emporte toujours.
+local function duplicate(info)
+  local t = ns.now() -- heure de réception : une seule horloge, la mienne
+  for guid, seen in pairs(recentDeaths) do
+    if math.abs(t - seen.t) >= ns.Data.DEATH_DEDUPE then recentDeaths[guid] = nil end
+  end
+  local seen = recentDeaths[info.guid]
+  if seen and (seen.player or not info.player) then return true end
+  recentDeaths[info.guid] = { t = t, player = info.player }
+  return false
+end
+
 ns.RegisterCollector({
   name = "deaths",
   events = { CHAT_MSG_ADDON = true },
@@ -103,6 +120,10 @@ ns.RegisterCollector({
     if type(text) ~= "string" then return end
     local info = parse(text)
     if not info then return end
+    if duplicate(info) then
+      ns.Trace("mort de %s : doublon d'une annonce récente, ignoré", info.name)
+      return
+    end
     -- Tableau Wanted d'abord, popup ou non : un tueur joueur prend un point (doublon de ma propre mort reconnu).
     local wanted = nil
     if ns.Wanted then

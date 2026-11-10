@@ -129,5 +129,6 @@ ns.Data.CRAFT_DEDUPE = 1 -- s : sort réussi puis résultat de fabrication de la
 ns.Data.KILLER_MEMORY = 60 -- s : une cible hostile ciblée dans ce délai avant le combat (ou pendant) est le tueur présumé
 ns.Data.SEEN_PLAYERS_TTL = 600 -- s : un joueur hostile lu (cible, survol, plaque) reste connu comme joueur ce temps-là, pour le Wanted
 ns.Data.DEATH_RECAP_DELAY = 1 -- s après la mort avant de lire le récapitulatif du client et d'annoncer
+ns.Data.DEATH_DEDUPE = 60 -- s : deux annonces de mort du même personnage à moins de ce délai n'en font qu'une (la mort PvP l'emporte)
 ns.Data.TOAST_SECONDS = 10 -- durée d'affichage des textes flottants (avis de décès, appel à l'aide)
 ns.Data.MAX_MOBS = 500 -- créatures distinctes gardées par personnage (clé = nom affiché)

@@ -18,6 +18,7 @@ local lastHostile = nil -- { name, player, class, at } : dernière cible hostile
 local combatSince = nil -- début du combat en cours (PLAYER_REGEN_DISABLED)
 local deathsThisSession = 0 -- identifiant du récapitulatif : le client les numérote par session
 local lastSource = nil -- d'où venait le tueur de la dernière mort, pour /mf api (« Tests en jeu »)
+local dead = false -- mort déjà comptée, jusqu'au retour à la vie : un second PLAYER_DEAD pour la même mort est ignoré
 local seenPlayers = {} -- clé = nom en minuscules → { name, class, at } : joueurs hostiles lus (cible, survol, plaque)
 
 local function guildmatesInGroup()
@@ -202,7 +203,7 @@ end
 ns.RegisterCollector({
   name = "pve",
   events = {
-    PLAYER_ENTERING_WORLD = true, ENCOUNTER_END = true, PLAYER_DEAD = true,
+    PLAYER_ENTERING_WORLD = true, ENCOUNTER_END = true, PLAYER_DEAD = true, PLAYER_ALIVE = true, PLAYER_UNGHOST = true,
     PLAYER_TARGET_CHANGED = true, PLAYER_REGEN_DISABLED = true,
     NAME_PLATE_UNIT_ADDED = true, UPDATE_MOUSEOVER_UNIT = true,
   },
@@ -222,6 +223,7 @@ ns.RegisterCollector({
     elseif event == "UPDATE_MOUSEOVER_UNIT" then
       rememberPlayer(readUnit("mouseover"), ns.now())
     elseif event == "PLAYER_REGEN_DISABLED" then
+      dead = false -- on n'entre en combat que vivant
       combatSince = ns.now()
       rememberTarget() -- entrée en combat sur une cible déjà choisie
     elseif event == "ENCOUNTER_END" then
@@ -243,7 +245,18 @@ ns.RegisterCollector({
           ns.Journal.Event(char, "clear", { instance = final.instance })
         end
       end
+    elseif event == "PLAYER_UNGHOST" then
+      dead = false
+    elseif event == "PLAYER_ALIVE" then
+      -- Aussi envoyé en libérant son esprit : on n'est vivant que si le client le dit.
+      local okDead, still = pcall(UnitIsDeadOrGhost or function() end, "player")
+      if okDead and ns.plain(still) == false then dead = false end
     elseif event == "PLAYER_DEAD" then
+      if dead then
+        ns.Trace("PLAYER_DEAD reçu deux fois pour la même mort : ignoré")
+        return
+      end
+      dead = true
       local t = ns.now()
       ns.Journal.Increment(char, "deaths")
       deathsThisSession = deathsThisSession + 1
