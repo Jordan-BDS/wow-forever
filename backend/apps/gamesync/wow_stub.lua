@@ -78,6 +78,15 @@ function RequestRaidInfo() end
 -- Équipement.
 _GEAR = { [1] = "|cffa335ee|Hitem:16842:2583:0:0:0:0:0:0:60|h[Couronne]|h|r", [16] = "|Hitem:17182:0:0|h[Sulfuras]|h" }
 function GetInventoryItemLink(unit, slot) return _GEAR[slot] end
+-- Ce que le client sait d'un objet : nom, lien, qualité, niveau d'objet, niveau requis, …, classe, sous-classe.
+_ITEMS = { [16842] = { "Couronne de rage du ciel", 4, 66, 60, 4, 3, 1 } }
+function GetItemInfo(id)
+  local i = _ITEMS[id]
+  if not i then return nil end
+  return i[1], nil, i[2], i[3], i[4], nil, nil, nil, nil, nil, nil, i[5], i[6]
+end
+C_Item = C_Item or {}
+function C_Item.GetItemInventoryTypeByID(id) return _ITEMS[id] and _ITEMS[id][7] or nil end
 
 -- Talents (API Classic).
 _TALENTS = { tabs = 3, per_tab = 2, ranks = { ["1-1"] = 0, ["1-2"] = 0, ["2-1"] = 5, ["2-2"] = 3, ["3-1"] = 1, ["3-2"] = 0 } }

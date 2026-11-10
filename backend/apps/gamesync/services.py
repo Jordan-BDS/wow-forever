@@ -600,12 +600,50 @@ IN_GAME = "En jeu"  # set d'équipement et build de talents écrits par l'import
 SLOT_ALIASES = {"mainhand": "main_hand", "offhand": "off_hand"}
 
 
+def _small(value, default: int = 0, maximum: int = 32767) -> int:
+    """Entier borné d'un champ décrit par l'addon (qualité, niveau d'objet…), `default` s'il manque."""
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= maximum:
+        return default
+    return value
+
+
+def _create_unknown_items(pieces: dict[str, dict], known: set[int]) -> set[int]:
+    """Objets portés absents de l'index (la table d'objets du client n'a pas de fiche pour les objets à
+    suffixe aléatoire ni pour certains objets Forever) : créés d'après ce que le jeu en dit, pourvu que
+    l'addon ait donné un nom. Sans statistiques ni icône ; un import de l'index qui les connaîtrait un jour
+    les complète (ils ne sont pas « gérés à la main »)."""
+    created: dict[int, Item] = {}
+    for slot, piece in pieces.items():
+        item_id, name = piece["id"], piece.get("name")
+        if item_id in known or item_id in created or not isinstance(name, str) or not name.strip():
+            continue
+        if not 0 < item_id <= 2_000_000_000:
+            continue
+        inventory_type = _small(piece.get("inv"), maximum=40)
+        if inventory_type not in equipment.SLOT_INVENTORY_TYPES[slot]:
+            inventory_type = min(equipment.SLOT_INVENTORY_TYPES[slot])
+        created[item_id] = Item(
+            id=item_id,
+            name=" ".join(name.split())[:120],
+            quality=_small(piece.get("q"), default=1, maximum=7),
+            item_level=_small(piece.get("ilvl"), default=1),
+            required_level=_small(piece.get("req")),
+            inventory_type=inventory_type,
+            class_id=_small(piece.get("cls")),
+            subclass_id=_small(piece.get("sub")),
+        )
+    Item.objects.bulk_create(created.values(), ignore_conflicts=True)
+    return set(created)
+
+
 def _apply_gear(character: Character, gear) -> None:
-    """Set « En jeu » = l'équipement porté tel que reçu ; devient le set principal. Objets ou enchantements
-    inconnus de l'index : l'emplacement est ignoré (il reste visible dans l'onglet Progression)."""
+    """Set « En jeu » = l'équipement porté tel que reçu ; devient le set principal. Objet inconnu de
+    l'index : créé d'après le jeu si l'addon l'a décrit (0.6.6), sinon l'emplacement est ignoré (il reste
+    visible dans l'onglet Progression) ; enchantement inconnu : l'objet reste, sans lui."""
     if not isinstance(gear, dict):
         return
     wanted: dict[str, tuple[int, int | None]] = {}
+    pieces: dict[str, dict] = {}
     for slot, piece in gear.items():
         if not isinstance(piece, dict) or not isinstance(piece.get("id"), int):
             continue
@@ -613,7 +651,9 @@ def _apply_gear(character: Character, gear) -> None:
         if name in equipment.SLOTS:
             ench = piece.get("ench")
             wanted[name] = (piece["id"], ench if isinstance(ench, int) else None)
+            pieces[name] = piece
     items = set(Item.objects.filter(id__in=[i for i, _ in wanted.values()]).values_list("id", flat=True))
+    items |= _create_unknown_items(pieces, items)
     enchants = set(
         Enchantment.objects.filter(id__in=[e for _, e in wanted.values() if e]).values_list("id", flat=True)
     )

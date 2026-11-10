@@ -4,7 +4,7 @@ import pytest
 from django.utils import timezone
 
 from apps.characters.models import Character, CharacterProfession, TalentBuild
-from apps.gamedata.models import PlayerClass, Profession, Race, Recipe, Talent, TalentTree
+from apps.gamedata.models import Item, PlayerClass, Profession, Race, Recipe, Talent, TalentTree
 from apps.gamedata.seed import seed
 from apps.guild.models import GuildSettings
 
@@ -404,6 +404,70 @@ class TestLevelFromEvents:
             [{"k": "level"}],
         ):
             assert services.parse_character({**raw, "events": events}).level == 23
+
+
+class TestGearImport:
+    """Le set « En jeu » garde chaque objet porté : celui que l'index ignore est créé d'après le jeu."""
+
+    @pytest.fixture
+    def mage(self, member):
+        return Character.objects.create(
+            owner=member,
+            name="Koj",
+            player_class=PlayerClass.objects.get(slug="mage"),
+            race=Race.objects.get(slug="human"),
+            level=31,
+        )
+
+    def worn(self, character):
+        current = character.equipment_sets.get(name=services.IN_GAME)
+        return {slot.slot: slot.item for slot in current.slots.select_related("item")}
+
+    def test_items_unknown_to_the_index_are_created_from_what_the_game_says(self, mage):
+        Item.objects.create(id=253957, name="Diadème nacré", quality=3, inventory_type=1, icon="inv_crown")
+        gear = {
+            # Connu de l'index : la fiche de l'index fait foi, pas ce que dit l'addon.
+            "head": {"id": 253957, "name": "Autre nom", "q": 1},
+            # Suffixe aléatoire, sans fiche dans la table du client : créé avec ce que le jeu en sait.
+            "legs": {
+                "id": 2970,
+                "name": "Pantalon  de lieur de sort",
+                "q": 2,
+                "ilvl": 31,
+                "req": 26,
+                "inv": 7,
+                "cls": 4,
+                "sub": 1,
+            },
+            # Type d'emplacement absent ou incohérent : celui de l'emplacement porté.
+            "mainhand": {"id": 273024, "name": "Bâton inédit", "inv": 99},
+            # Ancien addon (ni nom ni qualité) ou valeurs aberrantes : l'emplacement reste vide.
+            "feet": {"id": 6570},
+            "waist": {"id": 9793, "name": "   "},
+        }
+        services._apply_gear(mage, gear)
+        worn = self.worn(mage)
+        assert set(worn) == {"head", "legs", "main_hand"}
+        assert (worn["head"].name, worn["head"].quality, worn["head"].icon) == (
+            "Diadème nacré",
+            3,
+            "inv_crown",
+        )
+        legs = worn["legs"]
+        assert (legs.name, legs.quality, legs.item_level, legs.required_level) == (
+            "Pantalon de lieur de sort",
+            2,
+            31,
+            26,
+        )
+        assert (legs.inventory_type, legs.class_id, legs.subclass_id, legs.is_forever) == (7, 4, 1, False)
+        staff = worn["main_hand"]
+        assert (staff.quality, staff.item_level, staff.inventory_type) == (1, 1, 13)
+        # Rejoué : rien n'est créé en double, la fiche créée n'est pas réécrite.
+        services._apply_gear(mage, {"legs": {"id": 2970, "name": "Renommé", "q": 4}})
+        assert Item.objects.get(pk=2970).name == "Pantalon de lieur de sort" and set(self.worn(mage)) == {
+            "legs"
+        }
 
 
 class TestTalentsImport:

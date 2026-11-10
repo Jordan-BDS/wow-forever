@@ -109,6 +109,18 @@ class TestLoading:
         )
         assert any("Bienvenue" in m for m in list(g._CHAT.values()))
         assert char.gear.head.id == 16842 and char.gear.head.ench == 2583 and char.gear.mainhand.ench is None
+        # Chaque pièce est décrite pour le site : nom de base, qualité, niveaux, type ; à défaut le nom du lien.
+        head, mainhand = char.gear.head, char.gear.mainhand
+        assert (head.name, head.q, head.ilvl, head.req, head.cls, head.sub, head.inv) == (
+            "Couronne de rage du ciel",
+            4,
+            66,
+            60,
+            4,
+            3,
+            1,
+        )
+        assert (mainhand.name, mainhand.q, mainhand.inv) == ("Sulfuras", None, None)
         assert char.spec_tab == 2 and char.talents.points["2-1"] == 5
         assert char.professions["186"].skill == 300 and char.professions["186"].recipes is None
         assert char.reputations["609"].v == 9800
