@@ -279,6 +279,12 @@ function _FIRE(event, ...)
   end
 end
 
+-- Une mort : le personnage est revenu à la vie depuis la précédente (sinon le second PLAYER_DEAD est un doublon).
+function _DIE()
+  _FIRE("PLAYER_UNGHOST")
+  _FIRE("PLAYER_DEAD")
+end
+
 -- Chargement d'un fichier de l'addon comme le fait le client : chunk(addonName, ns).
 _NS = {}
 function _LOAD(path, source)

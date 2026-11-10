@@ -149,7 +149,7 @@ class TestSession:
         )
         g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-2", 17580)  # recette connue → fabrication
         lua.execute("_TARGET = { name = 'Sanglier des Tarides', hostile = true }")
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         lua.execute("_TARGET = nil")
         g._ADVANCE(1)  # le tueur est résolu et annoncé une seconde après la mort
         # Un loup tué : message d'expérience (le journal de combat est interdit aux addons sur Forever).
@@ -266,13 +266,13 @@ class TestSession:
         g = lua.globals()
         login(lua)
         # Sans guilde : rien ne part (le client moderne interdit les canaux de chat aux addons).
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         assert addon_sent(g) == []
         lua.execute("_GUILD = true")
         # Le tueur est la cible hostile au moment de mourir (pas de journal de combat sur Forever).
         lua.execute("_TARGET = { name = 'Sanglier des Tarides', hostile = true }")
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         lua.execute("_TARGET = nil")
         g._ADVANCE(1)
         (sent,) = addon_sent(g)
@@ -290,7 +290,9 @@ class TestSession:
         )
         assert toast.footer.text == "Niveau 60 · Chaman"
         assert len(list(g._SOUNDS.values())) == 1
-        # Ancienne version en face : nom de classe affiché au lieu du jeton, accepté tel quel.
+        # Ancienne version en face : nom de classe affiché au lieu du jeton, accepté tel quel (une autre mort,
+        # plus d'une minute après : dans la minute, une seconde annonce du même personnage est un doublon).
+        g._ADVANCE(60)
         g._FIRE(
             "CHAT_MSG_ADDON", "WFG", sent.text.replace("\tSHAMAN\t", "\tChaman\t"), "GUILD", "Thrall-Forever"
         )
@@ -301,11 +303,12 @@ class TestSession:
         assert toast.shown is False
         # Son coupé → le popup reste, sans son.
         lua.execute("WoWForeverGuildeDB.settings.soundDeaths = false")
+        g._ADVANCE(60)
         g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "GUILD", "Thrall-Forever")
         assert toast.shown is True and len(list(g._SOUNDS.values())) == 2
         # Désactivé → rien n'est envoyé.
         lua.execute("WoWForeverGuildeDB.settings.announceDeaths = false")
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         assert len([s for s in addon_sent(g) if s.text.startswith("D\t")]) == 1
 
@@ -315,7 +318,7 @@ class TestSession:
         g = lua.globals()
         login(lua)
         lua.execute("_GUILD = true; _ZONE = _SECRET; _TARGET = { name = _SECRET, hostile = true }")
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         lua.execute("_ZONE = nil; _TARGET = nil")
         g._ADVANCE(1)
         (sent,) = addon_sent(g)
@@ -341,7 +344,7 @@ class TestSession:
         g._FIRE("PLAYER_REGEN_DISABLED")
         g._ADVANCE(90)  # long combat
         lua.execute("_TARGET = nil")  # le client vide la cible à la mort
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         deaths = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         assert len(deaths) == 1 and "\tLoup des Tarides\t" in deaths[0]
@@ -354,7 +357,7 @@ class TestSession:
         lua.execute("_TARGET = { name = 'Jaina', hostile = false }")
         g._FIRE("PLAYER_TARGET_CHANGED")
         lua.execute("_TARGET = nil")
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         deaths = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         assert len(deaths) == 1 and "\tquelque chose\t" in deaths[0]
@@ -373,9 +376,9 @@ class TestSession:
           C_DeathInfo = { GetDeathRecapEvents = function(id) return _RECAPS[id] end }
           _TARGET = { name = 'Sanglier des Tarides', hostile = true }
         """)
-        g._FIRE("PLAYER_DEAD")  # première mort de la session : récap n° 1, qui prime sur la cible
+        g._DIE()  # première mort de la session : récap n° 1, qui prime sur la cible
         g._ADVANCE(1)
-        g._FIRE("PLAYER_DEAD")  # deuxième : une chute
+        g._DIE()  # deuxième : une chute
         g._ADVANCE(1)
         deaths = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         assert "\tMajordome Executus\t" in deaths[0] and "\tune chute\t" in deaths[1]
@@ -421,12 +424,12 @@ class TestSession:
         g = lua.globals()
         lua.execute("_CLOCK.now = os.time({year=2026, month=12, day=21, hour=22, min=0})")
         login(lua)
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         day1 = g.date("%Y-%m-%d")
         g._ADVANCE(3 * 3600)  # 01:00 le lendemain : le ticker a tourné
         day2 = g.date("%Y-%m-%d")
         assert day1 != day2
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         char = g.WoWForeverGuildeDB.characters["Player-1-000ABC01"]
         assert char.journal[day1].deaths == 1 and char.counters.deaths == 2
         g._FIRE("PLAYER_LOGOUT")
@@ -832,7 +835,7 @@ class TestDurability:
         """)
         g._FIRE("PLAYER_LOGIN")
         g._ADVANCE(7)
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         (character,) = decode_export(logout_code(lua))["characters"]
         assert character["seed"] == {"at": 1764000100, "bases": {"pc-fixe": 1763999000}}
@@ -1419,7 +1422,7 @@ class TestWanted:
           C_DeathInfo = { GetDeathRecapEvents = function(id) return _RECAPS[id] end }
           _UNITS = { nameplate3 = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true } }
         """)
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         fields = line.split("\t")
@@ -1431,7 +1434,7 @@ class TestWanted:
           _RECAPS[2] = { { sourceName = 'Sanglier des Tarides', amount = 300 } }
           _UNITS = { nameplate1 = { name = 'Sanglier des Tarides', hostile = true } }
         """)
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         line = [s.text for s in addon_sent(g) if s.text.startswith("D\t")][-1]
         assert line.split("\t")[11:13] == ["0", ""]
@@ -1456,7 +1459,7 @@ class TestWanted:
           _RECAPS = { [1] = { { sourceName = 'Garrosh', amount = 900 } } }
           C_DeathInfo = { GetDeathRecapEvents = function(id) return _RECAPS[id] end }
         """)
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         lua.execute("_TARGET = nil")
         g._ADVANCE(1)
         (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
@@ -1467,7 +1470,7 @@ class TestWanted:
         # Vu il y a plus de dix minutes : oublié, le tueur redevient inconnu.
         lua.execute("_RECAPS[2] = _RECAPS[1]")
         g._ADVANCE(601)
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         line = [s.text for s in addon_sent(g) if s.text.startswith("D\t")][-1]
         assert line.split("\t")[11:13] == ["0", ""]
@@ -1484,13 +1487,55 @@ class TestWanted:
         )
         g._FIRE("PLAYER_TARGET_CHANGED")
         lua.execute("_TARGET = nil")
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         fields = line.split("\t")
         assert fields[7] == "Garrosh Hurlenfer" and fields[11:13] == ["1", "WARRIOR"]
         assert g._NS.DeathSource() == "tueur d'après mémoire (récap absent), joueur oui d'après mémoire"
         assert g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"].points == 1
+
+    def test_one_death_is_announced_once_and_the_pvp_notice_wins(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        now = g._CLOCK.now
+        pve = f"D	1	Player-1-00000JAI	Jaina	Portvaillant	MAGE	60	Sanglier des Tarides	Durotar		{now}	0		1411	0.4000	0.6000"
+        pvp = f"D	1	Player-1-00000JAI	Jaina	Portvaillant	MAGE	60	Garrosh Hurlenfer	Durotar		{now + 5}	1	MAGE	1411	0.4000	0.6000"
+        sounds = lambda: len(list(g._SOUNDS.values()))  # noqa: E731
+        # Un ancien addon annonce deux fois la même mort, PvE puis PvP : l'avis WANTED remplace l'autre, un point.
+        receive(lua, pve)
+        toast = g.WoWForeverGuildeDeath
+        assert "WANTED" not in toast.header.text and sounds() == 1
+        receive(lua, pvp)
+        assert "WANTED" in toast.header.text and sounds() == 2
+        assert g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"].points == 1
+        # Tout ce qui suit dans la minute est un doublon : ni popup, ni point (PvE comme PvP).
+        receive(lua, pve)
+        receive(lua, pvp.replace(str(now + 5), str(now + 9)))
+        assert "WANTED" in toast.header.text and sounds() == 2
+        assert g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"].points == 1
+        # Une minute plus tard, c'est une autre mort.
+        g._ADVANCE(60)
+        receive(lua, pvp.replace(str(now + 5), str(now + 70)))
+        assert sounds() == 3 and g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"].points == 2
+        # À l'envoi : un second PLAYER_DEAD sans retour à la vie ne compte ni n'annonce rien.
+        lua.execute("_GUILD = true")
+        char = g._NS.char
+        deaths = char.counters.deaths or 0
+        g._DIE()
+        g._FIRE("PLAYER_DEAD")
+        g._ADVANCE(1)
+        assert char.counters.deaths == deaths + 1
+        assert len([s for s in addon_sent(g) if s.text.startswith("D	")]) == 1
+        lua.execute("_UNITS.player = { name = 'Thrall', dead = true }")
+        g._FIRE("PLAYER_ALIVE")  # esprit libéré : toujours mort
+        g._FIRE("PLAYER_DEAD")
+        assert char.counters.deaths == deaths + 1
+        lua.execute("_UNITS.player = nil")
+        g._FIRE("PLAYER_ALIVE")  # ressuscité sur place : la mort suivante compte
+        g._FIRE("PLAYER_DEAD")
+        assert char.counters.deaths == deaths + 2
 
     def test_pvp_death_notice_always_says_wanted_and_colors_the_killer(self):
         lua = boot()
@@ -1515,6 +1560,7 @@ class TestWanted:
         assert toast.footer.text == "Niveau 60 · Mage · tueur recherché, prime 2"
         # Mort PvE : ni WANTED ni couleur sur la créature.
         pve = f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tSanglier des Tarides\tDurotar\t\t{now}\t0\t\t1411\t0.4000\t0.6000"
+        g._ADVANCE(60)  # une autre mort : dans la minute, l'annonce PvE d'un mort PvP serait un doublon
         receive(lua, pve)
         assert "WANTED" not in toast.header.text and toast.footer.text == "Niveau 60 · Mage"
         assert "|cff69ccf0Jaina|r" in toast.text.text and "|cffffffffSanglier" not in toast.text.text
@@ -1529,7 +1575,7 @@ class TestWanted:
           _TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true }
         """)
         g._FIRE("PLAYER_TARGET_CHANGED")
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         # La mort compte au journal, mais rien ne part, l'événement n'a pas de tueur joueur, le tableau reste vide.
         assert g._NS.char.counters.deaths == 1
@@ -1558,7 +1604,7 @@ class TestWanted:
         )
         assert g._NS.char.counters.pk == 2
         assert [e for e in g._NS.char.events.values() if e.k == "pk"][-1].bg is None
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         lua.execute("_TARGET = nil")
         g._ADVANCE(1)
         (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
@@ -1575,7 +1621,7 @@ class TestWanted:
           _TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true }
         """)
         g._FIRE("PLAYER_TARGET_CHANGED")
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         lua.execute("_TARGET = nil")
         g._ADVANCE(1)
         # La ligne « D » porte, après les neuf champs d'origine : tueur joueur, sa classe, carte, x, y du mort.
@@ -1699,7 +1745,7 @@ class TestWanted:
           _SUBZONE = string.rep('Sous-zone interminable ', 12)
           _TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true }
         """)
-        g._FIRE("PLAYER_DEAD")
+        g._DIE()
         g._ADVANCE(1)
         (line,) = [s.text for s in addon_sent(g) if s.text.startswith("D\t")]
         assert len(line.encode("utf-8")) <= 255
