@@ -1,5 +1,7 @@
 -- Gabarits des annonces de mort, tirés au hasard. Variables : {personnage}, {tueur}, {zone}, {niveau}, {classe}.
 -- Source : le fichier `templates-morts` à la racine du dépôt (une ligne = une phrase) ; le recopier ici après modification.
+-- Le même lot sert aux victoires honorables (Wanted.KillPhrase) : la victime est {personnage}, le chasseur {tueur} ;
+-- les phrases qui citent {niveau} ou {classe} n'y sont pas tirées.
 local ADDON, ns = ...
 
 ns.PHRASES = {

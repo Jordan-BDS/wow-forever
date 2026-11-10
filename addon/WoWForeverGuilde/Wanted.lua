@@ -20,6 +20,9 @@
 -- joueur est un événement `pk` du journal (prime encaissée = prime de l'ennemi à ce moment, compteurs `pk` et
 -- `bounty`) ; s'il est recherché, message « K » aux guildiens, popup « Prime encaissée » chez tous (alertes Wanted ou
 -- non, la ligne de chat seulement avec), tête de mort déplacée.
+-- Victoire honorable sur un joueur qui n'est pas recherché (0.6.6) : message « H » aux guildiens et popup « Victoire
+-- honorable » chez tous (avec « Afficher les morts des autres »), une phrase du lot des avis de décès, un seul popup
+-- par victime dans la fenêtre ; une prime encaissée pour la même victime le remplace.
 -- Les kills d'un même ennemi à moins de WANTED_KILL_DEDUPE s ne comptent qu'une fois dans son tableau (le groupe
 -- envoie autant de « K » que de chasseurs). En champ de bataille ou en arène, le kill compte (compteur `pk`, événement
 -- `pk` marqué `bg`) mais ne touche pas au Wanted : ni prime, ni « K », ni toast, et le site l'ignore pour le tableau
@@ -465,10 +468,75 @@ local function send(text)
   return ns.Positions.Send(text)
 end
 
+local announced = {} -- { name, t } des kills déjà affichés (prime ou victoire honorable), à mon horloge
+
+--- Ce joueur abattu a-t-il déjà son popup depuis moins de WANTED_KILL_DEDUPE s (le groupe annonce autant de fois
+--- qu'il a de chasseurs) ?
+local function announcedRecently(name, t)
+  for _, kill in ipairs(announced) do
+    if math.abs(t - kill.t) < ns.Data.WANTED_KILL_DEDUPE and sameName(kill.name, name) then return true end
+  end
+  return false
+end
+
+local function markAnnounced(name, t)
+  table.insert(announced, { name = name, t = t })
+  while #announced > ns.Data.WANTED_VICTIMS do table.remove(announced, 1) end
+end
+
+--- Phrase d'une victoire honorable : le lot des avis de décès, la victime dans le rôle du mort et le chasseur dans
+--- celui du tueur. Le message du jeu ne dit ni le niveau ni la classe de la victime : les phrases qui les citent
+--- sont laissées de côté.
+function Wanted.KillPhrase(victim, by, place)
+  local phrases = {}
+  for _, phrase in ipairs(ns.PHRASES or {}) do
+    if not phrase:find("{niveau}", 1, true) and not phrase:find("{classe}", 1, true) then phrases[#phrases + 1] = phrase end
+  end
+  if #phrases == 0 then return string.format("%s a abattu %s", by, victim) end
+  local values = { personnage = victim, tueur = by, zone = place ~= "" and place or "nulle part" }
+  local text = phrases[math.random(1, #phrases)]:gsub("{(%w+)}", function(key) return values[key] or ("{" .. key .. "}") end)
+  return (text:gsub("^%l", string.upper))
+end
+
+--- Une victoire honorable sur un joueur qui n'est pas recherché (la mienne, ou un « H » reçu) : popup « Victoire
+--- honorable », une fois par victime dans la fenêtre, avec « Afficher les morts des autres ». Faux si un popup
+--- (celui-ci ou une prime) est déjà passé pour cette victime.
+local function announceHonor(victim, victimClass, by, byClass, zone, sub)
+  local t = ns.now()
+  if announcedRecently(victim, t) then return false end
+  markAnnounced(victim, t)
+  if not ns.db.settings.showDeaths then return true end
+  local place = zone ~= "" and zone or (sub ~= "" and sub or L.WHERE_UNKNOWN)
+  if ns.UI and ns.UI.ShowKill then
+    ns.UI.ShowKill(victim, victimClass, by, byClass, Wanted.KillPhrase(victim, by, place), place)
+  end
+  return true
+end
+
+--- Ligne « H » : j'ai abattu un joueur qui n'est pas recherché (0.6.6 ; les versions d'avant l'ignorent).
+function Wanted.EncodeHonor(name, class, t, zone, sub)
+  local c = ns.char or {}
+  local fields = {
+    "H", "1", field(c.guid), field(myName()), field(c.class), field(name), tostring(t), field(zone), field(sub),
+    field(class),
+  }
+  return ns.Positions.Cut(table.concat(fields, "\t"), 255)
+end
+
+function Wanted.DecodeHonor(text)
+  local f = split(text)
+  if f[1] ~= "H" or f[2] ~= "1" or #f < 7 or f[6] == "" then return nil end
+  return {
+    guid = f[3], by = f[4], byClass = f[5], name = f[6], t = tonumber(f[7]) or ns.now(), zone = f[8] or "",
+    sub = f[9] or "", class = f[10] or "",
+  }
+end
+
 --- Un recherché abattu (par moi, ou un « K » reçu) : le popup « Prime encaissée » toujours, comme l'avis « WANTED »
 --- d'une mort PvP (décision du 9 novembre 2026) ; la ligne de chat seulement avec les alertes Wanted.
 local function announceKill(entry, by, byClass, zone, sub, prime)
   local place = zone ~= "" and zone or (sub ~= "" and sub or L.WHERE_UNKNOWN)
+  markAnnounced(entry.name, ns.now())
   if ns.db.settings.wantedAlerts then
     ns.Print(L.BOUNTY_CHAT, ns.ClassColored(by, byClass), ns.ClassColored(entry.name, entry.class), place, prime, entry.kills or 0)
   end
@@ -514,7 +582,16 @@ function Wanted.RecordKill(char, name, t, battleground)
   lastKillAt = t
   table.insert(recentKills, { name = name, t = t })
   while #recentKills > ns.Data.WANTED_VICTIMS do table.remove(recentKills, 1) end
-  if not entry then return nil end
+  if not entry then
+    -- Pas recherché : victoire honorable annoncée à la guilde, sauf en champ de bataille et sans nom lisible.
+    if not battleground and name ~= "" then
+      local class = ns.SeenPlayerClass and ns.SeenPlayerClass(name) or ""
+      if announceHonor(name, class, myName(), char.class, zone, sub) then
+        send(Wanted.EncodeHonor(name, class, t, zone, sub))
+      end
+    end
+    return nil
+  end
   if killSeen(entry, t) then return entry, false end
   markKill(entry, t, myName(), char.class, map, x, y, zone, sub)
   send(Wanted.EncodeKill(entry, t, map, x, y, zone, sub))
@@ -644,6 +721,26 @@ local function onAddonMessage(prefix, text, channel, sender)
     ns.Trace("reçu K de %s : %s abattu", tostring(sender), msg.name)
     local ok, err = pcall(Wanted.RecordKillMessage, msg, sender)
     if not ok then ns.Store.LogError("wanted.kill", err) end
+  elseif kind == "H" then
+    local msg = Wanted.DecodeHonor(text)
+    if not msg then return end
+    if ns.char and msg.guid == ns.char.guid then
+      ns.Trace("reçu H : le mien")
+      return
+    end
+    ns.Trace("reçu H de %s : %s abattu", tostring(sender), msg.name)
+    -- Recherché chez moi sans l'être chez le chasseur (les tableaux diffèrent) : c'est une prime encaissée.
+    local entry = Wanted.Match(msg.name)
+    local ok, err
+    if entry then
+      ok, err = pcall(Wanted.RecordKillMessage, {
+        name = entry.name, class = msg.class, points = entry.points or 0, kills = 0, t = msg.t, by = msg.by,
+        byClass = msg.byClass, zone = msg.zone, sub = msg.sub,
+      }, sender)
+    else
+      ok, err = pcall(announceHonor, msg.name, msg.class, msg.by, msg.byClass, msg.zone, msg.sub)
+    end
+    if not ok then ns.Store.LogError("wanted.honor", err) end
   elseif kind == "W" then
     local msg = Wanted.DecodeDigest(text)
     if not msg then return end

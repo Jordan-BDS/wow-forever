@@ -103,6 +103,15 @@ local function rememberTarget()
   rememberPlayer(target, target.at)
 end
 
+--- Classe d'un joueur hostile lu dans les SEEN_PLAYERS_TTL dernières secondes, "" s'il est inconnu.
+function ns.SeenPlayerClass(name)
+  local t = ns.now()
+  for _, seen in pairs(seenPlayers) do
+    if t - (seen.at or 0) <= ns.Data.SEEN_PLAYERS_TTL and sameName(seen.name, name) then return seen.class or "" end
+  end
+  return ""
+end
+
 --- Pour le Wanted : la dernière cible hostile lisible, ciblée vivante ({ name, player, class, at }).
 function ns.LastHostile()
   return lastHostile

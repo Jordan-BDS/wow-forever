@@ -438,6 +438,20 @@ function UI.ShowAlert(peer, text)
   UI.ShowToast(L.ALERT_HEADER, text, ns.Positions.Where(peer), { 1, 0.62, 0.2 }, true)
 end
 
+--- Victoire honorable : un joueur adverse abattu par un membre (moi ou un autre), hors champ de bataille. Vert,
+--- sans son (il y en a bien plus que de morts) ; chasseur et victime à la couleur de leur classe.
+function UI.ShowKill(victim, victimClass, by, byClass, phrase, place)
+  for _, who in ipairs({ { victim, victimClass }, { by, byClass } }) do
+    local at = phrase:find(who[1], 1, true) -- remplacement littéral : un nom n'est pas un motif Lua
+    if at and who[2] and who[2] ~= "" then
+      phrase = phrase:sub(1, at - 1) .. ns.ClassColored(who[1], who[2]) .. phrase:sub(at + #who[1])
+    end
+  end
+  local footer = string.format(L.KILL_FOOTER, ns.ClassColored(by, byClass), ns.ClassColored(victim, victimClass),
+    place ~= "" and place or L.WHERE_UNKNOWN)
+  UI.ShowToast(L.KILL_HEADER, phrase, footer, { 0.45, 0.9, 0.45 }, false)
+end
+
 --- Prime encaissée : un recherché abattu par un membre (moi ou un autre). Or, son si les morts en ont un.
 function UI.ShowBounty(entry, phrase, by, byClass, prime, place)
   local footer = string.format(L.BOUNTY_FOOTER, ns.ClassColored(by, byClass), ns.ClassColored(entry.name, entry.class),

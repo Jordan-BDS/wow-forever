@@ -2029,6 +2029,101 @@ class TestWantedKills:
         assert any("/mf prime <nom>" in m for m in list(g._CHAT.values()))
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_every_honorable_kill_outside_battlegrounds_is_announced(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+        honor = "Sylvanas meurt, victoire honorable (Points d'honneur estimés : 50)"
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", honor)
+        toast = g.WoWForeverGuildeDeath
+        # Une phrase du lot des avis de décès : la victime dans le rôle du mort, moi dans celui du tueur.
+        assert toast.shown is True and "Victoire honorable" in toast.header.text
+        assert "Sylvanas" in toast.text.text and "{" not in toast.text.text
+        assert (
+            toast.footer.text
+            == "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffSylvanas|r · Forêt d'Elwynn"
+        )
+        (h,) = wanted_sent(g, "H")
+        assert h.split("	")[:8] == [
+            "H",
+            "1",
+            "Player-1-000ABC01",
+            "Thrall Fils-de-Durotan",
+            "SHAMAN",
+            "Sylvanas",
+            str(g._CLOCK.now),
+            "Forêt d'Elwynn",
+        ]
+        assert wanted_sent(g, "K") == [] and "sylvanas" not in dict(g.WoWForeverGuildeDB.wanted)
+        # Aucune phrase tirée ne cite le niveau ou la classe de la victime, que le jeu ne dit pas.
+        for _ in range(60):
+            assert "{" not in g._NS.Wanted.KillPhrase("Sylvanas", "Thrall", "Durotar")
+        # Crédit de groupe : mon écho et le « H » d'un coéquipier pour la même victime ne refont pas de popup.
+        toast.shown = False
+        receive(lua, h, "Thrall-Forever")
+        receive(
+            lua,
+            f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Sylvanas	{g._CLOCK.now}	Durotar		",
+        )
+        assert toast.shown is False
+        # Le kill d'un guildien sur un autre joueur : popup chez moi, chasseur et victime à leur couleur de classe.
+        receive(
+            lua,
+            f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Nazgrel	{g._CLOCK.now}	Durotar	Tranchecolline	SHAMAN",
+        )
+        assert toast.shown is True and "Victoire honorable" in toast.header.text
+        assert toast.footer.text == "|cff69ccf0Jaina Portvaillant|r abat |cff0070ddNazgrel|r · Durotar"
+        assert (
+            "|cff0070ddNazgrel|r" in toast.text.text and "|cff69ccf0Jaina Portvaillant|r" in toast.text.text
+        )
+        assert len(wanted_sent(g, "H")) == 1  # je ne relaie rien
+        # « Afficher les morts des autres » décoché : pas de popup.
+        g.WoWForeverGuildeDB.settings.showDeaths = False
+        toast.shown = False
+        receive(
+            lua,
+            f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Rexxar	{g._CLOCK.now}	Durotar		",
+        )
+        assert toast.shown is False
+        g.WoWForeverGuildeDB.settings.showDeaths = True
+        # En champ de bataille : le kill compte, mais ni popup ni message.
+        lua.execute('_INSTANCE = "pvp"')
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN", "Saurfang meurt, victoire honorable (Points d'honneur estimés : 50)"
+        )
+        assert toast.shown is False and len(wanted_sent(g, "H")) == 1
+        assert g._NS.char.counters.pk == 2
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_a_guild_kill_on_someone_wanted_here_cashes_the_bounty(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        receive(
+            lua,
+            f"D	1	Player-1-00000JAI	Jaina	Portvaillant	MAGE	60	Garrosh Hurlenfer	Durotar		{g._CLOCK.now}	1	WARRIOR	1411	0.4000	0.6000",
+        )
+        entry = g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"]
+        toast = g.WoWForeverGuildeDeath
+        # Le chasseur ne le savait pas recherché (son tableau est en retard) : il annonce une simple victoire.
+        g._ADVANCE(120)
+        receive(
+            lua,
+            f"H	1	Player-1-00000UTH	Uther Lumière	PALADIN	Garrosh	{g._CLOCK.now}	Durotar		WARRIOR",
+        )
+        assert entry.kills == 1 and (entry.last.kind, entry.last.by) == ("kill", "Uther Lumière")
+        assert toast.shown is True and "Prime encaissée" in toast.header.text
+        # Une mort PvP garde son avis « WANTED ».
+        g._ADVANCE(120)
+        receive(
+            lua,
+            f"D	1	Player-1-00000UTH	Uther	Lumière	PALADIN	60	Garrosh Hurlenfer	Durotar		{g._CLOCK.now}	1	WARRIOR	1411	0.4000	0.6000",
+        )
+        assert "WANTED" in toast.header.text and entry.points == 2
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_honorable_kill_of_a_wanted_player_cashes_the_bounty(self):
         lua = boot()
         g = lua.globals()
@@ -2097,12 +2192,14 @@ class TestWantedKills:
             f"K\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\tGarrosh Hurlenfer\t1\t1\t{g._CLOCK.now}\t1429\t0.3000\t0.3000\tForêt d'Elwynn\t\tWARRIOR",
         )
         assert entry.kills == 1
-        # Un joueur qui n'est pas recherché : événement pk sans prime, rien d'envoyé, pas de toast.
+        # Un joueur qui n'est pas recherché : événement pk sans prime, pas de « K », rien au tableau ; un popup
+        # « Victoire honorable » (cf. test_every_honorable_kill_outside_battlegrounds_is_announced).
         toast.shown = False
         g._FIRE(
             "CHAT_MSG_COMBAT_HONOR_GAIN", "Sylvanas meurt, victoire honorable (Points d'honneur estimés : 50)"
         )
-        assert (char.counters.pk, char.counters.bounty, toast.shown) == (2, 1, False)
+        assert (char.counters.pk, char.counters.bounty) == (2, 1)
+        assert toast.shown is True and "Victoire honorable" in toast.header.text
         assert len(wanted_sent(g, "K")) == 1 and "sylvanas" not in dict(g.WoWForeverGuildeDB.wanted)
         # Un « K » d'un guildien pour un ennemi que je ne connaissais pas : créé avec sa prime, toast.
         receive(

@@ -104,7 +104,7 @@ local function pack(fields)
   return cut(line, 255)
 end
 
---- Ligne « P » : position, résumé de talents, recherche de groupe, version de l'addon (0.6.5 ; les anciennes
+--- Ligne « P » : position, résumé de talents, recherche de groupe, version de l'addon (0.6.6 ; les anciennes
 --- versions ignorent ce champ, les nouvelles s'en servent pour proposer un /reload à qui est en retard).
 function Positions.Encode(char, map, x, y)
   local fields = baseFields("P", char, map, x, y)
@@ -288,7 +288,7 @@ local function onAddonMessage(prefix, text, channel, sender)
   local msg = Positions.Decode(text)
   if not msg then
     local kind = text:sub(1, 1)
-    if kind ~= "D" and kind ~= "K" and kind ~= "W" then ns.Trace("reçu de %s : message illisible", tostring(sender)) end -- D, K, W : Wanted
+    if kind ~= "D" and kind ~= "K" and kind ~= "W" and kind ~= "H" then ns.Trace("reçu de %s : message illisible", tostring(sender)) end -- D, K, W, H : Wanted
     return
   end
   if ns.char and msg.guid == ns.char.guid then
