@@ -11,6 +11,11 @@ Dans l'autre sens, au lancement et jeu fermé, le compagnon recopie dans `SavedV
 a de chaque personnage (toutes installations), avec une marque `seed` pour que le site ne compte rien deux fois :
 une réinstallation ou un second PC ne repart jamais de zéro. Le fichier est lu et réécrit par `core/src/luatable.rs`.
 
+Hôtel des ventes (`core/src/auctions.rs`) : si l'addon tiers NaowhForever est installé, son dernier scan complet
+(`ahPrices` dans `SavedVariables/NaowhForever.lua`) part au site à chaque nouveau scan, pour qui en a le droit
+(`/api/sync/auctions/rights/`, le GM pour l'instant). Chez les autres, le fichier n'est pas lu et
+rien n'est envoyé ; un échec ici ne touche jamais à l'envoi des personnages. Le site en tire la page `/hv`.
+
 ## Développer
 
 Prérequis : Rust (rustup), Node 20, et sous Linux les bibliothèques Tauri

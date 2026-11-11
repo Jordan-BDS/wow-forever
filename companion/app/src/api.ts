@@ -17,6 +17,7 @@ export type AppState = {
   last_sync_at: number | null; // secondes epoch
   last_pull: PullOutcome | null;
   last_pull_at: number | null;
+  last_auctions: AuctionOutcome[] | null;
   candidates: string[];
   game_dir_warning: string | null;
 };
@@ -32,6 +33,14 @@ export type PullOutcome =
   | { kind: "game_running" }
   | { kind: "nothing"; reason: string }
   | { kind: "completed"; accounts: string[]; characters: number; created: string[] }
+  | { kind: "failed"; error: string };
+
+// Scans de l'hôtel des ventes lus dans le fichier de l'addon NaowhForever, envoyés par le compagnon du GM.
+export type AuctionOutcome =
+  | { kind: "not_allowed" }
+  | { kind: "unchanged"; house: string }
+  | { kind: "sent"; house: string; scanned_at: number; items: number }
+  | { kind: "duplicate"; house: string }
   | { kind: "failed"; error: string };
 
 export const api = {
@@ -50,6 +59,8 @@ export const api = {
     listen<SyncOutcome[]>("sync-result", (e) => handler(e.payload)),
   onPull: (handler: (outcome: PullOutcome) => void): Promise<UnlistenFn> =>
     listen<PullOutcome>("pull-result", (e) => handler(e.payload)),
+  onAuctions: (handler: (outcomes: AuctionOutcome[]) => void): Promise<UnlistenFn> =>
+    listen<AuctionOutcome[]>("auction-result", (e) => handler(e.payload)),
   onUpdateAvailable: (handler: (version: string) => void): Promise<UnlistenFn> =>
     listen<string>("update-available", (e) => handler(e.payload)),
   onUpdateFailed: (handler: (error: string) => void): Promise<UnlistenFn> =>

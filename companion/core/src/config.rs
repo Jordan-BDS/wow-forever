@@ -22,6 +22,8 @@ pub struct Config {
     pub autostart: bool,
     /// Empreinte du dernier code envoyé, par compte WoW.
     pub last_fingerprints: std::collections::BTreeMap<String, String>,
+    /// Horodatage du dernier scan de l'hôtel des ventes envoyé, par hôtel.
+    pub last_auction_scans: std::collections::BTreeMap<String, i64>,
 }
 
 impl Default for Config {
@@ -34,6 +36,7 @@ impl Default for Config {
             display_name: None,
             autostart: true,
             last_fingerprints: Default::default(),
+            last_auction_scans: Default::default(),
         }
     }
 }

@@ -27,6 +27,8 @@ import { RosterPage } from "./pages/RosterPage";
 import { TalentsPage } from "./pages/TalentsPage";
 import { TestsPage } from "./pages/TestsPage";
 
+import { AuctionsPage } from "./pages/AuctionsPage";
+
 export const router = createBrowserRouter([
   { path: "/login", Component: LoginPage },
   {
@@ -59,6 +61,7 @@ export const router = createBrowserRouter([
               { path: "wanted", Component: WantedPage },
               { path: "guilde", Component: GuildPage },
               { path: "tests", Component: TestsPage },
+              { path: "hv", Component: AuctionsPage },
               { path: "crafts", Component: CraftsPage },
               { path: "metiers", Component: ProfessionsPage },
               { path: "objets", Component: ItemsPage },

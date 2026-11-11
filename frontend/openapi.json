@@ -3593,6 +3593,198 @@
                 }
             }
         },
+        "/api/sync/auctions/": {
+            "get": {
+                "operationId": "sync_auctions_retrieve",
+                "description": "GM : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier scan\ncomparé à un scan de référence (GET).",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "house",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "hôtel (défaut : le dernier scanné)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "nom ou ID d'objet"
+                    },
+                    {
+                        "in": "query",
+                        "name": "since",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "prev (défaut), day, week"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "name (défaut), price, listed, up, down"
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "sync_auctions_create",
+                "description": "GM : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier scan\ncomparé à un scan de référence (GET).",
+                "tags": [
+                    "sync"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Scan illisible"
+                    },
+                    "409": {
+                        "description": "Déjà reçu"
+                    }
+                }
+            }
+        },
+        "/api/sync/auctions/items/{item_id}/": {
+            "get": {
+                "operationId": "sync_auctions_items_retrieve",
+                "description": "GM : l'historique de prix d'un objet dans un hôtel des ventes.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "house",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "item_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/auctions/rights/": {
+            "get": {
+                "operationId": "sync_auctions_rights_retrieve",
+                "description": "Pour le compagnon : ce compte peut-il envoyer les scans de l'hôtel des ventes ? Il ne lit le fichier de\nscan et n'envoie quoi que ce soit que si oui.",
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/sync/characters/{id}/progress/": {
             "get": {
                 "operationId": "sync_characters_progress_retrieve",

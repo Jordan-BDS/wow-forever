@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    AuctionScan,
     CharacterSnapshot,
     CompanionDevice,
     IgnoredCharacter,
@@ -44,6 +45,12 @@ class IgnoredCharacterAdmin(admin.ModelAdmin):
 @admin.register(WeeklyTitle)
 class WeeklyTitleAdmin(admin.ModelAdmin):
     list_display = ["week_start", "label", "user", "character", "value"]
+
+
+@admin.register(AuctionScan)
+class AuctionScanAdmin(admin.ModelAdmin):
+    list_display = ["scanned_at", "house", "items", "user", "received_at"]
+    list_filter = ["house"]
 
 
 @admin.register(WantedExclusion)

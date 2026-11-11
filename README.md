@@ -98,6 +98,9 @@ seul. Cahier des charges, étape 11.
   abattus » et « Primes encaissées » sur la page Classements, Roxor hebdo « Chasseur de primes », carte « Tête mise
   à prix » à côté des Roxors ; le compagnon recopie le tableau de la guilde dans l'addon au lancement, jeu fermé ; le
   GM retire un nom dans l'administration.
+- **Hôtel des ventes** (GM) : le compagnon du GM envoie chaque scan complet fait en jeu avec l'addon NaowhForever
+  (`POST /api/sync/auctions/`) ; la page `/hv` liste le dernier scan, la variation de chaque prix depuis le scan
+  précédent, 24 h ou 7 jours, et la courbe de prix par objet. Notre addon n'intervient pas.
 - **Tests hors du jeu** : l'addon tourne dans un environnement WoW simulé (`backend/apps/gamesync/wow_stub.lua`)
   via `lupa` (Lua 5.1, comme le client) : `cd backend && uv run pytest apps/gamesync/test_addon.py`. Une session
   complète y est jouée et le code produit est décodé puis importé par le site.

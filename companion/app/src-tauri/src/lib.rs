@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use companion_core::api::SiteClient;
+use companion_core::auctions::{self, AuctionOutcome};
 use companion_core::config::{default_dir, Config};
 use companion_core::sync::{pull_once, sync_once, PullOutcome, SyncOutcome};
 use companion_core::{addon, savedvars, wowdir};
@@ -22,6 +23,7 @@ struct Inner {
     last_sync_at: Option<u64>,
     last_pull: Option<PullOutcome>,
     last_pull_at: Option<u64>,
+    last_auctions: Option<Vec<AuctionOutcome>>,
 }
 
 type Shared = Arc<Mutex<Inner>>;
@@ -43,6 +45,8 @@ struct AppState {
     /// Complétion de l'addon depuis le site (sens site → fichier), faite au lancement, jeu fermé.
     last_pull: Option<PullOutcome>,
     last_pull_at: Option<u64>,
+    /// Envoi des scans de l'hôtel des ventes (GM) : vide ou absent chez qui n'envoie rien.
+    last_auctions: Option<Vec<AuctionOutcome>>,
     candidates: Vec<String>,
     /// Dossier d'un autre client que Forever (Retail, Classic…) : le site refusera ses exports.
     game_dir_warning: Option<String>,
@@ -89,6 +93,7 @@ fn snapshot(inner: &Inner) -> AppState {
         last_sync_at: inner.last_sync_at,
         last_pull: inner.last_pull.clone(),
         last_pull_at: inner.last_pull_at,
+        last_auctions: inner.last_auctions.clone(),
         candidates: if game_dir.is_none() {
             wowdir::candidates()
                 .iter()
@@ -132,7 +137,32 @@ fn run_sync(app: &AppHandle, shared: &Shared) -> Vec<SyncOutcome> {
         let _ = save(&inner);
     }
     let _ = app.emit("sync-result", &outcomes);
+    let (app, shared) = (app.clone(), shared.clone());
+    std::thread::spawn(move || run_auctions(&app, &shared));
     outcomes
+}
+
+/// Après l'envoi des personnages : les scans de l'hôtel des ventes, pour qui en a le droit sur le site. À part
+/// et en arrière-plan, pour qu'un échec ou une lenteur ici ne touche jamais à la synchronisation des personnages.
+fn run_auctions(app: &AppHandle, shared: &Shared) {
+    let (game_dir, mut config) = {
+        let inner = shared.lock().unwrap();
+        (inner.config.game_dir.clone(), inner.config.clone())
+    };
+    let Some(game_dir) = game_dir else { return };
+    let client = client_for(&config);
+    let outcomes = auctions::upload_once(&game_dir, &mut config, &client);
+    if outcomes.is_empty() {
+        return;
+    }
+    log::info!("hôtel des ventes : {outcomes:?}");
+    {
+        let mut inner = shared.lock().unwrap();
+        inner.config.last_auction_scans = config.last_auction_scans;
+        inner.last_auctions = Some(outcomes.clone());
+        let _ = save(&inner);
+    }
+    let _ = app.emit("auction-result", &outcomes);
 }
 
 /// Sens inverse : l'état du site complète le fichier de l'addon (jeu fermé). Après `run_sync`, pour que ce
@@ -208,6 +238,7 @@ fn pair(
         inner.config.display_name = Some(response.display_name);
         inner.config.device_name = name;
         inner.config.last_fingerprints.clear();
+        inner.config.last_auction_scans.clear();
         save(&inner)?;
     }
     let shared_clone = shared.inner().clone();
@@ -223,6 +254,8 @@ fn unpair(shared: State<Shared>) -> Result<AppState, String> {
     inner.config.token = None;
     inner.config.display_name = None;
     inner.config.last_fingerprints.clear();
+    inner.config.last_auction_scans.clear();
+    inner.last_auctions = None;
     save(&inner)?;
     Ok(snapshot(&inner))
 }
@@ -276,7 +309,13 @@ fn set_settings(
         apply_autostart(&app, on);
     }
     if let Some(url) = settings.site_url {
-        inner.config.site_url = url.trim().trim_end_matches('/').to_string();
+        let url = url.trim().trim_end_matches('/').to_string();
+        if url != inner.config.site_url {
+            // Un autre site n'a pas reçu les scans de l'hôtel des ventes déjà envoyés à celui-ci.
+            inner.config.last_auction_scans.clear();
+            inner.last_auctions = None;
+        }
+        inner.config.site_url = url;
     }
     save(&inner)?;
     Ok(snapshot(&inner))
@@ -317,7 +356,9 @@ fn restart_watcher(app: &AppHandle, shared: Shared) {
         let concerns_addon = event.paths.iter().any(|p| {
             p.file_name()
                 .and_then(|n| n.to_str())
-                .map(|n| n.starts_with(savedvars::ADDON_NAME))
+                .map(|n| {
+                    n.starts_with(savedvars::ADDON_NAME) || n.starts_with(auctions::SCAN_ADDON)
+                })
                 .unwrap_or(false)
         });
         if !concerns_addon {
@@ -430,6 +471,7 @@ pub fn run() {
         last_sync_at: None,
         last_pull: None,
         last_pull_at: None,
+        last_auctions: None,
     }));
 
     tauri::Builder::default()

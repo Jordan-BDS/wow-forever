@@ -282,6 +282,40 @@ impl SiteClient {
         }
     }
 
+    /// Ce compte peut-il envoyer les scans de l'hôtel des ventes ? Un site plus ancien (404) : non.
+    pub fn auction_rights(&self) -> Result<bool> {
+        #[derive(Deserialize)]
+        struct Rights {
+            #[serde(default)]
+            upload: bool,
+        }
+        let response = self
+            .authed(self.http.get(self.url("auctions/rights/")))
+            .send()?;
+        match response.status().as_u16() {
+            200 => Ok(response.json::<Rights>()?.upload),
+            404 => Ok(false),
+            _ => Err(Self::error_from(response)),
+        }
+    }
+
+    /// Envoie un scan complet de l'hôtel des ventes. `Err(Duplicate)` si le site l'a déjà.
+    pub fn upload_auctions(&self, scan: &crate::auctions::HouseScan) -> Result<()> {
+        let response = self
+            .authed(self.http.post(self.url("auctions/")))
+            .json(&serde_json::json!({
+                "house": scan.house,
+                "scanned_at": scan.scanned_at,
+                "items": scan.items,
+            }))
+            .send()?;
+        match response.status().as_u16() {
+            200 | 201 => Ok(()),
+            409 => Err(CoreError::Duplicate),
+            _ => Err(Self::error_from(response)),
+        }
+    }
+
     /// L'état fusionné de mes personnages, pour compléter l'addon de ce PC.
     pub fn state(&self) -> Result<SiteState> {
         let response = self.authed(self.http.get(self.url("state/"))).send()?;

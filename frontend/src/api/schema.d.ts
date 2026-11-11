@@ -949,6 +949,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/auctions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description GM : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier scan
+         *     comparé à un scan de référence (GET).
+         */
+        get: operations["sync_auctions_retrieve"];
+        put?: never;
+        /**
+         * @description GM : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier scan
+         *     comparé à un scan de référence (GET).
+         */
+        post: operations["sync_auctions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/auctions/items/{item_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description GM : l'historique de prix d'un objet dans un hôtel des ventes. */
+        get: operations["sync_auctions_items_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/auctions/rights/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Pour le compagnon : ce compte peut-il envoyer les scans de l'hôtel des ventes ? Il ne lit le fichier de
+         *     scan et n'envoie quoi que ce soit que si oui.
+         */
+        get: operations["sync_auctions_rights_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sync/characters/{id}/progress/": {
         parameters: {
             query?: never;
@@ -4677,6 +4738,130 @@ export interface operations {
         };
     };
     sync_addon_errors_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    sync_auctions_retrieve: {
+        parameters: {
+            query?: {
+                /** @description hôtel (défaut : le dernier scanné) */
+                house?: string;
+                page?: number;
+                /** @description nom ou ID d'objet */
+                q?: string;
+                /** @description prev (défaut), day, week */
+                since?: string;
+                /** @description name (défaut), price, listed, up, down */
+                sort?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    sync_auctions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+                "application/x-www-form-urlencoded": {
+                    [key: string]: unknown;
+                };
+                "multipart/form-data": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Scan illisible */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Déjà reçu */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sync_auctions_items_retrieve: {
+        parameters: {
+            query?: {
+                house?: string;
+            };
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    sync_auctions_rights_retrieve: {
         parameters: {
             query?: never;
             header?: never;

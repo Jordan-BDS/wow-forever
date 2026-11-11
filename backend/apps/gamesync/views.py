@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsGM
 from apps.characters.models import Character
 
-from . import services
+from . import auctions, services
 from .authentication import CompanionTokenAuthentication
 from .format import ExportError
 from .models import CharacterSnapshot, CompanionDevice, ImportBatch, ImportSource
@@ -240,6 +240,100 @@ class AddonErrorsView(APIView):
     @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         return Response({"errors": services.addon_errors()})
+
+
+# --- hôtel des ventes ---------------------------------------------------------------------------------
+
+
+def _page(value) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 1
+
+
+class CanUseAuctions(permissions.BasePermission):
+    """Envoyer et lire les prix : la règle est dans `auctions.can_upload`, nulle part ailleurs."""
+
+    message = "Réservé au GM."
+
+    def has_permission(self, request, view) -> bool:
+        return auctions.can_upload(request.user)
+
+
+class AuctionRightsView(APIView):
+    """Pour le compagnon : ce compte peut-il envoyer les scans de l'hôtel des ventes ? Il ne lit le fichier de
+    scan et n'envoie quoi que ce soit que si oui."""
+
+    authentication_classes = [CompanionTokenAuthentication, SessionAuthentication]
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    def get(self, request: Request) -> Response:
+        return Response({"upload": auctions.can_upload(request.user)})
+
+
+class AuctionScansView(APIView):
+    """GM : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier scan
+    comparé à un scan de référence (GET)."""
+
+    authentication_classes = [CompanionTokenAuthentication, SessionAuthentication]
+    permission_classes = [CanUseAuctions]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("house", OpenApiTypes.STR, description="hôtel (défaut : le dernier scanné)"),
+            OpenApiParameter("q", OpenApiTypes.STR, description="nom ou ID d'objet"),
+            OpenApiParameter("sort", OpenApiTypes.STR, description="name (défaut), price, listed, up, down"),
+            OpenApiParameter("since", OpenApiTypes.STR, description="prev (défaut), day, week"),
+            OpenApiParameter("page", OpenApiTypes.INT),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def get(self, request: Request) -> Response:
+        params = request.query_params
+        return Response(
+            auctions.overview(
+                house=params.get("house", ""),
+                q=params.get("q", ""),
+                sort=params.get("sort", "name"),
+                since=params.get("since", "prev"),
+                page=_page(params.get("page")),
+            )
+        )
+
+    @extend_schema(
+        request=OpenApiTypes.OBJECT,
+        responses={
+            201: OpenApiTypes.OBJECT,
+            400: OpenApiResponse(description="Scan illisible"),
+            409: OpenApiResponse(description="Déjà reçu"),
+        },
+    )
+    def post(self, request: Request) -> Response:
+        data = request.data if isinstance(request.data, dict) else {}
+        device = request.auth if isinstance(request.auth, CompanionDevice) else None
+        try:
+            scan = auctions.store_scan(
+                request.user, data.get("house"), data.get("scanned_at"), data.get("items"), device=device
+            )
+        except auctions.DuplicateScan as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+        except auctions.AuctionError as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+        return Response(auctions.scan_summary(scan), status=status.HTTP_201_CREATED)
+
+
+class AuctionItemView(APIView):
+    """GM : l'historique de prix d'un objet dans un hôtel des ventes."""
+
+    permission_classes = [CanUseAuctions]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("house", OpenApiTypes.STR)],
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def get(self, request: Request, item_id: int) -> Response:
+        return Response(auctions.item_history(item_id, request.query_params.get("house", "")))
 
 
 class RankingsView(APIView):

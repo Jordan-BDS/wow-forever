@@ -183,6 +183,53 @@ class WeeklyTitle(models.Model):
         return f"{self.label} — semaine du {self.week_start} : {self.user}"
 
 
+class AuctionScan(models.Model):
+    """Un scan complet d'un hôtel des ventes, envoyé par le compagnon du GM : un seul par hôtel et instant."""
+
+    house = models.CharField(
+        "Hôtel des ventes",
+        max_length=96,
+        help_text="Royaume et faction tels que l'addon de scan les écrit, ex. « Forever-Alliance ».",
+    )
+    scanned_at = models.DateTimeField("Scanné le")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="auction_scans")
+    device = models.ForeignKey(CompanionDevice, on_delete=models.SET_NULL, null=True, blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+    items = models.PositiveIntegerField("Objets", default=0)
+
+    class Meta:
+        verbose_name = "scan de l'hôtel des ventes"
+        verbose_name_plural = "scans de l'hôtel des ventes"
+        ordering = ["-scanned_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["house", "scanned_at"], name="unique_auction_scan_per_house")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.house} — {self.scanned_at:%d/%m/%Y %H:%M}"
+
+
+class AuctionPrice(models.Model):
+    """Le prix le plus bas d'un objet dans un scan (à l'unité, en cuivre) et le nombre d'enchères."""
+
+    scan = models.ForeignKey(AuctionScan, on_delete=models.CASCADE, related_name="prices")
+    item_id = models.PositiveIntegerField()
+    price = models.PositiveBigIntegerField(help_text="Prix le plus bas à l'unité, en cuivre.")
+    listed = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Nombre d'enchères avec achat immédiat."
+    )
+
+    class Meta:
+        verbose_name = "prix de l'hôtel des ventes"
+        constraints = [
+            models.UniqueConstraint(fields=["scan", "item_id"], name="unique_item_per_auction_scan")
+        ]
+        indexes = [models.Index(fields=["item_id", "scan"])]
+
+    def __str__(self) -> str:
+        return f"{self.item_id} : {self.price}"
+
+
 class WantedExclusion(models.Model):
     """Nom retiré du tableau Wanted par le GM (PNJ homonyme pris pour un joueur, erreur de lecture)."""
 

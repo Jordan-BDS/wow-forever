@@ -1,0 +1,266 @@
+"""
+Prix de l'hôtel des ventes : le compagnon du GM envoie chaque scan complet lu dans le fichier de l'addon de
+scan, le site les garde tous et en tire l'historique de chaque objet. Envoi et lecture réservés au GM.
+"""
+
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from django.core.cache import cache
+from django.db import IntegrityError, transaction
+from django.utils import timezone
+
+from apps.gamedata.models import Item
+from apps.gamedata.stats import icon_url
+
+from .models import AuctionPrice, AuctionScan, CompanionDevice
+
+MAX_ITEMS = 60_000
+MAX_PRICE = 10**12
+MAX_LISTED = 10**7
+PAGE_SIZE = 100
+HISTORY_POINTS = 500
+KEEP_ALL = timedelta(days=30)  # tous les scans sont gardés ce temps-là, puis un par jour
+ROWS_TTL = (
+    300  # s : la comparaison de deux scans (immuables) est gardée en cache, seuls les noms peuvent bouger
+)
+ID_BATCH = 5000  # objets par requête sur l'index (SQLite borne le nombre de paramètres)
+
+# Référence de la variation : le scan précédent, ou le dernier scan vieux d'au moins un jour / une semaine.
+BASELINES = {"prev": None, "day": timedelta(days=1), "week": timedelta(days=7)}
+SORTS = ("name", "price", "listed", "up", "down")
+
+
+class AuctionError(ValueError):
+    """Scan refusé, avec un message lisible par le joueur."""
+
+
+class DuplicateScan(AuctionError):
+    pass
+
+
+def can_upload(user) -> bool:
+    """Qui peut envoyer et lire les prix : le GM seulement, pour l'instant."""
+    return bool(user and user.is_authenticated and user.is_gm)
+
+
+def _int(value: Any) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _rows(raw: Any) -> dict[int, tuple[int, int | None]]:
+    if not isinstance(raw, list) or not raw:
+        raise AuctionError("Le scan ne contient aucun objet.")
+    if len(raw) > MAX_ITEMS:
+        raise AuctionError(f"Le scan contient trop d'objets ({len(raw)}, {MAX_ITEMS} au plus).")
+    rows: dict[int, tuple[int, int | None]] = {}
+    for entry in raw:
+        if not isinstance(entry, list) or not 2 <= len(entry) <= 3:
+            raise AuctionError("Chaque objet du scan est une liste [objet, prix, enchères].")
+        item_id, price = _int(entry[0]), _int(entry[1])
+        if not item_id or not 0 < item_id < 2**31 or not price or not 0 < price <= MAX_PRICE:
+            raise AuctionError("Le scan contient un objet ou un prix invalide.")
+        listed = None
+        if len(entry) == 3 and entry[2] is not None:  # absent ou null : nombre inconnu
+            listed = _int(entry[2])
+            if listed is None or not 0 <= listed <= MAX_LISTED:
+                raise AuctionError("Le scan contient un nombre d'enchères invalide.")
+        rows[item_id] = (price, listed)
+    return rows
+
+
+def store_scan(
+    user, house: Any, scanned_at: Any, items: Any, *, device: CompanionDevice | None = None
+) -> AuctionScan:
+    """Enregistre un scan. `DuplicateScan` si cet hôtel a déjà un scan à cet instant."""
+    house = " ".join(house.split()) if isinstance(house, str) else ""
+    if not house or len(house) > 96:
+        raise AuctionError("Hôtel des ventes manquant ou trop long.")
+    stamp = _int(scanned_at)
+    if not stamp or stamp <= 0:
+        raise AuctionError("Date du scan manquante.")
+    try:
+        when = datetime.fromtimestamp(stamp, tz=UTC)
+    except (OverflowError, OSError, ValueError) as exc:
+        raise AuctionError("Date du scan illisible.") from exc
+    if when > timezone.now() + timedelta(days=1):
+        raise AuctionError("Le scan est daté dans le futur.")
+    rows = _rows(items)
+    try:
+        with transaction.atomic():
+            scan = AuctionScan.objects.create(
+                house=house, scanned_at=when, user=user, device=device, items=len(rows)
+            )
+            AuctionPrice.objects.bulk_create(
+                [
+                    AuctionPrice(scan=scan, item_id=item_id, price=price, listed=listed)
+                    for item_id, (price, listed) in rows.items()
+                ],
+                batch_size=2000,
+            )
+    except IntegrityError as exc:
+        raise DuplicateScan("Ce scan a déjà été reçu.") from exc
+    prune(house)
+    return scan
+
+
+def prune(house: str) -> int:
+    """Au-delà de KEEP_ALL, un hôtel ne garde qu'un scan par jour (le dernier du jour) : la courbe reste, la
+    table ne grossit plus de chaque scan. Renvoie le nombre de scans supprimés."""
+    kept_days, doomed = set(), []
+    old = AuctionScan.objects.filter(house=house, scanned_at__lt=timezone.now() - KEEP_ALL)
+    for pk, scanned_at in old.order_by("-scanned_at").values_list("pk", "scanned_at"):
+        day = timezone.localtime(scanned_at).date()
+        if day in kept_days:
+            doomed.append(pk)
+        else:
+            kept_days.add(day)
+    if doomed:
+        AuctionScan.objects.filter(pk__in=doomed).delete()
+    return len(doomed)
+
+
+def scan_summary(scan: AuctionScan) -> dict:
+    return {"id": scan.pk, "house": scan.house, "scanned_at": scan.scanned_at, "items": scan.items}
+
+
+def houses() -> list[dict]:
+    """Les hôtels des ventes connus, le plus récemment scanné d'abord."""
+    found: dict[str, dict] = {}
+    for house, scanned_at in AuctionScan.objects.order_by("-scanned_at").values_list("house", "scanned_at"):
+        entry = found.setdefault(house, {"house": house, "scans": 0, "last_scan": scanned_at})
+        entry["scans"] += 1
+        entry["first_scan"] = scanned_at
+    return list(found.values())
+
+
+def _baseline(latest: AuctionScan, since: str) -> AuctionScan | None:
+    older = AuctionScan.objects.filter(house=latest.house, scanned_at__lt=latest.scanned_at)
+    delta = BASELINES.get(since)
+    if delta is not None:
+        older = older.filter(scanned_at__lte=latest.scanned_at - delta)
+    return older.order_by("-scanned_at").first()
+
+
+def _prices(scan: AuctionScan) -> dict[int, tuple[int, int | None]]:
+    return {
+        item_id: (price, listed)
+        for item_id, price, listed in scan.prices.values_list("item_id", "price", "listed")
+    }
+
+
+def _items(ids) -> dict[int, dict]:
+    ids, found = list(ids), {}
+    for start in range(0, len(ids), ID_BATCH):
+        batch = Item.objects.filter(id__in=ids[start : start + ID_BATCH])
+        for item in batch.values("id", "name", "quality", "icon"):
+            found[item["id"]] = item
+    return found
+
+
+def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> list[dict]:
+    """Chaque objet du dernier scan avec son prix de référence, par nom. Gardé en cache : filtrer, trier ou
+    changer de page ne relit pas les deux scans."""
+    key = f"gamesync:auctions:{latest.pk}:{baseline.pk if baseline else 0}"
+    rows = cache.get(key)
+    if rows is not None:
+        return rows
+    current = _prices(latest)
+    before = _prices(baseline) if baseline else {}
+    names = _items(current.keys())
+    rows = []
+    for item_id, (price, listed) in current.items():
+        item = names.get(item_id)
+        previous = before.get(item_id)
+        previous_price = previous[0] if previous else None
+        rows.append(
+            {
+                "item_id": item_id,
+                "name": item["name"] if item else f"Objet {item_id}",
+                "known": item is not None,
+                "quality": item["quality"] if item else 1,
+                "icon_url": icon_url(item["icon"]) if item else "",
+                "price": price,
+                "listed": listed,
+                "previous_price": previous_price,
+                "change": round((price - previous_price) * 100 / previous_price, 1)
+                if previous_price
+                else None,
+            }
+        )
+    rows.sort(key=lambda r: r["name"].lower())
+    cache.set(key, rows, ROWS_TTL)
+    return rows
+
+
+def overview(house: str = "", q: str = "", sort: str = "name", since: str = "prev", page: int = 1) -> dict:
+    """Le dernier scan d'un hôtel, comparé à un scan de référence : une page d'objets filtrés et triés."""
+    known = houses()
+    sort = sort if sort in SORTS else "name"
+    since = since if since in BASELINES else "prev"
+    empty = {
+        "houses": known, "house": "", "scan": None, "baseline": None, "since": since, "sort": sort,
+        "total": 0, "page": 1, "pages": 1, "results": [],
+    }  # fmt: skip
+    if not known:
+        return empty
+    house = house if any(h["house"] == house for h in known) else known[0]["house"]
+    latest = AuctionScan.objects.filter(house=house).order_by("-scanned_at").first()
+    if latest is None:
+        return empty
+    baseline = _baseline(latest, since)
+    rows = _compared(latest, baseline)
+
+    needle = q.strip().lower()
+    if needle:
+        rows = [r for r in rows if needle in r["name"].lower() or needle == str(r["item_id"])]
+    if sort == "price":
+        rows = sorted(rows, key=lambda r: (-r["price"], r["name"]))
+    elif sort == "listed":
+        rows = sorted(rows, key=lambda r: (-(r["listed"] or 0), r["name"]))
+    elif sort in ("up", "down"):
+        # Les objets sans prix de référence n'ont pas de variation : ils sortent de ces deux tris.
+        rows = [r for r in rows if r["change"] is not None]
+        rows.sort(key=lambda r: (-r["change"] if sort == "up" else r["change"], r["name"]))
+    # sinon : par nom, l'ordre du cache
+
+    pages = max(1, -(-len(rows) // PAGE_SIZE))
+    page = min(max(1, page), pages)
+    return {
+        "houses": known,
+        "house": house,
+        "scan": scan_summary(latest),
+        "baseline": scan_summary(baseline) if baseline else None,
+        "since": since,
+        "sort": sort,
+        "total": len(rows),
+        "page": page,
+        "pages": pages,
+        "results": rows[(page - 1) * PAGE_SIZE : page * PAGE_SIZE],
+    }
+
+
+def item_history(item_id: int, house: str = "") -> dict:
+    """Le prix et le nombre d'enchères d'un objet à chaque scan d'un hôtel, du plus ancien au plus récent."""
+    known = houses()
+    if known and not any(h["house"] == house for h in known):
+        house = known[0]["house"]
+    points = list(
+        AuctionPrice.objects.filter(item_id=item_id, scan__house=house)
+        .order_by("-scan__scanned_at")
+        .values_list("scan__scanned_at", "price", "listed")[:HISTORY_POINTS]
+    )
+    points.reverse()
+    item = Item.objects.filter(id=item_id).values("name", "quality", "icon").first()
+    prices = [price for _, price, _ in points]
+    return {
+        "item_id": item_id,
+        "house": house,
+        "name": item["name"] if item else f"Objet {item_id}",
+        "quality": item["quality"] if item else 1,
+        "icon_url": icon_url(item["icon"]) if item else "",
+        "min": min(prices) if prices else None,
+        "max": max(prices) if prices else None,
+        "average": round(sum(prices) / len(prices)) if prices else None,
+        "points": [{"at": at, "price": price, "listed": listed} for at, price, listed in points],
+    }

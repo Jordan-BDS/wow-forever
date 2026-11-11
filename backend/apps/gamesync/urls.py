@@ -20,4 +20,7 @@ urlpatterns = [
     path("rankings/", views.RankingsView.as_view(), name="sync-rankings"),
     path("wanted/", views.WantedView.as_view(), name="sync-wanted"),
     path("addon-errors/", views.AddonErrorsView.as_view(), name="sync-addon-errors"),
+    path("auctions/", views.AuctionScansView.as_view(), name="sync-auctions"),
+    path("auctions/rights/", views.AuctionRightsView.as_view(), name="sync-auction-rights"),
+    path("auctions/items/<int:item_id>/", views.AuctionItemView.as_view(), name="sync-auction-item"),
 ]

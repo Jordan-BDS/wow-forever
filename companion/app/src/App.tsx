@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { api, type AppState, type PullOutcome, type SyncOutcome } from "./api";
+import { api, type AppState, type AuctionOutcome, type PullOutcome, type SyncOutcome } from "./api";
 
 export function App() {
   const [state, setState] = useState<AppState | null>(null);
@@ -14,6 +14,7 @@ export function App() {
     const unlisteners = [
       api.onSync((outcomes) => setState((s) => (s ? { ...s, last_sync: outcomes, last_sync_at: Math.floor(Date.now() / 1000) } : s))),
       api.onPull((outcome) => setState((s) => (s ? { ...s, last_pull: outcome, last_pull_at: Math.floor(Date.now() / 1000) } : s))),
+      api.onAuctions((outcomes) => setState((s) => (s ? { ...s, last_auctions: outcomes } : s))),
       api.onUpdateAvailable((version) => setUpdating(version)),
       api.onUpdateFailed((e) => {
         setUpdating(null);
@@ -159,6 +160,25 @@ function OutcomeLine({ o }: { o: SyncOutcome }) {
   return <li><span className="muted">{o.account} : rien de nouveau</span></li>;
 }
 
+function AuctionLine({ o }: { o: AuctionOutcome }) {
+  switch (o.kind) {
+    case "sent":
+      return (
+        <li>
+          <span className="ok">{o.house}</span> : scan de {new Date(o.scanned_at * 1000).toLocaleString()} envoyé ({o.items} objets)
+        </li>
+      );
+    case "failed":
+      return <li><span className="ko">Envoi impossible</span> : {o.error}</li>;
+    case "duplicate":
+      return <li><span className="muted">{o.house} : scan déjà reçu par le site</span></li>;
+    case "unchanged":
+      return <li><span className="muted">{o.house} : pas de nouveau scan</span></li>;
+    case "not_allowed":
+      return null;
+  }
+}
+
 function pullText(o: PullOutcome): string {
   switch (o.kind) {
     case "completed":
@@ -223,6 +243,19 @@ function StatusView({ state, onChange, onError }: { state: AppState; onChange: (
           <button disabled={busy} onClick={() => run(api.pullNow)}>Compléter depuis le site</button>
         </div>
       </section>
+
+      {state.last_auctions && state.last_auctions.some((o) => o.kind !== "not_allowed") && (
+        <section className="card">
+          <h2>Hôtel des ventes</h2>
+          <p className="muted">
+            Chaque scan complet fait avec NaowhForever part au site à la déconnexion ou au /reload suivant.
+          </p>
+          <ul className="plain">{state.last_auctions.map((o, i) => <AuctionLine key={i} o={o} />)}</ul>
+          <div className="row">
+            <button onClick={() => api.openSite("/hv")}>Voir les prix sur le site</button>
+          </div>
+        </section>
+      )}
 
       <section className="card">
         <h2>Addon</h2>
