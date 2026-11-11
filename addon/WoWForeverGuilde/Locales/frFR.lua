@@ -57,6 +57,7 @@ ns.L = setmetatable({
   KILL_FOOTER = "%s abat %s · %s",
   KILL_FOOTER_PLURAL = "%s abattent %s · %s",
   AND = " et ",
+  SOMEONE = "un adversaire",
   BOUNTY_CHAT = "Prime : %s a abattu %s — %s. %d encaissés, abattu %d fois au total.",
   POINTS_SINGULAR = "%d point",
   POINTS_PLURAL = "%d points",

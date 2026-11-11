@@ -127,6 +127,8 @@ fn complete_entry(entry: &mut Table, state: &StateCharacter, seed_at: i64, now: 
 
 /// Le tableau Wanted de la guilde : le maximum de chaque valeur entre ce fichier et le site, la dernière position
 /// la plus récente (« vu pour la dernière fois ») ; rien n'est retiré, les victimes et heures de kill locales restent.
+/// La prime suit le dernier encaissement (`cashed`, heure du dernier kill) : celui du site plus récent que celui
+/// du fichier, la prime du site remplace ; plus ancien, celle du fichier reste (le site est en retard).
 fn complete_wanted(db: &mut Table, wanted: &[StateWanted], now: i64) {
     if wanted.is_empty() {
         return;
@@ -151,7 +153,17 @@ fn complete_wanted(db: &mut Table, wanted: &[StateWanted], now: i64) {
                 entry.set("class", Value::Str(class.to_string()));
             }
         }
-        let points = entry.get_num("points").unwrap_or(0.0).max(enemy.points as f64);
+        let local = entry.get_num("points").unwrap_or(0.0);
+        let local_cashed = entry.get_num("cashed").unwrap_or(0.0);
+        let cashed = enemy.cashed.unwrap_or(0) as f64;
+        let points = if cashed > local_cashed {
+            entry.set("cashed", Value::Num(cashed));
+            enemy.points as f64
+        } else if cashed == local_cashed {
+            local.max(enemy.points as f64)
+        } else {
+            local
+        };
         entry.set("points", Value::Num(points));
         let kills = entry.get_num("kills").unwrap_or(0.0).max(enemy.kills as f64);
         entry.set("kills", Value::Num(kills));
@@ -342,6 +354,46 @@ WoWForeverGuildeDB = {
         let voljin = wanted.get_table("vol'jin").unwrap();
         assert_eq!((voljin.get_num("points"), voljin.get_str("name")), (Some(1.0), Some("Vol'jin")));
         assert!(voljin.get("last").is_none() && voljin.get_table("victims").is_some());
+    }
+
+    #[test]
+    fn a_cashed_bounty_follows_the_latest_kill() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("WoWForeverGuilde.lua");
+        let existing = EXISTING.replace(
+            "\t[\"characters\"] = {",
+            "\t[\"wanted\"] = {\n\t\t[\"garrosh hurlenfer\"] = {\n\t\t\t[\"name\"] = \"Garrosh Hurlenfer\",\n\t\t\t[\"points\"] = 5,\n\t\t\t[\"kills\"] = 0,\n\t\t},\n\t\t[\"vol'jin\"] = {\n\t\t\t[\"name\"] = \"Vol'jin\",\n\t\t\t[\"points\"] = 0,\n\t\t\t[\"kills\"] = 1,\n\t\t\t[\"cashed\"] = 1764000900,\n\t\t},\n\t},\n\t[\"characters\"] = {",
+        );
+        assert_ne!(existing, EXISTING);
+        std::fs::write(&path, existing).unwrap();
+        let mut state = state();
+        // Garrosh abattu depuis (le site le sait, pas ce fichier) ; pour Vol'jin, c'est le site qui est en retard.
+        state.wanted = serde_json::from_value(serde_json::json!([
+            { "name": "Garrosh Hurlenfer", "class": "WARRIOR", "points": 1, "kills": 1, "cashed": 1764000700, "last_t": 1764000800 },
+            { "name": "Vol'jin", "class": "SHAMAN", "points": 4, "kills": 0, "cashed": null, "last_t": 1764000100 }
+        ]))
+        .unwrap();
+        complete_file(&path, &state, 1764200001).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let assignments = parse_file(&text).unwrap();
+        let Value::Table(db) = &assignments.iter().find(|(n, _)| n == DB_NAME).unwrap().1 else {
+            panic!("pas une table");
+        };
+        let wanted = db.get_table("wanted").unwrap();
+        let garrosh = wanted.get_table("garrosh hurlenfer").unwrap();
+        assert_eq!(
+            (
+                garrosh.get_num("points"),
+                garrosh.get_num("cashed"),
+                garrosh.get_num("kills")
+            ),
+            (Some(1.0), Some(1764000700.0), Some(1.0))
+        );
+        let voljin = wanted.get_table("vol'jin").unwrap();
+        assert_eq!(
+            (voljin.get_num("points"), voljin.get_num("cashed")),
+            (Some(0.0), Some(1764000900.0))
+        );
     }
 
     #[test]

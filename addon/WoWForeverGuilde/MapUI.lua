@@ -351,7 +351,7 @@ function MapUI.UpdateWanted(entry)
   if not lib or not ns.Wanted then return end
   local key = ns.Wanted.Key(entry.name)
   local now = ns.now()
-  if not (ns.db and ns.db.settings.wantedAlerts) or not ns.Wanted.Fresh(entry, now) then
+  if not (ns.db and ns.db.settings.wantedAlerts) or not ns.Wanted.Active(entry) or not ns.Wanted.Fresh(entry, now) then
     MapUI.RemoveWanted(key)
     return
   end

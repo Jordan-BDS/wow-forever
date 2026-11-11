@@ -141,6 +141,8 @@ local function openLine(char)
 end
 
 local emptyReported = {}
+-- Métiers sans recettes : leur fenêtre vide est normale (0.6.10 : la Pêche était notée comme une erreur).
+local NO_RECIPES = { [356] = true, [182] = true, [393] = true } -- Pêche, Herboristerie, Dépeçage
 
 --- Fenêtre d'un métier ouverte : liste des recettes apprises.
 local function scanOpen(char)
@@ -166,7 +168,7 @@ local function scanOpen(char)
   -- Une fenêtre ouverte sans aucune recette lue : soit un métier tout neuf, soit l'API ne répond pas comme on
   -- l'attend. On ne remplace pas une liste connue par rien, et on le note une fois par métier et par session.
   if #recipes == 0 and (prof.recipes and #prof.recipes > 0 or (prof.skill or 0) > 1) then
-    if not emptyReported[parent] then
+    if not emptyReported[parent] and not NO_RECIPES[parent] then
       emptyReported[parent] = true
       ns.Store.LogError("professions.recipes", string.format(ns.L.RECIPES_EMPTY, prof.name or tostring(id), api))
     end

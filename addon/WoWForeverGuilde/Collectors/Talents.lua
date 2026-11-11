@@ -88,9 +88,18 @@ local function read()
   return readTabs() or readTraits()
 end
 
+--- Une des lectures existe-t-elle sur ce client, qu'elle ait ou non quelque chose à dire ?
+local function hasApi()
+  if fn("GetNumTalentTabs") and fn("GetNumTalents") and fn("GetTalentInfo") then return true end
+  return (C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_Traits and C_Traits.GetConfigInfo) and true or false
+end
+
 local function scan(char)
   local result = read()
   if not result then
+    -- L'API est là mais sans configuration de talents (personnage sans talents, lecture trop tôt à la connexion) :
+    -- rien à lire pour l'instant, ce n'est pas une API manquante (0.6.10 : c'était noté comme une erreur).
+    if hasApi() then return end
     available = false
     if not reported then
       reported = true

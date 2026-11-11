@@ -89,7 +89,8 @@ seul. Cahier des charges, étape 11.
   messages addon dans le canal de guilde, jamais hors du jeu. Avec : points sur la minimap,
   liste « Guilde en jeu » par zone (`/mf qui`, roster + positions), recherche de groupe (`/mf lfg texte`) et appel à
   l'aide manuel (bouton ou `/mf sos`, jamais automatique).
-- **Wanted** : un joueur adverse qui tue un membre prend un point de prime, jamais remis à zéro ; l'avis de décès
+- **Wanted** : un joueur adverse qui tue un membre prend un point de prime, encaissé et remis à zéro quand
+  la guilde l'abat (il quitte le tableau jusqu'à sa prochaine victime) ; l'avis de décès
   porte la prime, une tête de mort rouge marque 5 min sur la carte l'endroit où il a frappé, et `/mf wanted` liste les
   têtes mises à prix. Quand un membre (ou son groupe) abat un recherché, lu dans le message de victoire honorable,
   tout le monde a le toast « Prime encaissée » et la tête de mort se déplace ; à la connexion, un guildien transmet

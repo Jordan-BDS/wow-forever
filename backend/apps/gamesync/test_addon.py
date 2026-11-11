@@ -518,6 +518,7 @@ class TestSession:
     def test_no_talent_api_is_reported_once_and_shown_as_unavailable(self):
         lua = boot()
         lua.execute("GetNumTalentTabs, GetNumTalents, GetTalentInfo, GetTalentTabInfo = nil, nil, nil, nil")
+        lua.execute("C_ClassTalents, C_Traits = nil, nil")
         login(lua)
         g = lua.globals()
         g._FIRE("CHARACTER_POINTS_CHANGED")
@@ -528,6 +529,33 @@ class TestSession:
         statuses = {d.name: d.status(g._NS.char) for d in g._NS.collectors.values() if d.name == "talents"}
         assert "Indisponible" in statuses["talents"]
         assert decode_export(logout_code(lua))["characters"][0].get("talents") in (None, {})
+
+    def test_traits_without_a_talent_config_are_not_an_error(self):
+        # L'API des traits existe mais le personnage n'a pas (encore) de configuration : rien à lire, rien à noter.
+        lua = boot()
+        lua.execute("GetNumTalentTabs, GetNumTalents, GetTalentInfo, GetTalentTabInfo = nil, nil, nil, nil")
+        login(lua)
+        g = lua.globals()
+        g._FIRE("CHARACTER_POINTS_CHANGED")
+        g._ADVANCE(2)
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+        statuses = {d.name: d.status(g._NS.char) for d in g._NS.collectors.values() if d.name == "talents"}
+        assert "Indisponible" not in statuses["talents"]
+
+    def test_empty_fishing_window_is_not_an_error(self):
+        lua = boot()
+        lua.execute(
+            "_PROFESSIONS[4] = { name = 'Pêche', skill = 150, max = 225, line = 356 }; _PROFESSION_SLOTS[4] = 4"
+        )
+        login(lua)
+        g = lua.globals()
+        lua.execute(
+            "_OPEN_TRADESKILL = { professionID = 356, professionName = 'Pêche', skillLevel = 150,"
+            " maxSkillLevel = 225, recipes = {} }"
+        )
+        g._FIRE("TRADE_SKILL_SHOW")
+        g._ADVANCE(2)
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_professions_are_reported_under_their_parent_skill_line(self):
         lua = boot()
@@ -924,6 +952,17 @@ JAINA = "P\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\t60\t1429\t0.6100\t0.
 
 def receive(lua: LuaRuntime, line: str, sender: str = "Jaina-Forever") -> None:
     lua.globals()._FIRE("CHAT_MSG_ADDON", "WFG", line, "GUILD", sender)
+
+
+def garrosh_strikes_again(lua: LuaRuntime) -> None:
+    """Garrosh tue Uther maintenant : une prime encaissée retombe à zéro, il lui faut une nouvelle victime."""
+    now = lua.globals()._CLOCK.now
+    receive(
+        lua,
+        f"D\t1\tPlayer-1-00000UTH\tUther\tLumière\tPALADIN\t60\tGarrosh Hurlenfer\tDurotar\t\t{now}"
+        "\t1\tWARRIOR\t1411\t0.4000\t0.6000",
+        "Uther-Forever",
+    )
 
 
 class TestPositions:
@@ -1877,6 +1916,7 @@ class TestWantedKills:
         )
         # Forme inconnue : le seul recherché nommé compte ; nommé par son prénom aussi ; un inconnu, non.
         g._ADVANCE(61)
+        garrosh_strikes_again(lua)
         g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", "Honneur : Garrosh Hurlenfer tombe sous vos coups (+14).")
         assert (entry.kills, char.counters.pk) == (2, 3)
         assert g._NS.Wanted.HonorSource().endswith(
@@ -1917,6 +1957,7 @@ class TestWantedKills:
         )
         # Message et compteur pour le même kill : une fois, dans les deux ordres.
         g._ADVANCE(61)
+        garrosh_strikes_again(lua)
         g._FIRE(
             "CHAT_MSG_COMBAT_HONOR_GAIN",
             "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
@@ -1926,6 +1967,7 @@ class TestWantedKills:
         g._ADVANCE(3)
         assert (entry.kills, char.counters.pk) == (2, 2)
         g._ADVANCE(61)
+        garrosh_strikes_again(lua)
         lua.execute("_HK = 2343")
         g._FIRE("PLAYER_PVP_KILLS_CHANGED")
         g._ADVANCE(1)
@@ -2002,6 +2044,7 @@ class TestWantedKills:
         assert (entry.kills, char.counters.pk) == (1, 1)
         # Message pendant la fenêtre du cadavre : le message compte, le cadavre se tait.
         g._ADVANCE(120)
+        garrosh_strikes_again(lua)
         lua.execute(
             "_TARGET = { name = 'Garrosh Hurlenfer', class = 'WARRIOR', hostile = true, player = true }"
         )
@@ -2243,6 +2286,75 @@ class TestWantedKills:
         (entry,) = list(g.WoWForeverGuildeDB.errors.values())
         assert entry.where == "vh" and "kill « Sylvanas » : popup, H accepté" in entry.error
 
+    def test_a_kill_the_game_does_not_name_is_announced_and_named_afterwards(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+        char = g._NS.char
+        # Forever : « Vous avez reçu 5 points d'honneur. », sans nom, et je survole un coéquipier mort dans les
+        # cadres de groupe : il n'est pas la victime. Le kill s'annonce quand même, « un adversaire ».
+        lua.execute(
+            "_UNITS.mouseover = { name = 'Morgul', class = 'MAGE', hostile = false, player = true, dead = true }; _HK = 2341"
+        )
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", "Vous avez reçu 5 points d’honneur.")
+        g._ADVANCE(3)
+        toast = g.WoWForeverGuildeDeath
+        assert toast.shown is True and "Victoire honorable" in toast.header.text
+        assert toast.footer.text == (
+            "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffun adversaire|r · Forêt d'Elwynn"
+        )
+        assert "Morgul" not in toast.text.text and "{" not in toast.text.text
+        (h,) = wanted_sent(g, "H")
+        kill = g._CLOCK.now
+        assert h.split("\t")[5:7] == ["", str(kill)] and char.counters.pk == 1
+        assert "mouseover joueur mort allié" in g._NS.Wanted.KillLog()
+        # Après le combat, son cadavre sous ma cible donne le nom : le même kill (pas un second), le popup encore
+        # à l'écran se complète et le « H » repart avec le nom et la même heure de kill.
+        lua.execute("_UNITS.mouseover = nil")
+        lua.execute("_TARGET = { name = 'Garrosh', class = 'WARRIOR', hostile = true, player = true }")
+        g._FIRE("PLAYER_TARGET_CHANGED")
+        g._ADVANCE(2)
+        lua.execute("_TARGET.dead = true")
+        g._FIRE("UNIT_HEALTH", "target")
+        g._ADVANCE(3)
+        assert char.counters.pk == 1
+        assert (
+            toast.footer.text
+            == "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffGarrosh|r · Forêt d'Elwynn"
+        )
+        sent = wanted_sent(g, "H")
+        assert len(sent) == 2 and sent[1].split("\t")[5:7] == ["Garrosh", str(kill)]
+        # Chez un guildien : un « H » sans nom fait un popup ; celui d'un coéquipier du chasseur s'y ajoute ; le nom
+        # qui suit (même chasseur, même heure de kill) le complète sans en refaire un.
+        g._ADVANCE(120)
+        t = g._CLOCK.now
+        receive(lua, f"H\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\t\t{t}\tDurotar\t\t")
+        assert toast.footer.text == "|cff69ccf0Jaina Portvaillant|r abat |cffffffffun adversaire|r · Durotar"
+        g._ADVANCE(1)
+        receive(
+            lua, f"H\t1\tPlayer-1-00000UTH\tUther Lumière\tPALADIN\t\t{t + 1}\tDurotar\t\t", "Uther-Forever"
+        )
+        assert toast.footer.text == (
+            "|cff69ccf0Jaina Portvaillant|r et |cffffffffUther Lumière|r abattent |cffffffffun adversaire|r · Durotar"
+        )
+        g._ADVANCE(5)
+        receive(lua, f"H\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\tNazgrel\t{t}\tDurotar\t\tSHAMAN")
+        assert toast.footer.text == (
+            "|cff69ccf0Jaina Portvaillant|r et |cffffffffUther Lumière|r abattent |cff0070ddNazgrel|r · Durotar"
+        )
+        # Le popup a fait son temps : le nom qui arrive trop tard ne le rejoue pas.
+        g._ADVANCE(120)
+        t = g._CLOCK.now
+        receive(lua, f"H\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\t\t{t}\tDurotar\t\t")
+        g._ADVANCE(20)
+        g._ADVANCE(20)
+        assert toast.shown is False
+        receive(lua, f"H\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\tRexxar\t{t}\tDurotar\t\t")
+        assert toast.shown is False
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_a_kill_announcement_is_retried_when_refused_and_repeated_out_of_combat(self):
         lua = boot()
         g = lua.globals()
@@ -2315,13 +2427,22 @@ class TestWantedKills:
         )
         assert entry.kills == 1 and (entry.last.kind, entry.last.by) == ("kill", "Uther Lumière")
         assert toast.shown is True and "Prime encaissée" in toast.header.text
-        # Une mort PvP garde son avis « WANTED ».
+        # La prime est encaissée : il quitte le tableau, et un second kill n'est plus qu'une victoire honorable.
+        assert entry.points == 0 and list(g._NS.Wanted.Sorted().values()) == []
+        g._ADVANCE(120)
+        receive(
+            lua,
+            f"H	1	Player-1-00000UTH	Uther Lumière	PALADIN	Garrosh	{g._CLOCK.now}	Durotar		WARRIOR",
+        )
+        assert entry.kills == 1 and "Victoire honorable" in toast.header.text
+        # Il retue un membre : de nouveau recherché, la prime repart de 1. Une mort PvP garde son avis « WANTED ».
         g._ADVANCE(120)
         receive(
             lua,
             f"D	1	Player-1-00000UTH	Uther	Lumière	PALADIN	60	Garrosh Hurlenfer	Durotar		{g._CLOCK.now}	1	WARRIOR	1411	0.4000	0.6000",
         )
-        assert "WANTED" in toast.header.text and entry.points == 2
+        assert "WANTED" in toast.header.text and entry.points == 1
+        assert [e.name for e in g._NS.Wanted.Sorted().values()] == ["Garrosh Hurlenfer"]
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_honorable_kill_of_a_wanted_player_cashes_the_bounty(self):
@@ -2342,7 +2463,7 @@ class TestWantedKills:
             "CHAT_MSG_COMBAT_HONOR_GAIN",
             "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
         )
-        assert (entry.kills, entry.points) == (1, 1)
+        assert (entry.kills, entry.points, entry.cashed) == (1, 0, g._CLOCK.now)  # encaissée : remise à zéro
         assert (entry.last.kind, entry.last.by, entry.last.map, entry.last.x) == (
             "kill",
             "Thrall Fils-de-Durotan",
@@ -2376,16 +2497,8 @@ class TestWantedKills:
             == "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffGarrosh Hurlenfer|r · 1 point · Forêt d'Elwynn"
         )
         assert any("Prime :" in m and "a abattu" in m for m in list(g._CHAT.values()))
-        # La tête de mort suit : là où il est tombé.
-        ((icon, pin),) = list(g._PINS.added.items())
-        assert (pin.map, pin.x, pin.y) == (1429, 0.3, 0.3)
-        g._NS.MapUI.ShowWantedTooltip(entry, icon)
-        lines = list(g.GameTooltip.lines.values())
-        assert lines[1:3] == ["WARRIOR · prime 1", "abattu 1 fois par la guilde"]
-        assert (
-            lines[3] == "abattu par |cff0070ddThrall Fils-de-Durotan|r ici · à l'instant"
-            and lines[5] == "Victimes : Jaina"
-        )
+        # Prime encaissée : sa tête de mort quitte la carte et il quitte le tableau, jusqu'à sa prochaine victime.
+        assert list(g._PINS.added.items()) == [] and list(g._NS.Wanted.Sorted().values()) == []
         # Crédit de groupe : l'écho de mon « K » et celui d'un coéquipier pour le même kill ne comptent pas deux fois.
         receive(lua, k, "Thrall-Forever")
         receive(
@@ -2402,7 +2515,7 @@ class TestWantedKills:
         assert (char.counters.pk, char.counters.bounty) == (2, 1)
         assert toast.shown is True and "Victoire honorable" in toast.header.text
         assert len(wanted_sent(g, "K")) == 1 and "sylvanas" not in dict(g.WoWForeverGuildeDB.wanted)
-        # Un « K » d'un guildien pour un ennemi que je ne connaissais pas : créé avec sa prime, toast.
+        # Un « K » d'un guildien pour un ennemi que je ne connaissais pas : créé, prime annoncée puis encaissée.
         toast.shown = False  # le popup précédent a fait son temps
         receive(
             lua,
@@ -2411,7 +2524,7 @@ class TestWantedKills:
         )
         voljin = g.WoWForeverGuildeDB.wanted["vol'jin"]
         assert (voljin.points, voljin.kills, voljin["class"], voljin.last.by) == (
-            3,
+            0,
             1,
             "SHAMAN",
             "Uther Lumière",
@@ -2431,6 +2544,50 @@ class TestWantedKills:
             ("Garrosh", 1),
             ("Sylvanas", 0),
         ]
+
+    def test_a_cashed_bounty_is_shared_by_the_group_and_not_revived_by_a_late_table(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        garrosh_strikes_again(lua)
+        entry = g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"]
+        char = g._NS.char
+        g._ADVANCE(120)
+        # Mon coéquipier l'annonce le premier : la prime est encaissée chez moi aussi…
+        killed = g._CLOCK.now
+        receive(
+            lua,
+            f"K\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\tGarrosh Hurlenfer\t1\t1\t{killed}"
+            "\t1429\t0.3000\t0.3000\tForêt d'Elwynn\t\tWARRIOR",
+        )
+        assert (entry.points, entry.kills, entry.cashed) == (0, 1, killed)
+        # … et mon message de victoire honorable pour ce même kill me la crédite (crédit de groupe), sans « K ».
+        g._ADVANCE(2)
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
+        )
+        assert (entry.kills, char.counters.pk, char.counters.bounty) == (1, 1, 1)
+        assert [e for e in char.events.values() if e.k == "pk"][-1].prime == 1
+        assert wanted_sent(g, "K") == []
+        # Un tableau en retard (ou un addon d'avant la 0.6.10, sans heure d'encaissement) ne ressuscite pas la prime.
+        item = f"Garrosh Hurlenfer|WARRIOR|5|0|{killed}|1411|0.4000|0.6000"
+        receive(lua, f"W\t1\t{item}")
+        receive(lua, f"W\t1\t{item}|{killed - 3600}")
+        assert entry.points == 0 and list(g._NS.Wanted.Sorted().values()) == []
+        # Un tableau plus à jour que le mien (encaissé plus tard, deux morts depuis) est suivi.
+        receive(lua, f"W\t1\tGarrosh Hurlenfer|WARRIOR|2|2|{killed + 900}|1411|0.4000|0.6000|{killed + 600}")
+        assert (entry.points, entry.kills, entry.cashed) == (2, 2, killed + 600)
+        # Mon résumé porte l'heure d'encaissement, et les primes encaissées (zéro) pour les autres tableaux.
+        receive(lua, f"W\t1\tVol'jin|SHAMAN|0|1|{killed}||||{killed}")
+        lines = list(g._NS.Wanted.EncodeDigest().values())
+        assert len(lines) == 1 and lines[0].split("\t")[2:] == [
+            f"Garrosh Hurlenfer|WARRIOR|2|2|{killed + 900}|1411|0.4000|0.6000|{killed + 600}",
+            f"Vol'jin|SHAMAN|0|1|{killed}||||{killed}",
+        ]
+        assert [e.name for e in g._NS.Wanted.Sorted().values()] == ["Garrosh Hurlenfer"]
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_handshake_shares_the_table_with_a_member_who_logs_in(self):
         lua = boot()

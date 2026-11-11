@@ -46,8 +46,9 @@ export function WantedPage() {
     <>
       <PageTitle>Wanted — têtes mises à prix</PageTitle>
       <p className="mb-4 text-sm text-muted">
-        Un joueur adverse qui tue un membre prend un point de prime, jamais remis à zéro. L'abattre rapporte
-        sa prime du moment au chasseur et à tout son groupe. {periodLabel}.
+        Un joueur adverse qui tue un membre prend un point de prime. L'abattre rapporte sa prime du moment au
+        chasseur et à tout son groupe : elle retombe à zéro, jusqu'à ce qu'il tue de nouveau un membre.{" "}
+        {periodLabel}.
       </p>
 
       <div className="mb-6 flex flex-wrap gap-1.5">

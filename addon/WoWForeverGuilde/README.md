@@ -46,7 +46,8 @@ transporte le code jusqu'au site.
   vue chez un guildien donne une ligne de chat puis, hors combat et hors instance, le popup « Recharger (/reload) »,
   une fois par version et par session.
 - `Wanted.lua`, `WantedUI.lua` : têtes mises à prix (lot 1, 0.5.0). Un joueur adverse qui tue un membre prend un point
-  de prime, jamais remis à zéro ; le tableau (`db.wanted`, niveau compte) se nourrit des messages « D » reçus, la
+  de prime ; abattu par la guilde, sa prime est encaissée et retombe à zéro, il quitte le tableau jusqu'à sa
+  prochaine victime (0.6.10 ; avant, jamais remise à zéro) ; le tableau (`db.wanted`, niveau compte) se nourrit des messages « D » reçus, la
   sienne comprise (l'écho du jeu est reconnu comme doublon : même victime, même heure). La ligne « D » porte depuis la
   0.5.0 cinq champs de plus, ignorés par les anciennes versions : tueur joueur, sa classe, carte, x, y du mort.
   Joueur ou créature (`UnitIsPlayer`, secret en combat) se lit sur la cible ou le souvenir qui porte le nom du tueur,

@@ -1,5 +1,8 @@
 -- Wanted : têtes mises à prix. Un joueur adverse qui tue un membre (mort annoncée par message « D » avec « tueur
--- joueur ») prend un point de prime, jamais remis à zéro (décision du 9 novembre 2026). Le tableau vit au niveau du
+-- joueur ») prend un point de prime. Abattu par la guilde, sa prime est encaissée et retombe à zéro : il quitte le tableau
+-- jusqu'à ce qu'il tue de nouveau un membre (décision du 11 novembre 2026, 0.6.10 ; avant, jamais remise à zéro).
+-- L'heure du dernier encaissement (`cashed`) voyage avec les « K », les résumés « W » et le site : une prime
+-- encaissée ne revient pas par un tableau en retard. Le tableau vit au niveau du
 -- compte (`db.wanted`, clé = nom en minuscules) : il se remplit avec les morts reçues pendant qu'on est connecté, la
 -- sienne comprise ; l'écho de son propre message est reconnu comme un doublon (même victime, même heure). La
 -- dernière position connue d'un ennemi est celle de sa victime au moment de mourir, ou celle du chasseur qui l'abat.
@@ -51,6 +54,24 @@ local function table_()
   return db.wanted
 end
 
+--- Recherché en ce moment : une prime à encaisser. Un ennemi encaissé reste en mémoire (heure d'encaissement,
+--- kills) mais n'est plus montré tant qu'il n'a pas retué un membre.
+function Wanted.Active(entry)
+  return entry ~= nil and (entry.points or 0) > 0
+end
+
+--- Prime encaissée à l'heure `t` : il ne reste que les morts connues d'après. Un kill plus ancien que le dernier
+--- encaissement connu ne change rien.
+local function cash(entry, t)
+  if t <= (entry.cashed or 0) then return end
+  entry.cashed = t
+  local points = 0
+  for _, victim in ipairs(entry.victims or {}) do
+    if (victim.t or 0) > t then points = points + 1 end
+  end
+  entry.points = points
+end
+
 function Wanted.Get(name)
   local t = table_()
   return t and t[Wanted.Key(name)] or nil
@@ -65,7 +86,9 @@ function Wanted.Match(name)
   if not first then return nil end
   local found = nil
   for key, entry in pairs(table_() or {}) do
-    if key:match("^(%S+)") == first then
+    -- Parmi les recherchés du moment (ou tout juste encaissés : le kill d'un coéquipier), pas les anciens.
+    local current = Wanted.Active(entry) or ns.now() - (entry.cashed or 0) < ns.Data.WANTED_KILL_DEDUPE
+    if current and key:match("^(%S+)") == first then
       if found then return nil end -- deux homonymes : on ne tranche pas
       found = entry
     end
@@ -144,7 +167,7 @@ function Wanted.RecordDeath(info)
   for _, victim in ipairs(entry.victims) do
     if victim.guid == info.guid and victim.t == at then return entry, false end
   end
-  entry.points = (entry.points or 0) + 1
+  if at > (entry.cashed or 0) then entry.points = (entry.points or 0) + 1 end -- pas une mort d'avant l'encaissement
   if info.kclass and info.kclass ~= "" then entry.class = info.kclass end
   table.insert(entry.victims, { guid = info.guid, name = info.name, class = info.class, t = at })
   while #entry.victims > ns.Data.WANTED_VICTIMS do table.remove(entry.victims, 1) end
@@ -166,6 +189,7 @@ end
 
 local lastHonor = nil -- /mf api : dernier message de victoire honorable { t, text, name, how }
 local lastKillAt = 0 -- heure du dernier kill compté, toutes pistes : message, compteur, cadavre
+local nameless = nil -- heure de mon dernier kill annoncé sans nom, tant qu'aucun nom ne l'a repris
 local recentKills = {} -- { name, t } des derniers kills comptés : un même adversaire ne compte pas deux fois d'un coup
 local killsBaseline = nil -- victoires honorables du personnage à la dernière lecture (GetPVPLifetimeStats)
 local pendingCorpse = nil -- cadavre ciblé en attente de la fenêtre (un seul à la fois)
@@ -314,22 +338,66 @@ local function lifetimeKills()
   return ok and tonumber(ns.plain(hk)) or nil
 end
 
---- Joueur adverse mort que je regarde (cible, survol, focus) : son nom s'il est lisible, "" sinon.
+--- Valeur lue sous protection : nil si l'appel échoue ou si le jeu la garde secrète (en combat).
+local function read(fn, ...)
+  if type(fn) ~= "function" then return nil end
+  local ok, value = pcall(fn, ...)
+  if not ok then return nil end
+  return ns.plain(value)
+end
+
+--- Les unités où chercher le joueur abattu : les miennes (cible, survol, focus, cible de la cible), les plaques de
+--- nom, et les cibles de mes coéquipiers (ils regardent souvent celui que je ne cible pas).
+local function victimUnits()
+  local units = { "target", "mouseover", "focus", "targettarget" }
+  local plates = read(C_NamePlate and C_NamePlate.GetNamePlates)
+  if type(plates) == "table" then
+    for _, plate in ipairs(plates) do
+      local token = type(plate) == "table" and ns.plain(plate.namePlateUnitToken)
+      if type(token) == "string" then units[#units + 1] = token end
+    end
+  end
+  local raid = tonumber(read(GetNumGroupMembers)) or 0
+  if read(IsInRaid) == true then
+    for i = 1, math.min(raid, 40) do units[#units + 1] = "raid" .. i .. "target" end
+  else
+    for i = 1, 4 do units[#units + 1] = "party" .. i .. "target" end
+  end
+  return units
+end
+
+--- Joueur adverse mort autour de moi : son nom s'il est lisible, "" sinon, puis ce qu'on a lu de la cible, du
+--- survol et du focus (pour le journal des kills). Jamais un allié (0.6.10 : un coéquipier mort survolé dans les
+--- cadres de groupe passait pour la victime) : ami, membre du groupe, du raid ou de la guilde, ou inattaquable
+--- sont écartés ; quand le jeu ne dit ni ami ni attaquable (valeurs secrètes), il faut l'avoir lu hostile dans
+--- les SEEN_PLAYERS_TTL dernières secondes. Un nom secret est retrouvé par l'identifiant de l'unité s'il est lisible.
 local function deadPlayerAround()
-  for _, unit in ipairs({ "target", "mouseover", "focus" }) do
-    local ok, exists = pcall(UnitExists or function() end, unit)
-    if ok and ns.plain(exists) then
-      local okPlayer, player = pcall(UnitIsPlayer or function() end, unit)
-      local okDead, dead = pcall(UnitIsDeadOrGhost or function() end, unit)
-      local okFriend, friend = pcall(UnitIsFriend or function() end, "player", unit)
-      if okPlayer and ns.plain(player) == true and okDead and ns.plain(dead) == true and not (okFriend and ns.plain(friend) == true) then
-        local okName, name = pcall(UnitName or function() end, unit)
-        name = okName and ns.plain(name) or nil
-        if type(name) == "string" and name ~= "" then return name end
+  local found, probe = "", {}
+  for i, unit in ipairs(victimUnits()) do
+    if read(UnitExists, unit) then
+      local player, dead = read(UnitIsPlayer, unit), read(UnitIsDeadOrGhost, unit)
+      local friend, attackable = read(UnitIsFriend, "player", unit), read(UnitCanAttack, "player", unit)
+      local ally = friend == true or attackable == false or read(UnitInParty, unit) == true
+        or read(UnitInRaid, unit) ~= nil and read(UnitInRaid, unit) ~= false or read(UnitIsInMyGuild, unit) == true
+        or read(UnitIsUnit, unit, "player") == true
+      local name, guid = read(UnitName, unit), read(UnitGUID, unit)
+      if type(name) ~= "string" or name == "" then name = nil end
+      if i <= 3 then
+        probe[#probe + 1] = string.format("%s %s%s%s%s", unit, player == true and "joueur" or (player == nil and "?" or "créature"),
+          dead == true and " mort" or (dead == nil and " ?" or " vivant"), ally and " allié" or ((friend == nil and attackable == nil) and " camp ?" or " hostile"),
+          name and "" or " nom secret")
+      end
+      if found == "" and player == true and dead == true and not ally then
+        local known = ns.SeenPlayer and ns.SeenPlayer(name, type(guid) == "string" and guid or nil)
+        if name and (attackable == true or friend == false or known) then
+          found = name
+        elseif not name and known then
+          found = known
+        end
       end
     end
   end
-  return ""
+  return found, table.concat(probe, ", ")
 end
 
 --- Le compteur de victoires honorables du personnage a bougé (PLAYER_PVP_KILLS_CHANGED) : filet quand le message
@@ -353,14 +421,14 @@ function Wanted.OnKillsChanged(char)
     ns.Trace("victoires honorables %d → %d : kill déjà lu dans le message", before, hk)
     return
   end
-  local victim = deadPlayerAround()
+  local victim, probe = deadPlayerAround()
   C_Timer.After(ns.Data.WANTED_KILL_WINDOW, function()
     if lastKillAt >= at then return end -- le message est arrivé entre-temps
     local unread = lastHonor and at - lastHonor.t < ns.Data.WANTED_KILL_WINDOW and lastHonor.text or "(aucun message)"
     lastHonor = { t = ns.now(), text = string.format("%s, victoires honorables %d → %d", unread, before, hk),
       name = victim ~= "" and victim or nil, how = "compteur" }
     ns.Trace("victoires honorables %d → %d sans message reconnu : kill de « %s »", before, hk, victim)
-    logKill("compteur %d → %d sans message : « %s »", before, hk, victim)
+    logKill("compteur %d → %d : « %s » [%s]", before, hk, victim, probe ~= "" and probe or "rien regardé")
     if char then ns.Safe("wanted.kills", Wanted.RecordKill, char, victim, nil, ns.InBattleground()) end
   end)
 end
@@ -442,8 +510,10 @@ local function killSeen(entry, t)
   return false
 end
 
-local function markKill(entry, t, by, byClass, map, x, y, zone, sub)
+local function markKill(entry, t, by, byClass, map, x, y, zone, sub, prime)
   entry.kills = (entry.kills or 0) + 1
+  entry.cashed_prime = prime or 0 -- ce que ce kill rapporte : mes coéquipiers du même kill encaissent autant
+  cash(entry, t)
   table.insert(entry.kill_times, t)
   while #entry.kill_times > ns.Data.WANTED_VICTIMS do table.remove(entry.kill_times, 1) end
   entry.last = { kind = "kill", t = t, map = map, x = x, y = y, zone = zone or "", sub = sub or "", by = by, byClass = byClass }
@@ -455,11 +525,11 @@ local function field(s)
 end
 
 --- Ligne « K » : j'ai abattu un recherché.
-function Wanted.EncodeKill(entry, t, map, x, y, zone, sub)
+function Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime)
   local c = ns.char or {}
   local fields = {
-    "K", "1", field(c.guid), field(myName()), field(c.class), field(entry.name), tostring(entry.points or 0),
-    tostring(entry.kills or 0), tostring(t), map and tostring(map) or "", x and string.format("%.4f", x) or "",
+    "K", "1", field(c.guid), field(myName()), field(c.class), field(entry.name),
+    tostring(prime or entry.points or 0), tostring(entry.kills or 0), tostring(t), map and tostring(map) or "", x and string.format("%.4f", x) or "",
     y and string.format("%.4f", y) or "", field(zone), field(sub), field(entry.class),
   }
   local line = table.concat(fields, "\t")
@@ -543,21 +613,26 @@ local announced = {} -- { name, t, guid, killT } des kills déjà affichés (pri
 --- sa répétition hors combat), ou un popup pour cette victime depuis moins de WANTED_HONOR_DEDUPE s (le groupe
 --- annonce autant de fois qu'il a de chasseurs). Au-delà, c'est un nouveau kill : le même joueur retué 30 s plus
 --- tard a son popup (0.6.8 ; avant, rien pendant une minute).
---- Renvoie vrai, puis le popup encore dans sa fenêtre (nil pour une simple répétition) : un autre chasseur du
---- même kill s'y ajoute.
+--- Renvoie le kill déjà annoncé par ce chasseur (`guid`, `killT` : son écho, sa répétition, ou le nom qui arrive
+--- après coup) et le popup encore dans sa fenêtre pour cette victime (un autre chasseur du même kill s'y ajoute).
+--- Un kill sans nom (0.6.10 : sur Forever le jeu ne nomme pas le joueur abattu) va avec n'importe quel popup de
+--- la fenêtre, et un kill nommé avec un popup sans nom.
 local function announcedRecently(name, t, guid, killT)
-  local recent = nil
+  local same, recent = nil, nil
   for _, kill in ipairs(announced) do
-    if sameName(kill.name, name) then
-      if guid and guid ~= "" and kill.guid == guid and kill.killT == killT then return true, nil end
-      if math.abs(t - kill.t) < ns.Data.WANTED_HONOR_DEDUPE then recent = kill end
+    if guid and guid ~= "" and kill.guid == guid and kill.killT == killT then same = kill.primary or kill end
+    if math.abs(t - kill.t) < ns.Data.WANTED_HONOR_DEDUPE and not kill.primary
+      and (name == "" or kill.name == "" or sameName(kill.name, name)) then
+      recent = kill
     end
   end
-  return recent ~= nil, recent
+  return same, recent
 end
 
+local announcedCount = 0
 local function markAnnounced(name, t, guid, killT)
-  local kill = { name = name, t = t, guid = guid, killT = killT }
+  announcedCount = announcedCount + 1
+  local kill = { id = announcedCount, name = name, t = t, guid = guid, killT = killT }
   table.insert(announced, kill)
   while #announced > ns.Data.WANTED_VICTIMS do table.remove(announced, 1) end
   return kill
@@ -594,29 +669,40 @@ end
 --- identifient ses répétitions (retenus même pour un doublon : la répétition d'un coéquipier arrive plus tard).
 local function announceHonor(victim, victimClass, by, byClass, zone, sub, guid, killT)
   local t = ns.now()
-  local seen, popup = announcedRecently(victim, t, guid, killT)
-  if seen then
-    if not popup then return false end -- répétition d'un « H » déjà lu
-    markAnnounced(victim, t - ns.Data.WANTED_HONOR_DEDUPE, guid, killT) -- sans rallonger la fenêtre de la victime
-    -- Kill à plusieurs (0.6.8) : le chasseur s'ajoute au popup déjà affiché, qui se complète sur place.
-    local hunters = popup.hunters
-    if not hunters or #hunters >= ns.Data.WANTED_HUNTERS then return false end
-    for _, h in ipairs(hunters) do
-      if sameName(h.name, by) then return false end
+  local same, recent = announcedRecently(victim, t, guid, killT)
+  local popup = same or recent
+  if popup then
+    if not same then -- retenu sans rallonger la fenêtre de la victime : la répétition de ce chasseur sera reconnue
+      markAnnounced(victim, t - ns.Data.WANTED_HONOR_DEDUPE, guid, killT).primary = popup
     end
-    hunters[#hunters + 1] = { name = by, class = byClass }
-    if ns.db.settings.showDeaths and ns.UI and ns.UI.ShowKill then
-      local phrase = Wanted.KillPhrase(popup.name, Wanted.HunterNames(hunters), popup.place, popup.template)
-      ns.UI.ShowKill(popup.name, popup.class, hunters, phrase, popup.place)
+    local hunters, changed = popup.hunters, false
+    if not hunters then return false end -- une prime : rien à compléter
+    -- Le nom arrive après coup (un coéquipier ciblait la victime, ou son cadavre ciblé après le combat).
+    if popup.name == "" and victim ~= "" then
+      popup.name, popup.class, changed = victim, victimClass, true
+    end
+    -- Kill à plusieurs (0.6.8) : le chasseur s'ajoute au popup déjà affiché, qui se complète sur place.
+    local known = false
+    for _, h in ipairs(hunters) do known = known or sameName(h.name, by) end
+    if not known and #hunters < ns.Data.WANTED_HUNTERS then
+      hunters[#hunters + 1] = { name = by, class = byClass }
+      changed = true
+    end
+    if changed and ns.db.settings.showDeaths and ns.UI and ns.UI.ShowKill then
+      local shownName = popup.name ~= "" and popup.name or L.SOMEONE
+      local phrase = Wanted.KillPhrase(shownName, Wanted.HunterNames(hunters), popup.place, popup.template)
+      -- Hors de sa fenêtre, le popup a fait son temps : on le corrige s'il est encore là, sans le rejouer.
+      ns.UI.ShowKill(shownName, popup.class, hunters, phrase, popup.place, popup.id, popup ~= recent)
     end
     return false
   end
-  local popup = markAnnounced(victim, t, guid, killT)
+  popup = markAnnounced(victim, t, guid, killT)
   local place = zone ~= "" and zone or (sub ~= "" and sub or L.WHERE_UNKNOWN)
-  local phrase, template = Wanted.KillPhrase(victim, by, place)
+  local shownName = victim ~= "" and victim or L.SOMEONE
+  local phrase, template = Wanted.KillPhrase(shownName, by, place)
   popup.hunters, popup.class, popup.place, popup.template = { { name = by, class = byClass } }, victimClass, place, template
   if ns.db.settings.showDeaths and ns.UI and ns.UI.ShowKill then
-    ns.UI.ShowKill(victim, victimClass, popup.hunters, phrase, place)
+    ns.UI.ShowKill(shownName, victimClass, popup.hunters, phrase, place, popup.id)
   end
   return true
 end
@@ -633,7 +719,7 @@ end
 
 function Wanted.DecodeHonor(text)
   local f = split(text)
-  if f[1] ~= "H" or f[2] ~= "1" or #f < 7 or f[6] == "" then return nil end
+  if f[1] ~= "H" or f[2] ~= "1" or #f < 7 then return nil end -- victime vide : kill sans nom (0.6.10)
   return {
     guid = f[3], by = f[4], byClass = f[5], name = f[6], t = tonumber(f[7]) or ns.now(), zone = f[8] or "",
     sub = f[9] or "", class = f[10] or "",
@@ -675,62 +761,80 @@ function Wanted.RecordKill(char, name, t, battleground)
     logKill("kill « %s » : déjà compté", name)
     return nil
   end
-  local entry = (not battleground) and Wanted.Match(name) or nil
-  local prime = entry and entry.points or 0
+  local entry = (not battleground) and name ~= "" and Wanted.Match(name) or nil
+  -- Recherché : une prime à encaisser, ou ce même kill déjà encaissé par un coéquipier (crédit de groupe : j'encaisse
+  -- la même prime). Encaissé plus tôt et pas retombé sur un membre depuis : une victoire honorable ordinaire.
+  local seen = entry ~= nil and killSeen(entry, t)
+  if entry and not seen and not Wanted.Active(entry) then entry = nil end
+  local prime = entry and (seen and entry.cashed_prime or entry.points) or 0
   local map, x, y = here()
   x, y = round4(x), round4(y)
   local zone = (GetZoneText and ns.plain(GetZoneText())) or ""
   local sub = (GetSubZoneText and ns.plain(GetSubZoneText())) or ""
   if type(zone) ~= "string" then zone = "" end
   if type(sub) ~= "string" then sub = "" end
-  ns.Journal.Increment(char, "pk")
+  -- Le nom d'un kill déjà compté sans nom (0.6.10) : c'est le même kill, il ne compte pas une seconde fois ; son
+  -- popup et son « H » prennent le nom (même heure de kill, que les guildiens reconnaissent).
+  local adopted = nil
+  if name ~= "" and nameless and not battleground and t - nameless <= ns.Data.WANTED_NAMELESS_ADOPT then
+    adopted, nameless = nameless, nil
+    logKill("kill « %s » : c'est le kill sans nom d'il y a %d s", name, t - adopted)
+  end
+  if not adopted then
+    ns.Journal.Increment(char, "pk")
+    local event = { name = name, prime = prime, zone = zone }
+    if battleground then event.bg = true end
+    if map then event.map = map end
+    if x and y then event.x, event.y = x, y end
+    ns.Journal.Event(char, "pk", event, t)
+  end
   if prime > 0 then ns.Journal.Increment(char, "bounty", prime) end
-  local event = { name = name, prime = prime, zone = zone }
-  if battleground then event.bg = true end
-  if map then event.map = map end
-  if x and y then event.x, event.y = x, y end
-  ns.Journal.Event(char, "pk", event, t)
   lastKillAt = t
   table.insert(recentKills, { name = name, t = t })
   while #recentKills > ns.Data.WANTED_VICTIMS do table.remove(recentKills, 1) end
   if not entry then
     -- Pas recherché : victoire honorable annoncée à la guilde, sauf en champ de bataille et sans nom lisible.
-    if not battleground and name ~= "" then
-      local class = ns.SeenPlayerClass and ns.SeenPlayerClass(name) or ""
-      if announceHonor(name, class, myName(), char.class, zone, sub, char.guid, t) then
-        announceToGuild(Wanted.EncodeHonor(name, class, t, zone, sub))
-        logKill("kill « %s » : popup, H %s", name, lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
+    if not battleground then
+      -- Sans nom lisible (0.6.10) : annoncé quand même, « un adversaire » ; le nom suivra s'il se lit.
+      local class = name ~= "" and ns.SeenPlayerClass and ns.SeenPlayerClass(name) or ""
+      local killT = adopted or t
+      if name == "" then nameless = t end
+      local fresh = announceHonor(name, class, myName(), char.class, zone, sub, char.guid, killT)
+      if fresh or adopted then
+        announceToGuild(Wanted.EncodeHonor(name, class, killT, zone, sub))
+        logKill("kill « %s » : %s, H %s", name, fresh and "popup" or "popup complété",
+          lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
       else
         logKill("kill « %s » : popup déjà passé, pas de H", name)
       end
     else
-      logKill("kill « %s » : %s, ni popup ni H", name, battleground and "champ de bataille" or "sans nom")
+      logKill("kill « %s » : champ de bataille, ni popup ni H", name)
     end
     return nil
   end
-  if killSeen(entry, t) then
+  if seen then
     logKill("kill « %s » : recherché, déjà au tableau", name)
     return entry, false
   end
-  markKill(entry, t, myName(), char.class, map, x, y, zone, sub)
-  announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub))
+  markKill(entry, t, myName(), char.class, map, x, y, zone, sub, prime)
+  announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime))
   logKill("kill « %s » : prime, K %s", name, lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
   announceKill(entry, myName(), char.class, zone, sub, prime)
   return entry, true
 end
 
 --- Ligne « K » reçue d'un guildien : kill au tableau (dédoublonné : crédit de groupe, écho), ennemi créé au besoin
---- avec la prime annoncée (le tableau du chasseur peut être plus complet que le mien).
+--- (le tableau du chasseur peut être plus complet que le mien). La prime annoncée est encaissée : elle retombe à
+--- zéro chez moi aussi.
 function Wanted.RecordKillMessage(msg, sender)
   local entry = entryFor(msg.name, msg.t)
   if not entry then return nil end
   if msg.class ~= "" and not entry.class then entry.class = msg.class end
-  if (msg.points or 0) > (entry.points or 0) then entry.points = msg.points end
   if killSeen(entry, msg.t) then
     if (msg.kills or 0) > (entry.kills or 0) then entry.kills = msg.kills end
     return entry, false
   end
-  markKill(entry, msg.t, msg.by, msg.byClass, msg.map, msg.x, msg.y, msg.zone, msg.sub)
+  markKill(entry, msg.t, msg.by, msg.byClass, msg.map, msg.x, msg.y, msg.zone, msg.sub, msg.points or 0)
   if (msg.kills or 0) > (entry.kills or 0) then entry.kills = msg.kills end
   announceKill(entry, msg.by, msg.byClass, msg.zone, msg.sub, msg.points or 0)
   return entry, true
@@ -739,17 +843,18 @@ end
 -- --- poignée de main ----------------------------------------------------------------------------------------
 
 --- Résumé du tableau en lignes « W » de 255 octets au plus : W, 1, puis par ennemi
---- nom|classe|prime|kills|dernier t|carte|x|y, les primes les plus fortes d'abord, WANTED_DIGEST_MAX ennemis.
+--- nom|classe|prime|kills|dernier t|carte|x|y|encaissé, les primes les plus fortes d'abord, WANTED_DIGEST_MAX
+--- ennemis ; les primes encaissées (zéro) suivent, pour que les autres tableaux les remettent à zéro aussi.
 function Wanted.EncodeDigest()
   local lines, fields, line = {}, { "W", "1" }, nil
   local count = 0
-  for _, entry in ipairs(Wanted.Sorted()) do
+  for _, entry in ipairs(Wanted.Sorted(true)) do
     if count >= ns.Data.WANTED_DIGEST_MAX then break end
     local last = entry.last or {}
     local item = table.concat({
       field(entry.name):gsub("|", "/"), field(entry.class or ""), tostring(entry.points or 0), tostring(entry.kills or 0),
       tostring(last.t or 0), last.map and tostring(last.map) or "", last.x and string.format("%.4f", last.x) or "",
-      last.y and string.format("%.4f", last.y) or "",
+      last.y and string.format("%.4f", last.y) or "", tostring(entry.cashed or 0),
     }, "|")
     local candidate = table.concat(fields, "\t") .. "\t" .. item
     if #candidate > 255 then
@@ -776,13 +881,16 @@ function Wanted.DecodeDigest(text)
       items[#items + 1] = {
         name = p[1], class = p[2] or "", points = tonumber(p[3]) or 0, kills = tonumber(p[4]) or 0,
         t = tonumber(p[5]) or 0, map = tonumber(p[6]), x = tonumber(p[7]), y = tonumber(p[8]),
+        cashed = tonumber(p[9]) or 0,
       }
     end
   end
   return { items = items }
 end
 
---- Résumé reçu : le maximum de chaque valeur, la dernière position la plus récente (sans ses détails).
+--- Résumé reçu : le maximum de chaque valeur, la dernière position la plus récente (sans ses détails). La prime
+--- suit le dernier encaissement : celui du résumé plus récent que le mien, je l'applique ; plus ancien (tableau en
+--- retard, ou addon d'avant la 0.6.10 qui n'en dit rien), sa prime ne compte pas.
 function Wanted.MergeDigest(items)
   local changed = 0
   for _, item in ipairs(items) do
@@ -790,7 +898,9 @@ function Wanted.MergeDigest(items)
     if entry then
       local before = (entry.points or 0) + (entry.kills or 0)
       if item.class ~= "" and not entry.class then entry.class = item.class end
-      if item.points > (entry.points or 0) then entry.points = item.points end
+      local theirs, mine = item.cashed or 0, entry.cashed or 0
+      if theirs > mine then cash(entry, theirs) end
+      if theirs >= mine and item.points > (entry.points or 0) then entry.points = item.points end
       if item.kills > (entry.kills or 0) then entry.kills = item.kills end
       if item.t > ((entry.last and entry.last.t) or 0) then
         entry.last = { kind = "seen", t = item.t, map = item.map, x = item.x, y = item.y, zone = "", sub = "" }
@@ -855,7 +965,8 @@ local function onAddonMessage(prefix, text, channel, sender)
     end
     ns.Trace("reçu H de %s : %s abattu", tostring(sender), msg.name)
     -- Recherché chez moi sans l'être chez le chasseur (les tableaux diffèrent) : c'est une prime encaissée.
-    local entry = Wanted.Match(msg.name)
+    local entry = msg.name ~= "" and Wanted.Match(msg.name) or nil
+    if entry and not Wanted.Active(entry) and not killSeen(entry, msg.t) then entry = nil end -- prime déjà encaissée
     local ok, err, shown
     if entry then
       ok, err, shown = pcall(Wanted.RecordKillMessage, {
@@ -902,10 +1013,13 @@ function Wanted.Where(entry)
   return text
 end
 
---- Ennemis triés : prime décroissante, puis dernière position la plus récente.
-function Wanted.Sorted()
+--- Recherchés triés : prime décroissante, puis dernière position la plus récente. `all` : avec ceux dont la
+--- prime a été encaissée (pour le résumé « W »).
+function Wanted.Sorted(all)
   local list = {}
-  for _, entry in pairs(table_() or {}) do list[#list + 1] = entry end
+  for _, entry in pairs(table_() or {}) do
+    if Wanted.Active(entry) or (all and (entry.cashed or 0) > 0) then list[#list + 1] = entry end
+  end
   table.sort(list, function(a, b)
     if (a.points or 0) ~= (b.points or 0) then return (a.points or 0) > (b.points or 0) end
     return ((a.last and a.last.t) or 0) > ((b.last and b.last.t) or 0)
@@ -959,7 +1073,7 @@ ns.RegisterCollector({
   status = function()
     local n, kills = 0, 0
     for _, entry in pairs(table_() or {}) do
-      n = n + 1
+      if Wanted.Active(entry) then n = n + 1 end
       kills = kills + (entry.kills or 0)
     end
     return string.format("%d recherchés · %d abattus", n, kills)

@@ -312,7 +312,8 @@ class TestRankings:
 
 
 class TestWanted:
-    """Têtes mises à prix : points par mort de membre, kills dédoublonnés par minute, exclusion GM, compagnon."""
+    """Têtes mises à prix : points par mort de membre, prime encaissée (remise à zéro) à chaque kill, kills
+    dédoublonnés par minute, exclusion GM, compagnon."""
 
     def test_wanted_board_bounty_hunters_and_exclusion(self, member, other_member):
         # Lundi 21 septembre, 17h : dans la semaine en cours (les événements sont filtrés par leur heure).
@@ -344,6 +345,7 @@ class TestWanted:
                     {"k": "pk", "t": t0 + 605, "name": "Garrosh Hurlenfer", "prime": 2, "zone": "Durotar"},  # même kill, crédit de groupe
                     {"k": "pk", "t": t0 + 900, "name": "Garrosh Hurlenfer", "prime": 0, "bg": True},  # en champ de bataille : hors tableau
                     {"k": "death", "t": t0 + 120, "zone": "Orgrimmar", "killer": "Vol'jin", "player": True, "kclass": "SHAMAN"},
+                    {"k": "death", "t": t0 + 1000, "zone": "Orgrimmar", **garrosh},  # après le kill : de nouveau recherché
                 ],
             ),
         )  # fmt: skip
@@ -352,7 +354,8 @@ class TestWanted:
         assert [
             (e["name"], e["class"], e["points"], e["kills"], e["victims"], e["hunters"]) for e in board
         ] == [
-            ("Garrosh Hurlenfer", "warrior", 2, 1, 2, 2),
+            # Deux morts encaissées par le kill, une depuis : prime 1.
+            ("Garrosh Hurlenfer", "warrior", 1, 1, 2, 2),
             ("Vol'jin", "shaman", 1, 0, 1, 0),
         ]
         top = board[0]
@@ -379,22 +382,26 @@ class TestWanted:
         assert ("bounty", "Chasseur de primes", "bounty") in rankings.WEEKLY_TITLES
         assert titles.format_value("bounty", 3.0) == "3 points de prime"
         assert result["week_totals"]["pk"] == 3.0
-        # Depuis le début : la vieille mort compte aussi, la prime n'est jamais remise à zéro.
-        assert result["most_wanted"]["points"] == 3
-        assert rankings.compute_rankings("all", "player", now=NOW)["wanted"][0]["points"] == 3
+        # Depuis le début : la vieille mort a été encaissée avec les autres, la prime ne compte que depuis le kill.
+        assert result["most_wanted"]["points"] == 1
+        assert rankings.compute_rankings("all", "player", now=NOW)["wanted"][0]["points"] == 1
         # Le compagnon reçoit le tableau de toute la guilde, dans les termes de l'addon.
         state = progress.companion_state(member)
         assert state["wanted"] == [
-            {"name": "Garrosh Hurlenfer", "class": "WARRIOR", "points": 3, "kills": 1, "last_t": t0 + 600, "map": 1411, "x": 0.5, "y": 0.5},
-            {"name": "Vol'jin", "class": "SHAMAN", "points": 1, "kills": 0, "last_t": t0 + 120, "map": None, "x": None, "y": None},
+            {"name": "Garrosh Hurlenfer", "class": "WARRIOR", "points": 1, "kills": 1, "cashed": t0 + 600, "last_t": t0 + 1000, "map": 1411, "x": 0.5, "y": 0.5},
+            {"name": "Vol'jin", "class": "SHAMAN", "points": 1, "kills": 0, "cashed": None, "last_t": t0 + 120, "map": None, "x": None, "y": None},
         ]  # fmt: skip
         # Rapport détaillé de la page /wanted : morts et kills de chaque ennemi, chasseurs, victimes.
         from . import wanted as wanted_module
 
         report = wanted_module.wanted_report(None, *rankings.period_bounds("week", NOW))
-        assert report["totals"] == {"enemies": 2, "points": 3, "kills": 1, "victims": 2, "hunters": 2}
+        assert report["totals"] == {"enemies": 2, "points": 2, "kills": 1, "victims": 2, "hunters": 2}
         garrosh_detail = report["enemies"][0]
-        assert [d["victim"]["character"]["name"] for d in garrosh_detail["deaths"]] == ["Garona", "Thrall"]
+        assert [d["victim"]["character"]["name"] for d in garrosh_detail["deaths"]] == [
+            "Garona",
+            "Garona",
+            "Thrall",
+        ]
         (kill,) = garrosh_detail["kill_list"]
         assert (kill["by"]["character"]["name"], kill["prime"], kill["hunters"]) == (
             "Thrall",
@@ -402,8 +409,8 @@ class TestWanted:
             ["Thrall", "Garona"],
         )
         assert garrosh_detail["zones"] == [
+            {"zone": "Orgrimmar", "deaths": 2},
             {"zone": "Durotar", "deaths": 1},
-            {"zone": "Orgrimmar", "deaths": 1},
         ]
         assert garrosh_detail["first_seen"].startswith("2026-09-21T15:00")
         assert [(h["user"]["id"], h["kills"], h["bounty"], h["enemies"]) for h in report["hunters"]] == [
@@ -411,7 +418,7 @@ class TestWanted:
             (member.pk, 1, 1, 1),
         ]
         assert [(v["character"]["name"], v["deaths"], v["enemies"]) for v in report["victims"]] == [
-            ("Garona", 2, 2),
+            ("Garona", 3, 2),
             ("Thrall", 1, 1),
         ]
         # Retrait par le GM (la casse ne compte pas).
@@ -420,6 +427,37 @@ class TestWanted:
             "Vol'jin"
         ]
         assert progress.companion_state(member)["wanted"][0]["name"] == "Vol'jin"
+
+    def test_a_cashed_bounty_leaves_the_board_until_the_enemy_kills_again(self, member, other_member):
+        t0 = int(datetime(2026, 9, 21, 17, 0, tzinfo=PARIS).timestamp())
+        garrosh = {"killer": "Garrosh Hurlenfer", "player": True, "kclass": "WARRIOR"}
+        events = [
+            {"k": "death", "t": t0, "zone": "Durotar", **garrosh},
+            {"k": "death", "t": t0 + 60, "zone": "Durotar", **garrosh},
+            {"k": "pk", "t": t0 + 600, "name": "Garrosh Hurlenfer", "prime": 2, "zone": "Durotar"},
+        ]
+        import_for(
+            member,
+            character("Player-1-T", "Thrall", counters={"pk": 1, "bounty": 2}, journal={}, events=events),
+        )
+        from . import wanted as wanted_module
+
+        # Abattu : la prime de 2 est encaissée, il n'est plus au tableau ; la page /wanted garde son histoire.
+        assert rankings.compute_rankings("week", "player", now=NOW)["wanted"] == []
+        report = wanted_module.wanted_report(None, *rankings.period_bounds("week", NOW))
+        assert report["totals"]["enemies"] == 0 and report["totals"]["points"] == 0
+        assert [(e["name"], e["points"], e["kills"]) for e in report["enemies"]] == [
+            ("Garrosh Hurlenfer", 0, 1)
+        ]
+        assert report["hunters"][0]["bounty"] == 2
+        # Le compagnon l'apprend quand même, pour remettre la prime à zéro dans le fichier de l'addon.
+        (seed,) = progress.companion_state(member)["wanted"]
+        assert (seed["points"], seed["cashed"]) == (0, t0 + 600)
+        # Il retue un membre : de retour au tableau, la prime repart de 1.
+        again = [{"k": "death", "t": t0 + 900, "zone": "Durotar", **garrosh}]
+        import_for(other_member, character("Player-1-G", "Garona", counters={}, journal={}, events=again))
+        (enemy,) = rankings.compute_rankings("week", "player", now=NOW)["wanted"]
+        assert (enemy["name"], enemy["points"], enemy["kills"]) == ("Garrosh Hurlenfer", 1, 1)
 
     def test_wanted_endpoint(self, as_user, member):
         response = as_user(member).get("/api/sync/wanted/", {"period": "season"})

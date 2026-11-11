@@ -151,6 +151,9 @@ pub struct StateWanted {
     pub points: i64,
     #[serde(default)]
     pub kills: i64,
+    /// Heure du dernier kill par la guilde : la prime a été encaissée à ce moment-là, `points` compte depuis.
+    #[serde(default)]
+    pub cashed: Option<i64>,
     #[serde(default)]
     pub last_t: Option<i64>,
     #[serde(default)]

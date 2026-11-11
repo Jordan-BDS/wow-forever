@@ -442,6 +442,15 @@ local function showNext()
   if #waiting > 0 then nextTimer = C_Timer.NewTimer(ns.Data.TOAST_MIN_SECONDS, showNext) end
 end
 
+--- Ce texte est-il encore à l'écran ou en attente dans la file ?
+function UI.ToastPending(key)
+  if toast and toast:IsShown() and shownKey == key then return true end
+  for _, item in ipairs(waiting) do
+    if item[6] == key then return true end
+  end
+  return false
+end
+
 function UI.ShowToast(headerText, text, footer, color, sound, key)
   if not toast then buildToast() end
   local busy = toast:IsShown() and shownAt and ns.now() - shownAt < ns.Data.TOAST_MIN_SECONDS
@@ -499,7 +508,8 @@ end
 --- Victoire honorable : un joueur adverse abattu par un membre (moi ou un autre), hors champ de bataille. Vert,
 --- sans son (il y en a bien plus que de morts) ; chasseur et victime à la couleur de leur classe.
 --- `hunters` : { { name, class }, … }, tous ceux du kill ; un chasseur de plus complète le popup sur place (même clé).
-function UI.ShowKill(victim, victimClass, hunters, phrase, place)
+--- `id` : le kill, clé du popup ; `updateOnly` : ne corrige que s'il est encore à l'écran ou en attente.
+function UI.ShowKill(victim, victimClass, hunters, phrase, place, id, updateOnly)
   local who = { { victim, victimClass } }
   for _, h in ipairs(hunters) do who[#who + 1] = { h.name, h.class } end
   for _, w in ipairs(who) do
@@ -510,7 +520,9 @@ function UI.ShowKill(victim, victimClass, hunters, phrase, place)
   end
   local footer = string.format(#hunters > 1 and L.KILL_FOOTER_PLURAL or L.KILL_FOOTER, ns.Wanted.HunterNames(hunters, true),
     ns.ClassColored(victim, victimClass), place ~= "" and place or L.WHERE_UNKNOWN)
-  UI.ShowToast(L.KILL_HEADER, phrase, footer, { 0.45, 0.9, 0.45 }, false, "kill:" .. tostring(victim))
+  local key = "kill:" .. tostring(id or victim)
+  if updateOnly and not UI.ToastPending(key) then return end
+  UI.ShowToast(L.KILL_HEADER, phrase, footer, { 0.45, 0.9, 0.45 }, false, key)
 end
 
 --- Prime encaissée : un recherché abattu par un membre (moi ou un autre). Or, son si les morts en ont un.

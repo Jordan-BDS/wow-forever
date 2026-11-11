@@ -62,7 +62,12 @@ local function readUnit(unit, anyone)
   local okPlayer, player = pcall(UnitIsPlayer or function() end, unit)
   local okClass, _, class = pcall(UnitClass or function() end, unit)
   class = okClass and ns.plain(class) or nil
-  return { name = name, player = okPlayer and ns.plain(player) == true, class = type(class) == "string" and class or "" }
+  local okGuid, guid = pcall(UnitGUID or function() end, unit)
+  guid = okGuid and ns.plain(guid) or nil
+  return {
+    name = name, player = okPlayer and ns.plain(player) == true, class = type(class) == "string" and class or "",
+    guid = type(guid) == "string" and guid or nil,
+  }
 end
 
 local function nameKey(s)
@@ -82,7 +87,20 @@ end
 --- Un joueur hostile lu : on le retient SEEN_PLAYERS_TTL s comme joueur, avec sa classe.
 local function rememberPlayer(seen, t)
   if not (seen and seen.player) then return end
-  seenPlayers[nameKey(seen.name)] = { name = seen.name, class = seen.class or "", at = t }
+  seenPlayers[nameKey(seen.name)] = { name = seen.name, class = seen.class or "", at = t, guid = seen.guid }
+end
+
+--- Un joueur hostile lu dans les SEEN_PLAYERS_TTL dernières secondes, par son nom ou par son identifiant (en
+--- combat le nom d'un adversaire peut être secret, pas forcément son identifiant) : son nom, nil s'il est inconnu.
+function ns.SeenPlayer(name, guid)
+  local t = ns.now()
+  for _, seen in pairs(seenPlayers) do
+    if t - (seen.at or 0) <= ns.Data.SEEN_PLAYERS_TTL then
+      if guid and seen.guid == guid then return seen.name end
+      if name and name ~= "" and sameName(seen.name, name) then return seen.name end
+    end
+  end
+  return nil
 end
 
 local function forgetOldPlayers(t)

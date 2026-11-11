@@ -1,10 +1,13 @@
 """
 Têtes mises à prix (Wanted), lot 3 : agrégation des événements exportés par l'addon, sans table recalculée,
-comme les classements. Un événement `death` dont le tueur est un joueur (`player`) donne un point à ce joueur,
-jamais remis à zéro (décision du 9 novembre 2026) ; un événement `pk` (kill de joueur, lu dans le message de
-victoire honorable) marque un kill, compté une fois par ennemi et par minute : tout le groupe est crédité et
-chaque chasseur exporte le sien. L'ennemi d'un `pk` est reconnu par son nom exact, ou par le prénom seul s'il
-est unique. Le GM retire un nom (PNJ homonyme, erreur) avec `WantedExclusion`, depuis l'administration.
+comme les classements. Un événement `death` dont le tueur est un joueur (`player`) donne un point à ce
+joueur ; un événement `pk` (kill de joueur, lu dans le message de victoire honorable) marque un kill, compté
+une fois par ennemi et par minute : tout le groupe est crédité et chaque chasseur exporte le sien. Un kill
+encaisse la prime : elle retombe à zéro et l'ennemi quitte le tableau jusqu'à ce qu'il tue de nouveau un
+membre (décision du 11 novembre 2026 ; avant, la prime n'était jamais remise à zéro). La prime d'un ennemi
+est donc le nombre de morts depuis son dernier kill par la guilde. L'ennemi d'un `pk` est reconnu par son nom
+exact, ou par le prénom seul s'il est unique. Le GM retire un nom (PNJ homonyme, erreur) avec
+`WantedExclusion`, depuis l'administration.
 La page /wanted du site lit le rapport détaillé : chaque mort et chaque kill, chasseurs et victimes.
 """
 
@@ -161,6 +164,11 @@ def _collect(snapshots: dict, start: date | None, end: date) -> tuple[dict[str, 
         position = _position(event)
         if position and (enemy["last_seen"] is None or t > enemy["last_seen"]["t"]):
             enemy["last_seen"] = {"t": t, "position": position}
+    # Prime encaissée à chaque kill : il ne reste que les morts d'après le dernier.
+    for enemy in enemies.values():
+        if enemy["last_kill"] is not None:
+            cashed = enemy["last_kill"]["t"]
+            enemy["points"] = sum(1 for d in enemy["deaths"] if d["t"] > cashed)
     return enemies, participations
 
 
@@ -229,12 +237,15 @@ def guild_wanted(
     start: date | None = None,
     end: date | None = None,
     limit: int = WANTED_LIMIT,
+    cashed: bool = False,
 ) -> list[dict]:
-    """Ennemis par prime décroissante sur la période (`start` None : depuis l'installation de l'addon)."""
+    """Recherchés par prime décroissante sur la période (`start` None : depuis l'installation de l'addon).
+    `cashed` : avec ceux dont la prime a été encaissée (prime 0), que le tableau ne montre pas."""
     snapshots = snapshots if snapshots is not None else latest_snapshots()
     end = end or timezone.now().astimezone(PARIS).date()
     enemies, _ = _collect(snapshots, start, end)
-    return [_serialize(e) for e in _ordered(enemies)[:limit]]
+    ordered = [e for e in _ordered(enemies) if cashed or e["points"] > 0]
+    return [_serialize(e) for e in ordered[:limit]]
 
 
 def wanted_report(snapshots: dict | None = None, start: date | None = None, end: date | None = None) -> dict:
@@ -265,7 +276,7 @@ def wanted_report(snapshots: dict | None = None, start: date | None = None, end:
         "start": start.isoformat() if start else None,
         "end": end.isoformat(),
         "totals": {
-            "enemies": len(ordered),
+            "enemies": sum(1 for e in ordered if e["points"] > 0),  # recherchés en ce moment
             "points": sum(e["points"] for e in ordered),
             "kills": sum(e["kills"] for e in ordered),
             "victims": len(victims),
@@ -291,9 +302,11 @@ def wanted_report(snapshots: dict | None = None, start: date | None = None, end:
 
 def companion_wanted(snapshots: dict | None = None) -> list[dict]:
     """Le tableau de la guilde depuis le début, dans les termes de l'addon (jeton de classe en majuscules,
-    dernière position en secondes), que le compagnon recopie dans `db.wanted` jeu fermé."""
+    dernière position en secondes), que le compagnon recopie dans `db.wanted` jeu fermé. Les primes encaissées
+    en font partie (prime 0, `cashed` = heure du dernier kill) : le compagnon les remet à zéro dans le
+    fichier."""
     out = []
-    for enemy in guild_wanted(snapshots, None, None, limit=COMPANION_LIMIT):
+    for enemy in guild_wanted(snapshots, None, None, limit=COMPANION_LIMIT, cashed=True):
         last = enemy["last_seen"]
         last_at = max(
             (
@@ -309,6 +322,9 @@ def companion_wanted(snapshots: dict | None = None) -> list[dict]:
                 "class": enemy["class"].upper(),
                 "points": enemy["points"],
                 "kills": enemy["kills"],
+                "cashed": int(datetime.fromisoformat(enemy["last_kill"]["at"]).timestamp())
+                if enemy["last_kill"]
+                else None,
                 "last_t": last_at,
                 "map": last["map"] if last else None,
                 "x": last["x"] if last else None,
