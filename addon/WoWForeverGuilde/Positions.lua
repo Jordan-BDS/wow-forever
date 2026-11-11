@@ -76,10 +76,10 @@ Positions.Cut = cut
 
 -- Nom affiché : prénom et nom de famille (Forever), comme le lit le collecteur d'identité.
 local function displayName(char)
-  local full = UnitFullName and ns.plain((UnitFullName("player")))
-  if type(full) == "string" and full ~= "" then return full end
-  local name = char.name or (UnitName and UnitName("player")) or "?"
-  if char.surname and char.surname ~= "" then name = name .. " " .. char.surname end
+  local first, surname = ns.UnitNames("player")
+  local name = first or char.name or "?"
+  surname = surname or char.surname
+  if surname and surname ~= "" then name = name .. " " .. surname end
   return name
 end
 

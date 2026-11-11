@@ -108,6 +108,12 @@ class TestLoading:
             60,
         )
         assert any("Bienvenue" in m for m in list(g._CHAT.values()))
+        # Autre forme vue sur Forever : « Prénom Nom » d'un seul tenant, suivi du royaume.
+        joined = boot()
+        joined.execute("_NAME_SHAPE = 'joined'")
+        login(joined)
+        other = joined.globals().WoWForeverGuildeDB.characters["Player-1-000ABC01"]
+        assert (other.name, other.surname) == ("Thrall", "Fils-de-Durotan")
         assert char.gear.head.id == 16842 and char.gear.head.ench == 2583 and char.gear.mainhand.ench is None
         # Chaque pièce est décrite pour le site : nom de base, qualité, niveaux, type ; à défaut le nom du lien.
         head, mainhand = char.gear.head, char.gear.mainhand

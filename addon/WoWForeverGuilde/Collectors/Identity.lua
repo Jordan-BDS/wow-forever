@@ -1,13 +1,6 @@
 -- Identité : nom complet, royaume, classe, race, niveau, temps de jeu (opt-in), montées de niveau horodatées.
 local ADDON, ns = ...
 
-local function splitName(full)
-  if not full then return nil, nil end
-  local first, rest = full:match("^(%S+)%s+(.+)$")
-  if first then return first, rest end
-  return full, nil
-end
-
 -- Le niveau ne redescend jamais : sur Forever, UnitLevel("player") peut rester sur l'ancien niveau longtemps
 -- après PLAYER_LEVEL_UP (jusqu'à la sortie du jeu) ; l'événement de montée fait foi, la relecture ne fait
 -- que confirmer.
@@ -17,9 +10,7 @@ local function raiseLevel(char, level)
 end
 
 local function scan(char)
-  local name = UnitName("player")
-  local full = UnitFullName and select(1, UnitFullName("player")) or name
-  local first, surname = splitName(full or name)
+  local first, surname = ns.UnitNames("player")
   char.name = first or char.name
   if surname then char.surname = surname end
   char.realm = (GetRealmName and GetRealmName()) or char.realm

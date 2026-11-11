@@ -502,9 +502,12 @@ def _process_character(batch: ImportBatch, raw: Any, summary: dict[str, int]) ->
 def _homonym(parsed: ParsedCharacter) -> Character | None:
     """Un personnage du site qui porte déjà ce nom : même prénom et même nom de famille (Forever donne un
     nom de famille, deux « Arthas » de familles différentes coexistent) ; un nom de famille vide d'un côté
-    ou de l'autre reste ambigu, donc homonyme."""
+    ou de l'autre reste ambigu, donc homonyme. Seuls les personnages saisis à la main comptent : un
+    personnage déjà lu en jeu a son propre identifiant, c'est un autre personnage du jeu qui porte le même nom
+    (deux personnages d'un même compte, ou d'un autre joueur ; l'addon ne lit pas toujours le nom de
+    famille)."""
     surname = parsed.surname.lower()
-    for other in Character.objects.select_related("owner").filter(name__iexact=parsed.name):
+    for other in Character.objects.select_related("owner").filter(name__iexact=parsed.name, guid=""):
         if not surname or not other.surname or other.surname.lower() == surname:
             return other
     return None

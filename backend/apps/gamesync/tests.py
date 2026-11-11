@@ -269,7 +269,8 @@ class TestImport:
         )
         assert response.data["snapshots"][0]["status"] == "refused"
         # Même prénom, autre nom de famille (reroll d'un membre, ou un autre joueur) : créé, Forever donne
-        # un nom de famille. Même prénom et même nom chez un autre joueur : refusé.
+        # un nom de famille. Même prénom et même nom, autre identifiant du jeu : créé aussi, c'est un autre
+        # personnage (le jeu accepte les homonymes).
         response = do_import(
             as_user(member),
             export_code(
@@ -279,11 +280,24 @@ class TestImport:
         )
         statuses = {s["guid"]: s for s in response.data["snapshots"]}
         assert statuses["Player-1-0004"]["status"] == "created"
-        assert (
-            statuses["Player-1-0005"]["status"] == "refused"
-            and "Fils-de-Durotan" in statuses["Player-1-0005"]["note"]
+        assert statuses["Player-1-0005"]["status"] == "created"
+        assert Character.objects.filter(name="Thrall").count() == 3
+
+    def test_two_characters_of_one_account_may_share_a_name(self, as_user, member):
+        # Le jeu accepte deux personnages du même nom, et l'addon ne lit pas toujours le nom de famille :
+        # les deux arrivent dans le même export, chacun avec son identifiant.
+        code = export_code(
+            character_payload(guid="Player-1-MAGE", name="Koj", surname="", level=37),
+            character_payload(guid="Player-1-PAL", name="Koj", surname="", level=1),
         )
-        assert Character.objects.filter(name="Thrall").count() == 2
+        response = do_import(as_user(member), code)
+        assert [s["status"] for s in response.data["snapshots"]] == ["created", "created"]
+        koj = Character.objects.filter(owner=member, name="Koj")
+        assert sorted(koj.values_list("guid", "level")) == [("Player-1-MAGE", 37), ("Player-1-PAL", 1)]
+        # Modifier l'un des deux sur le site ne bute pas sur l'autre.
+        mage = koj.get(guid="Player-1-MAGE")
+        response = as_user(member).patch(f"/api/characters/{mage.pk}/", {"note": "le vrai"}, format="json")
+        assert response.status_code == 200, response.data
 
     def test_candidate_goes_pending_then_merge(self, as_user, member):
         candidate = Character.objects.create(

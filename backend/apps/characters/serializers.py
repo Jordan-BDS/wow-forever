@@ -146,6 +146,9 @@ class CharacterSerializer(serializers.ModelSerializer):
             duplicates = Character.objects.filter(name__iexact=name)
             if current is not None:
                 duplicates = duplicates.exclude(pk=current.pk)
+                if current.guid:
+                    # Deux personnages lus en jeu (identifiants distincts) peuvent porter le même nom.
+                    duplicates = duplicates.filter(guid="")
             if any(not surname or not d.surname or d.surname.lower() == surname for d in duplicates):
                 errors["name"] = "Un personnage porte déjà ce nom dans la guilde."
 

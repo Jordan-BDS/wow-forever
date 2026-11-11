@@ -55,8 +55,15 @@ class Character(models.Model):
         verbose_name = "personnage"
         ordering = ["-is_main", "-level", "name"]
         constraints = [
-            # Forever donne un nom de famille : deux « Arthas » de familles différentes coexistent.
-            models.UniqueConstraint(Lower("name"), Lower("surname"), name="unique_character_full_name_ci"),
+            # Forever donne un nom de famille : deux « Arthas » de familles différentes coexistent. Le nom
+            # n'est unique qu'entre personnages saisis à la main : ceux lus en jeu ont un identifiant, et le
+            # jeu accepte deux personnages du même nom (l'addon ne lit pas toujours le nom de famille).
+            models.UniqueConstraint(
+                Lower("name"),
+                Lower("surname"),
+                condition=models.Q(guid=""),
+                name="unique_character_full_name_ci",
+            ),
             models.UniqueConstraint(
                 fields=["owner"], condition=models.Q(is_main=True), name="one_main_per_owner"
             ),

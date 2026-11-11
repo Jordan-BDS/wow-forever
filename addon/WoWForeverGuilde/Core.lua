@@ -18,6 +18,30 @@ function ns.plain(value)
   return value
 end
 
+local function unitNames(read, unit, realm, squashed)
+  if not read then return nil end
+  local first, second = read(unit)
+  first, second = ns.plain(first), ns.plain(second)
+  if type(first) ~= "string" or first == "" then return nil end
+  local head, rest = first:match("^(%S+)%s+(.+)$")
+  if head then return head, rest end
+  if type(second) ~= "string" or second == "" or second == realm or second == squashed then second = nil end
+  return first, second
+end
+
+--- Prénom et nom de famille d'une unité. Sur Forever, UnitFullName et UnitName rendent « prénom, nom de
+--- famille » en deux valeurs (parfois « Prénom Nom » d'un seul tenant) ; ailleurs la seconde est le royaume.
+function ns.UnitNames(unit)
+  local realm = GetRealmName and GetRealmName()
+  local squashed = type(realm) == "string" and realm:gsub("%s", "") or nil
+  local first, surname = unitNames(UnitFullName, unit, realm, squashed)
+  if not surname then
+    local name, second = unitNames(UnitName, unit, realm, squashed)
+    first, surname = first or name, second
+  end
+  return first, surname
+end
+
 --- En champ de bataille ou en arène : le Wanted est hors jeu (ni annonce de mort, ni point, ni prime).
 function ns.InBattleground()
   local ok, inside, kind = pcall(IsInInstance or function() end)
