@@ -42,6 +42,14 @@ function ns.UnitNames(unit)
   return first, surname
 end
 
+--- « Prénom Nom » d'une unité (le prénom seul si le jeu ne donne rien d'autre) ; nil si le nom est illisible
+--- (secret en combat, unité absente).
+function ns.UnitDisplayName(unit)
+  local ok, first, surname = pcall(ns.UnitNames, unit)
+  if not ok or not first then return nil end
+  return surname and (first .. " " .. surname) or first
+end
+
 --- En champ de bataille ou en arène : le Wanted est hors jeu (ni annonce de mort, ni point, ni prime).
 function ns.InBattleground()
   local ok, inside, kind = pcall(IsInInstance or function() end)

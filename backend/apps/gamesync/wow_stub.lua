@@ -63,8 +63,12 @@ _PLAYER = { guid = "Player-1-000ABC01", name = "Thrall Fils-de-Durotan", realm =
             race = { "Orc", "Orc" }, level = 60, faction = "Horde" }
 function UnitGUID(unit) if unit == "player" then return _PLAYER.guid end end
 -- Forever : « prénom, nom de famille » en deux valeurs (_NAME_SHAPE = "joined" : « Prénom Nom », royaume).
-function UnitName(unit) if unit ~= "player" then local u = unitData(unit) return u and u.name end return _PLAYER.name:match("^(%S+)%s*(.*)$") end
+function UnitName(unit)
+  if unit ~= "player" then local u = unitData(unit) return u and u.name, u and u.surname end
+  return _PLAYER.name:match("^(%S+)%s*(.*)$")
+end
 function UnitFullName(unit)
+  if unit ~= "player" then return UnitName(unit) end
   if _NAME_SHAPE == "joined" then return _PLAYER.name, _PLAYER.realm end
   return _PLAYER.name:match("^(%S+)%s*(.*)$")
 end

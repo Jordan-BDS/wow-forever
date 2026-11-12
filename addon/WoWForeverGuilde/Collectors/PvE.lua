@@ -57,8 +57,8 @@ local function readUnit(unit, anyone)
     local okAttack, hostile = pcall(UnitCanAttack, "player", unit)
     if okAttack and ns.plain(hostile) == false then return nil end
   end
-  local name = text(UnitName, unit)
-  if name == "" then return nil end
+  local name = ns.UnitDisplayName(unit)
+  if not name then return nil end
   local okPlayer, player = pcall(UnitIsPlayer or function() end, unit)
   local okClass, _, class = pcall(UnitClass or function() end, unit)
   class = okClass and ns.plain(class) or nil

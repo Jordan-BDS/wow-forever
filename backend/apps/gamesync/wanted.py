@@ -97,6 +97,23 @@ def _match(enemies: dict[str, dict], name: str) -> dict | None:
     return candidates[0] if len(candidates) == 1 else None
 
 
+def _full_names(snapshots: dict) -> dict[str, str]:
+    """Prénom seul → nom complet, quand un seul tueur connu porte ce prénom : l'addon lit prénom et nom
+    depuis la 0.6.12, les versions d'avant le prénom seul, et c'est le même ennemi. Toutes périodes
+    confondues, pour qu'un ennemi garde le même nom d'une période à l'autre."""
+    by_first: dict[str, dict[str, str]] = {}
+    for snapshot in snapshots.values():
+        data = snapshot.data if isinstance(snapshot.data, dict) else {}
+        for event in data.get("events") or []:
+            if not isinstance(event, dict) or event.get("k") != "death" or event.get("player") is not True:
+                continue
+            killer = event.get("killer")
+            key = key_of(killer) if isinstance(killer, str) else ""
+            if " " in key:
+                by_first.setdefault(key.split(" ")[0], {})[key] = " ".join(killer.split())
+    return {first: next(iter(full.values())) for first, full in by_first.items() if len(full) == 1}
+
+
 def _collect(snapshots: dict, start: date | None, end: date) -> tuple[dict[str, dict], list[dict]]:
     """Ennemis (clé → état complet) et participations aux kills (une par événement `pk` reconnu, doublons du
     groupe compris : elles servent aux chasseurs, pas au compteur de l'ennemi). Un `pk` marqué `bg` (champ de
@@ -105,6 +122,7 @@ def _collect(snapshots: dict, start: date | None, end: date) -> tuple[dict[str, 
     excluded = set(WantedExclusion.objects.values_list("name", flat=True))
     enemies: dict[str, dict] = {}
     kills: list[tuple[dict, float, Any]] = []
+    full_names = _full_names(snapshots)
     for snapshot in snapshots.values():
         data = snapshot.data if isinstance(snapshot.data, dict) else {}
         character = snapshot.character
@@ -119,6 +137,9 @@ def _collect(snapshots: dict, start: date | None, end: date) -> tuple[dict[str, 
                 killer = event.get("killer")
                 if not isinstance(killer, str) or not killer.strip():
                     continue
+                if key_of(killer) in excluded:
+                    continue
+                killer = full_names.get(key_of(killer), killer)
                 key = key_of(killer)
                 if key in excluded:
                     continue

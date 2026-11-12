@@ -459,6 +459,18 @@ class TestWanted:
         (enemy,) = rankings.compute_rankings("week", "player", now=NOW)["wanted"]
         assert (enemy["name"], enemy["points"], enemy["kills"]) == ("Garrosh Hurlenfer", 1, 1)
 
+    def test_an_enemy_named_by_first_name_and_by_full_name_is_one_enemy(self, member, other_member):
+        """Un addon d'avant la 0.6.12 lit « Garrosh », un addon à jour « Garrosh Hurlenfer »."""
+        t0 = int(datetime(2026, 9, 21, 17, 0, tzinfo=PARIS).timestamp())
+        short = [{"k": "death", "t": t0, "zone": "Durotar", "killer": "Garrosh", "player": True}]
+        full = [
+            {"k": "death", "t": t0 + 60, "zone": "Durotar", "killer": "Garrosh Hurlenfer", "player": True}
+        ]
+        import_for(member, character("Player-1-T", "Thrall", counters={}, journal={}, events=short))
+        import_for(other_member, character("Player-1-G", "Garona", counters={}, journal={}, events=full))
+        (enemy,) = rankings.compute_rankings("week", "player", now=NOW)["wanted"]
+        assert (enemy["name"], enemy["points"]) == ("Garrosh Hurlenfer", 2)
+
     def test_wanted_endpoint(self, as_user, member):
         response = as_user(member).get("/api/sync/wanted/", {"period": "season"})
         assert response.status_code == 200 and response.data["period"] == "season"

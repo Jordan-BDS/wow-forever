@@ -136,6 +136,24 @@ local function entryFor(name, t)
   if not tbl then return nil end
   local key = Wanted.Key(name)
   if key == "" then return nil end
+  -- Le même ennemi sous une autre forme (0.6.12 : l'addon lit prénom et nom, les versions d'avant le prénom seul) :
+  -- connu par son prénom, il prend son nom complet ; nommé par son prénom, c'est le seul qui le porte.
+  if not tbl[key] then
+    local first = key:match("^(%S+)")
+    if key:find("%s") then
+      local short = tbl[first]
+      if short then
+        tbl[first], tbl[key], short.name = nil, short, name
+        if ns.MapUI then ns.MapUI.RemoveWanted(first) end
+      end
+    else
+      local found, several = nil, false
+      for other in pairs(tbl) do
+        if other:match("^(%S+)") == first then found, several = other, found ~= nil end
+      end
+      if found and not several then key = found end
+    end
+  end
   local entry = tbl[key]
   if not entry then
     entry = { name = name, points = 0, kills = 0, first = t, victims = {}, kill_times = {} }
@@ -380,8 +398,7 @@ local function deadPlayerAround()
       local ally = friend == true or attackable == false or read(UnitInParty, unit) == true
         or read(UnitInRaid, unit) ~= nil and read(UnitInRaid, unit) ~= false or read(UnitIsInMyGuild, unit) == true
         or read(UnitIsUnit, unit, "player") == true
-      local name, guid = read(UnitName, unit), read(UnitGUID, unit)
-      if type(name) ~= "string" or name == "" then name = nil end
+      local name, guid = ns.UnitDisplayName(unit), read(UnitGUID, unit)
       if i <= 3 then
         probe[#probe + 1] = string.format("%s %s%s%s%s", unit, player == true and "joueur" or (player == nil and "?" or "créature"),
           dead == true and " mort" or (dead == nil and " ?" or " vivant"), ally and " allié" or ((friend == nil and attackable == nil) and " camp ?" or " hostile"),
@@ -445,9 +462,8 @@ function Wanted.OnTargetMaybeDead(char)
   local okFriend, friend = pcall(UnitIsFriend or function() end, "player", "target")
   if not (okPlayer and ns.plain(player) == true and okDead and ns.plain(dead) == true) then return end
   if okFriend and ns.plain(friend) == true then return end
-  local okName, name = pcall(UnitName or function() end, "target")
-  name = okName and ns.plain(name) or nil
-  if type(name) ~= "string" or name == "" then return end
+  local name = ns.UnitDisplayName("target")
+  if not name then return end
   local remembered = ns.LastHostile and ns.LastHostile()
   if not (remembered and remembered.player and sameName(remembered.name, name)) then return end
   local at = ns.now()

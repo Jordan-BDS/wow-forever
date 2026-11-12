@@ -2645,6 +2645,40 @@ class TestWantedKills:
         assert sum(len(list(g._NS.Wanted.DecodeDigest(line)["items"].values())) for line in lines) == 32
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_an_enemy_is_read_with_surname_and_not_doubled_with_its_first_name(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        now = g._CLOCK.now
+        # Le jeu rend « prénom, nom de famille » en deux valeurs : l'ennemi est lu en entier.
+        lua.execute("_TARGET = { name = 'Garrosh', surname = 'Hurlenfer', hostile = true, player = true }")
+        assert g._NS.UnitDisplayName("target") == "Garrosh Hurlenfer"
+        lua.execute("_TARGET = { name = _SECRET, hostile = true, player = true }")
+        assert g._NS.UnitDisplayName("target") is None
+        lua.execute("_TARGET = nil")
+
+        def death(killer: str, offset: int) -> None:
+            lua.execute(
+                f"_NS.Wanted.RecordDeath({{ player = true, killer = '{killer}', guid = 'G{offset}',"
+                f" name = 'V', t = {now} + {offset} }})"
+            )
+
+        # Connu par son prénom (addon d'avant), puis nommé en entier, puis de nouveau par son prénom : un seul.
+        death("Garrosh", 1)
+        death("Garrosh Hurlenfer", 2)
+        death("Garrosh", 3)
+        wanted = g.WoWForeverGuildeDB.wanted
+        assert sorted(wanted.keys()) == ["garrosh hurlenfer"]
+        assert (wanted["garrosh hurlenfer"].name, wanted["garrosh hurlenfer"].points) == (
+            "Garrosh Hurlenfer",
+            3,
+        )
+        # Deux ennemis du même prénom : le prénom seul ne tranche pas.
+        death("Garrosh Autre", 4)
+        death("Garrosh", 5)
+        assert sorted(wanted.keys()) == ["garrosh", "garrosh autre", "garrosh hurlenfer"]
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
 
 class TestPureModules:
     @pytest.fixture

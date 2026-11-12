@@ -125,6 +125,32 @@ fn complete_entry(entry: &mut Table, state: &StateCharacter, seed_at: i64, now: 
     entry.set("seed", Value::Table(seed));
 }
 
+/// La clé du tableau pour cet ennemi : la sienne, ou celle du même ennemi sous une autre forme (l'addon lit
+/// prénom et nom depuis la 0.6.12, le prénom seul avant). Connu par son prénom, il prend son nom complet ;
+/// nommé par son prénom, c'est le seul du tableau qui le porte.
+fn wanted_key(table: &mut Table, key: String, name: &str) -> String {
+    if table.get(&key).is_some() {
+        return key;
+    }
+    let first = key.split(' ').next().unwrap_or("").to_string();
+    if key.contains(' ') {
+        if let Some(Value::Table(mut short)) = table.get(&first).cloned() {
+            short.set("name", Value::Str(name.to_string()));
+            table.remove(&first);
+            table.set(&key, Value::Table(short));
+        }
+        return key;
+    }
+    let mut same = table.entries.iter().filter_map(|(k, _)| match k {
+        Key::Str(k) if k.split(' ').next() == Some(first.as_str()) => Some(k.clone()),
+        _ => None,
+    });
+    match (same.next(), same.next()) {
+        (Some(only), None) => only,
+        _ => key,
+    }
+}
+
 /// Le tableau Wanted de la guilde : le maximum de chaque valeur entre ce fichier et le site, la dernière position
 /// la plus récente (« vu pour la dernière fois ») ; rien n'est retiré, les victimes et heures de kill locales restent.
 /// La prime suit le dernier encaissement (`cashed`, heure du dernier kill) : celui du site plus récent que celui
@@ -144,6 +170,7 @@ fn complete_wanted(db: &mut Table, wanted: &[StateWanted], now: i64) {
         if key.is_empty() {
             continue;
         }
+        let key = wanted_key(table, key, &enemy.name);
         let entry = table.table_mut(&key);
         if entry.get("name").is_none() {
             entry.set("name", Value::Str(enemy.name.clone()));
@@ -370,7 +397,9 @@ WoWForeverGuildeDB = {
         // Garrosh abattu depuis (le site le sait, pas ce fichier) ; pour Vol'jin, c'est le site qui est en retard.
         state.wanted = serde_json::from_value(serde_json::json!([
             { "name": "Garrosh Hurlenfer", "class": "WARRIOR", "points": 1, "kills": 1, "cashed": 1764000700, "last_t": 1764000800 },
-            { "name": "Vol'jin", "class": "SHAMAN", "points": 4, "kills": 0, "cashed": null, "last_t": 1764000100 }
+            { "name": "Vol'jin Sombrelance", "class": "SHAMAN", "points": 4, "kills": 0, "cashed": null, "last_t": 1764000100 },
+            // Connu du fichier par son nom complet, du site par son prénom seul : le même ennemi.
+            { "name": "Garrosh", "class": "WARRIOR", "points": 0, "kills": 1, "cashed": 1764000600, "last_t": 1764000600 }
         ]))
         .unwrap();
         complete_file(&path, &state, 1764200001).unwrap();
@@ -389,7 +418,10 @@ WoWForeverGuildeDB = {
             ),
             (Some(1.0), Some(1764000700.0), Some(1.0))
         );
-        let voljin = wanted.get_table("vol'jin").unwrap();
+        // Vol'jin, connu par son prénom, prend le nom complet que donne le site ; pas de doublon.
+        assert!(wanted.get("vol'jin").is_none() && wanted.get("garrosh").is_none());
+        let voljin = wanted.get_table("vol'jin sombrelance").unwrap();
+        assert_eq!(voljin.get_str("name"), Some("Vol'jin Sombrelance"));
         assert_eq!(
             (voljin.get_num("points"), voljin.get_num("cashed")),
             (Some(0.0), Some(1764000900.0))

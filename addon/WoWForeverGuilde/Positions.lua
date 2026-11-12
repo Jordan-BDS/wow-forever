@@ -219,7 +219,7 @@ function Positions.SOS()
   end
   local attacker, class = nil, ""
   if UnitExists and UnitExists("target") and UnitIsPlayer and UnitIsPlayer("target") then
-    attacker = ns.plain(UnitName("target"))
+    attacker = ns.UnitDisplayName("target")
     class = ns.plain(select(2, UnitClass("target"))) or ""
   end
   local map, x, y = Positions.Here()
