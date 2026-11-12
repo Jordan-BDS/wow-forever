@@ -24,18 +24,27 @@ transporte le code jusqu'au site.
   (d'où les classements hebdo par créature), premier / dernier kill dans `char.mobs`, hors journal, 500 espèces au
   plus ; rien au niveau maximum.
 - `Collectors/Gathering.lua` : récolte (sort puis butin dans la fenêtre : 10 s, 30 s pour la pêche) et fabrications.
+  Seul son propre butin compte : reconnu au GUID joint au message, sinon au nom comparé tel quel (prénom, nom,
+  royaume, tiret ou espace). `/mf api` et l'onglet Diagnostic disent le dernier sort lu et ce qu'est devenu le dernier
+  butin (compté, ou pourquoi écarté).
   La pêche, canalisée, est lue à `UNIT_SPELLCAST_CHANNEL_START` comme à `SUCCEEDED`, reconnue par identifiant ou par
   nom (`C_Spell.GetSpellName` ou `GetSpellInfo`, exact ou approché), et la fin de canalisation rouvre 10 s pour le
   butin ; `/mf api` montre le dernier sort lu et ce qu'il est devenu, `/mf trace` les butins comptés ou refusés.
 - `Data.lua` : tables de référence à tenir à jour (quêtes d'accès, derniers boss, sorts de récolte).
 - `Samwise.blp` : icône de la guilde (portrait de Samwise Didier, l'ancienne icône « Temp » des clients Classic),
   en tête des fenêtres et dans la liste des addons (`## IconTexture`).
-- `Phrases.lua` : gabarits des popups (avis de décès, victoires honorables, primes encaissées) et leur remplissage
+- `Phrases.lua` : gabarits des popups (avis de décès, victoires honorables, primes encaissées), leur tirage (le
+  même chez tous les guildiens pour un même événement :
+  la graine vient de ce que porte l'annonce, le mort et l'heure pour un décès, le chasseur au plus petit GUID et
+  l'heure de son kill pour une victoire, le prénom de l'ennemi et l'heure pour une prime) et leur remplissage
   (« de » et « à » contractés ou élidés devant le nom, pluriel des kills à plusieurs, majuscules) ; comment écrire
   un gabarit est dit en tête du fichier.
 - `UI.lua` : la fenêtre `/mf` et ses onglets (un seul cadre ; chaque écran déclare le sien avec `UI.AddTab`, son
-  panneau n'est construit qu'à la première ouverture ; position et dernier onglet retenus ; à droite du titre, le
-  temps sans sauvegarde et le bouton Sauvegarder). Onglet Collecte (`/mf collecte`) : personnages du compte, état
+  panneau n'est construit qu'à la première ouverture ; position retenue ; à droite du titre, le
+  temps sans sauvegarde et le bouton Sauvegarder). Onglet Historique (`/mf historique`), le premier, sur lequel
+  la fenêtre s'ouvre : les derniers avis de décès, victoires honorables et primes encaissées, le plus récent en
+  haut, avec la phrase et le pied de leur popup ; notés même popups décochés (`db.history`, cent entrées, niveau
+  compte ; un popup corrigé sur place dans la minute corrige son entrée). Onglet Collecte (`/mf collecte`) : personnages du compte, état
   de la collecte, et le code d'export en seconde vue (`/mf export` ou le bouton). Onglet Réglages
   (`/mf reglages`) : toutes les cases, en trois groupes (carte et position, morts et popups, site et données),
   dont le rappel de sauvegarde. Onglet Nouveautés (`/mf nouveautes`) : les notes de version (`ns.CHANGELOG`,

@@ -65,13 +65,8 @@ local function field(s)
   return (tostring(s or ""):gsub("[\t\n]", " "))
 end
 
---- Coupe à `n` octets sans casser un caractère UTF-8 (on recule devant les octets de continuation 0x80-0xBF).
-local function cut(s, n)
-  if #s <= n then return s end
-  local i = n
-  while i > 0 and s:byte(i + 1) and s:byte(i + 1) >= 0x80 and s:byte(i + 1) < 0xC0 do i = i - 1 end
-  return s:sub(1, i)
-end
+--- Coupe à `n` octets sans casser un caractère UTF-8 : la même que partout (ns.Cut, dans Core.lua).
+local cut = ns.Cut
 Positions.Cut = cut
 
 -- Nom affiché : prénom et nom de famille (Forever), comme le lit le collecteur d'identité.

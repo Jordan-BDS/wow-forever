@@ -45,6 +45,7 @@ function Store.Init()
   if s.rosterMyZone == nil then s.rosterMyZone = false end
   if s.wantedAlerts == nil then s.wantedAlerts = true end
   s.excluded = s.excluded or {}
+  db.history = db.history or {} -- derniers décès et victoires annoncés, niveau compte (onglet Historique)
   db.wanted = db.wanted or {} -- têtes mises à prix, niveau compte (donnée de guilde, pas de personnage)
   -- Migrations futures : if db.version < 2 then ... end
   db.version = Store.DB_VERSION

@@ -470,21 +470,24 @@ class TestSession:
             ]
             return button
 
-        # /mf : la fenêtre, sur son premier onglet ; un panneau n'existe qu'une fois ouvert.
+        # /mf : la fenêtre, sur son premier onglet, l'historique ; un panneau n'existe qu'une fois ouvert.
         mf("")
         window = g.WoWForeverGuildeFrame
-        assert window.shown is True and g.WoWForeverGuildeRoster.shown is True
-        assert g.WoWForeverGuildeWanted is None and settings.windowTab == "roster"
+        assert window.shown is True and g.WoWForeverGuildeHistory.shown is True
+        assert g.WoWForeverGuildeWanted is None and g.WoWForeverGuildeRoster is None
         assert window.version.text == "v" + toc_version()
-        # /mf wanted change d'onglet dans la même fenêtre ; redit, il la ferme ; /mf la rouvre où on l'a laissée.
+        # /mf wanted change d'onglet dans la même fenêtre ; redit, il la ferme ; /mf la rouvre sur l'historique.
         mf("wanted")
         assert window.shown is True and g.WoWForeverGuildeWanted.shown is True
-        assert g.WoWForeverGuildeRoster.shown is False and settings.windowTab == "wanted"
-        assert g._NS.UI.Shown("wanted") is True and g._NS.UI.Shown("roster") is False
+        assert g.WoWForeverGuildeHistory.shown is False
+        assert g._NS.UI.Shown("wanted") is True and g._NS.UI.Shown("history") is False
         mf("wanted")
         assert window.shown is False and g._NS.UI.Shown("wanted") is False
         mf("")
-        assert window.shown is True and g.WoWForeverGuildeWanted.shown is True
+        assert window.shown is True and g.WoWForeverGuildeHistory.shown is True
+        assert g.WoWForeverGuildeWanted.shown is False
+        mf("qui")
+        assert g.WoWForeverGuildeRoster.shown is True and g.WoWForeverGuildeHistory.shown is False
         # Les onglets se cliquent. Collecte : personnages du compte et état de la collecte.
         collect = tab("Collecte")
         collect.scripts.OnClick(collect)
@@ -504,8 +507,8 @@ class TestSession:
         assert panel.status.shown is True and export.shown is False
         panel.status.exportButton.scripts.OnClick(panel.status.exportButton)
         assert export.shown is True and panel.status.shown is False
-        # Six onglets, un bouton chacun ; l'en-tête garde la sauvegarde à portée, quel que soit l'onglet.
-        labels = ("Guilde en jeu", "Wanted", "Collecte", "Réglages", "Nouveautés", "Diagnostic")
+        # Sept onglets, un bouton chacun ; l'en-tête garde la sauvegarde à portée, quel que soit l'onglet.
+        labels = ("Historique", "Guilde en jeu", "Wanted", "Collecte", "Réglages", "Nouveautés", "Diagnostic")
         assert all(tab(label) for label in labels)
         assert "sans sauvegarde" in window.session.text
         window.save.scripts.OnClick(window.save)
@@ -704,31 +707,192 @@ class TestSession:
         assert button.shown is True and round(button.point[5]) == 76
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
-    def test_window_reopens_where_it_was_left(self):
+    def test_window_keeps_its_place_and_opens_on_the_history(self):
         lua = boot()
         g = lua.globals()
+        # Un onglet retenu par une version d'avant (la fenêtre rouvrait sur le dernier) ne compte plus.
         lua.execute(
             'WoWForeverGuildeDB = { settings = { windowTab = "wanted", windowPoint = { "TOPLEFT", "TOPLEFT", 40, -60 } } }'
         )
         login(lua)
         g.SlashCmdList.WOWFOREVERGUILDE("")
         window = g.WoWForeverGuildeFrame
-        assert (
-            window.shown is True
-            and g.WoWForeverGuildeWanted.shown is True
-            and g.WoWForeverGuildeRoster is None
-        )
+        assert window.shown is True and g.WoWForeverGuildeHistory.shown is True
+        assert g.WoWForeverGuildeWanted is None
         assert (window.point[1], window.point[3], window.point[4], window.point[5]) == (
             "TOPLEFT",
             "TOPLEFT",
             40,
             -60,
         )
-        # Un onglet disparu d'une version à l'autre : le premier, sans erreur.
-        g.WoWForeverGuildeDB.settings.windowTab = "disparu"
+        # Un onglet inconnu : le premier, sans erreur.
         window.shown = False
         g._NS.UI.Open("disparu")
-        assert g.WoWForeverGuildeRoster.shown is True
+        assert g.WoWForeverGuildeHistory.shown is True
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_history_tab_lists_the_latest_deaths_and_kills_newest_first(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        mf = g.SlashCmdList.WOWFOREVERGUILDE
+        mf("")
+        panel = g.WoWForeverGuildeHistory
+        assert panel.empty.shown is True and list(g._NS.UI.HistoryLines().values()) == []
+
+        def lines():
+            return [(e.kind, e.text, e.sub) for e in g._NS.UI.HistoryLines().values()]
+
+        def line(*fields):
+            return "\t".join(str(field) for field in fields)
+
+        # Une mort, puis deux minutes après une victoire honorable, puis une prime : la plus récente en haut.
+        now = g._CLOCK.now
+        receive(
+            lua,
+            line(
+                "D",
+                1,
+                "Player-1-00000JAI",
+                "Jaina",
+                "Portvaillant",
+                "MAGE",
+                60,
+                "Sanglier",
+                "Durotar",
+                "",
+                now,
+            )
+            + "\t0\t\t1411\t0.4000\t0.6000",
+        )
+        g._ADVANCE(120)
+        receive(
+            lua,
+            line(
+                "H",
+                1,
+                "Player-1-00000UTH",
+                "Uther Lumière",
+                "PALADIN",
+                "Sylvanas",
+                g._CLOCK.now,
+                "Marais",
+                "",
+                "",
+            ),
+            "Uther-Forever",
+        )
+        g._ADVANCE(60)
+        receive(
+            lua,
+            line(
+                "K",
+                1,
+                "Player-1-00000UTH",
+                "Uther Lumière",
+                "PALADIN",
+                "Vol'jin",
+                3,
+                1,
+                g._CLOCK.now,
+                1411,
+                "0.1000",
+                "0.2000",
+                "Durotar",
+                "Orgrimmar",
+                "SHAMAN",
+            ),
+            "Uther-Forever",
+        )
+        history = lines()
+        assert [kind for kind, _, _ in history] == ["bounty", "kill", "death"]
+        assert (
+            "Vol'jin" in history[0][1]
+            and history[0][2] == "à l'instant · Prime encaissée · Prime de 3 points · Durotar"
+        )
+        assert "Sylvanas" in history[1][1] and "Uther Lumière" in history[1][1]
+        assert history[1][2] == "il y a 1 min · Victoire honorable · Marais"
+        assert (
+            "|cff69ccf0Jaina|r" in history[2][1]
+            and history[2][2] == "il y a 3 min · Avis de décès · Niveau 60 · Mage · Durotar"
+        )
+        # L'onglet ouvert suit : trois lignes, celle du haut est la prime, le vide a disparu.
+        rows = [
+            f for f in g._FRAMES.values() if f.kind == "Button" and f.line is not None and f.sub is not None
+        ]
+        assert len(rows) == 3 and panel.empty.shown is False
+        top = next(r for r in rows if r.line.kind == "bounty")
+        assert top.text.text == history[0][1] and top.sub.text == history[0][2]
+
+        # Un coéquipier s'ajoute au kill : l'entrée est corrigée, pas doublée.
+        g._ADVANCE(60)
+        t = g._CLOCK.now
+        receive(
+            lua,
+            line("H", 1, "Player-1-00000UTH", "Uther Lumière", "PALADIN", "Rexxar", t, "Durotar", "", ""),
+            "Uther-Forever",
+        )
+        receive(
+            lua,
+            line(
+                "H", 1, "Player-1-00000JAI", "Jaina Portvaillant", "MAGE", "Rexxar", t + 1, "Durotar", "", ""
+            ),
+        )
+        history = lines()
+        assert len(history) == 4 and history[0][0] == "kill"
+        assert "Jaina Portvaillant|r et |cffffffffUther Lumière|r" in history[0][1]
+
+        # Popups coupés : les morts et les kills sont notés quand même.
+        g.WoWForeverGuildeDeath.shown = False
+        g.WoWForeverGuildeDB.settings.showDeaths = False
+        g._ADVANCE(120)
+        receive(
+            lua,
+            line(
+                "D",
+                1,
+                "Player-1-00000UTH",
+                "Uther",
+                "Lumière",
+                "PALADIN",
+                58,
+                "une chute",
+                "Marais",
+                "",
+                g._CLOCK.now,
+            )
+            + "\t0\t\t1411\t0.4000\t0.6000",
+            "Uther-Forever",
+        )
+        receive(
+            lua,
+            line(
+                "H",
+                1,
+                "Player-1-00000JAI",
+                "Jaina Portvaillant",
+                "MAGE",
+                "Nazgrel",
+                g._CLOCK.now,
+                "Durotar",
+                "",
+                "SHAMAN",
+            ),
+        )
+        history = lines()
+        assert g.WoWForeverGuildeDeath.shown is False and len(history) == 6
+        assert [kind for kind, _, _ in history[:2]] == ["kill", "death"] and "une chute" in history[1][
+            1
+        ].lower()
+
+        # L'historique survit à la session (il est dans la base) et ne garde que les cent derniers.
+        stored = g.WoWForeverGuildeDB.history
+        assert len(list(stored.values())) == 6 and stored[1].kind == "death" and stored[6].kind == "kill"
+        for i in range(120):
+            g._NS.UI.Remember("death", None, f"mort {i}", "")
+        stored = list(g.WoWForeverGuildeDB.history.values())
+        assert len(stored) == 100 and stored[-1].text == "mort 119" and stored[0].text == "mort 20"
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_reload_reminder_after_three_hours_in_calm(self):
@@ -1104,6 +1268,54 @@ class TestDurability:
         g._ADVANCE(5)
         g._FIRE("CHAT_MSG_LOOT", ore, "", "", "", "")
         assert char.counters.gathering.mining == 2
+
+    def test_my_own_gathering_loot_is_recognised_whatever_the_name_looks_like(self):
+        ore = "Vous recevez un butin : |cffffffff|Hitem:2770:0:0|h[Minerai de cuivre]|h|rx2."
+        mine, other = "Player-1-000ABC01", "Player-1-00000JAI"
+
+        def mined(player, loot_name, guid=None, shape=""):
+            """Un filon miné par `player`, le butin annoncé au nom de `loot_name` : combien de minerais comptés ?"""
+            lua = boot()
+            g = lua.globals()
+            g._PLAYER.name = player
+            g._NAME_SHAPE = shape
+            login(lua)
+            g._FIRE("UNIT_SPELLCAST_SUCCEEDED", "player", "cast", 2575)
+            # texte, joueur, langue, canal, joueur (bis), drapeaux, zone, index, base, langue, ligne, GUID
+            g._FIRE("CHAT_MSG_LOOT", ore, loot_name, "", "", loot_name, "", 0, 0, "", 0, 1, guid)
+            assert list(g.WoWForeverGuildeDB.errors.values()) == []
+            gathering = g.WoWForeverGuildeDB.characters[mine].counters.gathering
+            return (gathering and gathering.mining) or 0, g._NS.GatherSource()
+
+        # Sans GUID dans le message, le nom décide, sous toutes les formes que le jeu peut lui donner ; un prénom
+        # à tiret n'est pas un motif de recherche.
+        for player in ("Thrall Fils-de-Durotan", "Jean-Luc Picard"):
+            first, surname = player.split(" ", 1)
+            for name in (
+                "",
+                first,
+                f"{first}-Forever",
+                f"{first}-{surname}",
+                player,
+                f"{player}-Forever",
+            ):
+                for shape in ("", "joined"):
+                    assert mined(player, name, shape=shape)[0] == 2, (player, name, shape)
+        # Un autre joueur du groupe, même s'il porte mon prénom : pas mon butin.
+        count, source = mined("Thrall Fils-de-Durotan", "Jaina-Forever")
+        assert (
+            count == 0
+            and "dernier butin au nom de « Jaina-Forever » → écarté : butin d'un autre joueur" in source
+        )
+        assert mined("Thrall Fils-de-Durotan", "Thrall-Autre")[0] == 0
+        assert mined("Thrall Fils-de-Durotan", "Thrall Autre")[0] == 0
+        # Avec le GUID, c'est lui qui fait foi, quel que soit le nom affiché.
+        assert mined("Thrall Fils-de-Durotan", "Un nom inattendu", guid=mine)[0] == 2
+        assert mined("Thrall Fils-de-Durotan", "Thrall-Forever", guid=other)[0] == 0
+        # Le diagnostic dit ce qu'est devenu le dernier butin.
+        count, source = mined("Jean-Luc Picard", "Jean-Luc-Forever", guid=mine)
+        assert count == 2 and "→ mining" in source
+        assert "dernier butin au nom de « Jean-Luc-Forever » → compté : objet 2770 ×2 en mining" in source
 
     def test_fishing_is_read_from_the_channel_and_the_spell_name(self):
         # La pêche est canalisée : le client peut n'émettre que CHANNEL_START, avec un identifiant inconnu de la table
@@ -2498,6 +2710,122 @@ class TestWantedKills:
         assert any("/mf prime <nom>" in m for m in list(g._CHAT.values()))
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_everyone_reads_the_same_phrase_for_the_same_event(self):
+        def client(random_seed):
+            """Un guildien de plus : son propre tirage au hasard ne doit rien changer à la phrase affichée."""
+            lua = boot()
+            login(lua)
+            lua.execute(f"_GUILD = true; math.randomseed({random_seed})")
+            return lua, lua.globals()
+
+        def line(*fields):
+            return "\t".join(str(field) for field in fields)
+
+        def shown(lua):
+            toast = lua.globals().WoWForeverGuildeDeath
+            return toast.text.text, toast.footer.text
+
+        now = 1764000100
+        # Avis de décès : la graine est le mort et l'heure de sa mort, portés par le message.
+        death = line(
+            "D", 1, "Player-1-00000JAI", "Jaina", "Portvaillant", "MAGE", 60, "Sanglier", "Durotar", "", now
+        )
+        texts = set()
+        for random_seed in (1, 2, 3):
+            lua, _ = client(random_seed)
+            receive(lua, death + "\t0\t\t1411\t0.4000\t0.6000")
+            texts.add(shown(lua))
+        assert len(texts) == 1
+        # D'une mort à l'autre, la phrase change : le choix reste varié.
+        variety = set()
+        for offset in range(12):
+            lua, _ = client(1)
+            receive(lua, line(death.rsplit("\t", 1)[0], now + offset) + "\t0\t\t1411\t0.4000\t0.6000")
+            variety.add(shown(lua)[0])
+        assert len(variety) >= 6
+
+        # Kill à plusieurs : chaque chasseur annonce le sien, à une seconde près, et les annonces n'arrivent pas
+        # dans le même ordre partout. Une seule annonce, la même phrase, les mêmes noms dans le même ordre.
+        hunters = [
+            ("Player-1-00000VAR", "Varian Wrynn", "WARRIOR", "Varian-Forever", now + 1),
+            ("Player-1-00000JAI", "Jaina Portvaillant", "MAGE", "Jaina-Forever", now),
+            ("Player-1-00000UTH", "Uther Lumière", "PALADIN", "Uther-Forever", now + 2),
+        ]
+
+        def kill(order, victim="Sylvanas", pack=hunters):
+            lua, g = client(sum(order))
+            popups = 0
+            toast = None
+            for index in order:
+                guid, name, cls, sender, t = pack[index]
+                receive(lua, line("H", 1, guid, name, cls, victim, t, "Durotar", "", ""), sender)
+                toast = g.WoWForeverGuildeDeath
+                popups += 1 if toast.shown else 0
+                toast.shown = True  # reste à l'écran : les suivants le complètent sur place
+            assert g._NS.UI.ToastSource().count("affiché") == 1  # un seul popup, jamais remis en file
+            assert g._NS.Cut("é" * 40, 61) == "é" * 30 and g._NS.Cut("abc", 60) == "abc"
+            assert list(g.WoWForeverGuildeDB.errors.values()) == []
+            return shown(lua)
+
+        orders = [(0, 1, 2), (2, 1, 0), (1, 2, 0), (1, 0, 2)]
+        results = {kill(order) for order in orders}
+        assert len(results) == 1
+        (text, footer) = next(iter(results))
+        assert "Jaina Portvaillant|r, |cffffffffUther Lumière|r et |cffffffffVarian Wrynn|r" in text
+        assert footer == "Durotar"
+        # Sans le nom de la victime (le jeu ne le donne pas toujours) : pareil.
+        assert len({kill(order, victim="") for order in orders}) == 1
+        # Un raid : cinq noms au plus, les mêmes chez tous (les premiers par ordre alphabétique).
+        raid = [
+            (f"Player-1-0000{i:04d}", name, "WARRIOR", f"{name}-Forever", now + i % 3)
+            for i, name in enumerate(["Zaela", "Baine", "Cairne", "Drek", "Eitrigg", "Anduin", "Falstad"])
+        ]
+        forward = kill(tuple(range(7)), pack=raid)
+        backward = kill(tuple(reversed(range(7))), pack=raid)
+        assert forward == backward
+        assert (
+            "Anduin|r, |cffffffffBaine|r, |cffffffffCairne|r, |cffffffffDrek|r et |cffffffffEitrigg|r"
+            in forward[0]
+        )
+        assert "Zaela" not in forward[0] and "Falstad" not in forward[0]
+
+        # Prime encaissée : le « K » du chasseur, ou celui d'un coéquipier une seconde après, donnent la même phrase.
+        def bounty(guid, name, cls, sender, t):
+            lua, _ = client(t)
+            receive(
+                lua,
+                line(
+                    "K",
+                    1,
+                    guid,
+                    name,
+                    cls,
+                    "Vol'jin",
+                    3,
+                    1,
+                    t,
+                    1411,
+                    "0.1000",
+                    "0.2000",
+                    "Durotar",
+                    "Orgrimmar",
+                    "SHAMAN",
+                ),
+                sender,
+            )
+            text, footer = shown(lua)
+            assert footer == "Prime de 3 points · Durotar"
+            return text.replace(name, "X")
+
+        assert bounty("Player-1-00000UTH", "Uther Lumière", "PALADIN", "Uther-Forever", now) == bounty(
+            "Player-1-00000UTH", "Uther Lumière", "PALADIN", "Uther-Forever", now
+        )
+        first = bounty("Player-1-00000UTH", "Uther Lumière", "PALADIN", "Uther-Forever", now)
+        mate = bounty("Player-1-00000JAI", "Jaina Portvaillant", "MAGE", "Jaina-Forever", now + 1)
+        assert first.replace("|cffffffff", "").replace("|cff69ccf0", "") == mate.replace(
+            "|cffffffff", ""
+        ).replace("|cff69ccf0", "")
+
     def test_popup_phrases_agree_with_whoever_fills_them(self):
         lua = boot()
         g = lua.globals()
@@ -2601,7 +2929,8 @@ class TestWantedKills:
         mate = f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Sylvanas	{g._CLOCK.now}	Durotar		"
         receive(lua, mate)
         assert toast.footer.text == "Forêt d'Elwynn"
-        assert "|cff0070ddThrall Fils-de-Durotan|r et |cff69ccf0Jaina Portvaillant|r" in toast.text.text
+        # Les chasseurs par ordre alphabétique, pas par ordre d'arrivée : la même liste chez tous.
+        assert "|cff69ccf0Jaina Portvaillant|r et |cff0070ddThrall Fils-de-Durotan|r" in toast.text.text
         toast.shown = False
         receive(lua, mate)
         assert toast.shown is False and len(wanted_sent(g, "H")) == 1

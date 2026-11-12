@@ -654,20 +654,35 @@ local function markAnnounced(name, t, guid, killT)
   return kill
 end
 
---- « Thrall », « Thrall et Jaina », « Thrall, Jaina et Uther » ; `colored` : chacun à la couleur de sa classe.
+--- « Thrall », « Jaina et Thrall », « Jaina, Thrall et Uther » ; `colored` : chacun à la couleur de sa classe.
+--- Par ordre alphabétique, WANTED_HUNTERS noms au plus : l'ordre d'arrivée des annonces diffère d'un guildien à
+--- l'autre, la liste affichée, elle, est la même chez tous.
 function Wanted.HunterNames(hunters, colored)
+  local sorted = {}
+  for i, h in ipairs(hunters) do sorted[i] = h end
+  table.sort(sorted, function(a, b) return (a.name or "") < (b.name or "") end)
   local names = {}
-  for i, h in ipairs(hunters) do names[i] = colored and ns.ClassColored(h.name, h.class) or h.name end
+  for i = 1, math.min(#sorted, ns.Data.WANTED_HUNTERS) do
+    names[i] = colored and ns.ClassColored(sorted[i].name, sorted[i].class) or sorted[i].name
+  end
   if #names <= 1 then return names[1] or "" end
   return table.concat(names, ", ", 1, #names - 1) .. L.AND .. names[#names]
+end
+
+local KILL_FALLBACK = "{tueur} {a|ont} abattu {personnage}."
+
+--- La graine de la phrase d'un kill : le chasseur et l'heure de son kill, portés par son annonce.
+local function killSeed(guid, killT)
+  if type(guid) ~= "string" or guid == "" or not killT then return nil end
+  return "H:" .. guid .. ":" .. tostring(killT)
 end
 
 --- Phrase d'une victoire honorable, prête à afficher (chacun à la couleur de sa classe), tirée de son propre lot :
 --- les chasseurs en sont le sujet, accordé au pluriel quand ils sont plusieurs.
 --- `hunters` : { { name, class }, … } ; `template` : le gabarit à réutiliser (un chasseur de plus sur le même
---- popup) ; renvoie la phrase et son gabarit.
-function Wanted.KillPhrase(victim, victimClass, hunters, template)
-  template = template or ns.Phrases.Pick(ns.KILL_PHRASES, "{tueur} {a|ont} abattu {personnage}.")
+--- popup) ; `seed` : la graine du tirage (cf. Phrases.Pick) ; renvoie la phrase et son gabarit.
+function Wanted.KillPhrase(victim, victimClass, hunters, template, seed)
+  template = template or ns.Phrases.Pick(ns.KILL_PHRASES, KILL_FALLBACK, seed)
   local roles = {
     personnage = ns.Phrases.Role(victim, victimClass),
     tueur = { plain = Wanted.HunterNames(hunters), shown = Wanted.HunterNames(hunters, true) },
@@ -679,6 +694,12 @@ end
 --- honorable », une fois par victime dans la fenêtre, avec « Afficher les morts des autres ». Faux si un popup
 --- (celui-ci ou une prime) est déjà passé pour ce kill. `guid`, `killT` : le chasseur et l'heure de son kill, qui
 --- identifient ses répétitions (retenus même pour un doublon : la répétition d'un coéquipier arrive plus tard).
+---
+--- Kill à plusieurs : une seule annonce, la même chez tous. Chaque chasseur envoie la sienne et elles n'arrivent
+--- pas dans le même ordre partout ; le popup garde donc pour graine le chasseur au plus petit GUID parmi ceux
+--- reçus (et l'heure de son kill), et nomme les chasseurs par ordre alphabétique. Quel que soit l'ordre
+--- d'arrivée, tous finissent sur la même phrase ; elle peut changer une fois, à l'instant où un coéquipier
+--- s'ajoute.
 local function announceHonor(victim, victimClass, by, byClass, zone, sub, guid, killT)
   local t = ns.now()
   local same, recent = announcedRecently(victim, t, guid, killT)
@@ -696,15 +717,22 @@ local function announceHonor(victim, victimClass, by, byClass, zone, sub, guid, 
     -- Kill à plusieurs (0.6.8) : le chasseur s'ajoute au popup déjà affiché, qui se complète sur place.
     local known = false
     for _, h in ipairs(hunters) do known = known or sameName(h.name, by) end
-    if not known and #hunters < ns.Data.WANTED_HUNTERS then
+    if not known and #hunters < ns.Data.WANTED_HUNTERS_KEPT then
       hunters[#hunters + 1] = { name = by, class = byClass }
       changed = true
     end
-    if changed and ns.db.settings.showDeaths and ns.UI and ns.UI.ShowKill then
+    -- La graine suit le plus petit GUID reçu : la phrase est la même chez tous, quel que soit l'ordre d'arrivée.
+    if type(guid) == "string" and guid ~= "" and killT and (not popup.seedGuid or guid < popup.seedGuid) then
+      popup.seedGuid = guid
+      local template = ns.Phrases.Pick(ns.KILL_PHRASES, KILL_FALLBACK, killSeed(guid, killT))
+      if template ~= popup.template then popup.template, changed = template, true end
+    end
+    if changed and ns.UI and ns.UI.ShowKill then
       local shownName = popup.name ~= "" and popup.name or L.SOMEONE
       local phrase = Wanted.KillPhrase(shownName, popup.class, hunters, popup.template)
       -- Hors de sa fenêtre, le popup a fait son temps : on le corrige s'il est encore là, sans le rejouer.
-      ns.UI.ShowKill(shownName, hunters, phrase, popup.place, popup.id, popup ~= recent)
+      -- Popup décoché : le kill est quand même noté dans l'historique de /mf.
+      ns.UI.ShowKill(shownName, hunters, phrase, popup.place, popup.id, popup ~= recent, not ns.db.settings.showDeaths)
     end
     return false
   end
@@ -712,10 +740,12 @@ local function announceHonor(victim, victimClass, by, byClass, zone, sub, guid, 
   local place = zone ~= "" and zone or (sub ~= "" and sub or L.WHERE_UNKNOWN)
   local shownName = victim ~= "" and victim or L.SOMEONE
   local hunters = { { name = by, class = byClass } }
-  local phrase, template = Wanted.KillPhrase(shownName, victimClass, hunters)
+  local seed = killSeed(guid, killT)
+  local phrase, template = Wanted.KillPhrase(shownName, victimClass, hunters, nil, seed)
   popup.hunters, popup.class, popup.place, popup.template = hunters, victimClass, place, template
-  if ns.db.settings.showDeaths and ns.UI and ns.UI.ShowKill then
-    ns.UI.ShowKill(shownName, popup.hunters, phrase, place, popup.id)
+  popup.seedGuid = seed and guid or nil
+  if ns.UI and ns.UI.ShowKill then
+    ns.UI.ShowKill(shownName, popup.hunters, phrase, place, popup.id, false, not ns.db.settings.showDeaths)
   end
   return true
 end
@@ -741,21 +771,26 @@ end
 
 --- Un recherché abattu (par moi, ou un « K » reçu) : le popup « Prime encaissée » toujours, comme l'avis « WANTED »
 --- d'une mort PvP (décision du 9 novembre 2026) ; la ligne de chat seulement avec les alertes Wanted.
-local function announceKill(entry, by, byClass, zone, sub, prime)
+--- `t` : l'heure du kill, la même dans le « K » : avec le prénom de l'ennemi, elle donne la graine de la phrase.
+local function announceKill(entry, by, byClass, zone, sub, prime, t)
   local place = zone ~= "" and zone or (sub ~= "" and sub or L.WHERE_UNKNOWN)
   markAnnounced(entry.name, ns.now())
   if ns.db.settings.wantedAlerts then
     ns.Print(L.BOUNTY_CHAT, ns.ClassColored(by, byClass), ns.ClassColored(entry.name, entry.class), place, ns.Points(prime), entry.kills or 0)
   end
   if ns.UI and ns.UI.ShowBounty then
-    ns.UI.ShowBounty(entry, Wanted.BountyPhrase(entry, by, byClass), by, prime, place)
+    -- À l'heure près et au prénom seul : des coéquipiers comptent le kill à une seconde d'écart, et un tableau
+    -- peut ne connaître l'ennemi que par son prénom. La prime d'un même ennemi ne s'encaisse pas deux fois de suite.
+    local seed = t and ("K:" .. tostring(entry.name):match("^%S*") .. ":" .. tostring(math.floor(t / 3600))) or nil
+    ns.UI.ShowBounty(entry, Wanted.BountyPhrase(entry, by, byClass, seed), by, prime, place)
   end
 end
 
 --- Phrase troll d'une prime encaissée, prête à afficher. La prime et le lieu sont dans le pied du popup.
-function Wanted.BountyPhrase(entry, by, byClass)
+--- `seed` : la graine du tirage (cf. Phrases.Pick) ; sans elle, au hasard (/mf prime).
+function Wanted.BountyPhrase(entry, by, byClass, seed)
   local roles = { chasseur = ns.Phrases.Role(by, byClass), ennemi = ns.Phrases.Role(entry.name, entry.class) }
-  return ns.Phrases.Fill(ns.Phrases.Pick(ns.BOUNTY_PHRASES, "{chasseur} a abattu {ennemi}."), roles)
+  return ns.Phrases.Fill(ns.Phrases.Pick(ns.BOUNTY_PHRASES, "{chasseur} a abattu {ennemi}.", seed), roles)
 end
 
 --- Un joueur abattu par moi ou mon groupe (message de victoire honorable). Toujours un événement `pk` du journal
@@ -825,7 +860,7 @@ function Wanted.RecordKill(char, name, t, battleground)
   markKill(entry, t, myName(), char.class, map, x, y, zone, sub, prime)
   announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime))
   logKill("kill « %s » : prime, K %s", name, lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
-  announceKill(entry, myName(), char.class, zone, sub, prime)
+  announceKill(entry, myName(), char.class, zone, sub, prime, t)
   return entry, true
 end
 
@@ -842,7 +877,7 @@ function Wanted.RecordKillMessage(msg, sender)
   end
   markKill(entry, msg.t, msg.by, msg.byClass, msg.map, msg.x, msg.y, msg.zone, msg.sub, msg.points or 0)
   if (msg.kills or 0) > (entry.kills or 0) then entry.kills = msg.kills end
-  announceKill(entry, msg.by, msg.byClass, msg.zone, msg.sub, msg.points or 0)
+  announceKill(entry, msg.by, msg.byClass, msg.zone, msg.sub, msg.points or 0, msg.t)
   return entry, true
 end
 

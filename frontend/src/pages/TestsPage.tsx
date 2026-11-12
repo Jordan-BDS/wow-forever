@@ -66,13 +66,13 @@ const SECTIONS: Section[] = [
         title: "Message de bienvenue et fenêtre",
         commands: ["/mf", "/mf collecte"],
         expected:
-          "Chat : « [MF] Bienvenue, Nom. Compteurs depuis le 04/11/2026. » La fenêtre s'ouvre, titre Manuel Feralas avec le portrait et six onglets : Guilde en jeu, Wanted, Collecte, Réglages, Nouveautés, Diagnostic ; à droite du titre, le temps sans sauvegarde et le bouton Sauvegarder. Onglet Collecte : les personnages du compte à gauche, les lignes d'état à droite, le bouton « Exporter le code » en bas. Les onglets Guilde en jeu et Wanted sont en colonnes. Onglet Réglages : onze cases en trois groupes. Sur la minimap, un bouton au portrait de la guilde ouvre la fenêtre. Onglet Nouveautés : les notes de la version, en vert tant qu'elles ne sont pas lues. Onglet Diagnostic : le rapport de /mf api dans une zone à copier.",
+          "Chat : « [MF] Bienvenue, Nom. Compteurs depuis le 04/11/2026. » La fenêtre s'ouvre, titre Manuel Feralas avec le portrait et sept onglets : Historique (celui sur lequel elle s'ouvre : les derniers décès, victoires honorables et primes, le plus récent en haut), Guilde en jeu, Wanted, Collecte, Réglages, Nouveautés, Diagnostic ; à droite du titre, le temps sans sauvegarde et le bouton Sauvegarder. Onglet Collecte : les personnages du compte à gauche, les lignes d'état à droite, le bouton « Exporter le code » en bas. Les onglets Guilde en jeu et Wanted sont en colonnes. Onglet Réglages : onze cases en trois groupes. Sur la minimap, un bouton au portrait de la guilde ouvre la fenêtre. Onglet Nouveautés : les notes de la version, en vert tant qu'elles ne sont pas lues. Onglet Diagnostic : le rapport de /mf api dans une zone à copier.",
       },
       {
         id: "version",
         title: "Version de l'addon chargée",
         commands: ['/dump C_AddOns.GetAddOnMetadata("WoWForeverGuilde", "Version")'],
-        expected: "La version de la dernière release (0.7.0 au 12 novembre).",
+        expected: "La version de la dernière release (0.7.1 au 12 novembre).",
         otherwise:
           "Autre chose : le compagnon n'a pas recopié l'addon. Bouton « Réinstaller l'addon » puis /reload.",
       },

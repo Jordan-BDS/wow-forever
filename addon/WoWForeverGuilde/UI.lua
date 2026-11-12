@@ -131,8 +131,8 @@ end
 -- --- fenêtre à onglets ---------------------------------------------------------------------------
 --
 -- Une seule fenêtre (/mf), un onglet par écran. Chaque fichier d'interface déclare le sien avec UI.AddTab ; le
--- panneau n'est construit qu'à sa première ouverture. La position de la fenêtre et le dernier onglet ouvert sont
--- retenus d'une session à l'autre (réglages du compte).
+-- panneau n'est construit qu'à sa première ouverture. La fenêtre s'ouvre sur le premier onglet (l'historique) ;
+-- sa position est retenue d'une session à l'autre (réglages du compte).
 
 local WINDOW_WIDTH, WINDOW_HEIGHT = 700, 512
 -- Les panneaux commencent sous la rangée d'onglets : leur contenu garde les décalages des anciennes fenêtres, qui
@@ -203,7 +203,6 @@ local function selectTab(key)
   def.panel:Show()
   paintTabs()
   refreshHeader()
-  if ns.db then ns.db.settings.windowTab = key end
   if def.show then ns.Safe("ui." .. key, def.show, def.panel) end
 end
 
@@ -260,11 +259,11 @@ local function buildWindow()
   window.tabRule:SetPoint("TOPRIGHT", -12, -66)
 end
 
---- Ouvre la fenêtre sur un onglet : celui demandé, sinon le dernier ouvert, sinon le premier.
+--- Ouvre la fenêtre sur un onglet : celui demandé, sinon le premier (l'historique).
 function UI.Open(key)
   if not window then buildWindow() end
   window:Show()
-  selectTab(key or current or (ns.db and ns.db.settings.windowTab) or tabOrder[1])
+  selectTab(key or tabOrder[1])
 end
 
 --- /mf et ses variantes : ouvre la fenêtre (sur l'onglet demandé), ou la ferme si elle y est déjà.
@@ -275,6 +274,126 @@ function UI.Toggle(key)
   end
   UI.Open(key)
 end
+
+-- --- onglet Historique : les derniers décès et victoires de la guilde ---------------------------------------
+--
+-- Premier onglet, celui sur lequel la fenêtre s'ouvre. Chaque avis de décès, victoire honorable ou prime
+-- encaissée y est noté avec la phrase et le pied de son popup, que les popups soient affichés ou non
+-- (`db.history`, niveau compte, HISTORY_MAX entrées). Le plus récent en haut. On n'y trouve que ce que cet
+-- addon a reçu : rien de ce qui s'est passé jeu fermé.
+
+local HISTORY_ROW = 34
+local HISTORY_KIND = {
+  death = { L.HISTORY_DEATH, 1, 0.35, 0.24 },
+  kill = { L.HISTORY_KILL, 0.45, 0.9, 0.45 },
+  bounty = { L.HISTORY_BOUNTY, 1, 0.82, 0 },
+}
+local historyKeys = {} -- clé de popup → son entrée, pour la session : un popup corrigé sur place corrige l'entrée
+local historyPanel
+local historyRows = {}
+
+--- Lignes à afficher, la plus récente d'abord : { text, sub, kind, entry }. Exposé pour les tests.
+function UI.HistoryLines()
+  local history = (ns.db and ns.db.history) or {}
+  local lines = {}
+  for i = #history, 1, -1 do
+    local entry = history[i]
+    local kind = HISTORY_KIND[entry.kind] or HISTORY_KIND.death
+    local sub = UI.Ago(entry.t) .. " · " .. kind[1]
+    if entry.footer and entry.footer ~= "" then sub = sub .. " · " .. entry.footer end
+    lines[#lines + 1] = { text = entry.text or "", sub = sub, kind = entry.kind, entry = entry }
+  end
+  return lines
+end
+
+local function historyRow(i)
+  local row = historyRows[i]
+  if not row then
+    row = CreateFrame("Button", nil, historyPanel.content)
+    row:SetSize(UI.LIST_WIDTH, HISTORY_ROW)
+    row:SetPoint("TOPLEFT", 0, -(i - 1) * HISTORY_ROW)
+    row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.text:SetPoint("TOPLEFT", 0, -3)
+    row.text:SetWidth(UI.LIST_WIDTH)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(false)
+    row.sub = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    row.sub:SetPoint("TOPLEFT", 0, -18)
+    row.sub:SetWidth(UI.LIST_WIDTH)
+    row.sub:SetJustifyH("LEFT")
+    row.sub:SetWordWrap(false)
+    -- Une phrase trop longue pour la ligne se lit en entier au survol.
+    row:SetScript("OnEnter", function(self)
+      if not GameTooltip or not self.line then return end
+      GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+      GameTooltip:ClearLines()
+      GameTooltip:AddLine(self.line.text, 1, 1, 1, true)
+      GameTooltip:AddLine(self.line.sub, 0.7, 0.7, 0.7, true)
+      GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    historyRows[i] = row
+  end
+  return row
+end
+
+local function renderHistory()
+  if not historyPanel or not UI.Shown("history") then return end
+  local lines = UI.HistoryLines()
+  for i, line in ipairs(lines) do
+    local row = historyRow(i)
+    local kind = HISTORY_KIND[line.kind] or HISTORY_KIND.death
+    row.text:SetText(line.text)
+    row.text:SetTextColor(kind[2], kind[3], kind[4])
+    row.sub:SetText(line.sub)
+    row.line = line
+    row:Show()
+  end
+  for i = #lines + 1, #historyRows do
+    historyRows[i]:Hide()
+    historyRows[i].line = nil
+  end
+  historyPanel.content:SetSize(UI.LIST_WIDTH, math.max(#lines, 1) * HISTORY_ROW)
+  if #lines == 0 then historyPanel.empty:Show() else historyPanel.empty:Hide() end
+end
+
+--- Note un décès, une victoire ou une prime dans l'historique. `key` : la clé de son popup ; le même popup
+--- corrigé dans la minute (un chasseur de plus, un nom qui arrive, une mort PvE requalifiée en PvP) corrige son
+--- entrée au lieu d'en ajouter une.
+function UI.Remember(kind, key, text, footer)
+  local db = ns.db
+  if not db then return end
+  db.history = db.history or {}
+  local now = ns.now()
+  local entry = key and historyKeys[key] or nil
+  if entry and now - entry.t <= ns.Data.HISTORY_MERGE then
+    entry.text, entry.footer = text, footer
+  else
+    entry = { t = now, kind = kind, text = text, footer = footer }
+    table.insert(db.history, entry)
+    while #db.history > ns.Data.HISTORY_MAX do table.remove(db.history, 1) end
+    if key then historyKeys[key] = entry end
+  end
+  renderHistory()
+end
+
+local function buildHistory(panel)
+  historyPanel = panel
+  panel.scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+  panel.scroll:SetPoint("TOPLEFT", 16, -44)
+  panel.scroll:SetPoint("BOTTOMRIGHT", -36, 16)
+  panel.content = CreateFrame("Frame", nil, panel.scroll)
+  panel.content:SetSize(UI.LIST_WIDTH, HISTORY_ROW)
+  panel.scroll:SetScrollChild(panel.content)
+  panel.empty = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  panel.empty:SetPoint("TOPLEFT", 20, -50)
+  panel.empty:SetWidth(UI.LIST_WIDTH)
+  panel.empty:SetJustifyH("LEFT")
+  panel.empty:SetText(L.HISTORY_EMPTY)
+end
+
+UI.AddTab({ key = "history", order = 0, label = L.TAB_HISTORY, name = "WoWForeverGuildeHistory", build = buildHistory, show = renderHistory })
 
 -- --- onglet Collecte : personnages du compte, état de la collecte, export ------------------------------
 --
@@ -811,7 +930,7 @@ local waiting, shownAt, shownKey, nextTimer = {}, nil, nil, nil
 local toastLog = {}
 local function logToast(what, label)
   label = tostring(label or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
-  toastLog[#toastLog + 1] = { t = ns.now(), what = what, label = label:sub(1, 60) }
+  toastLog[#toastLog + 1] = { t = ns.now(), what = what, label = ns.Cut(label, 60) }
   while #toastLog > 8 do table.remove(toastLog, 1) end
   ns.Trace("popup %s : %s", what, label)
 end
@@ -889,7 +1008,8 @@ end
 --- Avis de décès. La phrase (ns.DeathPhrase) arrive prête, noms colorés ; le pied donne les faits : niveau, classe,
 --- lieu, et pour une mort PvP la mention ou la prime. `wanted` : l'entrée du tueur dans le tableau Wanted quand
 --- c'est un joueur recherché ; avec les alertes Wanted cochées, le pied porte sa prime (un seul cadre, pas deux).
-function UI.ShowDeath(info, phrase, wanted)
+--- `quiet` : noté dans l'historique sans popup (« Afficher les morts des autres » décoché).
+function UI.ShowDeath(info, phrase, wanted, quiet)
   local parts = {}
   if (info.level or 0) > 0 then parts[#parts + 1] = string.format(L.DEATH_LEVEL, info.level) end
   local class = ns.ClassLabel(info.class)
@@ -906,8 +1026,10 @@ function UI.ShowDeath(info, phrase, wanted)
     parts[#parts + 1] = L.DEATH_PVP
   end
   local label = string.format(L.DEATH_LOG, tostring(info.name), info.killer or "")
-  UI.ShowToast(header, phrase, table.concat(parts, " · "), { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths,
-    "mort:" .. tostring(info.name), label)
+  local footer, key = table.concat(parts, " · "), "mort:" .. tostring(info.name)
+  UI.Remember("death", key, phrase, footer)
+  if quiet then return end
+  UI.ShowToast(header, phrase, footer, { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths, key, label)
 end
 
 --- Appel à l'aide d'un membre dans ma zone : qui et par qui dans le texte, où dans le pied.
@@ -920,10 +1042,12 @@ end
 --- sans son (il y en a bien plus que de morts). La phrase (Wanted.KillPhrase) arrive prête ; le pied dit où.
 --- `hunters` : { { name, class }, … }, tous ceux du kill ; un chasseur de plus complète le popup sur place (même clé).
 --- `id` : le kill, clé du popup ; `updateOnly` : ne corrige que s'il est encore à l'écran ou en attente.
-function UI.ShowKill(victim, hunters, phrase, place, id, updateOnly)
+--- `quiet` : noté dans l'historique sans popup (« Afficher les morts des autres » décoché).
+function UI.ShowKill(victim, hunters, phrase, place, id, updateOnly, quiet)
   place = place ~= "" and place or L.WHERE_UNKNOWN
   local key = "kill:" .. tostring(id or victim)
-  if updateOnly and not UI.ToastPending(key) then return end
+  UI.Remember("kill", key, phrase, place)
+  if quiet or (updateOnly and not UI.ToastPending(key)) then return end
   local label = string.format(#hunters > 1 and L.KILL_LOG_PLURAL or L.KILL_LOG, ns.Wanted.HunterNames(hunters), victim, place)
   UI.ShowToast(L.KILL_HEADER, phrase, place, { 0.45, 0.9, 0.45 }, false, key, label)
 end
@@ -933,6 +1057,7 @@ end
 function UI.ShowBounty(entry, phrase, by, prime, place)
   place = place ~= "" and place or L.WHERE_UNKNOWN
   local label = string.format(L.BOUNTY_LOG, by, entry.name, ns.Points(prime), place)
-  UI.ShowToast(L.BOUNTY_HEADER, phrase, string.format(L.BOUNTY_FOOTER, ns.Points(prime), place), { 1, 0.82, 0 },
-    ns.db.settings.soundDeaths, nil, label)
+  local footer = string.format(L.BOUNTY_FOOTER, ns.Points(prime), place)
+  UI.Remember("bounty", nil, phrase, footer)
+  UI.ShowToast(L.BOUNTY_HEADER, phrase, footer, { 1, 0.82, 0 }, ns.db.settings.soundDeaths, nil, label)
 end

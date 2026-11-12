@@ -86,6 +86,11 @@ ns.L = setmetatable({
   LAST_WRITE_NEVER = "Dernière écriture sur le disque : jamais (à la prochaine déconnexion)",
   SESSION_UNSAVED = "Session : %s sans sauvegarde",
   TAB_COLLECT = "Collecte",
+  TAB_HISTORY = "Historique",
+  HISTORY_DEATH = "Avis de décès",
+  HISTORY_KILL = "Victoire honorable",
+  HISTORY_BOUNTY = "Prime encaissée",
+  HISTORY_EMPTY = "Rien pour l'instant. Les décès, les victoires honorables et les primes de la guilde s'inscrivent ici au fil du jeu, les plus récents en haut.",
   TAB_SETTINGS = "Réglages",
   TAB_NEWS = "Nouveautés",
   COL_NAME = "Nom",
@@ -194,6 +199,13 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.1", notes = {
+    "Récolte : ton butin est reconnu quel que soit ton nom (prénom à tiret, prénom et nom) ; des minerais, herbes, peaux et poissons n'étaient pas comptés.",
+    "Diagnostic : la ligne « récolte » dit aussi ce que l'addon a fait du dernier butin.",
+    "Popups : pour une même mort, un même kill ou une même prime, toute la guilde lit la même phrase.",
+    "Kill à plusieurs : une seule annonce, les chasseurs par ordre alphabétique.",
+    "Nouvel onglet Historique, sur lequel /mf s'ouvre : les derniers décès, victoires honorables et primes, même si tu as coupé les popups.",
+  } },
   { version = "0.7.0", notes = {
     "Une seule fenêtre /mf, avec des onglets : Guilde en jeu, Wanted, Collecte, Réglages, Nouveautés, Diagnostic. Elle retient sa place et le dernier onglet ouvert.",
     "Réglages regroupés par sujet ; le rappel de sauvegarde peut se recocher.",

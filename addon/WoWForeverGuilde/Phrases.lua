@@ -153,8 +153,13 @@ function Phrases.Fill(template, roles, plural)
   return sentenceCase(text)
 end
 
---- Un gabarit du lot, au hasard ; `fallback` si le lot est vide.
-function Phrases.Pick(phrases, fallback)
+--- Un gabarit du lot ; `fallback` si le lot est vide. Avec une graine (`seed`, un texte tiré de ce que tous les
+--- guildiens reçoivent : qui, quand), le choix est le même chez tous ceux qui ont le même lot : pour un même
+--- événement, tout le monde lit la même phrase. Sans graine, au hasard.
+function Phrases.Pick(phrases, fallback, seed)
   if type(phrases) ~= "table" or #phrases == 0 then return fallback end
-  return phrases[math.random(1, #phrases)]
+  if type(seed) ~= "string" or seed == "" then return phrases[math.random(1, #phrases)] end
+  local hash = 0
+  for i = 1, #seed do hash = (hash * 31 + seed:byte(i)) % 2147483647 end
+  return phrases[hash % #phrases + 1]
 end

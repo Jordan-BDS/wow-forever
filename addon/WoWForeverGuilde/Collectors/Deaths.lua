@@ -90,7 +90,9 @@ function ns.DeathPhrase(info)
   local victim = { plain = name, shown = color and ("|c" .. (color.colorStr or "ffffffff") .. name .. "|r") or name }
   local killer = (info.killer and info.killer ~= "") and info.killer or ns.L.KILLER_UNKNOWN
   local roles = { personnage = victim, tueur = ns.Phrases.Role(killer, info.player and info.kclass or nil) }
-  return ns.Phrases.Fill(ns.Phrases.Pick(ns.PHRASES, "{personnage} est hors jeu : {tueur}."), roles)
+  -- La graine : le mort et l'heure de sa mort, portés par le message. Tous les guildiens tirent la même phrase.
+  local seed = info.guid and info.guid ~= "" and info.t and ("D:" .. info.guid .. ":" .. tostring(info.t)) or nil
+  return ns.Phrases.Fill(ns.Phrases.Pick(ns.PHRASES, "{personnage} est hors jeu : {tueur}.", seed), roles)
 end
 
 local recentDeaths = {} -- guid du mort → { t = heure de réception, player = tueur joueur } de la dernière annonce gardée
@@ -134,11 +136,13 @@ ns.RegisterCollector({
         if added and ns.db.settings.wantedAlerts then ns.Safe("wanted.announce", ns.Wanted.Announce, entry, info) end
       end
     end
-    if not ns.db.settings.showDeaths then
+    -- Popup décoché : la mort est quand même notée dans l'historique de /mf.
+    local quiet = not ns.db.settings.showDeaths
+    if quiet then
       ns.Trace("mort de %s : popup désactivé dans les réglages", info.name)
-      return
+    else
+      ns.Trace("mort de %s reçue : popup%s", info.name, wanted and " (tueur recherché)" or "")
     end
-    ns.Trace("mort de %s reçue : popup%s", info.name, wanted and " (tueur recherché)" or "")
-    if ns.UI and ns.UI.ShowDeath then ns.UI.ShowDeath(info, ns.DeathPhrase(info), wanted) end
+    if ns.UI and ns.UI.ShowDeath then ns.UI.ShowDeath(info, ns.DeathPhrase(info), wanted, quiet) end
   end,
 })
