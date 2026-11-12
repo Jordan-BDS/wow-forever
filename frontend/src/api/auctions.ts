@@ -3,7 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 
-export type AuctionSort = "name" | "price" | "listed" | "up" | "down";
+/** « sold » et « posted » : enchères parties ou arrivées depuis le scan de référence (estimation). */
+export type AuctionSort = "name" | "price" | "listed" | "up" | "down" | "sold" | "posted";
 /** Référence de la variation : le scan précédent, ou le dernier scan vieux d'au moins un jour / une semaine. */
 export type AuctionSince = "prev" | "day" | "week";
 
@@ -22,6 +23,13 @@ export type AuctionRow = {
   previous_price: number | null;
   /** Variation en % depuis le scan de référence, null si l'objet n'y était pas. */
   change: number | null;
+  /** Vrai si l'objet était au scan de référence et n'a plus aucune enchère (tris de mouvements seulement). */
+  gone: boolean;
+  previous_listed: number | null;
+  /** Enchères en plus ou en moins depuis le scan de référence, null si l'un des deux nombres manque. */
+  listed_change: number | null;
+  /** Valeur estimée du mouvement, en cuivre : une unité par enchère, au prix le plus bas. */
+  moved: number | null;
 };
 
 export type AuctionOverview = {

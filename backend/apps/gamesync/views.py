@@ -283,7 +283,9 @@ class AuctionScansView(APIView):
         parameters=[
             OpenApiParameter("house", OpenApiTypes.STR, description="hôtel (défaut : le dernier scanné)"),
             OpenApiParameter("q", OpenApiTypes.STR, description="nom ou ID d'objet"),
-            OpenApiParameter("sort", OpenApiTypes.STR, description="name (défaut), price, listed, up, down"),
+            OpenApiParameter(
+                "sort", OpenApiTypes.STR, description="name (défaut), price, listed, up, down, sold, posted"
+            ),
             OpenApiParameter("since", OpenApiTypes.STR, description="prev (défaut), day, week"),
             OpenApiParameter("page", OpenApiTypes.INT),
         ],

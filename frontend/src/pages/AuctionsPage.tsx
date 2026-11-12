@@ -30,7 +30,11 @@ const SORTS: { value: AuctionSort; label: string }[] = [
   { value: "listed", label: "Enchères" },
   { value: "up", label: "Plus fortes hausses" },
   { value: "down", label: "Plus fortes baisses" },
+  { value: "sold", label: "Enchères parties" },
+  { value: "posted", label: "Enchères arrivées" },
 ];
+
+const isMovement = (sort: AuctionSort) => sort === "sold" || sort === "posted";
 
 /** Prix de l'hôtel des ventes scannés en jeu et envoyés par le compagnon : réservé au GM. */
 export function AuctionsPage() {
@@ -148,6 +152,12 @@ export function AuctionsPage() {
               ? "pas encore de scan plus ancien : les variations arriveront au prochain"
               : "pas de scan assez ancien pour cette période"}
         </p>
+        {isMovement(sort) && (
+          <p className="text-xs text-muted">
+            Estimation d'après le nombre d'enchères des deux scans : une enchère partie a pu être vendue,
+            annulée ou avoir expiré. Valeur comptée au prix le plus bas, une unité par enchère.
+          </p>
+        )}
       </Card>
 
       <Card className="p-0">
@@ -155,7 +165,9 @@ export function AuctionsPage() {
           <p className="p-6 text-center text-sm text-muted">
             {sort === "up" || sort === "down"
               ? "Aucune variation à montrer : il faut un scan de référence."
-              : "Aucun objet ne correspond."}
+              : isMovement(sort)
+                ? "Aucun mouvement à montrer entre ces deux scans."
+                : "Aucun objet ne correspond."}
           </p>
         ) : (
           <ul className="divide-y divide-border/60">
@@ -164,6 +176,7 @@ export function AuctionsPage() {
                 key={row.item_id}
                 row={row}
                 house={data.house}
+                movement={isMovement(sort)}
                 open={open === row.item_id}
                 onToggle={() => setOpen(open === row.item_id ? null : row.item_id)}
               />
@@ -192,11 +205,14 @@ export function AuctionsPage() {
 function AuctionItem({
   row,
   house,
+  movement,
   open,
   onToggle,
 }: {
   row: AuctionRow;
   house: string;
+  /** Tri de mouvements : la colonne de droite montre les enchères parties ou arrivées et leur valeur. */
+  movement: boolean;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -218,11 +234,24 @@ function AuctionItem({
             {row.name}
           </WowheadLink>
           <div className="text-xs text-muted">
-            {row.listed != null
-              ? `${row.listed} enchère${row.listed > 1 ? "s" : ""}`
-              : "nombre d'enchères inconnu"}
+            {row.gone
+              ? `plus en vente · ${row.previous_listed} enchère${(row.previous_listed ?? 0) > 1 ? "s" : ""} avant`
+              : row.listed == null
+                ? "nombre d'enchères inconnu"
+                : movement && row.previous_listed != null
+                  ? `${row.previous_listed} → ${row.listed} enchère${row.listed > 1 ? "s" : ""}`
+                  : `${row.listed} enchère${row.listed > 1 ? "s" : ""}`}
           </div>
         </div>
+        {movement && row.listed_change != null && (
+          <div className="text-right">
+            <div className={clsx("font-mono", row.listed_change < 0 ? "text-danger" : "text-success")}>
+              {row.listed_change > 0 ? "+" : "−"}
+              {Math.abs(row.listed_change)}
+            </div>
+            <div className="text-xs text-muted">≈ {formatMoney(row.moved ?? 0)}</div>
+          </div>
+        )}
         <div className="text-right">
           <div className="font-mono">{formatMoney(row.price)}</div>
           <div
@@ -236,7 +265,7 @@ function AuctionItem({
             )}
             title={row.previous_price != null ? `avant : ${formatMoney(row.previous_price)}` : undefined}
           >
-            {row.change == null ? "nouveau" : formatChange(row.change)}
+            {row.gone ? "dernier prix" : row.change == null ? "nouveau" : formatChange(row.change)}
           </div>
         </div>
         <button

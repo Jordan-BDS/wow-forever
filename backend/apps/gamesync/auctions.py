@@ -30,7 +30,9 @@ ID_BATCH = 5000  # objets par requête sur l'index (SQLite borne le nombre de pa
 
 # Référence de la variation : le scan précédent, ou le dernier scan vieux d'au moins un jour / une semaine.
 BASELINES = {"prev": None, "day": timedelta(days=1), "week": timedelta(days=7)}
-SORTS = ("name", "price", "listed", "up", "down")
+# « sold » et « posted » : les plus gros mouvements, estimés d'après le nombre d'enchères d'un scan à l'autre.
+SORTS = ("name", "price", "listed", "up", "down", "sold", "posted")
+MOVEMENT_SORTS = ("sold", "posted")
 
 
 class AuctionError(ValueError):
@@ -160,39 +162,64 @@ def _items(ids) -> dict[int, dict]:
     return found
 
 
-def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> list[dict]:
-    """Chaque objet du dernier scan avec son prix de référence, par nom. Gardé en cache : filtrer, trier ou
-    changer de page ne relit pas les deux scans."""
-    key = f"gamesync:auctions:{latest.pk}:{baseline.pk if baseline else 0}"
-    rows = cache.get(key)
-    if rows is not None:
-        return rows
+def _movement(price: int, listed: int | None, previous: tuple[int, int | None] | None) -> dict:
+    """Mouvement d'un objet entre le scan de référence et le dernier, d'après le nombre d'enchères : c'est une
+    estimation. Une enchère disparue a pu être vendue, annulée ou avoir expiré, et le scan ne compte que des
+    enchères, pas des quantités. `moved` : valeur en cuivre, une unité par enchère au prix le plus bas (celui
+    de référence pour des enchères parties, le prix actuel pour des enchères arrivées)."""
+    previous_listed = previous[1] if previous else None
+    if listed is None or previous_listed is None:
+        return {"previous_listed": previous_listed, "listed_change": None, "moved": None}
+    delta = listed - previous_listed
+    unit = previous[0] if delta < 0 else price
+    return {"previous_listed": previous_listed, "listed_change": delta, "moved": abs(delta) * unit}
+
+
+def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[dict], list[dict]]:
+    """Chaque objet du dernier scan avec son prix de référence, par nom ; puis les objets du scan de référence
+    absents du dernier (plus aucune enchère), montrés par les seuls tris de mouvements. Gardé en cache :
+    filtrer, trier ou changer de page ne relit pas les deux scans."""
+    key = f"gamesync:auctions:2:{latest.pk}:{baseline.pk if baseline else 0}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
     current = _prices(latest)
     before = _prices(baseline) if baseline else {}
-    names = _items(current.keys())
-    rows = []
-    for item_id, (price, listed) in current.items():
+    names = _items(current.keys() | before.keys())
+
+    def row(item_id: int, price: int, listed: int | None, previous, gone: bool) -> dict:
         item = names.get(item_id)
-        previous = before.get(item_id)
         previous_price = previous[0] if previous else None
-        rows.append(
-            {
-                "item_id": item_id,
-                "name": item["name"] if item else f"Objet {item_id}",
-                "known": item is not None,
-                "quality": item["quality"] if item else 1,
-                "icon_url": icon_url(item["icon"]) if item else "",
-                "price": price,
-                "listed": listed,
-                "previous_price": previous_price,
-                "change": round((price - previous_price) * 100 / previous_price, 1)
-                if previous_price
-                else None,
-            }
-        )
+        return {
+            "item_id": item_id,
+            "name": item["name"] if item else f"Objet {item_id}",
+            "known": item is not None,
+            "quality": item["quality"] if item else 1,
+            "icon_url": icon_url(item["icon"]) if item else "",
+            "price": price,
+            "listed": listed,
+            "previous_price": previous_price,
+            "change": round((price - previous_price) * 100 / previous_price, 1)
+            if previous_price and not gone
+            else None,
+            "gone": gone,
+            **_movement(price, listed, previous),
+        }
+
+    rows = [
+        row(item_id, price, listed, before.get(item_id), False)
+        for item_id, (price, listed) in current.items()
+    ]
+    # Disparus : leur dernier prix connu, zéro enchère.
+    gone = [
+        row(item_id, previous[0], 0, previous, True)
+        for item_id, previous in before.items()
+        if item_id not in current
+    ]
     rows.sort(key=lambda r: r["name"].lower())
-    cache.set(key, rows, ROWS_TTL)
-    return rows
+    gone.sort(key=lambda r: r["name"].lower())
+    cache.set(key, (rows, gone), ROWS_TTL)
+    return rows, gone
 
 
 def overview(house: str = "", q: str = "", sort: str = "name", since: str = "prev", page: int = 1) -> dict:
@@ -211,7 +238,9 @@ def overview(house: str = "", q: str = "", sort: str = "name", since: str = "pre
     if latest is None:
         return empty
     baseline = _baseline(latest, since)
-    rows = _compared(latest, baseline)
+    rows, gone = _compared(latest, baseline)
+    if sort in MOVEMENT_SORTS:
+        rows = rows + gone
 
     needle = q.strip().lower()
     if needle:
@@ -224,6 +253,11 @@ def overview(house: str = "", q: str = "", sort: str = "name", since: str = "pre
         # Les objets sans prix de référence n'ont pas de variation : ils sortent de ces deux tris.
         rows = [r for r in rows if r["change"] is not None]
         rows.sort(key=lambda r: (-r["change"] if sort == "up" else r["change"], r["name"]))
+    elif sort in MOVEMENT_SORTS:
+        # Enchères parties (« sold ») ou arrivées (« posted »), les plus grosses valeurs estimées d'abord.
+        sign = -1 if sort == "sold" else 1
+        rows = [r for r in rows if r["listed_change"] is not None and r["listed_change"] * sign > 0]
+        rows.sort(key=lambda r: (-r["moved"], -abs(r["listed_change"]), r["name"]))
     # sinon : par nom, l'ordre du cache
 
     pages = max(1, -(-len(rows) // PAGE_SIZE))

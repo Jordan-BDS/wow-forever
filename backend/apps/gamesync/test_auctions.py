@@ -157,6 +157,45 @@ class TestRead:
         assert horde["baseline"] is None
         assert [(r["price"], r["change"]) for r in horde["results"]] == [(999, None)]
 
+    def test_biggest_movements_are_estimated_from_the_number_of_auctions(
+        self, api_client, as_user, gm, items
+    ):
+        Item.objects.create(id=4306, name="Étoffe de soie", quality=1, icon="inv_fabric_silk_01")
+        before = [[2589, 50, 10], [2592, 400, 5], [4306, 900, 4], [7000, 30, None]]
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(hours=1)), before)
+        after = [[2589, 60, 2], [2592, 300, 12], [7000, 30, 8], [8000, 5, 3]]
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(0)), after)
+        as_user(gm)
+        # Enchères parties : la soie a disparu du scan (4 × 900), le lin est passé de 10 à 2 (8 × 50, au prix
+        # de référence). La plus grosse valeur d'abord ; l'objet disparu garde son dernier prix, zéro enchère.
+        sold = api_client.get("/api/sync/auctions/", {"sort": "sold"}).json()
+        assert [
+            (r["item_id"], r["previous_listed"], r["listed"], r["listed_change"], r["moved"], r["gone"])
+            for r in sold["results"]
+        ] == [(4306, 4, 0, -4, 3600, True), (2589, 10, 2, -8, 400, False)]
+        assert (sold["results"][0]["price"], sold["results"][0]["change"]) == (900, None)
+        # Enchères arrivées, au prix actuel : la laine de 5 à 12 (7 × 300). Un objet nouveau ou dont le nombre
+        # d'enchères n'était pas connu n'a pas de mouvement.
+        posted = api_client.get("/api/sync/auctions/", {"sort": "posted"}).json()
+        assert [(r["item_id"], r["listed_change"], r["moved"]) for r in posted["results"]] == [
+            (2592, 7, 2100)
+        ]
+        # Les autres tris ne montrent pas les disparus, mais portent le mouvement de chaque objet.
+        names = api_client.get("/api/sync/auctions/").json()
+        assert names["total"] == 4 and all(r["gone"] is False for r in names["results"])
+        rows = {r["item_id"]: r for r in names["results"]}
+        assert (rows[2589]["listed_change"], rows[8000]["listed_change"], rows[7000]["listed_change"]) == (
+            -8,
+            None,
+            None,
+        )
+        # La recherche vaut aussi pour les disparus ; sans scan de référence, aucun mouvement.
+        found = api_client.get("/api/sync/auctions/", {"sort": "sold", "q": "soie"}).json()
+        assert [r["item_id"] for r in found["results"]] == [4306]
+        auctions.store_scan(gm, "Forever-Horde", stamp(timedelta(0)), [[2589, 999, 1]])
+        horde = api_client.get("/api/sync/auctions/", {"house": "Forever-Horde", "sort": "sold"}).json()
+        assert horde["results"] == []
+
     def test_item_history_is_per_house_oldest_first(self, api_client, as_user, gm, scans):
         as_user(gm)
         data = api_client.get("/api/sync/auctions/items/2589/", {"house": HOUSE}).json()
