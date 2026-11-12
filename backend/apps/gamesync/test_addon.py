@@ -485,20 +485,223 @@ class TestSession:
         assert window.shown is False and g._NS.UI.Shown("wanted") is False
         mf("")
         assert window.shown is True and g.WoWForeverGuildeWanted.shown is True
-        # Les onglets se cliquent : Collecte (personnages, réglages, état), Export (le code, régénéré à l'ouverture).
+        # Les onglets se cliquent. Collecte : personnages du compte et état de la collecte.
         collect = tab("Collecte")
         collect.scripts.OnClick(collect)
-        assert g.WoWForeverGuildeCollect.shown is True and g.WoWForeverGuildeWanted.shown is False
-        assert "Thrall" in g.WoWForeverGuildeCollect.charLines[1].text
+        panel = g.WoWForeverGuildeCollect
+        assert panel.shown is True and g.WoWForeverGuildeWanted.shown is False
+        assert panel.status.shown is True and "Thrall" in panel.status.charLines[1].text
+        # L'export est une vue de cet onglet : /mf export (ou le bouton) montre le code, régénéré à chaque fois ;
+        # « Retour » ou rouvrir l'onglet revient à l'état.
+        assert g.WoWForeverGuildeExport is None
         mf("export")
-        assert g.WoWForeverGuildeExport.shown is True and g.WoWForeverGuildeCollect.shown is False
-        assert decode_export(g.WoWForeverGuildeExport.box.text)["characters"][0]["name"] == "Thrall"
-        # Quatre onglets, un bouton chacun.
-        assert all(tab(label) for label in ("Guilde en jeu", "Wanted", "Collecte", "Export"))
+        export = g.WoWForeverGuildeExport
+        assert panel.shown is True and export.shown is True and panel.status.shown is False
+        assert decode_export(export.box.text)["characters"][0]["name"] == "Thrall"
+        mf("collecte")
+        assert window.shown is False  # redite sur son onglet, la commande ferme
+        mf("collecte")
+        assert panel.status.shown is True and export.shown is False
+        panel.status.exportButton.scripts.OnClick(panel.status.exportButton)
+        assert export.shown is True and panel.status.shown is False
+        # Six onglets, un bouton chacun ; l'en-tête garde la sauvegarde à portée, quel que soit l'onglet.
+        labels = ("Guilde en jeu", "Wanted", "Collecte", "Réglages", "Nouveautés", "Diagnostic")
+        assert all(tab(label) for label in labels)
+        assert "sans sauvegarde" in window.session.text
+        window.save.scripts.OnClick(window.save)
+        assert g._RELOADED is True
         # La fenêtre lâchée ailleurs retient sa place.
         lua.execute('WoWForeverGuildeFrame.point = { "TOPLEFT", UIParent, "TOPLEFT", 40, -60 }')
         window.scripts.OnDragStop(window)
         assert list(settings.windowPoint.values()) == ["TOPLEFT", "TOPLEFT", 40, -60]
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_settings_tab_groups_every_checkbox(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        settings = g.WoWForeverGuildeDB.settings
+        g.SlashCmdList.WOWFOREVERGUILDE("reglages")
+        panel = g.WoWForeverGuildeSettings
+        assert panel.shown is True
+        checks = dict(panel.checks)
+        assert sorted(checks) == sorted(
+            [
+                "sharePosition", "minimapDots", "minimapButton", "gankAlerts",
+                "showDeaths", "soundDeaths", "announceDeaths", "wantedAlerts",
+                "send", "sharePlaytime", "reloadReminder",
+            ]
+        )  # fmt: skip
+
+        def click(key, on):
+            checks[key].checked = on
+            checks[key].scripts.OnClick(checks[key])
+
+        # Une case écrit son réglage ; celles qui ont un effet immédiat passent par leur fonction.
+        click("soundDeaths", False)
+        click("sharePlaytime", True)
+        assert (settings.soundDeaths, settings.sharePlaytime) == (False, True)
+        click("sharePosition", False)
+        assert settings.sharePosition is False
+        click("wantedAlerts", False)
+        assert settings.wantedAlerts is False
+        # Le rappel de sauvegarde se recoche ici (le dialogue ne savait que le couper).
+        g.StaticPopupDialogs.WFG_RELOAD.OnAlt()
+        assert settings.reloadReminder is False
+        click("reloadReminder", True)
+        assert settings.reloadReminder is True
+        # « Envoyer ce personnage » vaut pour le personnage connecté seulement.
+        guid = g._NS.char.guid
+        click("send", False)
+        assert settings.excluded[guid] is True and checks["send"].get() is False
+        click("send", True)
+        assert settings.excluded[guid] is None and checks["send"].get() is True
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_news_tab_shows_release_notes_and_flags_the_unread_ones(self):
+        def tab(g, label):
+            (button,) = [
+                f
+                for f in list(g._FRAMES.values())
+                if f.kind == "Button" and f.scripts.OnClick and getattr(f.text, "text", None) == label
+            ]
+            return button
+
+        # Chaque version du code a ses notes : sans elles, rien ne serait annoncé à la mise à jour.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        assert g._NS.UI.NewsUnseen() == toc_version()
+        notes = [dict(entry) for entry in g._NS.CHANGELOG.values()]
+        assert all(entry["version"] and len(list(entry["notes"].values())) >= 1 for entry in notes)
+        versions = [entry["version"] for entry in notes]
+        assert all(
+            g._NS.VersionNewer(a, b) for a, b in zip(versions, versions[1:], strict=False)
+        )  # la plus récente d'abord
+
+        # En 0.6.13, jamais rien lu : une ligne à la connexion, l'onglet en vert, les notes de la 0.6.13 et d'avant.
+        lua = boot()
+        g = lua.globals()
+        g._NS.VERSION = "0.6.13"
+        login(lua)
+        assert any("Version 0.6.13 : ce qui change" in m for m in list(g._CHAT.values()))
+        mf = g.SlashCmdList.WOWFOREVERGUILDE
+        mf("qui")
+        assert tab(g, "Nouveautés").fresh is True
+        mf("nouveautes")
+        text = g.WoWForeverGuildeNews.text.text
+        assert "0.6.13|r  |cff5ad15anouveau|r" in text and "Popups relus" in text and "0.6.12" in text
+        assert (
+            "0.7.0" not in text and text.count("nouveau|r") == 1
+        )  # ni une version à venir, ni tout l'historique
+        # Lues : plus rien à signaler, ni sur l'onglet ni au prochain passage.
+        assert g.WoWForeverGuildeDB.settings.changelogSeen == "0.6.13" and g._NS.UI.NewsUnseen() is None
+        mf("qui")
+        assert tab(g, "Nouveautés").fresh is False
+        mf("nouveautes")
+        assert "nouveau|r" not in g.WoWForeverGuildeNews.text.text
+
+        # Après la mise à jour en 0.7.0 : ses notes apparaissent, seules marquées nouvelles.
+        lua = boot()
+        g = lua.globals()
+        g._NS.VERSION = "0.7.0"
+        g.WoWForeverGuildeDB = lua.table(settings=lua.table(changelogSeen="0.6.13"))
+        login(lua)
+        assert any("Version 0.7.0 : ce qui change" in m for m in list(g._CHAT.values()))
+        g.SlashCmdList.WOWFOREVERGUILDE("nouveautes")
+        text = g.WoWForeverGuildeNews.text.text
+        assert text.startswith("|cffffd1000.7.0|r  |cff5ad15anouveau|r") and text.count("nouveau|r") == 1
+        assert "Une seule fenêtre /mf" in text and "0.6.13|r\n" in text
+        # Relancé sans rien de neuf : silence.
+        lua2 = boot()
+        g2 = lua2.globals()
+        g2._NS.VERSION = "0.7.0"
+        g2.WoWForeverGuildeDB = lua2.table(settings=lua2.table(changelogSeen="0.7.0"))
+        login(lua2)
+        assert not any("ce qui change" in m for m in list(g2._CHAT.values()))
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_diagnostic_tab_gives_a_report_to_copy(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        chat_before = len(list(g._CHAT.values()))
+        g.SlashCmdList.WOWFOREVERGUILDE("diag")
+        panel = g.WoWForeverGuildeDiag
+        report = panel.box.text
+        # Le rapport : version du code et .toc lu par le jeu, les lignes de /mf api, puis les erreurs.
+        assert panel.shown is True and report.startswith(
+            f"Manuel Feralas {toc_version()} · .toc chargé par le jeu : "
+        )
+        assert "lecture · talents" in report and "popups · " in report and "Aucune erreur" in report
+        # Ouvrir l'onglet n'écrit rien dans le chat et ne note rien : c'est le bouton qui envoie au site.
+        assert len(list(g._CHAT.values())) == chat_before and list(g.WoWForeverGuildeDB.errors.values()) == []
+        panel.send.scripts.OnClick(panel.send)
+        assert any("Diagnostic noté" in m for m in list(g._CHAT.values()))
+        (noted,) = [dict(e) for e in g.WoWForeverGuildeDB.errors.values()]
+        assert noted["where"] == "diagnostic" and "lecture · talents" in noted["error"]
+        # « Relire » reprend l'état du moment : l'erreur notée y figure ; la zone est en lecture seule.
+        panel.refresh.scripts.OnClick(panel.refresh)
+        assert "1 erreur(s) enregistrée(s)" in panel.box.text and "diagnostic" in panel.box.text
+        report = panel.box.text
+        panel.box.text = "effacé par mégarde"
+        panel.box.scripts.OnTextChanged(panel.box, True)
+        assert panel.box.text == report
+        # La trace se lance d'ici aussi.
+        panel.trace.scripts.OnClick(panel.trace)
+        assert g._NS.traceUntil > g._CLOCK.now and any(
+            "Trace des messages" in m for m in list(g._CHAT.values())
+        )
+
+    def test_minimap_button_opens_the_window_and_can_be_moved_or_hidden(self):
+        # Sans minimap sur ce client : pas de bouton, pas d'erreur.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        assert g.WoWForeverGuildeMinimapButton is None and list(g.WoWForeverGuildeDB.errors.values()) == []
+
+        lua = boot()
+        g = lua.globals()
+        lua.execute("""
+          Minimap = CreateFrame("Frame", "Minimap")
+          function Minimap:GetWidth() return 140 end
+          function Minimap:GetCenter() return 500, 400 end
+          function Minimap:GetEffectiveScale() return 1 end
+          function GetCursorPosition() return 500, 500 end  -- juste au-dessus du centre de la minimap
+        """)
+        login(lua)
+        button = g.WoWForeverGuildeMinimapButton
+        settings = g.WoWForeverGuildeDB.settings
+        assert button.shown is True and settings.minimapButton is True
+        assert button.icon.texture == "Interface\\AddOns\\WoWForeverGuilde\\Samwise"
+        # Posé à 215° par défaut, au bord de la minimap (rayon 76).
+        x, y = button.point[4], button.point[5]
+        assert (button.point[1], round(x), round(y)) == ("CENTER", -62, -44)
+        # Clic : la fenêtre ; clic droit : les réglages.
+        button.scripts.OnClick(button, "LeftButton")
+        assert g.WoWForeverGuildeFrame.shown is True
+        button.scripts.OnClick(button, "LeftButton")
+        assert g.WoWForeverGuildeFrame.shown is False
+        button.scripts.OnClick(button, "RightButton")
+        assert g.WoWForeverGuildeFrame.shown is True and g.WoWForeverGuildeSettings.shown is True
+        # Survol : le nom, le mode d'emploi, et les nouveautés tant qu'elles ne sont pas lues.
+        button.scripts.OnEnter(button)
+        lines = list(g.GameTooltip.lines.values())
+        assert "Manuel Feralas" in lines[0] and "glisser" in lines[1] and "ce qui change" in lines[2]
+        # Glissé : il suit le curseur autour de la minimap, l'angle est retenu.
+        button.scripts.OnDragStart(button)
+        button.scripts.OnUpdate(button)
+        button.scripts.OnDragStop(button)
+        assert round(settings.minimapButtonAngle) == 90 and button.scripts.OnUpdate is None
+        assert (round(button.point[4]), round(button.point[5])) == (0, 76)
+        # La case des réglages le retire et le remet, à la même place.
+        check = g.WoWForeverGuildeSettings.checks.minimapButton
+        check.checked = False
+        check.scripts.OnClick(check)
+        assert button.shown is False and settings.minimapButton is False
+        check.checked = True
+        check.scripts.OnClick(check)
+        assert button.shown is True and round(button.point[5]) == 76
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_window_reopens_where_it_was_left(self):
@@ -743,7 +946,7 @@ class TestSession:
         assert len(errors) == 1 and "0 recette lue par C_TradeSkillUI" in errors[0]["error"]
         g.SlashCmdList.WOWFOREVERGUILDE("collecte")
         # La ligne de statut dit combien de recettes sont connues.
-        assert "Alchimie 290 · 1 recettes" in g.WoWForeverGuildeCollect.statusLines.professions.text
+        assert "Alchimie 290 · 1 recettes" in g.WoWForeverGuildeCollect.status.statusLines.professions.text
 
     def test_api_diagnostic_is_printed_and_travels_with_the_errors(self):
         lua = boot()
@@ -1286,6 +1489,19 @@ class TestPositions:
         assert "Hurlevent" in lines[3] and "Givre 0/31/20" in lines[3]
         assert lines[4].startswith("|cffffd100Marais des Chagrins|r") and "Uther" in lines[5]
         assert len(lines) == 6 and not any("Absent" in line or "Thrall" in line for line in lines)
+        # En colonnes : nom, niveau, sous-zone, puis ce que la position partagée ajoute ; un titre de groupe n'a
+        # que son texte.
+        entries = list(g._NS.RosterUI.Lines().values())
+        assert entries[0].cells is None and entries[2].cells is None
+        name, level, place, info = list(entries[3].cells.values())
+        assert "Jaina Portvaillant" in name and "60" in level and "Hurlevent" in place
+        assert "Givre 0/31/20" in info and "Stratholme" in info
+        assert [h.text for h in g.WoWForeverGuildeRoster.columnHeaders.values()] == [
+            "Nom",
+            "Niv.",
+            "Lieu",
+            "Talents, groupe, alerte",
+        ]
         # Ma zone seulement.
         lua.execute("WoWForeverGuildeDB.settings.rosterMyZone = true")
         lines = [line.text for line in list(g._NS.RosterUI.Lines().values())]
@@ -1296,6 +1512,7 @@ class TestPositions:
         rows = [
             r for r in list(g._FRAMES.values()) if getattr(r, "member", None) and r.member.name == "Uther"
         ]
+        assert "Uther" in rows[0].cells[1].text and rows[0].text.text == ""
         rows[0].scripts.OnClick(rows[0])
         menu = g.WoWForeverGuildeMenu
         assert (
@@ -1954,6 +2171,19 @@ class TestWanted:
             and "prime de 2 points" in rows[1].text
             and "Jaina" in rows[1].text
         )
+        # En colonnes : tête mise à prix, classe, prime, kills de la guilde, dernier fait, âge.
+        assert rows[0].cells is None
+        name, _, prime, killed, last, when = list(rows[1].cells.values())
+        assert "Garrosh Hurlenfer" in name and "2 points" in prime and killed == ""
+        assert "a tué" in last and "Jaina" in last and "Durotar" in last and when != ""
+        assert [h.text for h in g.WoWForeverGuildeWanted.columnHeaders.values()] == [
+            "Tête mise à prix",
+            "Classe",
+            "Prime",
+            "Abattu",
+            "Dernier fait",
+            "Quand",
+        ]
         # Cinq minutes plus tard la tête de mort a disparu ; la prime, elle, reste.
         g._ADVANCE(301)
         assert list(g._PINS.added.items()) == [] and entry.points == 2

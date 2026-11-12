@@ -34,9 +34,19 @@ transporte le code jusqu'au site.
   (« de » et « à » contractés ou élidés devant le nom, pluriel des kills à plusieurs, majuscules) ; comment écrire
   un gabarit est dit en tête du fichier.
 - `UI.lua` : la fenêtre `/mf` et ses onglets (un seul cadre ; chaque écran déclare le sien avec `UI.AddTab`, son
-  panneau n'est construit qu'à la première ouverture ; position et dernier onglet retenus), onglets Collecte
-  (`/mf collecte`) et Export (`/mf export`), dialogues, texte flottant des morts. `RosterUI.lua` et `WantedUI.lua`
-  sont les onglets Guilde en jeu (`/mf qui`) et Wanted (`/mf wanted`).
+  panneau n'est construit qu'à la première ouverture ; position et dernier onglet retenus ; à droite du titre, le
+  temps sans sauvegarde et le bouton Sauvegarder). Onglet Collecte (`/mf collecte`) : personnages du compte, état
+  de la collecte, et le code d'export en seconde vue (`/mf export` ou le bouton). Onglet Réglages
+  (`/mf reglages`) : toutes les cases, en trois groupes (carte et position, morts et popups, site et données),
+  dont le rappel de sauvegarde. Onglet Nouveautés (`/mf nouveautes`) : les notes de version (`ns.CHANGELOG`,
+  dans `Locales/frFR.lua`, à compléter à chaque version : un test refuse une version sans notes), en vert et
+  annoncées à la connexion tant qu'elles ne sont pas lues (`settings.changelogSeen`). Onglet Diagnostic
+  (`/mf diag`) : les lignes de `/mf api` et de `/mf erreurs` dans une zone à copier, boutons Relire, Noter pour le
+  GM et Tracer. Listes en colonnes (`UI.MakeColumnHeaders`, `UI.MakeRow`, `UI.FillRow`) pour Guilde en jeu et
+  Wanted : `Lines()` rend, en plus du texte, une valeur par colonne. Bouton de la minimap, fait à la main (clic :
+  la fenêtre ; clic droit : les réglages ; glissé : il tourne autour de la minimap, angle retenu ; case des
+  réglages pour le retirer). Dialogues, texte flottant des morts. `RosterUI.lua` et `WantedUI.lua` sont les
+  onglets Guilde en jeu (`/mf qui`) et Wanted (`/mf wanted`).
 - `Positions.lua`, `MapUI.lua` : partage de position. Case « Partager ma position » (cochée par défaut) : le client
   émet carte, coordonnées, niveau et résumé de talents par message addon (préfixe `WFG`, canal de guilde ; le client
   moderne interdit les canaux de chat aux addons, donc rien ne circule sans guilde) au changement de zone, au déplacement et toutes les 60 s ; les autres
@@ -44,7 +54,7 @@ transporte le code jusqu'au site.
   Survol : nom, niveau, zone, talents, âge ; clic gauche : menu Inviter (ou Suggérer l'invitation quand on n'est
   pas chef) / Chuchoter. Ne pas partager = ne pas voir. Un membre silencieux depuis 3 min disparaît. Points aussi
   sur la minimap (flottant au bord vers les membres proches), réglage à part. Recherche de groupe (`/mf lfg texte`
-  ou le champ de la liste) diffusée avec la position. Appel à l'aide : **manuel seulement** (bouton des onglets Collecte et Guilde en jeu, et
+  ou le champ de la liste) diffusée avec la position. Appel à l'aide : **manuel seulement** (bouton de l'onglet Guilde en jeu, et
   dans la liste, ou `/mf sos` ; la cible est nommée si c'est un joueur), jamais automatique pour ne pas spammer en
   zone contestée ; un envoi par minute ; chez les autres, toast et son dans la même zone, ligne de chat ailleurs,
   anneau rouge sur le point 2 min. La ligne « P » porte la version de l'addon (0.6.6) : une version plus récente

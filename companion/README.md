@@ -37,6 +37,7 @@ publique dans `app/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`) et la c
 `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Le même numéro de version doit figurer dans
 `app/package.json`, `app/src-tauri/Cargo.toml`, `app/src-tauri/tauri.conf.json`, `core/Cargo.toml`, le tag, et côté
 addon dans `WoWForeverGuilde.toc` (`## Version`) et `Core.lua` (`CODE_VERSION`, qu'un test garde égale au `.toc`).
+Les notes de la version, pour les joueurs, vont dans `ns.CHANGELOG` (`Locales/frFR.lua`) : un test les exige.
 
 ## Mise à jour automatique
 

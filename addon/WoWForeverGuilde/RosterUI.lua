@@ -8,8 +8,9 @@ local RosterUI = {}
 ns.RosterUI = RosterUI
 local L = ns.L
 
-local ROW = 16
-local WIDTH = 424
+local COLUMNS = {
+  { L.COL_NAME, 0, 190 }, { L.COL_LEVEL, 194, 34, "RIGHT" }, { L.COL_PLACE, 244, 170 }, { L.COL_INFO, 418, 230 },
+}
 local frame
 local rows = {}
 local pending = false
@@ -38,16 +39,27 @@ local function line(m)
   return "  " .. table.concat(parts, " · ")
 end
 
+--- Les cellules d'un membre : nom à sa couleur de classe, niveau, sous-zone (la zone est le titre du groupe),
+--- puis ce que sa position partagée ajoute : talents, recherche de groupe, attaque en cours.
+local function cells(m)
+  local p = m.peer
+  local place, info = "", {}
+  if p then
+    if p.sub and p.sub ~= "" and p.sub ~= p.zone then place = "|cffbcbcbc" .. p.sub .. "|r" end
+    if p.alert and p.alert.at >= ns.now() - ns.Data.ALERT_TTL then
+      local attacker = p.alert.attacker ~= "" and p.alert.attacker or L.ATTACKER_UNKNOWN
+      info[#info + 1] = "|cffff4d4d" .. L.ICON_SWORDS .. " " .. string.format(L.ALERT_SHORT, attacker) .. "|r"
+    end
+    if p.lfg and p.lfg ~= "" then info[#info + 1] = "|cffffd100" .. string.format(L.LFG_SHORT, p.lfg) .. "|r" end
+    if p.spec and p.spec ~= "" then info[#info + 1] = "|cff9accff" .. p.spec .. "|r" end
+  end
+  return { ns.ClassColored(m.name, m.class), "|cff9a9a9a" .. tostring(m.level or 0) .. "|r", place, table.concat(info, " · ") }
+end
+
 local function row(i)
   local r = rows[i]
   if not r then
-    r = CreateFrame("Button", nil, frame.content)
-    r:SetSize(WIDTH, ROW)
-    r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW)
-    r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    r.text:SetPoint("LEFT", 0, 0)
-    r.text:SetWidth(WIDTH)
-    r.text:SetJustifyH("LEFT")
+    r = ns.UI.MakeRow(frame.content, COLUMNS, i)
     r:SetScript("OnClick", function(self) if self.member then ns.MapUI.OpenMenu(self.member) end end)
     r:SetScript("OnEnter", function(self)
       if self.member and self.member.peer then ns.MapUI.ShowTooltip(self.member.peer, self) end
@@ -58,7 +70,7 @@ local function row(i)
   return r
 end
 
---- Lignes à afficher : { text, member? }. Exposé pour les tests.
+--- Lignes à afficher : { text, member?, cells? } ; un titre de groupe n'a que son texte. Exposé pour les tests.
 function RosterUI.Lines()
   local members = ns.Positions.Members()
   local myZone = (GetZoneText and GetZoneText()) or ""
@@ -90,13 +102,13 @@ function RosterUI.Lines()
   if #lfg > 0 then
     table.sort(lfg, byLevel)
     lines[#lines + 1] = { text = header(L.ROSTER_LFG_SECTION, #lfg) }
-    for _, m in ipairs(lfg) do lines[#lines + 1] = { text = line(m), member = m } end
+    for _, m in ipairs(lfg) do lines[#lines + 1] = { text = line(m), member = m, cells = cells(m) } end
   end
   for _, zone in ipairs(order) do
     local list = groups[zone]
     table.sort(list, byLevel)
     lines[#lines + 1] = { text = header(zone, #list) }
-    for _, m in ipairs(list) do lines[#lines + 1] = { text = line(m), member = m } end
+    for _, m in ipairs(list) do lines[#lines + 1] = { text = line(m), member = m, cells = cells(m) } end
   end
   return lines
 end
@@ -106,7 +118,7 @@ function RosterUI.Render()
   local lines = RosterUI.Lines()
   for i, l in ipairs(lines) do
     local r = row(i)
-    r.text:SetText(l.text)
+    ns.UI.FillRow(r, l)
     r.member = l.member
     r:Show()
   end
@@ -114,7 +126,7 @@ function RosterUI.Render()
     rows[i]:Hide()
     rows[i].member = nil
   end
-  frame.content:SetSize(WIDTH, math.max(#lines, 1) * ROW)
+  frame.content:SetSize(ns.UI.LIST_WIDTH, math.max(#lines, 1) * ns.UI.ROW_HEIGHT)
   if #lines == 0 then frame.empty:Show() else frame.empty:Hide() end
   if not (frame.lfg.HasFocus and frame.lfg:HasFocus()) then frame.lfg:SetText(ns.Positions.lfg or "") end
 end
@@ -153,13 +165,14 @@ local function build(panel)
   frame.myZone:SetPoint("TOPRIGHT", -150, -42)
 
   frame.scroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-  frame.scroll:SetPoint("TOPLEFT", 16, -90)
+  ns.UI.MakeColumnHeaders(frame, COLUMNS, -90)
+  frame.scroll:SetPoint("TOPLEFT", 16, -108)
   frame.scroll:SetPoint("BOTTOMRIGHT", -36, 40)
   frame.content = CreateFrame("Frame", nil, frame.scroll)
-  frame.content:SetSize(WIDTH, ROW)
+  frame.content:SetSize(ns.UI.LIST_WIDTH, ns.UI.ROW_HEIGHT)
   frame.scroll:SetScrollChild(frame.content)
   frame.empty = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  frame.empty:SetPoint("TOPLEFT", 20, -96)
+  frame.empty:SetPoint("TOPLEFT", 20, -114)
   frame.empty:SetText(L.ROSTER_EMPTY)
   frame.sos = ns.UI.MakeButton(frame, L.SOS_BUTTON, 170)
   frame.sos:SetPoint("BOTTOMRIGHT", -16, 12)

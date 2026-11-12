@@ -1,4 +1,6 @@
--- Interface : la fenêtre /mf et ses onglets (ici Collecte et Export ; Guilde et Wanted ont leur fichier),
+-- Interface : la fenêtre /mf et ses onglets (ici Collecte, Réglages, Nouveautés et Diagnostic ; Guilde et
+-- Wanted ont leur fichier. Pas de fichier par onglet pour les nouveaux : le client ne lit la liste des fichiers
+-- qu'à son lancement, un onglet ajouté dans un fichier neuf manquerait après une mise à jour suivie d'un /reload),
 -- dialogues (transfert, sauvegarde), texte flottant des morts. Sobre : rien ne s'ouvre tout seul hors dialogues.
 local ADDON, ns = ...
 
@@ -73,11 +75,58 @@ local function makeCheck(parent, label, get, set)
   c.text = c:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   c.text:SetPoint("LEFT", c, "RIGHT", 2, 0)
   c.text:SetText(label)
+  c.get = get
   c:SetScript("OnShow", function(self) self:SetChecked(get()) end)
   c:SetScript("OnClick", function(self) set(self:GetChecked() and true or false) end)
   return c
 end
 UI.MakeCheck = makeCheck
+
+-- Listes en colonnes (Guilde en jeu, Wanted). Une colonne : { titre, x, largeur, alignement }.
+UI.LIST_WIDTH = 648
+UI.ROW_HEIGHT = 18
+
+--- Les titres des colonnes, posés à `y` sous le haut du panneau, au-dessus de la zone qui défile.
+function UI.MakeColumnHeaders(parent, columns, y)
+  parent.columnHeaders = {}
+  for i, column in ipairs(columns) do
+    local header = parent:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    header:SetPoint("TOPLEFT", 16 + column[2], y)
+    header:SetWidth(column[3])
+    header:SetJustifyH(column[4] or "LEFT")
+    header:SetText(column[1])
+    parent.columnHeaders[i] = header
+  end
+end
+
+--- Une ligne de liste : un texte sur toute la largeur (titre de groupe) et une cellule par colonne, coupée à
+--- sa largeur plutôt que de déborder sur la suivante.
+function UI.MakeRow(parent, columns, index)
+  local row = CreateFrame("Button", nil, parent)
+  row:SetSize(UI.LIST_WIDTH, UI.ROW_HEIGHT)
+  row:SetPoint("TOPLEFT", 0, -(index - 1) * UI.ROW_HEIGHT)
+  row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+  row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  row.text:SetPoint("LEFT", 0, 0)
+  row.text:SetWidth(UI.LIST_WIDTH)
+  row.text:SetJustifyH("LEFT")
+  row.cells = {}
+  for i, column in ipairs(columns) do
+    local cell = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    cell:SetPoint("LEFT", column[2], 0)
+    cell:SetWidth(column[3])
+    cell:SetJustifyH(column[4] or "LEFT")
+    cell:SetWordWrap(false)
+    row.cells[i] = cell
+  end
+  return row
+end
+
+--- Remplit une ligne : `line.cells` (une valeur par colonne) ou, sans cellules, `line.text` sur toute la largeur.
+function UI.FillRow(row, line)
+  row.text:SetText(line.cells and "" or line.text)
+  for i, cell in ipairs(row.cells) do cell:SetText(line.cells and line.cells[i] or "") end
+end
 
 -- --- fenêtre à onglets ---------------------------------------------------------------------------
 --
@@ -94,8 +143,9 @@ local WHITE = "Interface\\Buttons\\WHITE8X8"
 local window, current
 local tabs, tabOrder = {}, {}
 
---- Déclare un onglet : { key, order, label, name (nom global du panneau), build(panel), show(panel) }.
+--- Déclare un onglet : { key, order, label, name (nom global du panneau), build(panel), show(panel), badge() }.
 --- `show` est appelé à chaque fois que l'onglet devient visible (ouverture de la fenêtre, changement d'onglet).
+--- `badge` : vrai tant que l'onglet a du neuf à montrer, il est alors en vert.
 function UI.AddTab(def)
   tabs[def.key] = def
   tabOrder[#tabOrder + 1] = def.key
@@ -107,12 +157,29 @@ function UI.Shown(key)
   return window ~= nil and window:IsShown() and current == key
 end
 
+--- En-tête, commun à tous les onglets : depuis quand la session n'est pas sauvegardée.
+local function refreshHeader()
+  if not window then return end
+  local unsaved = ns.now() - (ns.lastWrite or ns.sessionStart or ns.now())
+  local late = unsaved >= ns.Data.RELOAD_REMINDER_SECONDS
+  window.session:SetText(string.format(L.SESSION_UNSAVED, duration(unsaved)))
+  window.session:SetTextColor(late and 1 or 0.6, late and 0.72 or 0.6, 0.29)
+end
+
 local function paintTabs()
   for _, key in ipairs(tabOrder) do
     local button = tabs[key].button
     if button then
       local on = key == current
-      if on then button.text:SetTextColor(1, 0.82, 0) else button.text:SetTextColor(0.7, 0.7, 0.7) end
+      local badge = not on and tabs[key].badge and tabs[key].badge()
+      button.fresh = badge and true or false
+      if on then
+        button.text:SetTextColor(1, 0.82, 0)
+      elseif badge then
+        button.text:SetTextColor(0.35, 0.82, 0.35)
+      else
+        button.text:SetTextColor(0.7, 0.7, 0.7)
+      end
       if on then button.line:Show() else button.line:Hide() end
     end
   end
@@ -135,6 +202,7 @@ local function selectTab(key)
   end
   def.panel:Show()
   paintTabs()
+  refreshHeader()
   if ns.db then ns.db.settings.windowTab = key end
   if def.show then ns.Safe("ui." .. key, def.show, def.panel) end
 end
@@ -145,6 +213,12 @@ local function buildWindow()
   window.version = window:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   window.version:SetPoint("LEFT", window.title, "RIGHT", 10, 0)
   window.version:SetText("v" .. tostring(ns.VERSION))
+  -- Sauvegarde : à droite du titre, à portée depuis tous les onglets.
+  window.save = makeButton(window, L.SAVE_NOW, 160)
+  window.save:SetPoint("TOPRIGHT", -36, -10)
+  window.save:SetScript("OnClick", function() ReloadUI() end)
+  window.session = window:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  window.session:SetPoint("RIGHT", window.save, "LEFT", -10, 0)
   local saved = ns.db and ns.db.settings.windowPoint
   if type(saved) == "table" and saved[1] then
     window:ClearAllPoints()
@@ -202,9 +276,12 @@ function UI.Toggle(key)
   UI.Open(key)
 end
 
--- --- onglet Collecte : personnages du compte, réglages, état de la collecte ---------------------------
+-- --- onglet Collecte : personnages du compte, état de la collecte, export ------------------------------
+--
+-- Deux vues dans le même panneau : l'état (par défaut) et le code d'export, pour qui n'a pas le compagnon.
 
-local main
+local main -- la vue « état »
+local exportFrame -- la vue « export », construite à la première demande
 local STATUS_ORDER = { "identity", "talents", "professions", "reputation", "pvp", "pve", "gathering", "wanted" }
 local STATUS_LABEL = {
   identity = L.STATUS_IDENTITY, talents = L.STATUS_TALENTS, professions = L.STATUS_PROFESSIONS,
@@ -222,7 +299,9 @@ local function defaultStatus(char, name)
 end
 
 local function buildCollect(panel)
-  main = panel
+  main = CreateFrame("Frame", nil, panel)
+  main:SetAllPoints(panel)
+  panel.status = main
 
   -- Colonne personnages
   main.charHeader = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -236,42 +315,6 @@ local function buildCollect(panel)
     line:SetJustifyH("LEFT")
     main.charLines[i] = line
   end
-  main.sendCheck = makeCheck(main, L.SEND_CHARACTER,
-    function() return ns.char and not ns.Store.IsExcluded(ns.char.guid) end,
-    function(on) if ns.char then ns.db.settings.excluded[ns.char.guid] = (not on) and true or nil end UI.Refresh() end)
-  main.sendCheck:SetPoint("BOTTOMLEFT", 12, 228)
-  main.positionCheck = makeCheck(main, L.SHARE_POSITION,
-    function() return ns.db.settings.sharePosition end,
-    function(on) ns.Positions.SetSharing(on) end)
-  main.positionCheck:SetPoint("BOTTOMLEFT", 12, 206)
-  main.minimapCheck = makeCheck(main, L.SHARE_MINIMAP,
-    function() return ns.db.settings.minimapDots end,
-    function(on) ns.MapUI.SetMinimap(on) end)
-  main.minimapCheck:SetPoint("BOTTOMLEFT", 12, 184)
-  main.gankCheck = makeCheck(main, L.GANK_ALERTS,
-    function() return ns.db.settings.gankAlerts end,
-    function(on) ns.db.settings.gankAlerts = on end)
-  main.gankCheck:SetPoint("BOTTOMLEFT", 12, 162)
-  main.playCheck = makeCheck(main, L.SHARE_PLAYTIME,
-    function() return ns.db.settings.sharePlaytime end,
-    function(on) ns.db.settings.sharePlaytime = on end)
-  main.playCheck:SetPoint("BOTTOMLEFT", 12, 140)
-  main.showDeaths = makeCheck(main, L.SHOW_DEATHS,
-    function() return ns.db.settings.showDeaths end,
-    function(on) ns.db.settings.showDeaths = on end)
-  main.showDeaths:SetPoint("BOTTOMLEFT", 12, 118)
-  main.soundDeaths = makeCheck(main, L.SOUND_DEATHS,
-    function() return ns.db.settings.soundDeaths end,
-    function(on) ns.db.settings.soundDeaths = on end)
-  main.soundDeaths:SetPoint("BOTTOMLEFT", 12, 96)
-  main.announceDeaths = makeCheck(main, L.ANNOUNCE_DEATHS,
-    function() return ns.db.settings.announceDeaths end,
-    function(on) ns.db.settings.announceDeaths = on end)
-  main.announceDeaths:SetPoint("BOTTOMLEFT", 12, 74)
-  main.wantedCheck = makeCheck(main, L.WANTED_ALERTS,
-    function() return ns.db.settings.wantedAlerts end,
-    function(on) ns.Wanted.SetAlerts(on) end)
-  main.wantedCheck:SetPoint("BOTTOMLEFT", 12, 52)
 
   -- Colonne état
   main.statusHeader = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -294,23 +337,17 @@ local function buildCollect(panel)
 
   -- Pied
   main.lastWrite = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  main.lastWrite:SetPoint("BOTTOMLEFT", 240, 74)
-  main.session = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  main.session:SetPoint("BOTTOMRIGHT", -16, 74)
-  -- Les onglets remplacent les boutons qui ouvraient les autres fenêtres : restent les deux actions.
-  main.sosButton = makeButton(main, L.SOS_BUTTON, 118)
-  main.sosButton:SetPoint("BOTTOMLEFT", 12, 12)
-  main.sosButton:SetScript("OnClick", function() ns.Positions.SOS() end)
-  main.saveButton = makeButton(main, L.SAVE_NOW, 170)
-  main.saveButton:SetPoint("LEFT", main.sosButton, "RIGHT", 8, 0)
-  main.saveButton:SetScript("OnClick", function() ReloadUI() end)
+  main.lastWrite:SetPoint("BOTTOMLEFT", 240, 44)
+  main.exportButton = makeButton(main, L.EXPORT, 150)
+  main.exportButton:SetPoint("BOTTOMLEFT", 12, 12)
+  main.exportButton:SetScript("OnClick", function() UI.ShowExport() end)
   main.hint = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  main.hint:SetPoint("BOTTOMRIGHT", -16, 44)
+  main.hint:SetPoint("BOTTOMRIGHT", -16, 18)
   main.hint:SetText(L.REOPEN)
 end
 
 function UI.Refresh()
-  if not main or not UI.Shown("collect") then return end
+  if not main or not main:IsShown() or not UI.Shown("collect") then return end
   local db, char = ns.db, ns.char
   local guids = {}
   for guid, entry in pairs(db.characters) do if entry.name then guids[#guids + 1] = guid end end
@@ -340,20 +377,22 @@ function UI.Refresh()
     end
   end
   main.lastWrite:SetText(db.last_write and string.format(L.LAST_WRITE, UI.Ago(db.last_write)) or L.LAST_WRITE_NEVER)
-  local unsaved = ns.now() - (ns.lastWrite or ns.sessionStart or ns.now())
-  main.session:SetText(string.format(L.SESSION_UNSAVED, duration(unsaved)))
-  main.session:SetTextColor(unsaved >= ns.Data.RELOAD_REMINDER_SECONDS and 1 or 0.6, unsaved >= ns.Data.RELOAD_REMINDER_SECONDS and 0.72 or 0.6, 0.29)
 end
 
-UI.AddTab({ key = "collect", order = 3, label = L.TAB_COLLECT, name = "WoWForeverGuildeCollect", build = buildCollect, show = UI.Refresh })
+--- L'onglet s'ouvre toujours sur l'état ; l'export se demande (bouton, /mf export).
+local function showCollect()
+  if exportFrame then exportFrame:Hide() end
+  main:Show()
+  UI.Refresh()
+end
 
--- --- onglet Export : le code à coller sur le site, sans compagnon ---------------------------------------
+UI.AddTab({ key = "collect", order = 3, label = L.TAB_COLLECT, name = "WoWForeverGuildeCollect", build = buildCollect, show = showCollect })
 
-local exportFrame
 local fillExport
 
 local function buildExport(panel)
-  exportFrame = panel
+  exportFrame = CreateFrame("Frame", "WoWForeverGuildeExport", panel)
+  exportFrame:SetAllPoints(panel)
   local steps = exportFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   steps:SetPoint("TOPLEFT", 16, -44)
   steps:SetWidth(520)
@@ -381,18 +420,21 @@ local function buildExport(panel)
   exportFrame.content:SetPoint("BOTTOMLEFT", 16, 56)
   exportFrame.content:SetWidth(520)
   exportFrame.content:SetJustifyH("LEFT")
+  local back = makeButton(exportFrame, L.EXPORT_BACK, 150)
+  back:SetPoint("BOTTOMLEFT", 12, 12)
+  back:SetScript("OnClick", showCollect)
   local selectAll = makeButton(exportFrame, L.SELECT_ALL, 150)
-  selectAll:SetPoint("BOTTOMLEFT", 16, 20)
+  selectAll:SetPoint("LEFT", back, "RIGHT", 8, 0)
   selectAll:SetScript("OnClick", function() box:SetFocus() box:HighlightText() end)
   local regen = makeButton(exportFrame, L.REGENERATE, 120)
   regen:SetPoint("LEFT", selectAll, "RIGHT", 8, 0)
   regen:SetScript("OnClick", function() fillExport() end)
   local warn = exportFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  warn:SetPoint("BOTTOMRIGHT", -16, 26)
+  warn:SetPoint("BOTTOMRIGHT", -16, 18)
   warn:SetText(L.TRUNCATED_WARNING)
 end
 
---- Relit le personnage et régénère le code, sélectionné et prêt à copier : à chaque ouverture de l'onglet.
+--- Relit le personnage et régénère le code, sélectionné et prêt à copier.
 function fillExport()
   local char = ns.char
   if char then
@@ -414,11 +456,261 @@ function fillExport()
   exportFrame.box:HighlightText()
 end
 
-UI.AddTab({ key = "export", order = 4, label = L.TAB_EXPORT, name = "WoWForeverGuildeExport", build = buildExport, show = fillExport })
-
---- /mf export : ouvre la fenêtre sur le code d'export.
+--- /mf export, bouton « Exporter le code » : l'onglet Collecte, sur le code d'export fraîchement généré.
 function UI.ShowExport()
-  UI.Open("export")
+  UI.Open("collect")
+  if not exportFrame then buildExport(tabs.collect.panel) end
+  main:Hide()
+  exportFrame:Show()
+  fillExport()
+end
+
+-- --- onglet Réglages : toutes les cases, par sujet -------------------------------------------------------
+
+local SETTINGS = {
+  { L.SETTINGS_MAP, {
+    { "sharePosition", L.SHARE_POSITION, function(on) ns.Positions.SetSharing(on) end },
+    { "minimapDots", L.SHARE_MINIMAP, function(on) ns.MapUI.SetMinimap(on) end },
+    { "minimapButton", L.MINIMAP_BUTTON, function(on) UI.SetMinimapButton(on) end },
+    { "gankAlerts", L.GANK_ALERTS },
+  } },
+  { L.SETTINGS_DEATHS, {
+    { "showDeaths", L.SHOW_DEATHS },
+    { "soundDeaths", L.SOUND_DEATHS },
+    { "announceDeaths", L.ANNOUNCE_DEATHS },
+    { "wantedAlerts", L.WANTED_ALERTS, function(on) ns.Wanted.SetAlerts(on) end },
+  } },
+  { L.SETTINGS_SITE, {
+    -- Seul réglage propre au personnage connecté : les autres valent pour tout le compte.
+    { "send", L.SEND_CHARACTER,
+      function(on) if ns.char then ns.db.settings.excluded[ns.char.guid] = (not on) and true or nil end end,
+      function() return ns.char ~= nil and not ns.Store.IsExcluded(ns.char.guid) end },
+    { "sharePlaytime", L.SHARE_PLAYTIME },
+    { "reloadReminder", L.RELOAD_REMINDER },
+  } },
+}
+
+local settingChecks = {}
+
+local function buildSettings(panel)
+  panel.checks = {}
+  local y = -44
+  for _, group in ipairs(SETTINGS) do
+    local header = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header:SetPoint("TOPLEFT", 16, y)
+    header:SetText(group[1])
+    y = y - 22
+    for _, item in ipairs(group[2]) do
+      local key, label, set, get = item[1], item[2], item[3], item[4]
+      local check = makeCheck(panel, label,
+        get or function() return ns.db.settings[key] and true or false end,
+        set or function(on) ns.db.settings[key] = on end)
+      check:SetPoint("TOPLEFT", 20, y)
+      panel.checks[key] = check
+      settingChecks[#settingChecks + 1] = check
+      y = y - 24
+    end
+    y = y - 14
+  end
+end
+
+--- Les cases reprennent l'état des réglages à chaque ouverture (ils changent aussi ailleurs : /mf, dialogues).
+local function showSettings()
+  for _, check in ipairs(settingChecks) do check:SetChecked(check.get()) end
+end
+
+UI.AddTab({ key = "settings", order = 4, label = L.TAB_SETTINGS, name = "WoWForeverGuildeSettings", build = buildSettings, show = showSettings })
+
+-- --- onglet Nouveautés : ce qui change, version par version -----------------------------------------------
+--
+-- Les notes sont dans ns.CHANGELOG (Locales/frFR.lua), la plus récente d'abord. On ne montre que celles des
+-- versions qu'on a : une note écrite d'avance n'apparaît qu'une fois la version installée. La dernière version
+-- dont on a lu les notes est retenue (`settings.changelogSeen`) : tant qu'il y en a une plus récente, l'onglet
+-- est en vert et une ligne de chat le signale à la connexion.
+
+local function knownNotes()
+  local notes = {}
+  for _, entry in ipairs(ns.CHANGELOG or {}) do
+    if not ns.VersionNewer(entry.version, ns.VERSION) then notes[#notes + 1] = entry end
+  end
+  return notes
+end
+
+--- La version dont les notes n'ont pas encore été lues, s'il y en a une.
+function UI.NewsUnseen()
+  local newest = knownNotes()[1]
+  if not newest or not ns.db then return nil end
+  local seen = ns.db.settings.changelogSeen
+  if seen and not ns.VersionNewer(newest.version, seen) then return nil end
+  return newest.version
+end
+
+local function buildNews(panel)
+  panel.scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+  panel.scroll:SetPoint("TOPLEFT", 16, -44)
+  panel.scroll:SetPoint("BOTTOMRIGHT", -36, 16)
+  panel.content = CreateFrame("Frame", nil, panel.scroll)
+  panel.content:SetSize(WINDOW_WIDTH - 60, 100)
+  panel.scroll:SetScrollChild(panel.content)
+  panel.text = panel.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  panel.text:SetPoint("TOPLEFT", 0, 0)
+  panel.text:SetWidth(WINDOW_WIDTH - 70)
+  panel.text:SetJustifyH("LEFT")
+end
+
+local function showNews(panel)
+  local notes = knownNotes()
+  local seen = ns.db.settings.changelogSeen
+  local out, count = {}, 0
+  for i, entry in ipairs(notes) do
+    -- Jamais rien lu : seule la dernière version est « nouvelle », pas tout l'historique.
+    local fresh = (seen == nil and i == 1) or (seen ~= nil and ns.VersionNewer(entry.version, seen))
+    out[#out + 1] = "|cffffd100" .. entry.version .. "|r" .. (fresh and ("  |cff5ad15a" .. L.NEWS_NEW .. "|r") or "")
+    for _, note in ipairs(entry.notes or {}) do out[#out + 1] = "  – " .. note end
+    out[#out + 1] = ""
+    count = count + 2 + #(entry.notes or {})
+  end
+  panel.text:SetText(#notes > 0 and table.concat(out, "\n") or L.NEWS_EMPTY)
+  local height = panel.text.GetStringHeight and panel.text:GetStringHeight() or 0
+  panel.content:SetHeight(math.max(height or 0, count * 14, 100))
+  if notes[1] then ns.db.settings.changelogSeen = notes[1].version end
+  paintTabs()
+end
+
+UI.AddTab({
+  key = "news", order = 5, label = L.TAB_NEWS, name = "WoWForeverGuildeNews", build = buildNews, show = showNews,
+  badge = UI.NewsUnseen,
+})
+
+-- --- onglet Diagnostic : ce que /mf api et /mf erreurs disent, dans une zone à copier pour le GM ---------------
+
+local function diagReport()
+  local lines, client = ns.DiagnosticLines()
+  local out = {
+    string.format(L.DIAG_HEADER, tostring(ns.VERSION), tostring(ns.TOC_VERSION or "?"),
+      client ~= "" and client or L.DIAG_NO_CLIENT, date("%d/%m/%Y %H:%M", ns.now())),
+    "",
+  }
+  for _, line in ipairs(lines) do out[#out + 1] = line end
+  out[#out + 1] = ""
+  for _, line in ipairs(ns.ErrorLines(10)) do out[#out + 1] = line end
+  return table.concat(out, "\n")
+end
+
+local function showDiag(panel)
+  local ok, report = ns.Safe("diagnostic", diagReport)
+  panel.report = ok and report or tostring(report)
+  panel.box:SetText(panel.report)
+end
+
+local function buildDiag(panel)
+  local refresh = makeButton(panel, L.DIAG_REFRESH, 100)
+  refresh:SetPoint("TOPLEFT", 12, -42)
+  refresh:SetScript("OnClick", function() showDiag(panel) end)
+  local send = makeButton(panel, L.DIAG_SEND, 150)
+  send:SetPoint("LEFT", refresh, "RIGHT", 8, 0)
+  send:SetScript("OnClick", function() ns.Safe("diagnostic", ns.SaveDiagnostic) end)
+  local trace = makeButton(panel, L.DIAG_TRACE, 120)
+  trace:SetPoint("LEFT", send, "RIGHT", 8, 0)
+  trace:SetScript("OnClick", function()
+    ns.traceUntil = ns.now() + ns.Data.TRACE_SECONDS
+    ns.Print(L.TRACE_ON, ns.Data.TRACE_SECONDS)
+  end)
+  panel.refresh, panel.send, panel.trace = refresh, send, trace
+
+  local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", 16, -76)
+  scroll:SetPoint("BOTTOMRIGHT", -36, 40)
+  local box = CreateFrame("EditBox", nil, scroll)
+  box:SetMultiLine(true)
+  box:SetAutoFocus(false)
+  box:SetFontObject(ChatFontSmall or GameFontHighlightSmall)
+  box:SetWidth(WINDOW_WIDTH - 60)
+  box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  -- Zone en lecture seule : une frappe remet le rapport, la sélection et la copie restent possibles.
+  box:SetScript("OnTextChanged", function(self, user)
+    if user and panel.report and self:GetText() ~= panel.report then self:SetText(panel.report) end
+  end)
+  scroll:SetScrollChild(box)
+  panel.box = box
+  panel.hint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  panel.hint:SetPoint("BOTTOMLEFT", 16, 18)
+  panel.hint:SetText(L.DIAG_HINT)
+end
+
+UI.AddTab({ key = "diag", order = 6, label = L.TAB_DIAG, name = "WoWForeverGuildeDiag", build = buildDiag, show = showDiag })
+
+-- --- bouton de la minimap : un clic ouvre la fenêtre -------------------------------------------------------
+--
+-- Fait à la main (pas de bibliothèque à embarquer) : un bouton rond accroché au bord de la minimap, qu'on fait
+-- glisser autour ; son angle est retenu. Décochable dans les réglages. Sans minimap sur ce client, rien.
+
+local minimapButton
+
+local function placeMinimapButton()
+  local angle = math.rad(ns.db.settings.minimapButtonAngle or 215)
+  local radius = ((Minimap.GetWidth and Minimap:GetWidth()) or 140) / 2 + 6
+  minimapButton:ClearAllPoints()
+  minimapButton:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * radius, math.sin(angle) * radius)
+end
+
+local function buildMinimapButton()
+  local button = CreateFrame("Button", "WoWForeverGuildeMinimapButton", Minimap)
+  minimapButton = button
+  button:SetSize(31, 31)
+  button:SetFrameStrata("MEDIUM")
+  button:SetFrameLevel(8)
+  button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  button:RegisterForDrag("LeftButton")
+  button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+  button.icon = button:CreateTexture(nil, "BACKGROUND")
+  button.icon:SetSize(19, 19)
+  button.icon:SetPoint("TOPLEFT", 6, -6)
+  button.icon:SetTexture(ns.Data.ICON)
+  button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  button.border = button:CreateTexture(nil, "OVERLAY")
+  button.border:SetSize(53, 53)
+  button.border:SetPoint("TOPLEFT", 0, 0)
+  button.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+  button:SetScript("OnClick", function(_, mouse)
+    if mouse == "RightButton" then UI.Toggle("settings") else UI.Toggle() end
+  end)
+  -- Glissé : le bouton suit le curseur autour de la minimap, l'angle est retenu au fur et à mesure.
+  button:SetScript("OnDragStart", function(self)
+    self:SetScript("OnUpdate", function()
+      local cx, cy = Minimap:GetCenter()
+      local px, py = GetCursorPosition()
+      local scale = Minimap:GetEffectiveScale()
+      if not cx or not px or not scale or scale == 0 then return end
+      ns.db.settings.minimapButtonAngle = math.deg(math.atan2(py / scale - cy, px / scale - cx)) % 360
+      placeMinimapButton()
+    end)
+  end)
+  button:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
+  button:SetScript("OnEnter", function(self)
+    if not GameTooltip then return end
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:ClearLines()
+    GameTooltip:AddLine(L.TITLE .. " |cff9a9a9av" .. tostring(ns.VERSION) .. "|r", 1, 0.82, 0)
+    GameTooltip:AddLine(L.MINIMAP_BUTTON_HINT, 0.9, 0.9, 0.9)
+    local unseen = UI.NewsUnseen()
+    if unseen then GameTooltip:AddLine(string.format(L.NEWS_CHAT, unseen), 0.35, 0.82, 0.35) end
+    GameTooltip:Show()
+  end)
+  button:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+end
+
+--- Montre ou cache le bouton de la minimap, et retient le choix.
+function UI.SetMinimapButton(on)
+  ns.db.settings.minimapButton = on and true or false
+  if type(Minimap) ~= "table" then return end
+  if on then
+    if not minimapButton then buildMinimapButton() end
+    placeMinimapButton()
+    minimapButton:Show()
+  elseif minimapButton then
+    minimapButton:Hide()
+  end
 end
 
 -- --- dialogues ---------------------------------------------------------------------------------------
@@ -476,6 +768,9 @@ function UI.OnLogin(entry)
     if (e.t or 0) >= ns.now() - 86400 then recent = recent + 1 end
   end
   if recent > 0 then ns.Print(L.ERRORS_RECENT, recent) end
+  local unseen = UI.NewsUnseen()
+  if unseen then ns.Print(L.NEWS_CHAT, unseen) end
+  ns.Safe("ui.minimap", UI.SetMinimapButton, ns.db.settings.minimapButton)
 end
 
 -- --- texte flottant des morts ---------------------------------------------------------------------------

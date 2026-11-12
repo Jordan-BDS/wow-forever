@@ -40,6 +40,7 @@ function Store.Init()
   if s.reloadReminder == nil then s.reloadReminder = true end
   if s.sharePosition == nil then s.sharePosition = true end
   if s.minimapDots == nil then s.minimapDots = true end
+  if s.minimapButton == nil then s.minimapButton = true end
   if s.gankAlerts == nil then s.gankAlerts = true end
   if s.rosterMyZone == nil then s.rosterMyZone = false end
   if s.wantedAlerts == nil then s.wantedAlerts = true end

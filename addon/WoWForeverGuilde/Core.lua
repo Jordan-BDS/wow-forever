@@ -121,20 +121,23 @@ function ns.Risky(name, fn, ...)
   return fn(...)
 end
 
---- /mf erreurs : les dernières erreurs des collecteurs (gardées dans le fichier, envoyées au site), à copier.
-function ns.PrintErrors(limit)
+--- Les dernières erreurs des collecteurs (gardées dans le fichier, envoyées au site), une ligne chacune.
+function ns.ErrorLines(limit)
   local errors = (ns.db and ns.db.errors) or {}
-  if #errors == 0 then
-    ns.Print(ns.L.ERRORS_NONE)
-    return
-  end
+  if #errors == 0 then return { ns.L.ERRORS_NONE } end
   limit = limit or 10
   local first = math.max(1, #errors - limit + 1)
-  ns.Print(ns.L.ERRORS_HEADER, #errors, #errors - first + 1)
+  local lines = { string.format(ns.L.ERRORS_HEADER, #errors, #errors - first + 1) }
   for i = first, #errors do
     local e = errors[i]
-    ns.Print("%s · %s · %s", date("%d/%m %H:%M", e.t or 0), tostring(e.where or "?"), tostring(e.error or "?"))
+    lines[#lines + 1] = string.format("%s · %s · %s", date("%d/%m %H:%M", e.t or 0), tostring(e.where or "?"), tostring(e.error or "?"))
   end
+  return lines
+end
+
+--- /mf erreurs : les mêmes, dans le chat.
+function ns.PrintErrors(limit)
+  for _, line in ipairs(ns.ErrorLines(limit)) do ns.Print("%s", line) end
 end
 
 function ns.Char()
@@ -187,7 +190,8 @@ local function resolve(path)
   return value
 end
 
-function ns.Diagnostic()
+--- Les lignes du diagnostic, et le client du jeu (« client 1.16.0 (12345, 16001) », ou vide).
+function ns.DiagnosticLines()
   local lines = {}
   for _, group in ipairs(PROBES) do
     local have, miss = {}, {}
@@ -227,14 +231,25 @@ function ns.Diagnostic()
   -- Récolte : le dernier sort lu (identifiant, nom, événement) et ce que le collecteur en a fait ; la pêche se
   -- diagnostique ainsi en jeu (sort non reconnu, ou butin hors fenêtre dans /mf trace).
   lines[#lines + 1] = "récolte · " .. ((ns.GatherSource and ns.GatherSource()) or "aucun sort de récolte lu cette session")
-  for _, line in ipairs(lines) do ns.Print(line) end
   local client = ""
   if type(GetBuildInfo) == "function" then
     local ok, version, build, _, toc = pcall(GetBuildInfo)
-    if ok then client = string.format(" · client %s (%s, %s)", tostring(version), tostring(build), tostring(toc)) end
+    if ok then client = string.format("client %s (%s, %s)", tostring(version), tostring(build), tostring(toc)) end
   end
-  ns.Store.LogError("diagnostic", table.concat(lines, " | ") .. client)
+  return lines, client
+end
+
+--- Note le diagnostic avec les erreurs : il part au site au prochain envoi (page « Tests en jeu »).
+function ns.SaveDiagnostic()
+  local lines, client = ns.DiagnosticLines()
+  ns.Store.LogError("diagnostic", table.concat(lines, " | ") .. (client ~= "" and (" · " .. client) or ""))
   ns.Print(ns.L.DIAG_SAVED)
+end
+
+--- /mf api : le diagnostic dans le chat, et noté pour le site.
+function ns.Diagnostic()
+  for _, line in ipairs((ns.DiagnosticLines())) do ns.Print("%s", line) end
+  ns.SaveDiagnostic()
 end
 
 local frame = CreateFrame("Frame")
@@ -466,9 +481,12 @@ SlashCmdList.WOWFOREVERGUILDE = function(raw)
   elseif msg == "qui" or msg == "who" then ns.RosterUI.Toggle()
   elseif msg == "wanted" then ns.WantedUI.Toggle()
   elseif (msg == "collecte" or msg == "collect") and ns.UI then ns.UI.Toggle("collect")
+  elseif (msg == "reglages" or msg == "réglages" or msg == "options") and ns.UI then ns.UI.Toggle("settings")
   elseif msg == "sos" then ns.Positions.SOS()
   elseif msg == "erreurs" or msg == "errors" then ns.PrintErrors()
-  elseif msg == "api" or msg == "diag" then ns.Safe("diagnostic", ns.Diagnostic)
+  elseif msg == "api" then ns.Safe("diagnostic", ns.Diagnostic)
+  elseif msg == "diag" and ns.UI then ns.UI.Toggle("diag")
+  elseif (msg == "nouveautes" or msg == "nouveautés" or msg == "news") and ns.UI then ns.UI.Toggle("news")
   elseif msg == "trace" then
     ns.traceUntil = ns.now() + ns.Data.TRACE_SECONDS
     ns.Print(ns.L.TRACE_ON, ns.Data.TRACE_SECONDS)

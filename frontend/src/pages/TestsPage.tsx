@@ -66,7 +66,7 @@ const SECTIONS: Section[] = [
         title: "Message de bienvenue et fenêtre",
         commands: ["/mf", "/mf collecte"],
         expected:
-          "Chat : « [MF] Bienvenue, Nom. Compteurs depuis le 04/11/2026. » La fenêtre s'ouvre, titre Manuel Feralas avec le portrait et quatre onglets : Guilde en jeu, Wanted, Collecte, Export. Onglet Collecte : les lignes d'état à droite, les cases à gauche, deux boutons en bas.",
+          "Chat : « [MF] Bienvenue, Nom. Compteurs depuis le 04/11/2026. » La fenêtre s'ouvre, titre Manuel Feralas avec le portrait et six onglets : Guilde en jeu, Wanted, Collecte, Réglages, Nouveautés, Diagnostic ; à droite du titre, le temps sans sauvegarde et le bouton Sauvegarder. Onglet Collecte : les personnages du compte à gauche, les lignes d'état à droite, le bouton « Exporter le code » en bas. Les onglets Guilde en jeu et Wanted sont en colonnes. Onglet Réglages : onze cases en trois groupes. Sur la minimap, un bouton au portrait de la guilde ouvre la fenêtre. Onglet Nouveautés : les notes de la version, en vert tant qu'elles ne sont pas lues. Onglet Diagnostic : le rapport de /mf api dans une zone à copier.",
       },
       {
         id: "version",
