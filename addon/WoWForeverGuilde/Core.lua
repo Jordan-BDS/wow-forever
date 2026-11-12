@@ -7,7 +7,7 @@ ns.ADDON = ADDON
 -- le client ne lit le .toc qu'à son lancement, alors qu'un /reload relit ce fichier. Après une mise à jour copiée
 -- pendant que le jeu tourne, le .toc en mémoire donne encore l'ancien numéro (ns.TOC_VERSION) : l'addon se
 -- croirait en retard et redemanderait sans fin de recharger.
-local CODE_VERSION = "0.6.13"
+local CODE_VERSION = "0.7.0"
 do
   local meta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
   ns.TOC_VERSION = meta and meta(ADDON, "Version") or nil
