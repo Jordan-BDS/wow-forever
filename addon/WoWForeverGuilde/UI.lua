@@ -1061,7 +1061,7 @@ function UI.ShowDeath(info, phrase, wanted, quiet)
     header = L.DEATH_WANTED_HEADER
     parts[#parts + 1] = L.DEATH_PVP
   end
-  local label = string.format(L.DEATH_LOG, tostring(info.name), info.killer or "")
+  local label = string.format(L.DEATH_LOG, ns.DeathName(info), info.killer or "")
   local footer, key = table.concat(parts, " · "), "mort:" .. tostring(info.name)
   UI.Remember("death", key, phrase, footer)
   if quiet then return end

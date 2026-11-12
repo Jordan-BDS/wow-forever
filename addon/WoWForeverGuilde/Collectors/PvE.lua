@@ -103,6 +103,21 @@ function ns.SeenPlayer(name, guid)
   return nil
 end
 
+--- « Prénom Nom » d'un joueur hostile lu récemment dont on n'a que le prénom (le récapitulatif de mort et le
+--- message de victoire honorable ne donnent pas toujours le nom de famille). nil si le nom est déjà complet, si
+--- personne ne porte ce prénom, ou si deux joueurs différents le portent (on ne tranche pas).
+function ns.SeenFullName(name)
+  if type(name) ~= "string" or name == "" or name:find("%s") then return nil end
+  local t, found = ns.now(), nil
+  for _, seen in pairs(seenPlayers) do
+    if t - (seen.at or 0) <= ns.Data.SEEN_PLAYERS_TTL and seen.name:find("%s") and sameName(seen.name, name) then
+      if found and nameKey(found) ~= nameKey(seen.name) then return nil end
+      found = seen.name
+    end
+  end
+  return found
+end
+
 local function forgetOldPlayers(t)
   for key, seen in pairs(seenPlayers) do
     if t - (seen.at or 0) > ns.Data.SEEN_PLAYERS_TTL then seenPlayers[key] = nil end
@@ -208,6 +223,13 @@ local function resolveDeath(char, death, target, remembered, recapID, battlegrou
   local source = (name or env) and "récap" or nil
   if not source and target then name, source = target.name, "cible" end
   if not source and remembered then name, source = remembered.name, "mémoire" end
+  -- Le récapitulatif ne donne qu'un nom : le nom complet, si la cible, le souvenir ou un joueur vu le porte.
+  if name and not name:find("%s") then
+    for _, known in ipairs({ target or false, remembered or false }) do
+      if known and known.name:find("%s") and sameName(known.name, name) then name = known.name break end
+    end
+    name = ns.SeenFullName(name) or name
+  end
   death.killer = name
   death.env = env
   local identity = "sans objet"

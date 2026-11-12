@@ -187,11 +187,11 @@ function Wanted.RecordDeath(info)
   end
   if at > (entry.cashed or 0) then entry.points = (entry.points or 0) + 1 end -- pas une mort d'avant l'encaissement
   if info.kclass and info.kclass ~= "" then entry.class = info.kclass end
-  table.insert(entry.victims, { guid = info.guid, name = info.name, class = info.class, t = at })
+  table.insert(entry.victims, { guid = info.guid, name = ns.DeathName(info), class = info.class, t = at })
   while #entry.victims > ns.Data.WANTED_VICTIMS do table.remove(entry.victims, 1) end
   entry.last = {
     kind = "death", t = at, map = info.map, x = info.x, y = info.y, zone = info.zone or "", sub = info.sub or "",
-    victim = info.name, victimClass = info.class,
+    victim = ns.DeathName(info), victimClass = info.class,
   }
   refresh(entry)
   return entry, true
@@ -200,7 +200,7 @@ end
 --- Ligne de chat quand un recherché frappe (le popup, s'il est affiché, porte déjà la prime).
 function Wanted.Announce(entry, info)
   local place = info.zone ~= "" and info.zone or (info.sub ~= "" and info.sub or L.WHERE_UNKNOWN)
-  ns.Print(L.WANTED_CHAT, ns.ClassColored(entry.name, entry.class), ns.ClassColored(info.name, info.class), place, ns.Points(entry.points))
+  ns.Print(L.WANTED_CHAT, ns.ClassColored(entry.name, entry.class), ns.ClassColored(ns.DeathName(info), info.class), place, ns.Points(entry.points))
 end
 
 -- --- kills -----------------------------------------------------------------------------------------------
@@ -876,6 +876,8 @@ end
 --- bataille ou en arène (`battleground`) : le compteur et l'événement (marqué `bg`), rien d'autre.
 function Wanted.RecordKill(char, name, t, battleground)
   t = t or ns.now()
+  -- Le message du jeu peut ne donner que le prénom : le nom complet, si je l'ai lu sur ce joueur (0.7.3).
+  if name ~= "" and ns.SeenFullName then name = ns.SeenFullName(name) or name end
   if name ~= "" and countedRecently(name, t, ns.Data.WANTED_KILL_WINDOW) then -- déjà compté par une autre piste
     logKill("kill « %s » : déjà compté", name)
     return nil

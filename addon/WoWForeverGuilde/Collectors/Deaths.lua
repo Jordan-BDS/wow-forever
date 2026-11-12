@@ -84,9 +84,17 @@ end
 
 --- Phrase d'un avis de décès, prête à afficher : le mort à la couleur de sa classe (jeton, ou nom affiché des
 --- anciennes versions : alors sans couleur), le tueur à la sienne quand c'est un joueur (seuls eux en ont une).
+--- « Prénom Nom » du mort (0.7.3 : l'annonce porte les deux, la phrase n'affichait que le prénom) ; le prénom
+--- seul quand le personnage n'a pas de nom de famille ou que l'annonce vient d'une version d'avant la 0.6.12.
+function ns.DeathName(info)
+  local name = info.name or "?"
+  if type(info.surname) == "string" and info.surname ~= "" then name = name .. " " .. info.surname end
+  return name
+end
+
 function ns.DeathPhrase(info)
   local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[(info.class or ""):upper()]
-  local name = info.name or "?"
+  local name = ns.DeathName(info)
   local victim = { plain = name, shown = color and ("|c" .. (color.colorStr or "ffffffff") .. name .. "|r") or name }
   local killer = (info.killer and info.killer ~= "") and info.killer or ns.L.KILLER_UNKNOWN
   local roles = { personnage = victim, tueur = ns.Phrases.Role(killer, info.player and info.kclass or nil) }
