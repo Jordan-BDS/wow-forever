@@ -1,4 +1,4 @@
--- Liste « Guilde en jeu » (/mf qui) : membres en ligne regroupés par zone d'après le roster de guilde (tout le
+-- Onglet « Guilde en jeu » de la fenêtre /mf (/mf qui) : membres en ligne regroupés par zone d'après le roster de guilde (tout le
 -- monde, même sans addon), enrichis des positions partagées (sous-zone, talents, recherche de groupe, attaque en
 -- cours). Section « Cherchent un groupe » en tête. Champ pour diffuser sa propre recherche. Clic sur un nom : menu
 -- Inviter / Chuchoter ; survol : infobulle quand la position est connue.
@@ -102,7 +102,7 @@ function RosterUI.Lines()
 end
 
 function RosterUI.Render()
-  if not frame or not frame:IsShown() then return end
+  if not frame or not ns.UI.Shown("roster") then return end
   local lines = RosterUI.Lines()
   for i, l in ipairs(lines) do
     local r = row(i)
@@ -121,7 +121,7 @@ end
 
 --- Rafraîchissement regroupé (les positions arrivent en rafale).
 function RosterUI.Refresh()
-  if not frame or not frame:IsShown() or pending then return end
+  if not frame or not ns.UI.Shown("roster") or pending then return end
   pending = true
   C_Timer.After(ns.Data.ROSTER_REFRESH, function()
     pending = false
@@ -129,8 +129,8 @@ function RosterUI.Refresh()
   end)
 end
 
-local function build()
-  frame = ns.UI.MakeFrame("WoWForeverGuildeRoster", 480, 560, L.ROSTER_TITLE)
+local function build(panel)
+  frame = panel
   frame.lfgLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   frame.lfgLabel:SetPoint("TOPLEFT", 16, -46)
   frame.lfgLabel:SetText(L.ROSTER_LFG_LABEL)
@@ -167,15 +167,18 @@ local function build()
   frame.hint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   frame.hint:SetPoint("BOTTOMLEFT", 16, 18)
   frame.hint:SetText(L.ROSTER_HINT)
-  frame:SetScript("OnShow", function()
-    requestRoster()
-    ns.Safe("roster.render", RosterUI.Render)
-  end)
 end
 
+ns.UI.AddTab({
+  key = "roster", order = 1, label = L.ROSTER_TITLE, name = "WoWForeverGuildeRoster", build = build,
+  show = function()
+    requestRoster()
+    ns.Safe("roster.render", RosterUI.Render)
+  end,
+})
+
 function RosterUI.Toggle()
-  if not frame then build() end
-  if frame:IsShown() then frame:Hide() else frame:Show() end
+  ns.UI.Toggle("roster")
 end
 
 function RosterUI.Frame() return frame end -- tests

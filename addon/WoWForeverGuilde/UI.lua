@@ -1,4 +1,4 @@
--- Interface : fenêtre /mf (personnages, état de la collecte, export, sauvegarde), fenêtre d'export,
+-- Interface : la fenêtre /mf et ses onglets (ici Collecte et Export ; Guilde et Wanted ont leur fichier),
 -- dialogues (transfert, sauvegarde), texte flottant des morts. Sobre : rien ne s'ouvre tout seul hors dialogues.
 local ADDON, ns = ...
 
@@ -58,7 +58,6 @@ local function makeFrame(name, width, height, title)
   tinsert(UISpecialFrames, name) -- Échap ferme
   return f
 end
-UI.MakeFrame = makeFrame
 
 local function makeButton(parent, text, width)
   local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
@@ -80,7 +79,130 @@ local function makeCheck(parent, label, get, set)
 end
 UI.MakeCheck = makeCheck
 
--- --- fenêtre principale ---------------------------------------------------------------------------
+-- --- fenêtre à onglets ---------------------------------------------------------------------------
+--
+-- Une seule fenêtre (/mf), un onglet par écran. Chaque fichier d'interface déclare le sien avec UI.AddTab ; le
+-- panneau n'est construit qu'à sa première ouverture. La position de la fenêtre et le dernier onglet ouvert sont
+-- retenus d'une session à l'autre (réglages du compte).
+
+local WINDOW_WIDTH, WINDOW_HEIGHT = 700, 512
+-- Les panneaux commencent sous la rangée d'onglets : leur contenu garde les décalages des anciennes fenêtres, qui
+-- laissaient 44 px à leur propre barre de titre.
+local PANEL_TOP = 30
+local WHITE = "Interface\\Buttons\\WHITE8X8"
+
+local window, current
+local tabs, tabOrder = {}, {}
+
+--- Déclare un onglet : { key, order, label, name (nom global du panneau), build(panel), show(panel) }.
+--- `show` est appelé à chaque fois que l'onglet devient visible (ouverture de la fenêtre, changement d'onglet).
+function UI.AddTab(def)
+  tabs[def.key] = def
+  tabOrder[#tabOrder + 1] = def.key
+  table.sort(tabOrder, function(a, b) return (tabs[a].order or 99) < (tabs[b].order or 99) end)
+end
+
+--- Cet onglet est-il à l'écran ?
+function UI.Shown(key)
+  return window ~= nil and window:IsShown() and current == key
+end
+
+local function paintTabs()
+  for _, key in ipairs(tabOrder) do
+    local button = tabs[key].button
+    if button then
+      local on = key == current
+      if on then button.text:SetTextColor(1, 0.82, 0) else button.text:SetTextColor(0.7, 0.7, 0.7) end
+      if on then button.line:Show() else button.line:Hide() end
+    end
+  end
+end
+
+local function selectTab(key)
+  if not tabs[key] then key = tabOrder[1] end
+  local def = tabs[key]
+  if not def then return end
+  current = key
+  for _, other in ipairs(tabOrder) do
+    local panel = tabs[other].panel
+    if panel and other ~= key then panel:Hide() end
+  end
+  if not def.panel then
+    def.panel = CreateFrame("Frame", def.name, window)
+    def.panel:SetPoint("TOPLEFT", 0, -PANEL_TOP)
+    def.panel:SetPoint("BOTTOMRIGHT", 0, 0)
+    def.build(def.panel)
+  end
+  def.panel:Show()
+  paintTabs()
+  if ns.db then ns.db.settings.windowTab = key end
+  if def.show then ns.Safe("ui." .. key, def.show, def.panel) end
+end
+
+local function buildWindow()
+  window = makeFrame("WoWForeverGuildeFrame", WINDOW_WIDTH, WINDOW_HEIGHT, L.TITLE)
+  window:SetClampedToScreen(true)
+  window.version = window:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  window.version:SetPoint("LEFT", window.title, "RIGHT", 10, 0)
+  window.version:SetText("v" .. tostring(ns.VERSION))
+  local saved = ns.db and ns.db.settings.windowPoint
+  if type(saved) == "table" and saved[1] then
+    window:ClearAllPoints()
+    window:SetPoint(saved[1], UIParent, saved[2] or saved[1], saved[3] or 0, saved[4] or 0)
+  end
+  window:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    local point, _, relative, x, y = self:GetPoint(1)
+    if point and ns.db then ns.db.settings.windowPoint = { point, relative, x, y } end
+  end)
+
+  local x = 14
+  for _, key in ipairs(tabOrder) do
+    local def = tabs[key]
+    local button = CreateFrame("Button", nil, window)
+    button.text = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    button.text:SetPoint("CENTER", 0, 1)
+    button.text:SetText(def.label)
+    local width = math.floor((button.text.GetStringWidth and button.text:GetStringWidth() or #def.label * 7) + 0.5) + 24
+    button:SetSize(width, 24)
+    button:SetPoint("TOPLEFT", x, -42)
+    button.line = button:CreateTexture(nil, "ARTWORK")
+    button.line:SetTexture(WHITE)
+    button.line:SetVertexColor(1, 0.82, 0, 1)
+    button.line:SetHeight(2)
+    button.line:SetPoint("BOTTOMLEFT", 6, 0)
+    button.line:SetPoint("BOTTOMRIGHT", -6, 0)
+    button:SetScript("OnClick", function() selectTab(key) end)
+    button:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 1, 1) end)
+    button:SetScript("OnLeave", paintTabs)
+    def.button = button
+    x = x + width + 4
+  end
+  window.tabRule = window:CreateTexture(nil, "ARTWORK")
+  window.tabRule:SetTexture(WHITE)
+  window.tabRule:SetVertexColor(1, 1, 1, 0.15)
+  window.tabRule:SetHeight(1)
+  window.tabRule:SetPoint("TOPLEFT", 12, -66)
+  window.tabRule:SetPoint("TOPRIGHT", -12, -66)
+end
+
+--- Ouvre la fenêtre sur un onglet : celui demandé, sinon le dernier ouvert, sinon le premier.
+function UI.Open(key)
+  if not window then buildWindow() end
+  window:Show()
+  selectTab(key or current or (ns.db and ns.db.settings.windowTab) or tabOrder[1])
+end
+
+--- /mf et ses variantes : ouvre la fenêtre (sur l'onglet demandé), ou la ferme si elle y est déjà.
+function UI.Toggle(key)
+  if window and window:IsShown() and (not key or key == current) then
+    window:Hide()
+    return
+  end
+  UI.Open(key)
+end
+
+-- --- onglet Collecte : personnages du compte, réglages, état de la collecte ---------------------------
 
 local main
 local STATUS_ORDER = { "identity", "talents", "professions", "reputation", "pvp", "pve", "gathering", "wanted" }
@@ -99,11 +221,8 @@ local function defaultStatus(char, name)
   return at and string.format(L.UP_TO_DATE, UI.Ago(at)) or L.NEVER_READ
 end
 
-local function buildMain()
-  main = makeFrame("WoWForeverGuildeFrame", 700, 482, L.TITLE)
-  main.version = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  main.version:SetPoint("LEFT", main.title, "RIGHT", 10, 0)
-  main.version:SetText("v" .. tostring(ns.VERSION))
+local function buildCollect(panel)
+  main = panel
 
   -- Colonne personnages
   main.charHeader = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -178,30 +297,20 @@ local function buildMain()
   main.lastWrite:SetPoint("BOTTOMLEFT", 240, 74)
   main.session = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   main.session:SetPoint("BOTTOMRIGHT", -16, 74)
-  -- Une seule rangée de boutons, alignés en bas de la fenêtre.
-  main.rosterButton = makeButton(main, L.ROSTER_BUTTON, 118)
-  main.rosterButton:SetPoint("BOTTOMLEFT", 12, 12)
-  main.rosterButton:SetScript("OnClick", function() ns.RosterUI.Toggle() end)
-  main.wantedButton = makeButton(main, L.WANTED_BUTTON, 90)
-  main.wantedButton:SetPoint("LEFT", main.rosterButton, "RIGHT", 8, 0)
-  main.wantedButton:SetScript("OnClick", function() ns.WantedUI.Toggle() end)
+  -- Les onglets remplacent les boutons qui ouvraient les autres fenêtres : restent les deux actions.
   main.sosButton = makeButton(main, L.SOS_BUTTON, 118)
-  main.sosButton:SetPoint("LEFT", main.wantedButton, "RIGHT", 8, 0)
+  main.sosButton:SetPoint("BOTTOMLEFT", 12, 12)
   main.sosButton:SetScript("OnClick", function() ns.Positions.SOS() end)
-  main.exportButton = makeButton(main, L.EXPORT, 130)
-  main.exportButton:SetPoint("LEFT", main.sosButton, "RIGHT", 8, 0)
-  main.exportButton:SetScript("OnClick", function() UI.ShowExport() end)
   main.saveButton = makeButton(main, L.SAVE_NOW, 170)
-  main.saveButton:SetPoint("LEFT", main.exportButton, "RIGHT", 8, 0)
+  main.saveButton:SetPoint("LEFT", main.sosButton, "RIGHT", 8, 0)
   main.saveButton:SetScript("OnClick", function() ReloadUI() end)
   main.hint = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   main.hint:SetPoint("BOTTOMRIGHT", -16, 44)
   main.hint:SetText(L.REOPEN)
-  main:SetScript("OnShow", UI.Refresh)
 end
 
 function UI.Refresh()
-  if not main or not main:IsShown() then return end
+  if not main or not UI.Shown("collect") then return end
   local db, char = ns.db, ns.char
   local guids = {}
   for guid, entry in pairs(db.characters) do if entry.name then guids[#guids + 1] = guid end end
@@ -236,17 +345,15 @@ function UI.Refresh()
   main.session:SetTextColor(unsaved >= ns.Data.RELOAD_REMINDER_SECONDS and 1 or 0.6, unsaved >= ns.Data.RELOAD_REMINDER_SECONDS and 0.72 or 0.6, 0.29)
 end
 
-function UI.Toggle()
-  if not main then buildMain() end
-  if main:IsShown() then main:Hide() else main:Show() end
-end
+UI.AddTab({ key = "collect", order = 3, label = L.TAB_COLLECT, name = "WoWForeverGuildeCollect", build = buildCollect, show = UI.Refresh })
 
--- --- fenêtre d'export -----------------------------------------------------------------------------
+-- --- onglet Export : le code à coller sur le site, sans compagnon ---------------------------------------
 
 local exportFrame
+local fillExport
 
-local function buildExport()
-  exportFrame = makeFrame("WoWForeverGuildeExport", 560, 420, L.EXPORT_TITLE)
+local function buildExport(panel)
+  exportFrame = panel
   local steps = exportFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   steps:SetPoint("TOPLEFT", 16, -44)
   steps:SetWidth(520)
@@ -262,7 +369,7 @@ local function buildExport()
   box:SetMultiLine(true)
   box:SetAutoFocus(false)
   box:SetFontObject(ChatFontSmall or GameFontHighlightSmall)
-  box:SetWidth(500)
+  box:SetWidth(WINDOW_WIDTH - 60)
   box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
   box:SetScript("OnTextChanged", function(self, user)
     if user and exportFrame.code and self:GetText() ~= exportFrame.code then self:SetText(exportFrame.code) end
@@ -279,14 +386,14 @@ local function buildExport()
   selectAll:SetScript("OnClick", function() box:SetFocus() box:HighlightText() end)
   local regen = makeButton(exportFrame, L.REGENERATE, 120)
   regen:SetPoint("LEFT", selectAll, "RIGHT", 8, 0)
-  regen:SetScript("OnClick", function() UI.ShowExport() end)
+  regen:SetScript("OnClick", function() fillExport() end)
   local warn = exportFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   warn:SetPoint("BOTTOMRIGHT", -16, 26)
   warn:SetText(L.TRUNCATED_WARNING)
 end
 
-function UI.ShowExport()
-  if not exportFrame then buildExport() end
+--- Relit le personnage et régénère le code, sélectionné et prêt à copier : à chaque ouverture de l'onglet.
+function fillExport()
   local char = ns.char
   if char then
     for _, def in ipairs(ns.collectors) do
@@ -303,9 +410,15 @@ function UI.ShowExport()
   local text = string.format(L.EXPORT_CONTENT, table.concat(included, ", "))
   if #excluded > 0 then text = text .. "  |cff9a9a9a(exclus : " .. table.concat(excluded, ", ") .. ")|r" end
   exportFrame.content:SetText(text)
-  exportFrame:Show()
   exportFrame.box:SetFocus()
   exportFrame.box:HighlightText()
+end
+
+UI.AddTab({ key = "export", order = 4, label = L.TAB_EXPORT, name = "WoWForeverGuildeExport", build = buildExport, show = fillExport })
+
+--- /mf export : ouvre la fenêtre sur le code d'export.
+function UI.ShowExport()
+  UI.Open("export")
 end
 
 -- --- dialogues ---------------------------------------------------------------------------------------

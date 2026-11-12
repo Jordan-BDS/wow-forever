@@ -64,9 +64,9 @@ const SECTIONS: Section[] = [
       {
         id: "welcome",
         title: "Message de bienvenue et fenêtre",
-        commands: ["/mf"],
+        commands: ["/mf", "/mf collecte"],
         expected:
-          "Chat : « [MF] Bienvenue, Nom. Compteurs depuis le 04/11/2026. » La fenêtre s'ouvre, titre Manuel Feralas avec le portrait, sept lignes d'état à droite, quatre boutons alignés en bas, huit cases à gauche.",
+          "Chat : « [MF] Bienvenue, Nom. Compteurs depuis le 04/11/2026. » La fenêtre s'ouvre, titre Manuel Feralas avec le portrait et quatre onglets : Guilde en jeu, Wanted, Collecte, Export. Onglet Collecte : les lignes d'état à droite, les cases à gauche, deux boutons en bas.",
       },
       {
         id: "version",
@@ -98,9 +98,9 @@ const SECTIONS: Section[] = [
           "/dump C_ClassTalents.GetActiveConfigID()",
         ],
         expected:
-          "Après un point dépensé puis /mf : la ligne Talents passe « À jour » et le build « En jeu » de la fiche montre le point au bon endroit. L'une des trois commandes répond : 3, un nombre, puis nom, icône, rangée, colonne, rang ; ou une table name / tier / column / rank ; ou un numéro de configuration (traits modernes).",
+          "Après un point dépensé puis /mf collecte : la ligne Talents passe « À jour » et le build « En jeu » de la fiche montre le point au bon endroit. L'une des trois commandes répond : 3, un nombre, puis nom, icône, rangée, colonne, rang ; ou une table name / tier / column / rank ; ou un numéro de configuration (traits modernes).",
         otherwise:
-          "Nil partout : la ligne Talents de /mf dit « Indisponible sur ce client », une ligne « talents.scan » arrive à droite, et le build « En jeu » reste vide sur le site.",
+          "Nil partout : la ligne Talents de /mf collecte dit « Indisponible sur ce client », une ligne « talents.scan » arrive à droite, et le build « En jeu » reste vide sur le site.",
       },
       {
         id: "guild",
@@ -132,7 +132,7 @@ const SECTIONS: Section[] = [
           '/run local f=CreateFrame("Frame") f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED") f:SetScript("OnEvent",function() local _,e,_,sg,sn,_,_,dg,dn=CombatLogGetCurrentEventInfo() print(e,sg,sn,dg,dn) f:UnregisterAllEvents() end)',
         ],
         expected:
-          "Tue trois ou quatre créatures puis /mf : la ligne PvE doit dire « … · 4 créatures ». La commande, lancée avant un coup, affiche une ligne du type « SWING_DAMAGE Player-… TonNom Creature-0-…-299-… Sanglier ».",
+          "Tue trois ou quatre créatures puis /mf collecte : la ligne PvE doit dire « … · 4 créatures ». La commande, lancée avant un coup, affiche une ligne du type « SWING_DAMAGE Player-… TonNom Creature-0-…-299-… Sanglier ».",
         otherwise:
           "Compteur à 0, ou des « secret value » / nil à la place des GUID : Forever masque le journal de combat, l'attribution des morts tombe aussi. Copie la ligne telle quelle.",
       },
@@ -163,9 +163,9 @@ const SECTIONS: Section[] = [
           "/dump C_TradeSkillUI.GetChildProfessionInfo()",
         ],
         expected:
-          "Ouvre la fenêtre du métier puis /mf : « Métiers et recettes » passe de « jamais lu » à « À jour » avec la compétence. La première commande donne nom, icône, compétence, maximum, deux nombres, puis la ligne de compétence (171 pour l'alchimie, ou un nombre en 24xx-25xx pour une ligne « Classic »). Les deux autres, fenêtre ouverte, donnent une table avec professionID, parentProfessionID, skillLevel, maxSkillLevel.",
+          "Ouvre la fenêtre du métier puis /mf collecte : « Métiers et recettes » passe de « jamais lu » à « À jour » avec la compétence. La première commande donne nom, icône, compétence, maximum, deux nombres, puis la ligne de compétence (171 pour l'alchimie, ou un nombre en 24xx-25xx pour une ligne « Classic »). Les deux autres, fenêtre ouverte, donnent une table avec professionID, parentProfessionID, skillLevel, maxSkillLevel.",
         otherwise:
-          "Métier absent de la fiche sur le site alors que /mf le liste : copie la ligne de compétence (septième valeur) de la première commande, le site ne la connaît pas.",
+          "Métier absent de la fiche sur le site alors que /mf collecte le liste : copie la ligne de compétence (septième valeur) de la première commande, le site ne la connaît pas.",
       },
       {
         id: "gathering",
@@ -416,7 +416,9 @@ function AddonErrorsCard() {
     <Card className={clsx("space-y-3", list.length > 0 && "border-danger/40")}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-display text-xl">Erreurs remontées par les addons</h2>
-        <span className="text-xs text-muted">7 derniers jours · toute la guilde · les identiques regroupées</span>
+        <span className="text-xs text-muted">
+          7 derniers jours · toute la guilde · les identiques regroupées
+        </span>
       </div>
       {errors.isError ? (
         <p className="text-sm text-danger">Impossible de charger les erreurs.</p>

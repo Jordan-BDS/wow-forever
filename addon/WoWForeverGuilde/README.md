@@ -33,7 +33,10 @@ transporte le code jusqu'au site.
 - `Phrases.lua` : gabarits des popups (avis de décès, victoires honorables, primes encaissées) et leur remplissage
   (« de » et « à » contractés ou élidés devant le nom, pluriel des kills à plusieurs, majuscules) ; comment écrire
   un gabarit est dit en tête du fichier.
-- `UI.lua` : fenêtre principale, export, dialogues, texte flottant des morts.
+- `UI.lua` : la fenêtre `/mf` et ses onglets (un seul cadre ; chaque écran déclare le sien avec `UI.AddTab`, son
+  panneau n'est construit qu'à la première ouverture ; position et dernier onglet retenus), onglets Collecte
+  (`/mf collecte`) et Export (`/mf export`), dialogues, texte flottant des morts. `RosterUI.lua` et `WantedUI.lua`
+  sont les onglets Guilde en jeu (`/mf qui`) et Wanted (`/mf wanted`).
 - `Positions.lua`, `MapUI.lua` : partage de position. Case « Partager ma position » (cochée par défaut) : le client
   émet carte, coordonnées, niveau et résumé de talents par message addon (préfixe `WFG`, canal de guilde ; le client
   moderne interdit les canaux de chat aux addons, donc rien ne circule sans guilde) au changement de zone, au déplacement et toutes les 60 s ; les autres
@@ -41,7 +44,7 @@ transporte le code jusqu'au site.
   Survol : nom, niveau, zone, talents, âge ; clic gauche : menu Inviter (ou Suggérer l'invitation quand on n'est
   pas chef) / Chuchoter. Ne pas partager = ne pas voir. Un membre silencieux depuis 3 min disparaît. Points aussi
   sur la minimap (flottant au bord vers les membres proches), réglage à part. Recherche de groupe (`/mf lfg texte`
-  ou le champ de la liste) diffusée avec la position. Appel à l'aide : **manuel seulement** (bouton dans `/mf` et
+  ou le champ de la liste) diffusée avec la position. Appel à l'aide : **manuel seulement** (bouton des onglets Collecte et Guilde en jeu, et
   dans la liste, ou `/mf sos` ; la cible est nommée si c'est un joueur), jamais automatique pour ne pas spammer en
   zone contestée ; un envoi par minute ; chez les autres, toast et son dans la même zone, ligne de chat ailleurs,
   anneau rouge sur le point 2 min. La ligne « P » porte la version de l'addon (0.6.6) : une version plus récente
@@ -61,7 +64,7 @@ transporte le code jusqu'au site.
   (0.6.3) : ni annonce de mort, ni point, ni prime ; le kill compte dans « Joueurs abattus » (événement `pk` marqué
   `bg`, que le site ignore pour le tableau). L'avis porte aussi
   une ligne de chat, et une **tête de mort rouge** (8e marqueur de raid, prime en chiffre) sur la carte et la minimap
-  là où il a frappé, qui pâlit puis disparaît après 5 min. Fenêtre `/mf wanted` (bouton dans `/mf`) : ennemis par
+  là où il a frappé, qui pâlit puis disparaît après 5 min. Onglet Wanted (`/mf wanted`) : ennemis par
   prime décroissante, dernière victime, lieu, âge ; survol : la même infobulle que sur la carte. Réglage « Alertes
   Wanted ». **Kills par la guilde** (lot 2, 0.6.0) : le journal de combat étant interdit, c'est le **message de chat de
   victoire honorable** (`CHAT_MSG_COMBAT_HONOR_GAIN`) qui nomme le joueur abattu ; tout le groupe le reçoit (crédit de

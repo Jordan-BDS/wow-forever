@@ -455,6 +455,79 @@ class TestSession:
         g._FIRE("PLAYER_LOGOUT")
         assert char.journal[day2].deaths == 2
 
+    def test_one_window_with_a_tab_per_screen(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        mf = g.SlashCmdList.WOWFOREVERGUILDE
+        settings = g.WoWForeverGuildeDB.settings
+
+        def tab(label):
+            (button,) = [
+                f
+                for f in list(g._FRAMES.values())
+                if f.kind == "Button" and f.scripts.OnClick and getattr(f.text, "text", None) == label
+            ]
+            return button
+
+        # /mf : la fenêtre, sur son premier onglet ; un panneau n'existe qu'une fois ouvert.
+        mf("")
+        window = g.WoWForeverGuildeFrame
+        assert window.shown is True and g.WoWForeverGuildeRoster.shown is True
+        assert g.WoWForeverGuildeWanted is None and settings.windowTab == "roster"
+        assert window.version.text == "v" + toc_version()
+        # /mf wanted change d'onglet dans la même fenêtre ; redit, il la ferme ; /mf la rouvre où on l'a laissée.
+        mf("wanted")
+        assert window.shown is True and g.WoWForeverGuildeWanted.shown is True
+        assert g.WoWForeverGuildeRoster.shown is False and settings.windowTab == "wanted"
+        assert g._NS.UI.Shown("wanted") is True and g._NS.UI.Shown("roster") is False
+        mf("wanted")
+        assert window.shown is False and g._NS.UI.Shown("wanted") is False
+        mf("")
+        assert window.shown is True and g.WoWForeverGuildeWanted.shown is True
+        # Les onglets se cliquent : Collecte (personnages, réglages, état), Export (le code, régénéré à l'ouverture).
+        collect = tab("Collecte")
+        collect.scripts.OnClick(collect)
+        assert g.WoWForeverGuildeCollect.shown is True and g.WoWForeverGuildeWanted.shown is False
+        assert "Thrall" in g.WoWForeverGuildeCollect.charLines[1].text
+        mf("export")
+        assert g.WoWForeverGuildeExport.shown is True and g.WoWForeverGuildeCollect.shown is False
+        assert decode_export(g.WoWForeverGuildeExport.box.text)["characters"][0]["name"] == "Thrall"
+        # Quatre onglets, un bouton chacun.
+        assert all(tab(label) for label in ("Guilde en jeu", "Wanted", "Collecte", "Export"))
+        # La fenêtre lâchée ailleurs retient sa place.
+        lua.execute('WoWForeverGuildeFrame.point = { "TOPLEFT", UIParent, "TOPLEFT", 40, -60 }')
+        window.scripts.OnDragStop(window)
+        assert list(settings.windowPoint.values()) == ["TOPLEFT", "TOPLEFT", 40, -60]
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_window_reopens_where_it_was_left(self):
+        lua = boot()
+        g = lua.globals()
+        lua.execute(
+            'WoWForeverGuildeDB = { settings = { windowTab = "wanted", windowPoint = { "TOPLEFT", "TOPLEFT", 40, -60 } } }'
+        )
+        login(lua)
+        g.SlashCmdList.WOWFOREVERGUILDE("")
+        window = g.WoWForeverGuildeFrame
+        assert (
+            window.shown is True
+            and g.WoWForeverGuildeWanted.shown is True
+            and g.WoWForeverGuildeRoster is None
+        )
+        assert (window.point[1], window.point[3], window.point[4], window.point[5]) == (
+            "TOPLEFT",
+            "TOPLEFT",
+            40,
+            -60,
+        )
+        # Un onglet disparu d'une version à l'autre : le premier, sans erreur.
+        g.WoWForeverGuildeDB.settings.windowTab = "disparu"
+        window.shown = False
+        g._NS.UI.Open("disparu")
+        assert g.WoWForeverGuildeRoster.shown is True
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_reload_reminder_after_three_hours_in_calm(self):
         lua = boot()
         g = lua.globals()
@@ -668,9 +741,9 @@ class TestSession:
         assert {p["id"]: p.get("recipes") for p in character["professions"]}[171] == [17580]
         errors = [dict(e) for e in g.WoWForeverGuildeDB.errors.values()]
         assert len(errors) == 1 and "0 recette lue par C_TradeSkillUI" in errors[0]["error"]
-        g.SlashCmdList.WOWFOREVERGUILDE("")
+        g.SlashCmdList.WOWFOREVERGUILDE("collecte")
         # La ligne de statut dit combien de recettes sont connues.
-        assert "Alchimie 290 · 1 recettes" in g.WoWForeverGuildeFrame.statusLines.professions.text
+        assert "Alchimie 290 · 1 recettes" in g.WoWForeverGuildeCollect.statusLines.professions.text
 
     def test_api_diagnostic_is_printed_and_travels_with_the_errors(self):
         lua = boot()

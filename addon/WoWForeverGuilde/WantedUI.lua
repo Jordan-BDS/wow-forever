@@ -1,4 +1,4 @@
--- Fenêtre « Wanted » (/mf wanted, bouton dans /mf) : les têtes mises à prix, prime décroissante. Une ligne par
+-- Onglet « Wanted » de la fenêtre /mf (/mf wanted) : les têtes mises à prix, prime décroissante. Une ligne par
 -- ennemi : nom coloré par classe, classe, prime, kills de la guilde (lot 2), dernière victime, lieu et âge ; survol :
 -- la même infobulle que la tête de mort sur la carte.
 local ADDON, ns = ...
@@ -62,7 +62,7 @@ function WantedUI.Lines()
 end
 
 function WantedUI.Render()
-  if not frame or not frame:IsShown() then return end
+  if not frame or not ns.UI.Shown("wanted") then return end
   local lines = WantedUI.Lines()
   for i, l in ipairs(lines) do
     local r = row(i)
@@ -80,7 +80,7 @@ end
 
 --- Rafraîchissement regroupé (une mort peut en suivre une autre).
 function WantedUI.Refresh()
-  if not frame or not frame:IsShown() or pending then return end
+  if not frame or not ns.UI.Shown("wanted") or pending then return end
   pending = true
   C_Timer.After(ns.Data.ROSTER_REFRESH, function()
     pending = false
@@ -88,8 +88,8 @@ function WantedUI.Refresh()
   end)
 end
 
-local function build()
-  frame = ns.UI.MakeFrame("WoWForeverGuildeWanted", 560, 480, L.WANTED_TITLE)
+local function build(panel)
+  frame = panel
   frame.hint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   frame.hint:SetPoint("TOPLEFT", 16, -46)
   frame.hint:SetWidth(520)
@@ -110,12 +110,15 @@ local function build()
     function() return ns.db.settings.wantedAlerts end,
     function(on) ns.Wanted.SetAlerts(on) end)
   frame.alerts:SetPoint("BOTTOMLEFT", 12, 10)
-  frame:SetScript("OnShow", function() ns.Safe("wanted.render", WantedUI.Render) end)
 end
 
+ns.UI.AddTab({
+  key = "wanted", order = 2, label = L.WANTED_BUTTON, name = "WoWForeverGuildeWanted", build = build,
+  show = function() ns.Safe("wanted.render", WantedUI.Render) end,
+})
+
 function WantedUI.Toggle()
-  if not frame then build() end
-  if frame:IsShown() then frame:Hide() else frame:Show() end
+  ns.UI.Toggle("wanted")
 end
 
 function WantedUI.Frame() return frame end -- tests

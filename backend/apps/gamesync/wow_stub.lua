@@ -253,6 +253,9 @@ local function newFrame(kind, name)
     f[m] = noop
   end
   function f:SetAlpha(a) self.alpha = a end
+  -- Le dernier ancrage posé est retenu : la fenêtre /mf relit le sien quand on la lâche.
+  function f:SetPoint(...) self.point = { ... } end
+  function f:GetPoint() if self.point then return unpack(self.point, 1, 5) end end
   function f:SetText(t) self.text = t end
   function f:GetText() return self.text end
   function f:GetChecked() return self.checked end
