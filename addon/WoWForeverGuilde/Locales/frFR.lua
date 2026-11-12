@@ -57,6 +57,16 @@ ns.L = setmetatable({
   KILL_LOG = "%s abat %s · %s",
   KILL_LOG_PLURAL = "%s abattent %s · %s",
   AND = " et ",
+  STREAK_double = "DOUBLE KILL !",
+  STREAK_triple = "TRIPLE KILL !",
+  STREAK_spree = "KILLING SPREE !",
+  STREAK_dominating = "DOMINATING !",
+  STREAK_rampage = "RAMPAGE !",
+  STREAK_unstoppable = "UNSTOPPABLE !",
+  STREAK_monster = "MONSTER KILL !",
+  STREAK_TEST = "Essai : %s. Voix : %s. Rien d'enregistré, rien d'envoyé.",
+  SHOW_STREAKS = "Afficher les séries de kills (double kill, triple kill… monster kill)",
+  SOUND_STREAKS = "Jouer la voix des séries de kills et des primes encaissées",
   SOMEONE = "un adversaire",
   BOUNTY_CHAT = "Prime encaissée : %s a abattu %s (%s), %s. Kills de la guilde sur cette cible : %d.",
   POINTS_SINGULAR = "%d point",
@@ -126,7 +136,7 @@ ns.L = setmetatable({
   EXPORT = "Exporter le code",
   EXPORT_BACK = "Retour à la collecte",
   SAVE_NOW = "Sauvegarder (/reload)",
-  REOPEN = "Commandes : /mf sos · /mf lfg texte · /mf export · /mf prime nom · /mf erreurs · /mf api · /mf trace",
+  REOPEN = "Commandes : /mf sos · /mf lfg texte · /mf export · /mf prime nom · /mf serie 2 · /mf erreurs · /mf api · /mf trace",
   TRACE_ON = "Trace des messages addon pendant %d s : chaque envoi et chaque réception s'affichent ici.",
   PRIME_TEST_USAGE = "/mf prime <nom> : joue le popup « Prime encaissée » pour un recherché du tableau, sans rien enregistrer.",
   PRIME_TEST_NONE = "« %s » n'est pas au tableau (%d recherchés : %s) : aucun kill ne fera de popup pour lui tant que sa prime n'est pas connue ici.",
@@ -199,6 +209,12 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.2", notes = {
+    "Séries de kills : deux joueurs abattus à moins de 18 s d'écart font un double kill, puis triple kill, killing spree, dominating, rampage, unstoppable et monster kill (8 et plus), annoncés à toute la guilde avec leur voix.",
+    "Prime encaissée : une voix à la place du bip, une autre pour les grosses primes (3 points et plus).",
+    "/mf serie 2 (jusqu'à 8) pour essayer une série, /mf prime nom pour une prime.",
+    "Réglages : deux cases pour couper le texte des séries ou les voix.",
+  } },
   { version = "0.7.1", notes = {
     "Récolte : ton butin est reconnu quel que soit ton nom (prénom à tiret, prénom et nom) ; des minerais, herbes, peaux et poissons n'étaient pas comptés.",
     "Diagnostic : la ligne « récolte » dit aussi ce que l'addon a fait du dernier butin.",

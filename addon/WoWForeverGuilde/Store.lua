@@ -44,6 +44,8 @@ function Store.Init()
   if s.gankAlerts == nil then s.gankAlerts = true end
   if s.rosterMyZone == nil then s.rosterMyZone = false end
   if s.wantedAlerts == nil then s.wantedAlerts = true end
+  if s.showStreaks == nil then s.showStreaks = true end
+  if s.soundStreaks == nil then s.soundStreaks = true end
   s.excluded = s.excluded or {}
   db.history = db.history or {} -- derniers décès et victoires annoncés, niveau compte (onglet Historique)
   db.wanted = db.wanted or {} -- têtes mises à prix, niveau compte (donnée de guilde, pas de personnage)

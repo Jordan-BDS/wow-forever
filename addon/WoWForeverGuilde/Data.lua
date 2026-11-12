@@ -105,7 +105,25 @@ ns.Data.KILL_LOG_LINES = 14 -- lignes du journal des kills de la session, noté 
 ns.Data.WANTED_NAMELESS_ADOPT = 90 -- s : un kill sans nom prend le nom lu ensuite (cadavre ciblé après le combat) au lieu d'en compter un second
 ns.Data.WANTED_HUNTERS = 5 -- chasseurs nommés au plus dans un popup de victoire honorable (kill à plusieurs)
 ns.Data.WANTED_HUNTERS_KEPT = 40 -- chasseurs retenus pour un même kill (un raid) : les premiers par ordre alphabétique sont nommés
-ns.Data.TOAST_MIN_SECONDS = 4 -- s : un texte flottant reste au moins ce temps avant de céder la place au suivant
+-- Séries de kills (0.7.2) : chaque chasseur compte les siens et porte sa série dans son « K » ou son « H ».
+ns.Data.STREAK_WINDOW = 18 -- s : un kill à moins de ce délai du précédent prolonge la série du chasseur
+ns.Data.STREAK_SECONDS = 5 -- s d'affichage du texte d'une série
+ns.Data.STREAK_MAX = 8 -- dernier palier : il se rejoue à chaque kill au-delà
+ns.Data.STREAK_LEVELS = {
+  [2] = "double", [3] = "triple", [4] = "spree", [5] = "dominating", [6] = "rampage", [7] = "unstoppable",
+  [8] = "monster",
+}
+ns.Data.BOUNTY_BIG = 3 -- points : à partir de là, une prime encaissée a la voix des grosses primes
+-- Voix (dossier Sounds de l'addon) : une par palier de série, deux pour les primes encaissées. Un fichier absent :
+-- le texte seul pour une série, le bip habituel pour une prime.
+ns.Data.SOUNDS_DIR = "Interface\\AddOns\\WoWForeverGuilde\\Sounds\\"
+ns.Data.VOICES = {
+  double = "double-kill.mp3", triple = "triple-kill.mp3", spree = "killing-spree.mp3", dominating = "dominating.mp3",
+  rampage = "rampage.mp3", unstoppable = "unstoppable.mp3", monster = "monster-kill.mp3",
+  bounty = "wicked-sick.mp3", bountyBig = "holy-shit.mp3",
+}
+ns.Data.VOICE_OVERLAP = 2 -- s : la voix d'une série vient de partir, la prime du même kill reste muette
+ns.Data.TOAST_MIN_SECONDS = 4-- s : un texte flottant reste au moins ce temps avant de céder la place au suivant
 ns.Data.TOAST_QUEUE = 5 -- textes flottants en attente au plus (les plus anciens sautent)
 ns.Data.WANTED_HANDSHAKE_DELAY = 8 -- s après la connexion avant de demander le tableau aux guildiens
 ns.Data.WANTED_ANSWER_SPREAD = 5 -- s : la réponse part entre 1 et 1 + ce délai, et seulement si personne n'a répondu

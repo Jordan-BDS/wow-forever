@@ -66,13 +66,13 @@ const SECTIONS: Section[] = [
         title: "Message de bienvenue et fenêtre",
         commands: ["/mf", "/mf collecte"],
         expected:
-          "Chat : « [MF] Bienvenue, Nom. Compteurs depuis le 04/11/2026. » La fenêtre s'ouvre, titre Manuel Feralas avec le portrait et sept onglets : Historique (celui sur lequel elle s'ouvre : les derniers décès, victoires honorables et primes, le plus récent en haut), Guilde en jeu, Wanted, Collecte, Réglages, Nouveautés, Diagnostic ; à droite du titre, le temps sans sauvegarde et le bouton Sauvegarder. Onglet Collecte : les personnages du compte à gauche, les lignes d'état à droite, le bouton « Exporter le code » en bas. Les onglets Guilde en jeu et Wanted sont en colonnes. Onglet Réglages : onze cases en trois groupes. Sur la minimap, un bouton au portrait de la guilde ouvre la fenêtre. Onglet Nouveautés : les notes de la version, en vert tant qu'elles ne sont pas lues. Onglet Diagnostic : le rapport de /mf api dans une zone à copier.",
+          "Chat : « [MF] Bienvenue, Nom. Compteurs depuis le 04/11/2026. » La fenêtre s'ouvre, titre Manuel Feralas avec le portrait et sept onglets : Historique (celui sur lequel elle s'ouvre : les derniers décès, victoires honorables et primes, le plus récent en haut), Guilde en jeu, Wanted, Collecte, Réglages, Nouveautés, Diagnostic ; à droite du titre, le temps sans sauvegarde et le bouton Sauvegarder. Onglet Collecte : les personnages du compte à gauche, les lignes d'état à droite, le bouton « Exporter le code » en bas. Les onglets Guilde en jeu et Wanted sont en colonnes. Onglet Réglages : treize cases en trois groupes. Sur la minimap, un bouton au portrait de la guilde ouvre la fenêtre. Onglet Nouveautés : les notes de la version, en vert tant qu'elles ne sont pas lues. Onglet Diagnostic : le rapport de /mf api dans une zone à copier.",
       },
       {
         id: "version",
         title: "Version de l'addon chargée",
         commands: ['/dump C_AddOns.GetAddOnMetadata("WoWForeverGuilde", "Version")'],
-        expected: "La version de la dernière release (0.7.1 au 12 novembre).",
+        expected: "La version de la dernière release (0.7.2 au 12 novembre).",
         otherwise:
           "Autre chose : le compagnon n'a pas recopié l'addon. Bouton « Réinstaller l'addon » puis /reload.",
       },
@@ -252,6 +252,15 @@ const SECTIONS: Section[] = [
         expected: "Au dernier boss, la ligne PvE compte 1 boss et « 1 donjons ».",
         otherwise:
           "Boss compté mais pas le donjon : l'identifiant de rencontre diffère de Classic. La commande, lancée avant le boss, affiche l'identifiant à m'envoyer.",
+      },
+      {
+        id: "streak",
+        title: "Séries de kills et leur voix",
+        severity: "later",
+        severityLabel: "il faut le son du jeu",
+        commands: ["/mf serie 2", "/mf serie 8", "/mf api"],
+        expected:
+          "En haut de l'écran : « DOUBLE KILL ! » puis « MONSTER KILL ! » avec ton nom, 5 secondes chacun, et leur voix (jeu relancé depuis l'ajout des fichiers du dossier Sounds). /mf api, ligne « séries de kills » : « monster-kill.mp3 : joué », ou « pas joué » si le fichier manque. /mf prime nom (un recherché du tableau) : le popup « Prime encaissée » avec sa voix à la place du bip. En vrai : deux joueurs abattus à moins de 18 s d'écart, hors champ de bataille, et toute la guilde le voit et l'entend.",
       },
       {
         id: "pvp",

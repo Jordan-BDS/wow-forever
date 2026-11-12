@@ -598,6 +598,8 @@ local SETTINGS = {
     { "soundDeaths", L.SOUND_DEATHS },
     { "announceDeaths", L.ANNOUNCE_DEATHS },
     { "wantedAlerts", L.WANTED_ALERTS, function(on) ns.Wanted.SetAlerts(on) end },
+    { "showStreaks", L.SHOW_STREAKS },
+    { "soundStreaks", L.SOUND_STREAKS },
   } },
   { L.SETTINGS_SITE, {
     -- Seul réglage propre au personnage connecté : les autres valent pour tout le compte.
@@ -892,6 +894,40 @@ function UI.OnLogin(entry)
   ns.Safe("ui.minimap", UI.SetMinimapButton, ns.db.settings.minimapButton)
 end
 
+-- --- voix : séries de kills et primes encaissées ------------------------------------------------------------
+--
+-- Fichiers du dossier Sounds de l'addon (ns.Data.VOICES). Une voix coupe la précédente encore en cours : deux
+-- kills coup sur coup ne se superposent pas.
+
+local lastVoice = nil -- /mf api : dernier fichier demandé au jeu et sa réponse
+local lastVoiceAt, lastVoiceHandle = nil, nil
+
+--- Joue une voix (clé de ns.Data.VOICES) ; vrai si le jeu l'a lue (faux : fichier absent, client sans lecteur).
+function UI.PlayVoice(key)
+  local file = ns.Data.VOICES[key]
+  if not file then return false end
+  if type(PlaySoundFile) ~= "function" then
+    lastVoice = file .. " : ce client ne lit pas de fichier son"
+    return false
+  end
+  if lastVoiceHandle and type(StopSound) == "function" then pcall(StopSound, lastVoiceHandle) end
+  local ok, played, handle = pcall(PlaySoundFile, ns.Data.SOUNDS_DIR .. file, "Master")
+  played = ok and played and true or false
+  lastVoiceHandle = played and handle or nil
+  if played then lastVoiceAt = ns.now() end
+  lastVoice = file .. (played and " : joué" or " : pas joué (fichier absent de Sounds\\, ou jeu pas relancé depuis son ajout)")
+  return played
+end
+
+--- Une voix vient-elle de partir (moins de VOICE_OVERLAP s) ?
+function UI.VoiceJustPlayed()
+  return lastVoiceAt ~= nil and ns.now() - lastVoiceAt < ns.Data.VOICE_OVERLAP
+end
+
+function UI.VoiceSource()
+  return lastVoice or "aucune voix demandée cette session"
+end
+
 -- --- texte flottant des morts ---------------------------------------------------------------------------
 
 local toast
@@ -1059,5 +1095,58 @@ function UI.ShowBounty(entry, phrase, by, prime, place)
   local label = string.format(L.BOUNTY_LOG, by, entry.name, ns.Points(prime), place)
   local footer = string.format(L.BOUNTY_FOOTER, ns.Points(prime), place)
   UI.Remember("bounty", nil, phrase, footer)
-  UI.ShowToast(L.BOUNTY_HEADER, phrase, footer, { 1, 0.82, 0 }, ns.db.settings.soundDeaths, nil, label)
+  -- La voix d'une prime (0.7.2), celle des grosses primes à partir de BOUNTY_BIG points ; sans elle (case décochée,
+  -- fichier absent), le bip habituel. La série du même kill vient de parler : la prime reste muette.
+  local s, beep = ns.db.settings, ns.db.settings.soundDeaths
+  if s.soundStreaks then
+    if UI.VoiceJustPlayed() or UI.PlayVoice((prime or 0) >= ns.Data.BOUNTY_BIG and "bountyBig" or "bounty") then
+      beep = false
+    end
+  end
+  UI.ShowToast(L.BOUNTY_HEADER, phrase, footer, { 1, 0.82, 0 }, beep, nil, label)
+end
+
+-- --- séries de kills : de « double kill » à « monster kill » --------------------------------------------------
+--
+-- Un texte à part, au-dessus des popups, hors de leur file d'attente : la voix part à l'instant du kill. Sans
+-- fichier dans Sounds\, le texte s'affiche seul.
+
+local streakFrame
+
+local function buildStreak()
+  streakFrame = CreateFrame("Frame", "WoWForeverGuildeStreak", UIParent)
+  streakFrame:SetSize(900, 80)
+  streakFrame:SetPoint("TOP", 0, -24)
+  streakFrame:SetFrameStrata("HIGH")
+  streakFrame:EnableMouse(false)
+  streakFrame.title = streakFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
+  streakFrame.title:SetPoint("TOP", 0, 0)
+  streakFrame.title:SetTextColor(1, 0.25, 0.15)
+  streakFrame.title:SetShadowOffset(2, -2)
+  streakFrame.names = streakFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  streakFrame.names:SetPoint("TOP", streakFrame.title, "BOTTOM", 0, -6)
+  streakFrame:Hide()
+end
+
+function UI.StreakSource()
+  return UI.VoiceSource()
+end
+
+--- Série de kills d'un ou de plusieurs chasseurs. `level` : le palier ; `fresh` : une nouvelle série (texte et
+--- voix), sinon un chasseur de plus sur le texte encore affiché ; `force` : même réglages décochés (/mf serie).
+function UI.ShowStreak(level, hunters, fresh, force)
+  local s = ns.db.settings
+  if not level then return end
+  if fresh and (s.soundStreaks or force) then UI.PlayVoice(level) end
+  if not (s.showStreaks or force) then return end
+  if not streakFrame then buildStreak() end
+  if not fresh and not streakFrame:IsShown() then return end
+  streakFrame.title:SetText(L["STREAK_" .. level])
+  streakFrame.names:SetText(ns.Wanted.HunterNames(hunters, true))
+  if not fresh then return end
+  if streakFrame.timer then streakFrame.timer:Cancel() end
+  streakFrame:SetAlpha(0)
+  streakFrame:Show()
+  UIFrameFadeIn(streakFrame, 0.2, 0, 1)
+  streakFrame.timer = C_Timer.NewTimer(ns.Data.STREAK_SECONDS, function() streakFrame:Hide() end)
 end

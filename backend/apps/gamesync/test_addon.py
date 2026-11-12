@@ -532,6 +532,7 @@ class TestSession:
             [
                 "sharePosition", "minimapDots", "minimapButton", "gankAlerts",
                 "showDeaths", "soundDeaths", "announceDeaths", "wantedAlerts",
+                "showStreaks", "soundStreaks",
                 "send", "sharePlaytime", "reloadReminder",
             ]
         )  # fmt: skip
@@ -3042,6 +3043,180 @@ class TestWantedKills:
         assert source.endswith(
             "il y a 0 s sorti de la file « Uther Lumière abat Zaela · Durotar » · en attente : 0"
         )
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_kills_in_a_row_make_a_double_kill_then_a_rampage_heard_by_the_guild(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+
+        def kill(name):
+            g._FIRE(
+                "CHAT_MSG_COMBAT_HONOR_GAIN",
+                f"{name} meurt, victoire honorable (Points d'honneur estimés : 50)",
+            )
+
+        def sounds():
+            return [path.rsplit("\\", 1)[-1] for path in g._SOUND_FILES.values()]
+
+        def honor(guid, by, cls, victim, t, streak):
+            return f"H\t1\tPlayer-1-{guid}\t{by}\t{cls}\t{victim}\t{t}\tDurotar\t\t\t{streak}"
+
+        # Un kill seul : pas de série, rien dans le « H », le cadre n'est même pas construit.
+        kill("Sylvanas")
+        assert g.WoWForeverGuildeStreak is None and sounds() == []
+        assert len(wanted_sent(g, "H")[-1].split("\t")) == 10
+        # Le deuxième à moins de 18 s : double kill, texte et voix, et la série part dans le « H ».
+        g._ADVANCE(10)
+        kill("Nazgrel")
+        streak = g.WoWForeverGuildeStreak
+        assert streak.shown is True and streak.title.text == "DOUBLE KILL !"
+        assert streak.names.text == "|cff0070ddThrall Fils-de-Durotan|r"
+        assert sounds() == ["double-kill.mp3"]
+        assert g._SOUND_FILES[1] == "Interface\\AddOns\\WoWForeverGuilde\\Sounds\\double-kill.mp3"
+        assert wanted_sent(g, "H")[-1].split("\t")[10] == "2"
+        # Mon écho ne rejoue rien ; puis un palier par kill : triple, killing spree, dominating, rampage.
+        receive(lua, wanted_sent(g, "H")[-1], "Thrall-Forever")
+        assert sounds() == ["double-kill.mp3"]
+        for name in ("Rexxar", "Saurfang", "Zaela", "Garrosh"):
+            g._ADVANCE(17)
+            kill(name)
+        assert sounds() == [
+            "double-kill.mp3",
+            "triple-kill.mp3",
+            "killing-spree.mp3",
+            "dominating.mp3",
+            "rampage.mp3",
+        ]
+        assert streak.title.text == "RAMPAGE !" and wanted_sent(g, "H")[-1].split("\t")[10] == "6"
+        # Le texte s'efface seul ; passé 18 s sans kill, la série repart de zéro.
+        g._ADVANCE(5)
+        assert streak.shown is False
+        g._ADVANCE(14)
+        kill("Kargath")
+        assert streak.shown is False and len(sounds()) == 5
+        assert len(wanted_sent(g, "H")[-1].split("\t")) == 10
+
+        # La série d'un guildien arrive par son « H » : affichée telle quelle, une fois (sa répétition ne rejoue rien).
+        g._ADVANCE(60)
+        now = g._CLOCK.now
+        jaina = honor("00000JAI", "Jaina Portvaillant", "MAGE", "Rexxar", now, 3)
+        receive(lua, jaina)
+        assert streak.shown is True and streak.title.text == "TRIPLE KILL !"
+        assert streak.names.text == "|cff69ccf0Jaina Portvaillant|r" and sounds()[-1] == "triple-kill.mp3"
+        receive(lua, jaina)
+        assert len(sounds()) == 6
+        # Kill à plusieurs : le coéquipier du même kill, au même palier, ajoute son nom sans rejouer la voix ;
+        # une série plus courte pour la même victime est ignorée.
+        receive(lua, honor("00000UTH", "Uther Lumière", "PALADIN", "Rexxar", now + 1, 3), "Uther-Forever")
+        assert streak.names.text == "|cff69ccf0Jaina Portvaillant|r et |cffffffffUther Lumière|r"
+        receive(lua, honor("00000VAR", "Varian Wrynn", "WARRIOR", "Rexxar", now + 1, 2), "Varian-Forever")
+        assert streak.title.text == "TRIPLE KILL !" and len(sounds()) == 6
+        # Le « K » d'une prime porte la série lui aussi (dernier champ).
+        g._ADVANCE(30)
+        beeps = len(list(g._SOUNDS.values()))
+        receive(
+            lua,
+            f"K\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\tGarrosh\t1\t1\t{g._CLOCK.now}\t\t\t\tDurotar\t\tWARRIOR\t4",
+        )
+        # La voix de la série l'emporte : la prime du même kill reste muette (ni voix ni bip).
+        assert streak.title.text == "KILLING SPREE !" and sounds()[-1] == "killing-spree.mp3"
+        assert len(sounds()) == 7 and len(list(g._SOUNDS.values())) == beeps
+        # Au-delà du dernier palier (8), le monster kill se rejoue.
+        for n in (7, 8, 9):
+            g._ADVANCE(30)
+            receive(lua, honor("00000JAI", "Jaina Portvaillant", "MAGE", "Saurfang", g._CLOCK.now, n))
+        assert streak.title.text == "MONSTER KILL !"
+        assert sounds()[-3:] == ["unstoppable.mp3", "monster-kill.mp3", "monster-kill.mp3"]
+
+        # Réglages : la voix coupée, le texte reste ; le texte coupé, plus rien.
+        settings = g.WoWForeverGuildeDB.settings
+        settings.soundStreaks = False
+        g._ADVANCE(30)
+        receive(lua, honor("00000JAI", "Jaina Portvaillant", "MAGE", "Zaela", g._CLOCK.now, 2))
+        assert streak.shown is True and streak.title.text == "DOUBLE KILL !" and len(sounds()) == 10
+        settings.showStreaks = False
+        g._ADVANCE(30)
+        receive(lua, honor("00000JAI", "Jaina Portvaillant", "MAGE", "Kargath", g._CLOCK.now, 5))
+        assert streak.shown is False and len(sounds()) == 10
+        # /mf serie 4 : essai du texte et de la voix, même réglages coupés ; fichier absent, le diagnostic le dit.
+        lua.execute("_SOUND_FILES_PRESENT = false")
+        g.SlashCmdList.WOWFOREVERGUILDE("serie 4")
+        assert streak.shown is True and streak.title.text == "KILLING SPREE !"
+        assert sounds()[-1] == "killing-spree.mp3"
+        assert "killing-spree.mp3 : pas joué" in g._NS.UI.StreakSource()
+        assert any("Essai : KILLING SPREE !" in m for m in list(g._CHAT.values()))
+        # En champ de bataille : ni série ni voix.
+        settings.showStreaks, settings.soundStreaks = True, True
+        lua.execute('_INSTANCE = "pvp"')
+        g._ADVANCE(60)
+        count = len(sounds())
+        kill("Sylvanas")
+        g._ADVANCE(5)
+        kill("Nazgrel")
+        assert len(sounds()) == count
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_a_cashed_bounty_has_its_voice_instead_of_the_beep(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+
+        def bounty(enemy, points):
+            g._ADVANCE(120)
+            now = g._CLOCK.now
+            receive(
+                lua,
+                f"K\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\t{enemy}\t{points}\t1\t{now}\t\t\t\tDurotar\t\tWARRIOR",
+            )
+            return (
+                [path.rsplit("\\", 1)[-1] for path in g._SOUND_FILES.values()],
+                len(list(g._SOUNDS.values())),
+            )
+
+        # Une prime : sa voix, sans le bip ; à partir de 3 points, la voix des grosses primes.
+        assert bounty("Garrosh", 1) == (["wicked-sick.mp3"], 0)
+        assert bounty("Nazgrel", 2) == (["wicked-sick.mp3"] * 2, 0)
+        assert bounty("Rexxar", 3)[0][-1] == "holy-shit.mp3"
+        assert "Prime encaissée" in g.WoWForeverGuildeDeath.header.text
+        # Fichier absent : le bip habituel revient ; voix décochées : le bip, sans rien demander au jeu.
+        lua.execute("_SOUND_FILES_PRESENT = false")
+        files, beeps = bounty("Saurfang", 1)
+        assert (len(files), beeps) == (4, 1)
+        g.WoWForeverGuildeDB.settings.soundStreaks = False
+        assert bounty("Zaela", 5) == (files, 2)
+        # Ni voix ni son des morts : silence.
+        g.WoWForeverGuildeDB.settings.soundDeaths = False
+        assert bounty("Kargath", 1) == (files, 2)
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_a_streak_is_announced_even_when_a_teammate_already_announced_the_kill(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+        honor = "{} meurt, victoire honorable (Points d'honneur estimés : 50)"
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", honor.format("Sylvanas"))
+        assert len(wanted_sent(g, "H")) == 1
+        # Le « H » de Jaina pour Nazgrel arrive avant mon propre message de victoire : son popup est passé, mais
+        # mon kill prolonge ma série, je l'annonce quand même pour que la guilde l'entende.
+        g._ADVANCE(8)
+        receive(
+            lua, f"H\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\tNazgrel\t{g._CLOCK.now}\tDurotar\t\t"
+        )
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", honor.format("Nazgrel"))
+        sent = wanted_sent(g, "H")
+        assert len(sent) == 2 and sent[-1].split("\t")[5] == "Nazgrel" and sent[-1].split("\t")[10] == "2"
+        assert g.WoWForeverGuildeStreak.title.text == "DOUBLE KILL !"
+        # Sans série, rien de changé : le popup déjà passé par un coéquipier ne fait pas de « H ».
+        g._ADVANCE(60)
+        receive(
+            lua, f"H\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\tRexxar\t{g._CLOCK.now}\tDurotar\t\t"
+        )
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", honor.format("Rexxar"))
+        assert len(wanted_sent(g, "H")) == 2
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_the_kill_log_of_the_session_goes_to_the_site_with_the_errors(self):

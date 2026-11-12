@@ -109,7 +109,20 @@ transporte le code jusqu'au site.
   kill (écho et répétition du même chasseur ; un coéquipier qui annonce le même kill dans les 15 s ajoute son nom
   au popup déjà affiché, la phrase passe au pluriel, 5 noms au plus ; le même joueur retué plus tard a son popup,
   0.6.8 ; un popup reste 4 s au moins, le suivant attend son tour), gouverné par « Afficher les morts des autres » ; si la victime est
-  recherchée chez celui qui reçoit, c'est une prime encaissée. Envoi tenace du « K » et du « H » (0.6.7) : refusé
+  recherchée chez celui qui reçoit, c'est une prime encaissée. **Séries de kills** (0.7.2) : un kill à moins de
+  18 s du précédent prolonge la série du chasseur (double kill, triple kill, killing spree, dominating, rampage, unstoppable, monster
+  kill à 8 et au-delà),
+  hors champ de bataille et arène. Chacun compte ses propres kills et porte sa série dans le dernier champ de son
+  « K » ou de son « H » (absent sous 2, ignoré des versions d'avant) ; un kill qui prolonge une série est annoncé
+  même si son popup est déjà passé par un coéquipier. Chez tous : un texte en haut de l'écran pendant 5 s, hors de
+  la file des popups, et la voix du palier (fichiers mp3 du dossier `Sounds`, table `ns.Data.VOICES` ; une voix
+  coupe la précédente). Un fichier ajouté n'est lu qu'après relance du jeu ; le compagnon ne retire rien du dossier
+  `Sounds` lors d'une mise à jour ; sans fichier, le texte seul. Prime encaissée : `wicked-sick.mp3`, ou
+  `holy-shit.mp3` à partir de 3 points, à la place du bip (le bip revient si le fichier manque) ; quand le même kill
+  prolonge une série, seule la voix de la série est jouée. Kill à plusieurs : la même victime au même palier
+  dans les 15 s ajoute le chasseur au texte sans rejouer la voix. Réglages « Afficher les séries de kills » et
+  « Jouer la voix des séries de kills et des primes encaissées » ; `/mf serie 2` (à 8) joue texte et voix sans rien envoyer, `/mf api`
+  (ligne « séries de kills ») dit si le fichier a été lu. Envoi tenace du « K » et du « H » (0.6.7) : refusé
   par le jeu, il est retenté toutes les 5 s ; parti en combat, il est répété une fois à la sortie du combat ; plus
   rien 45 s après le kill ; `/mf api` dit ce qu'a donné le dernier envoi et combien on en a reçu. Journal des
   kills (0.6.9) : chaque piste (message, compteur, cadavre, en combat ou non), ce qu'elle a donné (popup, « H »

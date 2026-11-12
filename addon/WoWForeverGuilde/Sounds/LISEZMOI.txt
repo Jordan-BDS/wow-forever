@@ -1,0 +1,22 @@
+Voix des séries de kills et des primes encaissées.
+
+Série de kills : chaque kill à moins de 18 s du précédent fait monter d'un palier.
+
+  double-kill.mp3     2 kills
+  triple-kill.mp3     3 kills
+  killing-spree.mp3   4 kills
+  dominating.mp3      5 kills
+  rampage.mp3         6 kills
+  unstoppable.mp3     7 kills
+  monster-kill.mp3    8 kills et au-delà
+
+Prime encaissée (à la place du bip) :
+
+  wicked-sick.mp3     prime de 1 ou 2 points
+  holy-shit.mp3       prime de 3 points et plus
+
+Quand un même kill prolonge une série et encaisse une prime, seule la voix de la série est jouée.
+Un fichier ajouté ou remplacé n'est lu qu'après avoir quitté et relancé le jeu (/reload ne suffit pas).
+En jeu : /mf serie 2 (jusqu'à 8) pour essayer une série, /mf prime nom pour une prime, /mf api pour savoir si le
+fichier a été lu. Fichier absent : le texte seul pour une série, le bip pour une prime.
+Le compagnon ne retire rien de ce dossier lors d'une mise à jour.

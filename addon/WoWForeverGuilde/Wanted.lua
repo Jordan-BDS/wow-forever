@@ -540,14 +540,90 @@ local function field(s)
   return (tostring(s or ""):gsub("[\t\n]", " "))
 end
 
---- Ligne « K » : j'ai abattu un recherché.
-function Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime)
+-- --- séries de kills -------------------------------------------------------------------------------------
+--
+-- Double kill, triple kill, killing spree, dominating, rampage, unstoppable, monster kill (0.7.2) : un kill à
+-- moins de STREAK_WINDOW s du précédent prolonge la série. Chaque chasseur compte ses propres kills (toutes pistes, hors champ de bataille) et porte sa série
+-- dans son « K » ou son « H » (dernier champ, absent sous 2 : les versions d'avant l'ignorent) ; les guildiens
+-- l'affichent telle quelle, sans rien recompter. Un kill qui prolonge une série est toujours annoncé, même quand
+-- le popup du kill est déjà passé chez moi par un coéquipier : sans cela sa série ne serait connue de personne.
+
+local myStreak = { last = 0, n = 0 } -- ma série en cours : heure de mon dernier kill, nombre de kills enchaînés
+local streakSeen = {} -- { guid, killT } des séries déjà affichées : l'écho et la répétition n'en refont pas
+local streakPopup = nil -- la dernière série affichée { victim, level, t (à mon horloge), hunters }
+
+--- Mon kill à l'heure `t` : renvoie ma série (1 : pas de série).
+local function bumpStreak(t)
+  myStreak.n = (t - myStreak.last <= ns.Data.STREAK_WINDOW) and myStreak.n + 1 or 1
+  myStreak.last = t
+  return myStreak.n
+end
+
+--- Clé du palier d'une série (ns.Data.STREAK_LEVELS : « double » à 2 kills… « monster » à STREAK_MAX et
+--- au-delà) ; nil sous 2.
+function Wanted.StreakLevel(n)
+  n = tonumber(n) or 0
+  if n < 2 then return nil end
+  return ns.Data.STREAK_LEVELS[math.min(math.floor(n), ns.Data.STREAK_MAX)]
+end
+
+--- La série d'un chasseur (la mienne, ou celle portée par un « K » ou un « H ») : texte et voix, une fois par kill.
+--- Kill à plusieurs : chaque chasseur du groupe annonce la même victime avec sa propre série ; dans les
+--- WANTED_HONOR_DEDUPE s, une série du même palier ajoute son chasseur au texte déjà affiché, sans rejouer la
+--- voix ; une série plus courte est ignorée, une plus longue la remplace. Vrai si la série est jouée.
+function Wanted.ShowStreak(guid, by, byClass, n, victim, killT)
+  n = tonumber(n) or 0
+  if n < 2 or not (ns.UI and ns.UI.ShowStreak) then return false end
+  for _, seen in ipairs(streakSeen) do
+    if seen.guid == guid and seen.killT == killT then return false end
+  end
+  table.insert(streakSeen, { guid = guid, killT = killT })
+  while #streakSeen > ns.Data.WANTED_VICTIMS do table.remove(streakSeen, 1) end
+  local now, popup = ns.now(), streakPopup
+  victim = victim or ""
+  if popup and now - popup.t < ns.Data.WANTED_HONOR_DEDUPE
+    and (victim == "" or popup.victim == "" or sameName(popup.victim, victim)) then
+    if n < popup.level then return false end
+    if n == popup.level then
+      local known = false
+      for _, h in ipairs(popup.hunters) do known = known or sameName(h.name, by) end
+      if not known and #popup.hunters < ns.Data.WANTED_HUNTERS_KEPT then
+        popup.hunters[#popup.hunters + 1] = { name = by, class = byClass }
+        if popup.victim == "" then popup.victim = victim end
+        ns.UI.ShowStreak(Wanted.StreakLevel(n), popup.hunters, false)
+      end
+      return false
+    end
+  end
+  streakPopup = { victim = victim, level = n, t = now, hunters = { { name = by, class = byClass } } }
+  logKill("série de %s : %s (%d)", tostring(by), Wanted.StreakLevel(n), n)
+  ns.UI.ShowStreak(Wanted.StreakLevel(n), streakPopup.hunters, true)
+  return true
+end
+
+--- /mf serie <2 à 8> : joue le texte et la voix d'une série, sans rien enregistrer ni envoyer.
+function Wanted.RehearseStreak(arg)
+  local n = tonumber((tostring(arg or ""):match("%d+"))) or 2
+  n = math.max(2, math.min(ns.Data.STREAK_MAX, n))
+  local c = ns.char or {}
+  if ns.UI and ns.UI.ShowStreak then ns.UI.ShowStreak(Wanted.StreakLevel(n), { { name = myName(), class = c.class } }, true, true) end
+  ns.Print(L.STREAK_TEST, L["STREAK_" .. Wanted.StreakLevel(n)], (ns.UI and ns.UI.StreakSource and ns.UI.StreakSource()) or "")
+end
+
+--- Champ « série » d'un « K » ou d'un « H » : vide sous 2.
+local function streakField(streak)
+  return (streak or 0) >= 2 and tostring(streak) or nil
+end
+
+--- Ligne « K » : j'ai abattu un recherché. `streak` : ma série de kills, si ce kill en prolonge une.
+function Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime, streak)
   local c = ns.char or {}
   local fields = {
     "K", "1", field(c.guid), field(myName()), field(c.class), field(entry.name),
     tostring(prime or entry.points or 0), tostring(entry.kills or 0), tostring(t), map and tostring(map) or "", x and string.format("%.4f", x) or "",
     y and string.format("%.4f", y) or "", field(zone), field(sub), field(entry.class),
   }
+  fields[16] = streakField(streak)
   local line = table.concat(fields, "\t")
   for _, i in ipairs({ 14, 13 }) do
     if #line <= 255 then break end
@@ -569,7 +645,7 @@ function Wanted.DecodeKill(text)
   return {
     guid = f[3], by = f[4], byClass = f[5], name = f[6], points = tonumber(f[7]) or 0, kills = tonumber(f[8]) or 0,
     t = tonumber(f[9]) or ns.now(), map = tonumber(f[10]), x = tonumber(f[11]), y = tonumber(f[12]),
-    zone = f[13] or "", sub = f[14] or "", class = f[15] or "",
+    zone = f[13] or "", sub = f[14] or "", class = f[15] or "", streak = tonumber(f[16]) or 0,
   }
 end
 
@@ -751,12 +827,14 @@ local function announceHonor(victim, victimClass, by, byClass, zone, sub, guid, 
 end
 
 --- Ligne « H » : j'ai abattu un joueur qui n'est pas recherché (0.6.6 ; les versions d'avant l'ignorent).
-function Wanted.EncodeHonor(name, class, t, zone, sub)
+--- `streak` : ma série de kills, si ce kill en prolonge une (0.7.2).
+function Wanted.EncodeHonor(name, class, t, zone, sub, streak)
   local c = ns.char or {}
   local fields = {
     "H", "1", field(c.guid), field(myName()), field(c.class), field(name), tostring(t), field(zone), field(sub),
     field(class),
   }
+  fields[11] = streakField(streak)
   return ns.Positions.Cut(table.concat(fields, "\t"), 255)
 end
 
@@ -765,7 +843,7 @@ function Wanted.DecodeHonor(text)
   if f[1] ~= "H" or f[2] ~= "1" or #f < 7 then return nil end -- victime vide : kill sans nom (0.6.10)
   return {
     guid = f[3], by = f[4], byClass = f[5], name = f[6], t = tonumber(f[7]) or ns.now(), zone = f[8] or "",
-    sub = f[9] or "", class = f[10] or "",
+    sub = f[9] or "", class = f[10] or "", streak = tonumber(f[11]) or 0,
   }
 end
 
@@ -830,6 +908,14 @@ function Wanted.RecordKill(char, name, t, battleground)
     ns.Journal.Event(char, "pk", event, t)
   end
   if prime > 0 then ns.Journal.Increment(char, "bounty", prime) end
+  -- Ma série : ce kill la prolonge ou en ouvre une (le nom d'un kill déjà compté n'en est pas un second).
+  local streak = 0
+  if not battleground then
+    streak = adopted and myStreak.n or bumpStreak(t)
+    if streak >= 2 then
+      ns.Safe("wanted.streak", Wanted.ShowStreak, char.guid, myName(), char.class, streak, name, adopted or t)
+    end
+  end
   lastKillAt = t
   table.insert(recentKills, { name = name, t = t })
   while #recentKills > ns.Data.WANTED_VICTIMS do table.remove(recentKills, 1) end
@@ -841,9 +927,9 @@ function Wanted.RecordKill(char, name, t, battleground)
       local killT = adopted or t
       if name == "" then nameless = t end
       local fresh = announceHonor(name, class, myName(), char.class, zone, sub, char.guid, killT)
-      if fresh or adopted then
-        announceToGuild(Wanted.EncodeHonor(name, class, killT, zone, sub))
-        logKill("kill « %s » : %s, H %s", name, fresh and "popup" or "popup complété",
+      if fresh or adopted or streak >= 2 then -- une série est annoncée même si le popup du kill est déjà passé
+        announceToGuild(Wanted.EncodeHonor(name, class, killT, zone, sub, streak))
+        logKill("kill « %s » : %s, H %s", name, fresh and "popup" or (adopted and "popup complété" or "série"),
           lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
       else
         logKill("kill « %s » : popup déjà passé, pas de H", name)
@@ -854,11 +940,13 @@ function Wanted.RecordKill(char, name, t, battleground)
     return nil
   end
   if seen then
-    logKill("kill « %s » : recherché, déjà au tableau", name)
+    -- Déjà au tableau par un coéquipier : rien à annoncer, sauf ma série (les guildiens reconnaissent le kill).
+    if streak >= 2 then announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime, streak)) end
+    logKill("kill « %s » : recherché, déjà au tableau%s", name, streak >= 2 and ", K pour la série" or "")
     return entry, false
   end
   markKill(entry, t, myName(), char.class, map, x, y, zone, sub, prime)
-  announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime))
+  announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime, streak))
   logKill("kill « %s » : prime, K %s", name, lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
   announceKill(entry, myName(), char.class, zone, sub, prime, t)
   return entry, true
@@ -994,6 +1082,8 @@ local function onAddonMessage(prefix, text, channel, sender)
       return
     end
     ns.Trace("reçu K de %s : %s abattu", tostring(sender), msg.name)
+    -- La série d'abord : sa voix l'emporte sur celle de la prime du même kill.
+    ns.Safe("wanted.streak", Wanted.ShowStreak, msg.guid, msg.by, msg.byClass, msg.streak, msg.name, msg.t)
     local ok, err, shown = pcall(Wanted.RecordKillMessage, msg, sender)
     logKill("reçu K de %s : %s → %s", tostring(msg.by), msg.name, shown and "popup" or "déjà au tableau")
     if not ok then ns.Store.LogError("wanted.kill", err) end
@@ -1005,6 +1095,7 @@ local function onAddonMessage(prefix, text, channel, sender)
       return
     end
     ns.Trace("reçu H de %s : %s abattu", tostring(sender), msg.name)
+    ns.Safe("wanted.streak", Wanted.ShowStreak, msg.guid, msg.by, msg.byClass, msg.streak, msg.name, msg.t)
     -- Recherché chez moi sans l'être chez le chasseur (les tableaux diffèrent) : c'est une prime encaissée.
     local entry = msg.name ~= "" and Wanted.Match(msg.name) or nil
     if entry and not Wanted.Active(entry) and not killSeen(entry, msg.t) then entry = nil end -- prime déjà encaissée

@@ -7,7 +7,7 @@ ns.ADDON = ADDON
 -- le client ne lit le .toc qu'à son lancement, alors qu'un /reload relit ce fichier. Après une mise à jour copiée
 -- pendant que le jeu tourne, le .toc en mémoire donne encore l'ancien numéro (ns.TOC_VERSION) : l'addon se
 -- croirait en retard et redemanderait sans fin de recharger.
-local CODE_VERSION = "0.7.1"
+local CODE_VERSION = "0.7.2"
 do
   local meta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
   ns.TOC_VERSION = meta and meta(ADDON, "Version") or nil
@@ -240,6 +240,7 @@ function ns.DiagnosticLines()
   -- Annonce du kill à la guilde : le jeu a-t-il pris le « K » ou le « H », et en reçoit-on ?
   lines[#lines + 1] = "annonce des kills · " .. ((ns.Wanted and ns.Wanted.AnnounceSource and ns.Wanted.AnnounceSource()) or "rien")
   lines[#lines + 1] = "journal des kills · " .. ((ns.Wanted and ns.Wanted.KillLog and ns.Wanted.KillLog() ~= "" and ns.Wanted.KillLog()) or "vide")
+  lines[#lines + 1] = "séries de kills · " .. ((ns.UI and ns.UI.StreakSource and ns.UI.StreakSource()) or "rien")
   lines[#lines + 1] = "popups · " .. ((ns.UI and ns.UI.ToastSource and ns.UI.ToastSource()) or "rien")
   -- Récolte : le dernier sort lu (identifiant, nom, événement) et ce que le collecteur en a fait ; la pêche se
   -- diagnostique ainsi en jeu (sort non reconnu, ou butin hors fenêtre dans /mf trace).
@@ -505,6 +506,7 @@ SlashCmdList.WOWFOREVERGUILDE = function(raw)
     ns.traceUntil = ns.now() + ns.Data.TRACE_SECONDS
     ns.Print(ns.L.TRACE_ON, ns.Data.TRACE_SECONDS)
   elseif msg:match("^lfg") then ns.Positions.SetLFG(raw:gsub("^%s*[Ll][Ff][Gg]", ""))
+  elseif msg:match("^serie") or msg:match("^série") then ns.Safe("wanted.streak", ns.Wanted.RehearseStreak, raw)
   elseif msg:match("^prime") then ns.Safe("wanted.rehearse", ns.Wanted.Rehearse, (raw:gsub("^%s*[Pp][Rr][Ii][Mm][Ee]", "")))
   elseif ns.UI then ns.UI.Toggle() end
 end

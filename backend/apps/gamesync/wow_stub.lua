@@ -31,6 +31,9 @@ function issecretvalue(v) return v == _SECRET end
 RAID_CLASS_COLORS = { SHAMAN = { r = 0, g = 0.44, b = 0.87, colorStr = "ff0070dd" }, MAGE = { r = 0.41, g = 0.8, b = 0.94, colorStr = "ff69ccf0" } }
 SOUNDKIT = { RAID_WARNING = 8959 }
 function PlaySound(id) table.insert(_SOUNDS, id) end
+-- Fichiers son de l'addon : _SOUND_FILES_PRESENT = false simule un fichier absent (le jeu répond faux).
+_SOUND_FILES, _SOUND_FILES_PRESENT = {}, true
+function PlaySoundFile(path) table.insert(_SOUND_FILES, path) return _SOUND_FILES_PRESENT end
 function StaticPopup_Show(which, text) _POPUP = { which = which, text = text } return { data = nil } end
 function UIFrameFadeIn() end
 function UIFrameFadeOut() end

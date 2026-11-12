@@ -53,10 +53,18 @@ fn collect_files<'a>(dir: &'a Dir<'a>, out: &mut Vec<&'a include_dir::File<'a>>)
     }
 }
 
+/// Dossier de l'addon qui appartient au joueur : il y dépose les voix des séries de kills (double.ogg…), qui ne
+/// sont pas livrées. Une mise à jour n'y retire rien.
+const PLAYER_DIR: &str = "Sounds";
+
 /// Retire de `dir` les fichiers absents de `kept` (chemins relatifs à `root`), et les dossiers restés vides.
+/// Le dossier du joueur (`PLAYER_DIR`) est laissé tel quel.
 fn prune(root: &Path, dir: &Path, kept: &HashSet<PathBuf>) -> Result<()> {
     for entry in fs::read_dir(dir)? {
         let path = entry?.path();
+        if path.strip_prefix(root).ok() == Some(Path::new(PLAYER_DIR)) {
+            continue;
+        }
         if path.is_dir() {
             prune(root, &path, kept)?;
             let _ = fs::remove_dir(&path); // ne part que s'il est vide
@@ -144,7 +152,12 @@ mod tests {
         let stale = addons.join("WoWForeverGuilde/Ancien");
         fs::create_dir_all(&stale).unwrap();
         fs::write(stale.join("Reste.lua"), "-- obsolete").unwrap();
+        // Les voix déposées par le joueur dans Sounds ne sont pas livrées : elles survivent à la mise à jour.
+        let voice = addons.join("WoWForeverGuilde/Sounds/double.ogg");
+        fs::create_dir_all(voice.parent().unwrap()).unwrap();
+        fs::write(&voice, "ogg").unwrap();
         install(&addons, true).unwrap();
+        assert!(voice.is_file());
         assert!(!stale.exists());
         assert!(addons.join("WoWForeverGuilde/Collectors/PvE.lua").is_file());
         assert!(addons.join("WoWForeverGuilde/Libs/LibDeflate/LibDeflate.lua").is_file());
