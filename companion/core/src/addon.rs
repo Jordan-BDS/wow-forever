@@ -1,8 +1,9 @@
 //! L'addon est embarqué dans l'exécutable à la compilation : une seule version pour les deux.
 //! Le compagnon le copie dans `Interface/AddOns/` quand la version installée diffère.
 
+use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use include_dir::{include_dir, Dir, DirEntry};
 use regex::Regex;
@@ -52,6 +53,22 @@ fn collect_files<'a>(dir: &'a Dir<'a>, out: &mut Vec<&'a include_dir::File<'a>>)
     }
 }
 
+/// Retire de `dir` les fichiers absents de `kept` (chemins relatifs à `root`), et les dossiers restés vides.
+fn prune(root: &Path, dir: &Path, kept: &HashSet<PathBuf>) -> Result<()> {
+    for entry in fs::read_dir(dir)? {
+        let path = entry?.path();
+        if path.is_dir() {
+            prune(root, &path, kept)?;
+            let _ = fs::remove_dir(&path); // ne part que s'il est vide
+        } else if let Ok(relative) = path.strip_prefix(root) {
+            if !kept.contains(relative) {
+                fs::remove_file(&path)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Copie l'addon embarqué dans `Interface/AddOns/WoWForeverGuilde/` (fichiers en trop supprimés).
 /// `force` réécrit même si la version est identique.
 pub fn install(addons_dir: &Path, force: bool) -> Result<InstallOutcome> {
@@ -61,18 +78,22 @@ pub fn install(addons_dir: &Path, force: bool) -> Result<InstallOutcome> {
         return Ok(InstallOutcome::UpToDate { version: embedded });
     }
     let target = addons_dir.join(ADDON_NAME);
-    if target.exists() {
-        fs::remove_dir_all(&target)?;
-    }
     let mut files = Vec::new();
     collect_files(&ADDON, &mut files);
-    for file in files {
+    // Le jeu peut tourner, et recharger son interface, pendant la copie : chaque fichier est écrit par-dessus
+    // l'ancien, puis ce qui n'est plus livré est retiré. Le dossier n'est jamais vide entre-temps. Le .toc part
+    // en dernier : c'est lui qui porte la version, une copie interrompue sera donc reprise au lancement suivant.
+    let toc = PathBuf::from(format!("{ADDON_NAME}.toc"));
+    files.sort_by_key(|file| file.path() == toc.as_path());
+    for file in &files {
         let dest = target.join(file.path());
         if let Some(parent) = dest.parent() {
             fs::create_dir_all(parent)?;
         }
         fs::write(&dest, file.contents())?;
     }
+    let kept: HashSet<PathBuf> = files.iter().map(|file| file.path().to_path_buf()).collect();
+    prune(&target, &target, &kept)?;
     Ok(match installed {
         Some(from) => InstallOutcome::Updated { from, to: embedded },
         None => InstallOutcome::Installed { version: embedded },
@@ -119,6 +140,14 @@ mod tests {
             }
         );
         assert!(!addons.join("WoWForeverGuilde/Vieux.lua").exists());
+        // Un dossier qui n'est plus livré part avec son contenu ; les fichiers livrés restent.
+        let stale = addons.join("WoWForeverGuilde/Ancien");
+        fs::create_dir_all(&stale).unwrap();
+        fs::write(stale.join("Reste.lua"), "-- obsolete").unwrap();
+        install(&addons, true).unwrap();
+        assert!(!stale.exists());
+        assert!(addons.join("WoWForeverGuilde/Collectors/PvE.lua").is_file());
+        assert!(addons.join("WoWForeverGuilde/Libs/LibDeflate/LibDeflate.lua").is_file());
         assert!(matches!(
             install(&addons, false).unwrap(),
             InstallOutcome::UpToDate { .. }

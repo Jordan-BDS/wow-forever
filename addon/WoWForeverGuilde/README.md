@@ -49,7 +49,11 @@ transporte le code jusqu'au site.
   zone contestée ; un envoi par minute ; chez les autres, toast et son dans la même zone, ligne de chat ailleurs,
   anneau rouge sur le point 2 min. La ligne « P » porte la version de l'addon (0.6.6) : une version plus récente
   vue chez un guildien donne une ligne de chat puis, hors combat et hors instance, le popup « Recharger (/reload) »,
-  une fois par version et par session.
+  une fois par version et par session. Après la 0.6.13 : il faut deux guildiens plus récents (une version de
+  développement en jeu ne dérange personne) ; le rechargement accepté est retenu (`db.upgradeTried`), et s'il n'a
+  rien changé l'addon le dit, repropose une seule fois un quart d'heure plus tard, puis n'insiste plus pour cette
+  version ; la version vient de `CODE_VERSION` (`Core.lua`) et non du `.toc`, que le client ne relit qu'à son
+  lancement : après une mise à jour copiée jeu ouvert, l'addon dit de relancer le jeu au lieu de se croire en retard.
 - `Wanted.lua`, `WantedUI.lua` : têtes mises à prix (lot 1, 0.5.0). Un joueur adverse qui tue un membre prend un point
   de prime ; abattu par la guilde, sa prime est encaissée et retombe à zéro, il quitte le tableau jusqu'à sa
   prochaine victime (0.6.10 ; avant, jamais remise à zéro) ; le tableau (`db.wanted`, niveau compte) se nourrit des messages « D » reçus, la

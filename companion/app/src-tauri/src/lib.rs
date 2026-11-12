@@ -2,6 +2,7 @@
 //! surveillance du fichier SavedVariables, icône de barre des tâches, mise à jour.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -137,6 +138,7 @@ fn run_sync(app: &AppHandle, shared: &Shared) -> Vec<SyncOutcome> {
         let _ = save(&inner);
     }
     let _ = app.emit("sync-result", &outcomes);
+    check_update_soon(app);
     let (app, shared) = (app.clone(), shared.clone());
     std::thread::spawn(move || run_auctions(&app, &shared));
     outcomes
@@ -399,7 +401,15 @@ fn restart_watcher(app: &AppHandle, shared: Shared) {
 
 // --- mise à jour -------------------------------------------------------------------------------------
 
-const UPDATE_CHECK_INTERVAL: Duration = Duration::from_secs(3600);
+/// Entre deux vérifications de fond. Dix minutes et non une heure : en jeu, l'addon propose de recharger dès
+/// que des guildiens ont une version plus récente, et ce rechargement ne sert à rien tant que ce compagnon n'a
+/// pas copié la nouvelle version.
+const UPDATE_CHECK_INTERVAL: Duration = Duration::from_secs(600);
+/// Pas plus d'une vérification toutes les deux minutes, quoi qui la demande.
+const UPDATE_CHECK_MIN_GAP: u64 = 120;
+
+static LAST_UPDATE_CHECK: AtomicU64 = AtomicU64::new(0);
+static UPDATE_BUSY: AtomicBool = AtomicBool::new(false);
 
 /// Vérifie `latest.json` de la dernière release GitHub ; s'il y a plus récent, télécharge, installe et
 /// redémarre (la fonction ne revient alors pas). Renvoie `Ok(None)` si le compagnon est à jour,
@@ -435,9 +445,25 @@ async fn try_update(app: &AppHandle) -> Result<Option<String>, String> {
 /// Au démarrage puis toutes les heures : les échecs (hors ligne, signature) sont journalisés et signalés à
 /// la fenêtre, le compagnon reste utilisable.
 async fn check_for_update(app: AppHandle) {
+    // Une seule vérification à la fois : deux téléchargements de la même mise à jour se marcheraient dessus.
+    if UPDATE_BUSY.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    LAST_UPDATE_CHECK.store(now_secs(), Ordering::SeqCst);
     if let Err(e) = try_update(&app).await {
         log::warn!("{e}");
     }
+    UPDATE_BUSY.store(false, Ordering::SeqCst);
+}
+
+/// Vérification opportuniste, après une synchronisation : le jeu vient d'écrire ses fichiers (déconnexion ou
+/// /reload), c'est le moment où une version plus récente de l'addon sert tout de suite.
+fn check_update_soon(app: &AppHandle) {
+    let last = LAST_UPDATE_CHECK.load(Ordering::SeqCst);
+    if now_secs().saturating_sub(last) < UPDATE_CHECK_MIN_GAP {
+        return;
+    }
+    tauri::async_runtime::spawn(check_for_update(app.clone()));
 }
 
 async fn update_loop(app: AppHandle) {
@@ -552,7 +578,18 @@ pub fn run() {
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_secs(2));
                 if let Some(game_dir) = shared_boot.lock().unwrap().config.game_dir.clone() {
-                    let _ = addon::install(&wowdir::addons_dir(&game_dir), false);
+                    // Un échec ici laisse l'ancien addon dans le jeu alors que le compagnon, lui, est à jour :
+                    // il doit se voir dans la fenêtre, pas seulement dans le journal.
+                    match addon::install(&wowdir::addons_dir(&game_dir), false) {
+                        Ok(outcome) => log::info!("addon : {outcome:?}"),
+                        Err(e) => {
+                            log::warn!("addon non copié : {e}");
+                            let _ = boot.emit(
+                                "update-failed",
+                                format!("l'addon n'a pas pu être copié dans le jeu ({e}). Bouton « Réinstaller l'addon »."),
+                            );
+                        }
+                    }
                 }
                 let _ = run_sync(&boot, &shared_boot);
                 let _ = run_pull(&boot, &shared_boot);

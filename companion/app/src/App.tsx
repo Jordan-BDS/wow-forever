@@ -271,7 +271,7 @@ function StatusView({ state, onChange, onError }: { state: AppState; onChange: (
           <button disabled={busy} onClick={() => run(async () => setUpdateMessage(await api.checkUpdate()))}>Vérifier les mises à jour</button>
           {updateMessage && <span className="muted">{updateMessage}</span>}
         </div>
-        <p className="muted">Le compagnon se met à jour tout seul au lancement puis toutes les heures ; l'addon suit, puis /reload ou reconnexion.</p>
+        <p className="muted">Le compagnon se met à jour tout seul : au lancement, toutes les 10 minutes et après chaque synchronisation. L'addon suit, puis /reload ou reconnexion.</p>
       </section>
 
       <section className="card">

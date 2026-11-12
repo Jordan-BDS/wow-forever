@@ -459,13 +459,14 @@ StaticPopupDialogs["WFG_UPGRADE"] = {
   text = "%s",
   button1 = L.UPGRADE_YES,
   button2 = L.UPGRADE_LATER,
-  OnAccept = function() ReloadUI() end,
+  OnAccept = function(self, version) ns.UpgradeAccepted(version) end,
   timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
 }
 
 --- Un guildien a une version plus récente de l'addon : proposer le /reload (le compagnon a déjà copié les fichiers).
 function UI.SuggestUpgrade(version)
-  StaticPopup_Show("WFG_UPGRADE", string.format(L.UPGRADE_TEXT, version, tostring(ns.VERSION)))
+  local dialog = StaticPopup_Show("WFG_UPGRADE", string.format(L.UPGRADE_TEXT, version, tostring(ns.VERSION)))
+  if dialog then dialog.data = version end
 end
 
 function UI.OnLogin(entry)

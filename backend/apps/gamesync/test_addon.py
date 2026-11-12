@@ -1517,33 +1517,117 @@ _NS.MapUI.UsePins(lib)
             g.WoWForeverGuildeDB.errors.values()
         )
 
-    def test_newer_addon_version_seen_from_a_guildmate_suggests_a_reload(self):
+    def test_newer_addon_version_seen_from_two_guildmates_suggests_a_reload(self):
         lua = boot()
         g = lua.globals()
         login(lua)
         lua.execute("_GUILD = true")
+        uther = JAINA.replace("00000JAI", "00000UTH").replace("Jaina Portvaillant", "Uther Lumière")
         # Version égale, plus ancienne ou absente (ancien addon) : rien.
         receive(lua, JAINA + "\t\t" + toc_version())  # 13e champ : recherche de groupe vide ; 14e : version
         receive(lua, JAINA + "\t\t0.1.0")
         receive(lua, JAINA)
         assert g._POPUP is None and not any("disponible" in m for m in list(g._CHAT.values()))
-        # Plus récente, mais en combat : ligne de chat tout de suite, popup remis à la sortie du combat.
-        lua.execute("_COMBAT = true")
+        # Plus récente chez un seul guildien, même répétée : rien (une version de développement ne dérange personne).
         receive(lua, JAINA + "\t\t9.9.9")
+        receive(lua, JAINA + "\t\t9.9.9")
+        g._ADVANCE(60)
+        assert g._POPUP is None and not any("disponible" in m for m in list(g._CHAT.values()))
+        # Un second l'a aussi, mais en combat : ligne de chat tout de suite, popup remis à la sortie du combat.
+        lua.execute("_COMBAT = true")
+        receive(lua, uther + "\t\t9.9.9", "Uther-Forever")
         assert any("Addon 9.9.9 disponible" in m and toc_version() in m for m in list(g._CHAT.values()))
         assert g._POPUP is None
         lua.execute("_COMBAT = false")
         g._ADVANCE(60)
         assert g._POPUP.which == "WFG_UPGRADE" and "9.9.9" in g._POPUP.text and toc_version() in g._POPUP.text
-        # Une seule fois par version et par session ; accepter recharge l'interface.
+        # Une seule fois par version et par session ; accepter retient la tentative puis recharge l'interface.
         g._POPUP = None
         receive(lua, JAINA + "\t\t9.9.9")
         g._ADVANCE(60)
-        assert g._POPUP is None
+        assert g._POPUP is None and g.WoWForeverGuildeDB.upgradeTried is None
         g.StaticPopupDialogs.WFG_UPGRADE.OnAccept()
         assert g._RELOADED is True
+        tried = g.WoWForeverGuildeDB.upgradeTried
+        assert (tried.version, tried.n, tried.t) == ("9.9.9", 1, g._CLOCK.now)
         assert g._NS.VersionNewer("0.10.0", "0.9.9") and not g._NS.VersionNewer("dev", "0.6.1")
         assert not g._NS.VersionNewer("0.6.1", "0.6.1") and g._NS.VersionNewer("1.0", "0.9.9.9")
+        # Deux guildiens à des versions différentes : celle que les deux ont atteinte.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        receive(lua, JAINA + "\t\t9.9.9")
+        receive(lua, uther + "\t\t9.9.8", "Uther-Forever")
+        assert any("Addon 9.9.8 disponible" in m for m in list(g._CHAT.values()))
+        assert not any("Addon 9.9.9" in m for m in list(g._CHAT.values()))
+
+    def test_reload_that_changed_nothing_does_not_ask_again_forever(self):
+        uther = JAINA.replace("00000JAI", "00000UTH").replace("Jaina Portvaillant", "Uther Lumière")
+
+        def session(count, age):
+            """Une session qui commence après `count` rechargements restés sans effet, le dernier il y a `age` s."""
+            lua = boot()
+            g = lua.globals()
+            tried = lua.table(version="9.9.9", n=count, t=g._CLOCK.now - age)
+            g.WoWForeverGuildeDB = lua.table(upgradeTried=tried)
+            login(lua)
+            receive(lua, JAINA + "\t\t9.9.9")
+            receive(lua, uther + "\t\t9.9.9", "Uther-Forever")
+            return lua, g
+
+        # J'ai rechargé pour la 9.9.9 il y a une minute et je suis toujours en retard : pas de popup, une ligne qui
+        # dit quoi faire, une seule fois.
+        lua, g = session(1, 60)
+        receive(lua, JAINA + "\t\t9.9.9")
+        missing = [m for m in list(g._CHAT.values()) if "toujours pas sur ce PC" in m]
+        assert len(missing) == 1 and "9.9.9" in missing[0] and "Vérifier les mises à jour" in missing[0]
+        g._ADVANCE(10 * 60)
+        assert g._POPUP is None
+        # Un quart d'heure après, le compagnon a pu arriver : une seconde proposition, la dernière.
+        g._ADVANCE(6 * 60)
+        assert g._POPUP.which == "WFG_UPGRADE" and "9.9.9" in g._POPUP.text
+        g.StaticPopupDialogs.WFG_UPGRADE.OnAccept(None, "9.9.9")
+        assert g.WoWForeverGuildeDB.upgradeTried.n == 2
+        # Deux rechargements sans effet : plus de popup pour cette version, quelle que soit l'attente.
+        lua, g = session(2, 10**6)
+        g._ADVANCE(3600)
+        assert g._POPUP is None and any("toujours pas sur ce PC" in m for m in list(g._CHAT.values()))
+        # Une version encore plus récente repart de zéro.
+        receive(lua, JAINA + "\t\t10.0.0")
+        receive(lua, uther + "\t\t10.0.0", "Uther-Forever")
+        g._ADVANCE(60)
+        assert g._POPUP.which == "WFG_UPGRADE" and "10.0.0" in g._POPUP.text
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_version_comes_from_the_code_not_from_the_toc_the_game_loaded(self):
+        # Le client ne lit le .toc qu'à son lancement : après une mise à jour copiée jeu ouvert puis /reload, le
+        # nouveau code tourne avec l'ancien .toc en mémoire. Le code porte donc sa version, égale à celle du .toc.
+        source = (ADDON_DIR / "Core.lua").read_text(encoding="utf-8")
+        assert re.search(r'^local CODE_VERSION = "(.+)"$', source, re.M).group(1) == toc_version()
+        lua = boot()
+        g = lua.globals()
+        g._NS.TOC_VERSION = "0.0.1"  # ce que le jeu a lu à son lancement, avant la mise à jour
+        g.WoWForeverGuildeDB = lua.table(upgradeTried=lua.table(version=toc_version(), n=1, t=1))
+        login(lua)
+        assert toc_version() == g._NS.VERSION
+        # La version attendue est là : la tentative est oubliée, et l'addon ne se croit pas en retard.
+        assert g.WoWForeverGuildeDB.upgradeTried is None
+        receive(lua, JAINA + "\t\t" + toc_version())
+        receive(
+            lua,
+            JAINA.replace("00000JAI", "00000UTH").replace("Jaina Portvaillant", "Uther Lumière")
+            + "\t\t"
+            + toc_version(),
+            "Uther-Forever",
+        )
+        g._ADVANCE(60)
+        assert g._POPUP is None and not any("disponible" in m for m in list(g._CHAT.values()))
+        # Il dit seulement de relancer le jeu, qui n'a pas relu la liste des fichiers.
+        assert any("relance le jeu" in m and "0.0.1" in m for m in list(g._CHAT.values()))
+        # Jeu relancé : plus rien à dire.
+        lua = boot()
+        login(lua)
+        assert not any("relance le jeu" in m for m in list(lua.globals()._CHAT.values()))
 
     def test_position_line_stays_under_255_bytes_and_still_decodes(self):
         lua = boot()

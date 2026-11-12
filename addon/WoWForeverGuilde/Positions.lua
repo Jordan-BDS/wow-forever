@@ -312,7 +312,7 @@ local function onAddonMessage(prefix, text, channel, sender)
   if ns.MapUI then ns.MapUI.Update(peer) end
   if ns.RosterUI then ns.RosterUI.Refresh() end
   if msg.kind == "G" then announceAlert(peer) end
-  if msg.kind == "P" and msg.version ~= "" and ns.NoticeVersion then ns.Safe("upgrade.notice", ns.NoticeVersion, msg.version) end
+  if msg.kind == "P" and msg.version ~= "" and ns.NoticeVersion then ns.Safe("upgrade.notice", ns.NoticeVersion, msg.version, msg.guid) end
 end
 
 local function prune()

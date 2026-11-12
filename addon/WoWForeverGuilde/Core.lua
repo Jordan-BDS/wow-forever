@@ -3,9 +3,15 @@
 local ADDON, ns = ...
 
 ns.ADDON = ADDON
+-- La version du code, à monter avec `## Version` du .toc (un test garde les deux égales). C'est elle qui fait foi :
+-- le client ne lit le .toc qu'à son lancement, alors qu'un /reload relit ce fichier. Après une mise à jour copiée
+-- pendant que le jeu tourne, le .toc en mémoire donne encore l'ancien numéro (ns.TOC_VERSION) : l'addon se
+-- croirait en retard et redemanderait sans fin de recharger.
+local CODE_VERSION = "0.6.13"
 do
   local meta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
-  ns.VERSION = (meta and meta(ADDON, "Version")) or "dev"
+  ns.TOC_VERSION = meta and meta(ADDON, "Version") or nil
+  ns.VERSION = CODE_VERSION
 end
 
 ns.collectors = {}
@@ -287,6 +293,7 @@ local function onLogin()
     if def.onLogin then ns.Safe(def.name .. ".onLogin", def.onLogin, entry) end
   end
   ns.Journal.Rollover(entry, ns.now())
+  ns.Safe("upgrade.login", ns.UpgradeOnLogin)
   C_Timer.After(3, ns.FullScan)
   C_Timer.NewTicker(60, function() ns.Safe("tick", ns.Tick) end)
   if ns.UI and ns.UI.OnLogin then ns.Safe("UI.OnLogin", ns.UI.OnLogin, entry) end
@@ -308,27 +315,81 @@ function ns.VersionNewer(other, mine)
   return false
 end
 
--- Mise à jour : un guildien annonce sa version avec sa position. Plus récente que la mienne → une ligne de chat
--- tout de suite, puis le popup de rechargement dès qu'on est hors combat et hors instance (ReloadUI est refusé en
--- combat), une fois par version et par session. Le compagnon a normalement déjà copié la nouvelle version dans
--- le dossier du jeu : le /reload suffit ; sinon relancer le compagnon ou prendre le zip sur le site.
-ns.upgrade = { seen = nil, asked = {} }
+-- Mise à jour : chaque guildien annonce sa version avec sa position. Quand UPGRADE_PEERS d'entre eux ont plus
+-- récent que moi (un seul ne suffit pas : une version de développement en jeu ne dérange personne), une ligne de
+-- chat tout de suite, puis le popup de rechargement dès qu'on est hors combat et hors instance (ReloadUI est
+-- refusé en combat), une fois par version et par session.
+--
+-- L'addon ne voit pas le disque : il ne sait pas si le compagnon a déjà copié la nouvelle version. Il retient
+-- donc, d'une session à l'autre (`db.upgradeTried`), qu'on a rechargé pour une version. Toujours en retard après
+-- ce rechargement : il le dit une fois par session, repropose une seule fois après UPGRADE_RETRY (le compagnon
+-- a pu arriver entre-temps), puis n'insiste plus pour cette version. Sans cela, le popup revenait à chaque
+-- rechargement tant que les fichiers n'étaient pas là.
+ns.upgrade = { seen = nil, asked = {}, peers = {} }
+
+--- Le rechargement déjà tenté qui couvre cette version, s'il y en a un.
+local function upgradeAttempt(version)
+  local tried = ns.db and ns.db.upgradeTried
+  if type(tried) == "table" and tried.version and not ns.VersionNewer(version, tried.version) then return tried end
+  return nil
+end
+
+--- La version la plus haute qu'au moins UPGRADE_PEERS guildiens ont atteinte, si elle dépasse la mienne.
+local function confirmedVersion()
+  local versions = {}
+  for _, version in pairs(ns.upgrade.peers) do versions[#versions + 1] = version end
+  table.sort(versions, ns.VersionNewer)
+  return versions[ns.Data.UPGRADE_PEERS]
+end
 
 function ns.TryUpgradePopup()
   local version = ns.upgrade.seen
   if not version or ns.upgrade.asked[version] then return end
+  local tried = upgradeAttempt(version)
+  if tried then
+    if (tried.n or 1) >= ns.Data.UPGRADE_TRIES then return end
+    if ns.now() - (tried.t or 0) < ns.Data.UPGRADE_RETRY then return end
+  end
   if ns.InCombat() or (IsInInstance and IsInInstance()) then return end
   ns.upgrade.asked[version] = true
   if ns.UI and ns.UI.SuggestUpgrade then ns.UI.SuggestUpgrade(version) end
 end
 
-function ns.NoticeVersion(version)
-  if not ns.VersionNewer(version, ns.VERSION) or ns.upgrade.asked[version] then return end
-  if not ns.upgrade.seen or ns.VersionNewer(version, ns.upgrade.seen) then
-    ns.upgrade.seen = version
-    ns.Print(ns.L.UPGRADE_CHAT, version, tostring(ns.VERSION))
+--- `guid` : le guildien qui annonce cette version (sans lui, la version compte pour un seul annonceur).
+function ns.NoticeVersion(version, guid)
+  if not ns.VersionNewer(version, ns.VERSION) then return end
+  ns.upgrade.peers[guid or version] = version
+  local confirmed = confirmedVersion()
+  if not confirmed then return end
+  if not ns.upgrade.seen or ns.VersionNewer(confirmed, ns.upgrade.seen) then
+    ns.upgrade.seen = confirmed
+    local line = upgradeAttempt(confirmed) and ns.L.UPGRADE_MISSING or ns.L.UPGRADE_CHAT
+    ns.Print(line, confirmed, tostring(ns.VERSION))
   end
   ns.TryUpgradePopup()
+end
+
+--- « Recharger » du popup : on retient la tentative avant de recharger, le client écrit la base au passage.
+function ns.UpgradeAccepted(version)
+  version = version or ns.upgrade.seen
+  if version and ns.db then
+    local tried = ns.db.upgradeTried
+    local count = (type(tried) == "table" and tried.version == version and tried.n or 0) + 1
+    ns.db.upgradeTried = { version = version, n = count, t = ns.now() }
+  end
+  ReloadUI()
+end
+
+--- À la connexion : la version attendue est arrivée → la tentative est oubliée. Le jeu a été lancé avec un .toc
+--- plus ancien que le code → il faudra le relancer pour qu'il relise la liste des fichiers de l'addon.
+function ns.UpgradeOnLogin()
+  local tried = ns.db and ns.db.upgradeTried
+  if type(tried) ~= "table" or not tried.version or not ns.VersionNewer(tried.version, ns.VERSION) then
+    if ns.db then ns.db.upgradeTried = nil end
+  end
+  if ns.TOC_VERSION and ns.VersionNewer(ns.VERSION, ns.TOC_VERSION) then
+    ns.Print(ns.L.UPGRADE_RESTART, tostring(ns.VERSION), tostring(ns.TOC_VERSION))
+  end
 end
 
 function ns.Tick()
