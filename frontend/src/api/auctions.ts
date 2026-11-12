@@ -1,5 +1,6 @@
-// Prix de l'hôtel des ventes (GM) : dernier scan comparé à un scan de référence, et historique par objet.
-import { useQuery } from "@tanstack/react-query";
+// Prix de l'hôtel des ventes (GM) : dernier scan comparé à un scan de référence, historique par objet,
+// recettes favorites avec le coût de leurs composants.
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 
 export type AuctionSort = "name" | "price" | "listed" | "up" | "down";
@@ -86,6 +87,79 @@ export function useAuctionHistory(itemId: number, house: string) {
   });
 }
 
+/** Un objet d'une recette (produit ou composant) et son prix au dernier scan, null s'il n'est pas en vente. */
+export type RecipeItem = {
+  item_id: number;
+  name: string;
+  quality: number;
+  icon_url: string;
+  price: number | null;
+  listed: number | null;
+};
+
+export type RecipeCost = {
+  recipe_id: number;
+  name: string;
+  icon_url: string;
+  profession: string;
+  min_skill: number;
+  /** Nombre d'objets produits par fabrication. */
+  quantity: number;
+  favorite: boolean;
+  product: RecipeItem | null;
+  reagents: (RecipeItem & { count: number; total: number | null })[];
+  /** Coût des composants en vente, null si aucun ne l'est. */
+  cost: number | null;
+  /** Composants sans prix à l'hôtel des ventes : ils manquent au coût et au bénéfice. */
+  missing: number;
+  revenue: number | null;
+  profit: number | null;
+  /** Bénéfice en % du coût. */
+  margin: number | null;
+};
+
+export type RecipeCosts = {
+  house: string;
+  scan: AuctionScan | null;
+  /** Vrai si `results` répond à la recherche, faux si ce sont les favorites. */
+  searching: boolean;
+  favorites: number;
+  results: RecipeCost[];
+};
+
+const RECIPES_KEY = ["sync", "auctions", "recipes"] as const;
+
+/** Les recettes favorites, ou celles que trouve `q` (deux lettres au moins). */
+export function useRecipeCosts(house: string, q: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...RECIPES_KEY, house, q] as const,
+    enabled,
+    staleTime: 60_000,
+    placeholderData: (previous) => previous,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/sync/auctions/recipes/", {
+        params: { query: { house: house || undefined, q: q || undefined } },
+      });
+      if (error || !data) throw error ?? new Error();
+      return data as unknown as RecipeCosts;
+    },
+  });
+}
+
+export function useSetFavoriteRecipe() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ recipeId, favorite }: { recipeId: number; favorite: boolean }) => {
+      const params = { path: { recipe_id: recipeId } };
+      const { error } = favorite
+        ? await api.PUT("/api/sync/auctions/recipes/{recipe_id}/", { params })
+        : await api.DELETE("/api/sync/auctions/recipes/{recipe_id}/", { params });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: RECIPES_KEY }),
+  });
+}
+
 /** 123456 cuivres → « 12 po 34 pa 56 pc » (les parties nulles sont omises). */
 export function formatMoney(copper: number): string {
   const total = Math.max(0, Math.round(copper));
@@ -103,4 +177,19 @@ export function formatChange(change: number): string {
   if (change === 0) return "=";
   const text = Math.abs(change) >= 10 ? Math.abs(change).toFixed(0) : Math.abs(change).toFixed(1);
   return `${change > 0 ? "+" : "−"}${text} %`;
+}
+
+/** Graduations « rondes » couvrant [min, max] : pas de 1, 2 ou 5 × 10ⁿ, `count` intervalles environ. */
+export function niceTicks(min: number, max: number, count = 4): number[] {
+  if (!(max > min)) {
+    // Série plate : une marge autour de la valeur, pour que la ligne ne colle pas à un bord.
+    const pad = Math.max(1, Math.abs(min) * 0.1);
+    return niceTicks(Math.max(0, min - pad), min + pad, count);
+  }
+  const raw = (max - min) / count;
+  const power = 10 ** Math.floor(Math.log10(raw));
+  const step = Math.max(1, ([1, 2, 5, 10].find((m) => m * power >= raw) ?? 10) * power);
+  const ticks = [];
+  for (let tick = Math.floor(min / step) * step; tick < max + step; tick += step) ticks.push(tick);
+  return ticks;
 }

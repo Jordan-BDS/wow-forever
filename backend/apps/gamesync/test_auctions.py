@@ -4,10 +4,10 @@ import pytest
 from django.core.cache import cache
 from django.utils import timezone
 
-from apps.gamedata.models import Item
+from apps.gamedata.models import Item, Profession, Recipe
 
 from . import auctions, services
-from .models import AuctionPrice, AuctionScan
+from .models import AuctionPrice, AuctionScan, FavoriteRecipe
 
 pytestmark = pytest.mark.django_db
 
@@ -168,3 +168,106 @@ class TestRead:
         as_user(gm)
         data = api_client.get("/api/sync/auctions/").json()
         assert (data["houses"], data["scan"], data["results"]) == ([], None, [])
+
+
+class TestRecipes:
+    @pytest.fixture
+    def recipes(self, gm, items):
+        Item.objects.create(id=2996, name="Rouleau d'étoffe de lin", quality=1, icon="inv_fabric_linen_02")
+        Item.objects.create(id=2570, name="Cape en lin", name_en="Linen Cloak", quality=1, icon="inv_cape")
+        tailoring = Profession.objects.create(slug="tailoring", name="Couture", kind="primary")
+        Recipe.objects.create(
+            id=2963,
+            profession=tailoring,
+            name="Rouleau d'étoffe de lin",
+            product_id=2996,
+            reagents=[{"item_id": 2589, "name": "Étoffe de lin", "count": 2}],
+        )
+        Recipe.objects.create(
+            id=2387,
+            profession=tailoring,
+            name="Cape en lin",
+            product_id=2570,
+            reagents=[
+                {"item_id": 2996, "name": "Rouleau d'étoffe de lin", "count": 1},
+                {"item_id": 2320, "name": "Fil grossier", "count": 1},  # vendu par les PNJ, jamais à l'HV
+            ],
+        )
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(hours=1)), [[2589, 1, 1]])
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(0)), [[2589, 100, 3], [2996, 350, 5], [2570, 900]])
+
+    def test_favorites_are_personal_and_reserved_to_the_gm(self, api_client, as_user, gm, member, recipes):
+        as_user(member)
+        assert api_client.get("/api/sync/auctions/recipes/").status_code == 403
+        assert api_client.put("/api/sync/auctions/recipes/2963/").status_code == 403
+        as_user(gm)
+        assert api_client.put("/api/sync/auctions/recipes/424242/").status_code == 404
+        for _ in range(2):  # suivre deux fois ne crée qu'un favori
+            assert api_client.put("/api/sync/auctions/recipes/2963/").status_code == 204
+        FavoriteRecipe.objects.create(user=member, recipe_id=2387)
+        data = api_client.get("/api/sync/auctions/recipes/").json()
+        assert (data["searching"], data["favorites"]) == (False, 1)
+        assert [(r["recipe_id"], r["favorite"]) for r in data["results"]] == [(2963, True)]
+        assert api_client.delete("/api/sync/auctions/recipes/2963/").status_code == 204
+        assert api_client.get("/api/sync/auctions/recipes/").json()["results"] == []
+        assert FavoriteRecipe.objects.filter(user=member).count() == 1
+
+    def test_cost_and_profit_come_from_the_latest_scan(self, api_client, as_user, gm, recipes):
+        as_user(gm)
+        auctions.set_favorite(gm, 2963, True)
+        data = api_client.get("/api/sync/auctions/recipes/").json()
+        assert (data["house"], data["scan"]["items"]) == (HOUSE, 3)
+        (row,) = data["results"]
+        assert (row["profession"], row["cost"], row["revenue"], row["profit"], row["margin"]) == (
+            "Couture",
+            200,
+            350,
+            150,
+            75.0,
+        )
+        assert (row["product"]["price"], row["product"]["listed"], row["missing"]) == (350, 5, 0)
+        (reagent,) = row["reagents"]
+        assert (reagent["name"], reagent["count"], reagent["price"], reagent["total"]) == (
+            "Étoffe de lin",
+            2,
+            100,
+            200,
+        )
+        assert reagent["icon_url"].endswith("inv_fabric_linen_01.jpg")
+
+    def test_search_shows_costs_and_reagents_missing_from_the_house(self, api_client, as_user, gm, recipes):
+        as_user(gm)
+        auctions.set_favorite(gm, 2963, True)
+        data = api_client.get("/api/sync/auctions/recipes/", {"q": "linen cloak"}).json()
+        assert data["searching"] is True
+        (row,) = data["results"]
+        # Le fil n'est pas à l'HV : le coût ne compte que le rouleau, et le dit.
+        assert (row["recipe_id"], row["favorite"], row["cost"], row["missing"]) == (2387, False, 350, 1)
+        assert (row["revenue"], row["profit"]) == (900, 550)
+        assert [(r["name"], r["price"]) for r in row["reagents"]] == [
+            ("Rouleau d'étoffe de lin", 350),
+            ("Fil grossier", None),
+        ]
+        both = api_client.get("/api/sync/auctions/recipes/", {"q": "lin"}).json()
+        assert [(r["recipe_id"], r["favorite"]) for r in both["results"]] == [(2387, False), (2963, True)]
+        # Une seule lettre ne cherche pas : ce sont les favorites.
+        one = api_client.get("/api/sync/auctions/recipes/", {"q": "l"}).json()
+        assert (one["searching"], [r["recipe_id"] for r in one["results"]]) == (False, [2963])
+
+    def test_without_any_scan_recipes_have_no_price(self, api_client, as_user, gm):
+        tailoring = Profession.objects.create(slug="tailoring", name="Couture", kind="primary")
+        Recipe.objects.create(
+            id=2963, profession=tailoring, name="Rouleau", reagents=[{"item_id": 2589, "count": 2}]
+        )
+        as_user(gm)
+        auctions.set_favorite(gm, 2963, True)
+        data = api_client.get("/api/sync/auctions/recipes/").json()
+        (row,) = data["results"]
+        assert (data["scan"], row["product"], row["cost"], row["profit"], row["missing"]) == (
+            None,
+            None,
+            None,
+            None,
+            1,
+        )
+        assert row["reagents"][0]["name"] == "Objet 2589"

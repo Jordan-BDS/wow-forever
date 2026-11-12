@@ -8,14 +8,16 @@ from typing import Any
 
 from django.core.cache import cache
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
-from apps.gamedata.models import Item
+from apps.gamedata.models import Item, Recipe
 from apps.gamedata.stats import icon_url
 
-from .models import AuctionPrice, AuctionScan, CompanionDevice
+from .models import AuctionPrice, AuctionScan, CompanionDevice, FavoriteRecipe
 
 MAX_ITEMS = 60_000
+RECIPE_RESULTS = 30  # recettes montrées par une recherche
 MAX_PRICE = 10**12
 MAX_LISTED = 10**7
 PAGE_SIZE = 100
@@ -263,4 +265,116 @@ def item_history(item_id: int, house: str = "") -> dict:
         "max": max(prices) if prices else None,
         "average": round(sum(prices) / len(prices)) if prices else None,
         "points": [{"at": at, "price": price, "listed": listed} for at, price, listed in points],
+    }
+
+
+def _latest_scan(house: str) -> AuctionScan | None:
+    """Le dernier scan de l'hôtel demandé, ou du plus récemment scanné s'il est inconnu."""
+    scans = AuctionScan.objects.order_by("-scanned_at")
+    return scans.filter(house=house).first() or scans.first()
+
+
+def set_favorite(user, recipe_id: int, favorite: bool) -> None:
+    """Suit ou ne suit plus une recette. `AuctionError` si la recette n'existe pas."""
+    if not favorite:
+        FavoriteRecipe.objects.filter(user=user, recipe_id=recipe_id).delete()
+        return
+    if not Recipe.objects.filter(pk=recipe_id).exists():
+        raise AuctionError("Recette inconnue.")
+    FavoriteRecipe.objects.get_or_create(user=user, recipe_id=recipe_id)
+
+
+def _reagents(recipe: Recipe) -> list[tuple[int, str, int]]:
+    """Les composants lisibles d'une recette : (objet, nom, nombre)."""
+    found = []
+    for entry in recipe.reagents if isinstance(recipe.reagents, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        item_id, count = _int(entry.get("item_id")), _int(entry.get("count"))
+        if item_id and count and count > 0:
+            found.append((item_id, str(entry.get("name") or ""), count))
+    return found
+
+
+def _recipe_row(recipe: Recipe, favorite: bool, prices: dict, items: dict) -> dict:
+    def item_part(item_id: int, fallback: str) -> dict:
+        item = items.get(item_id)
+        price = prices.get(item_id)
+        return {
+            "item_id": item_id,
+            "name": item["name"] if item else fallback or f"Objet {item_id}",
+            "quality": item["quality"] if item else 1,
+            "icon_url": icon_url(item["icon"]) if item else "",
+            "price": price[0] if price else None,
+            "listed": price[1] if price else None,
+        }
+
+    reagents, cost, missing = [], 0, 0
+    for item_id, name, count in _reagents(recipe):
+        part = item_part(item_id, name)
+        part["count"] = count
+        part["total"] = part["price"] * count if part["price"] is not None else None
+        if part["total"] is None:
+            missing += 1
+        else:
+            cost += part["total"]
+        reagents.append(part)
+    priced = len(reagents) - missing
+
+    product = item_part(recipe.product_id, "") if recipe.product_id else None
+    revenue = product["price"] * recipe.quantity if product and product["price"] is not None else None
+    # Le bénéfice ne compte que les composants en vente : `missing` dit combien manquent au calcul.
+    profit = revenue - cost if revenue is not None and priced else None
+    return {
+        "recipe_id": recipe.pk,
+        "name": recipe.name,
+        "icon_url": icon_url(recipe.icon),
+        "profession": recipe.profession.name,
+        "min_skill": recipe.min_skill,
+        "quantity": recipe.quantity,
+        "favorite": favorite,
+        "product": product,
+        "reagents": reagents,
+        "cost": cost if priced else None,
+        "missing": missing,
+        "revenue": revenue,
+        "profit": profit,
+        "margin": round(profit * 100 / cost, 1) if profit is not None and cost else None,
+    }
+
+
+def recipe_costs(user, house: str = "", q: str = "") -> dict:
+    """Les recettes favorites du joueur, ou celles que trouve `q` (deux lettres au moins), chacune avec le
+    coût de ses composants et le prix de son produit au dernier scan de l'hôtel."""
+    latest = _latest_scan(house)
+    favorites = set(FavoriteRecipe.objects.filter(user=user).values_list("recipe_id", flat=True))
+    recipes = Recipe.objects.select_related("profession")
+    needle = q.strip()
+    searching = len(needle) >= 2
+    if searching:
+        recipes = recipes.filter(
+            Q(name__icontains=needle)
+            | Q(product__name__icontains=needle)
+            | Q(product__name_en__icontains=needle)
+        ).order_by("name")[:RECIPE_RESULTS]
+    else:
+        recipes = recipes.filter(pk__in=favorites).order_by("name")
+    recipes = list(recipes)
+
+    wanted = {item_id for recipe in recipes for item_id, _, _ in _reagents(recipe)}
+    wanted.update(recipe.product_id for recipe in recipes if recipe.product_id)
+    prices: dict[int, tuple[int, int | None]] = {}
+    if latest and wanted:
+        found = AuctionPrice.objects.filter(scan=latest, item_id__in=wanted)
+        prices = {
+            item_id: (price, listed)
+            for item_id, price, listed in found.values_list("item_id", "price", "listed")
+        }
+    items = _items(wanted)
+    return {
+        "house": latest.house if latest else "",
+        "scan": scan_summary(latest) if latest else None,
+        "searching": searching,
+        "favorites": len(favorites),
+        "results": [_recipe_row(recipe, recipe.pk in favorites, prices, items) for recipe in recipes],
     }

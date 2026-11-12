@@ -3758,6 +3758,110 @@
                 }
             }
         },
+        "/api/sync/auctions/recipes/": {
+            "get": {
+                "operationId": "sync_auctions_recipes_retrieve",
+                "description": "GM : ses recettes favorites, ou celles que trouve `q`, avec le coût des composants et le prix du\nproduit au dernier scan.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "house",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "hôtel (défaut : le dernier scanné)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "recherche (défaut : les favorites)"
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/sync/auctions/recipes/{recipe_id}/": {
+            "put": {
+                "operationId": "sync_auctions_recipes_update",
+                "description": "GM : suivre (PUT) ou ne plus suivre (DELETE) une recette.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "recipe_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "404": {
+                        "description": "Recette inconnue"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "sync_auctions_recipes_destroy",
+                "description": "GM : suivre (PUT) ou ne plus suivre (DELETE) une recette.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "recipe_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
         "/api/sync/auctions/rights/": {
             "get": {
                 "operationId": "sync_auctions_rights_retrieve",

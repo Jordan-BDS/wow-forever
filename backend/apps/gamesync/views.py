@@ -336,6 +336,45 @@ class AuctionItemView(APIView):
         return Response(auctions.item_history(item_id, request.query_params.get("house", "")))
 
 
+class AuctionRecipesView(APIView):
+    """GM : ses recettes favorites, ou celles que trouve `q`, avec le coût des composants et le prix du
+    produit au dernier scan."""
+
+    permission_classes = [CanUseAuctions]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("house", OpenApiTypes.STR, description="hôtel (défaut : le dernier scanné)"),
+            OpenApiParameter("q", OpenApiTypes.STR, description="recherche (défaut : les favorites)"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def get(self, request: Request) -> Response:
+        params = request.query_params
+        return Response(
+            auctions.recipe_costs(request.user, house=params.get("house", ""), q=params.get("q", ""))
+        )
+
+
+class AuctionFavoriteRecipeView(APIView):
+    """GM : suivre (PUT) ou ne plus suivre (DELETE) une recette."""
+
+    permission_classes = [CanUseAuctions]
+
+    @extend_schema(request=None, responses={204: None, 404: OpenApiResponse(description="Recette inconnue")})
+    def put(self, request: Request, recipe_id: int) -> Response:
+        try:
+            auctions.set_favorite(request.user, recipe_id, True)
+        except auctions.AuctionError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=None, responses={204: None})
+    def delete(self, request: Request, recipe_id: int) -> Response:
+        auctions.set_favorite(request.user, recipe_id, False)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class RankingsView(APIView):
     """Classements de guilde pour une période (week, month, season, all), par joueur ou par personnage."""
 

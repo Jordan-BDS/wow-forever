@@ -1,19 +1,21 @@
-import { useEffect, useState } from "react";
-import { Navigate } from "react-router";
+import { useState } from "react";
+import { Navigate, useSearchParams } from "react-router";
 import clsx from "clsx";
 import {
   formatChange,
   formatMoney,
-  useAuctionHistory,
   useAuctions,
   type AuctionRow,
   type AuctionSince,
   type AuctionSort,
 } from "@/api/auctions";
 import { useCurrentUser } from "@/auth/useCurrentUser";
+import { ItemPriceHistory } from "@/components/PriceChart";
+import { RecipeCosts } from "@/components/RecipeCosts";
 import { Card, Input, PageTitle, Pill, Select, Spinner } from "@/components/ui";
 import { WowheadLink } from "@/components/wowhead";
 import { formatDateTime } from "@/lib/game";
+import { useDebounced } from "@/lib/useDebounced";
 import { useWowheadTooltips } from "@/lib/wowhead";
 
 const SINCE: { value: AuctionSince; label: string }[] = [
@@ -30,15 +32,6 @@ const SORTS: { value: AuctionSort; label: string }[] = [
   { value: "down", label: "Plus fortes baisses" },
 ];
 
-function useDebounced<T>(value: T, delay = 250): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const id = window.setTimeout(() => setDebounced(value), delay);
-    return () => window.clearTimeout(id);
-  }, [value, delay]);
-  return debounced;
-}
-
 /** Prix de l'hôtel des ventes scannés en jeu et envoyés par le compagnon : réservé au GM. */
 export function AuctionsPage() {
   const me = useCurrentUser();
@@ -49,6 +42,8 @@ export function AuctionsPage() {
   const [since, setSince] = useState<AuctionSince>("prev");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<number | null>(null);
+  const [params, setParams] = useSearchParams();
+  const onRecipes = params.get("onglet") === "recettes";
   const q = useDebounced(query.trim());
   const auctions = useAuctions({ house, q, sort, since, page }, isGm);
   useWowheadTooltips([auctions.data]);
@@ -79,9 +74,45 @@ export function AuctionsPage() {
     setOpen(null);
   };
 
+  const tabs = (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap gap-2">
+        <Pill active={!onRecipes} onClick={() => setParams({}, { replace: true })}>
+          Tous les objets
+        </Pill>
+        <Pill active={onRecipes} onClick={() => setParams({ onglet: "recettes" }, { replace: true })}>
+          Recettes favorites
+        </Pill>
+      </div>
+      {data.houses.length > 1 && (
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-muted">Hôtel des ventes</span>
+          <Select value={data.house} onChange={(e) => change(() => setHouse(e.target.value))}>
+            {data.houses.map((h) => (
+              <option key={h.house} value={h.house}>
+                {h.house}
+              </option>
+            ))}
+          </Select>
+        </label>
+      )}
+    </div>
+  );
+
+  if (onRecipes) {
+    return (
+      <>
+        <PageTitle>Hôtel des ventes</PageTitle>
+        {tabs}
+        <RecipeCosts house={data.house} />
+      </>
+    );
+  }
+
   return (
     <>
       <PageTitle>Hôtel des ventes</PageTitle>
+      {tabs}
       <Card className="mb-4 space-y-3">
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex-1 text-sm">
@@ -92,22 +123,6 @@ export function AuctionsPage() {
               onChange={(e) => change(() => setQuery(e.target.value))}
             />
           </label>
-          {data.houses.length > 1 && (
-            <label className="text-sm">
-              <span className="text-muted">Hôtel des ventes</span>
-              <Select
-                className="block w-full"
-                value={data.house}
-                onChange={(e) => change(() => setHouse(e.target.value))}
-              >
-                {data.houses.map((h) => (
-                  <option key={h.house} value={h.house}>
-                    {h.house}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          )}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-muted">Variation depuis</span>
@@ -233,65 +248,11 @@ function AuctionItem({
           {open ? "Fermer" : "Historique"}
         </button>
       </div>
-      {open && <History itemId={row.item_id} house={house} />}
+      {open && (
+        <div className="px-3 pb-4">
+          <ItemPriceHistory itemId={row.item_id} house={house} />
+        </div>
+      )}
     </li>
-  );
-}
-
-function History({ itemId, house }: { itemId: number; house: string }) {
-  const history = useAuctionHistory(itemId, house);
-  if (history.isError) return <p className="px-3 pb-3 text-xs text-danger">Historique indisponible.</p>;
-  if (!history.data) {
-    return (
-      <div className="px-3 pb-3">
-        <Spinner />
-      </div>
-    );
-  }
-  const { points, min, max, average } = history.data;
-  if (points.length < 2 || min == null || max == null || average == null) {
-    return (
-      <p className="px-3 pb-3 text-xs text-muted">
-        Un seul scan pour cet objet : la courbe apparaîtra au prochain scan où il sera en vente.
-      </p>
-    );
-  }
-  const first = new Date(points[0].at).getTime();
-  const span = Math.max(1, new Date(points[points.length - 1].at).getTime() - first);
-  const range = Math.max(1, max - min);
-  const line = points
-    .map((p) => {
-      const x = (100 * (new Date(p.at).getTime() - first)) / span;
-      const y = 38 - (36 * (p.price - min)) / range;
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    })
-    .join(" ");
-  return (
-    <div className="space-y-1 px-3 pb-3 text-xs text-muted">
-      <svg
-        viewBox="0 0 100 40"
-        className="h-24 w-full rounded-sm border border-border/60 bg-bg/60"
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={`Prix de ${formatMoney(points[0].price)} à ${formatMoney(points[points.length - 1].price)} sur ${points.length} scans`}
-      >
-        <polyline
-          fill="none"
-          stroke="var(--color-gold)"
-          strokeWidth="2"
-          vectorEffect="non-scaling-stroke"
-          points={line}
-        />
-      </svg>
-      <div className="flex flex-wrap justify-between gap-x-4">
-        <span>
-          du {formatDateTime(points[0].at)} au {formatDateTime(points[points.length - 1].at)} ·{" "}
-          {points.length} scans
-        </span>
-        <span>
-          min {formatMoney(min)} · moyenne {formatMoney(average)} · max {formatMoney(max)}
-        </span>
-      </div>
-    </div>
   );
 }

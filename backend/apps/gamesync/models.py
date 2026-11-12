@@ -230,6 +230,24 @@ class AuctionPrice(models.Model):
         return f"{self.item_id} : {self.price}"
 
 
+class FavoriteRecipe(models.Model):
+    """Recette suivie par un joueur sur la page de l'hôtel des ventes (coût des composants, bénéfice)."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favorite_recipes"
+    )
+    recipe = models.ForeignKey("gamedata.Recipe", on_delete=models.CASCADE, related_name="favorited_by")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "recette favorite"
+        verbose_name_plural = "recettes favorites"
+        constraints = [models.UniqueConstraint(fields=["user", "recipe"], name="unique_favorite_recipe")]
+
+    def __str__(self) -> str:
+        return f"{self.user} suit {self.recipe}"
+
+
 class WantedExclusion(models.Model):
     """Nom retiré du tableau Wanted par le GM (PNJ homonyme pris pour un joueur, erreur de lecture)."""
 

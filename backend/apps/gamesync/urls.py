@@ -23,4 +23,10 @@ urlpatterns = [
     path("auctions/", views.AuctionScansView.as_view(), name="sync-auctions"),
     path("auctions/rights/", views.AuctionRightsView.as_view(), name="sync-auction-rights"),
     path("auctions/items/<int:item_id>/", views.AuctionItemView.as_view(), name="sync-auction-item"),
+    path("auctions/recipes/", views.AuctionRecipesView.as_view(), name="sync-auction-recipes"),
+    path(
+        "auctions/recipes/<int:recipe_id>/",
+        views.AuctionFavoriteRecipeView.as_view(),
+        name="sync-auction-favorite-recipe",
+    ),
 ]

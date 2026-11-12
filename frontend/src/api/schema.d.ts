@@ -990,6 +990,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/auctions/recipes/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description GM : ses recettes favorites, ou celles que trouve `q`, avec le coût des composants et le prix du
+         *     produit au dernier scan.
+         */
+        get: operations["sync_auctions_recipes_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/auctions/recipes/{recipe_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description GM : suivre (PUT) ou ne plus suivre (DELETE) une recette. */
+        put: operations["sync_auctions_recipes_update"];
+        post?: never;
+        /** @description GM : suivre (PUT) ou ne plus suivre (DELETE) une recette. */
+        delete: operations["sync_auctions_recipes_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sync/auctions/rights/": {
         parameters: {
             query?: never;
@@ -4858,6 +4896,79 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+        };
+    };
+    sync_auctions_recipes_retrieve: {
+        parameters: {
+            query?: {
+                /** @description hôtel (défaut : le dernier scanné) */
+                house?: string;
+                /** @description recherche (défaut : les favorites) */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    sync_auctions_recipes_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Recette inconnue */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sync_auctions_recipes_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
