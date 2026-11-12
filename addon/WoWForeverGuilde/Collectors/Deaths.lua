@@ -82,16 +82,15 @@ function ns.ClassLabel(class)
   return (type(names) == "table" and names[class]) or class or ""
 end
 
+--- Phrase d'un avis de décès, prête à afficher : le mort à la couleur de sa classe (jeton, ou nom affiché des
+--- anciennes versions : alors sans couleur), le tueur à la sienne quand c'est un joueur (seuls eux en ont une).
 function ns.DeathPhrase(info)
-  local phrases = ns.PHRASES
-  local phrase = phrases[math.random(1, #phrases)]
-  local zone = info.zone ~= "" and info.zone or info.sub
-  local values = {
-    personnage = info.name, tueur = info.killer, zone = zone ~= "" and zone or "nulle part", niveau = tostring(info.level),
-    classe = ns.ClassLabel(info.class),
-  }
-  local text = phrase:gsub("{(%w+)}", function(key) return values[key] or ("{" .. key .. "}") end)
-  return (text:gsub("^%l", string.upper)) -- « une chute remercie… » → « Une chute remercie… »
+  local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[(info.class or ""):upper()]
+  local name = info.name or "?"
+  local victim = { plain = name, shown = color and ("|c" .. (color.colorStr or "ffffffff") .. name .. "|r") or name }
+  local killer = (info.killer and info.killer ~= "") and info.killer or ns.L.KILLER_UNKNOWN
+  local roles = { personnage = victim, tueur = ns.Phrases.Role(killer, info.player and info.kclass or nil) }
+  return ns.Phrases.Fill(ns.Phrases.Pick(ns.PHRASES, "{personnage} est hors jeu : {tueur}."), roles)
 end
 
 local recentDeaths = {} -- guid du mort → { t = heure de réception, player = tueur joueur } de la dernière annonce gardée

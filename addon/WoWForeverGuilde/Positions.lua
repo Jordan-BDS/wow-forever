@@ -240,8 +240,8 @@ local function announceAlert(peer)
   end
   local attacker = peer.alert.attacker ~= "" and ns.ClassColored(peer.alert.attacker, peer.alert.class) or L.ATTACKER_UNKNOWN
   local place = Positions.Where(peer)
-  local text = string.format(L.ALERT_TEXT, ns.ClassColored(peer.name, peer.class), attacker, place ~= "" and place or L.WHERE_UNKNOWN)
-  ns.Print(text)
+  local text = string.format(L.ALERT_TEXT, ns.ClassColored(peer.name, peer.class), attacker)
+  ns.Print(L.ALERT_CHAT, text, place ~= "" and place or L.WHERE_UNKNOWN)
   local myMap = Positions.Here()
   if myMap and peer.map == myMap and ns.UI and ns.UI.ShowAlert then
     ns.UI.ShowAlert(peer, text)

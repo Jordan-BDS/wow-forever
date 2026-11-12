@@ -30,7 +30,9 @@ transporte le code jusqu'au site.
 - `Data.lua` : tables de référence à tenir à jour (quêtes d'accès, derniers boss, sorts de récolte).
 - `Samwise.blp` : icône de la guilde (portrait de Samwise Didier, l'ancienne icône « Temp » des clients Classic),
   en tête des fenêtres et dans la liste des addons (`## IconTexture`).
-- `Phrases.lua` : gabarits des annonces de mort (liste à fournir par Jordan).
+- `Phrases.lua` : gabarits des popups (avis de décès, victoires honorables, primes encaissées) et leur remplissage
+  (« de » et « à » contractés ou élidés devant le nom, pluriel des kills à plusieurs, majuscules) ; comment écrire
+  un gabarit est dit en tête du fichier.
 - `UI.lua` : fenêtre principale, export, dialogues, texte flottant des morts.
 - `Positions.lua`, `MapUI.lua` : partage de position. Case « Partager ma position » (cochée par défaut) : le client
   émet carte, coordonnées, niveau et résumé de talents par message addon (préfixe `WFG`, canal de guilde ; le client
@@ -53,8 +55,9 @@ transporte le code jusqu'au site.
   Joueur ou créature (`UnitIsPlayer`, secret en combat) se lit sur la cible ou le souvenir qui porte le nom du tueur,
   sinon parmi les joueurs hostiles lus dans les 10 dernières minutes (cible, survol, plaques de nom), sinon sur les
   unités encore autour une fois mort (0.6.3 ; `/mf api` dit d'où vient la réponse). Chez les autres : toute mort
-  PvP est un avis « WANTED » (pied « tué par un joueur », tueur coloré à sa classe, même phrase qu'en PvE) ; avec
-  les alertes Wanted, l'avis porte la prime (pied « tueur recherché, prime N »). En champ de bataille ou en arène
+  PvP est un avis « WANTED » (pied « mort en PvP », tueur coloré à sa classe, même phrase qu'en PvE) ; avec
+  les alertes Wanted, l'avis porte la prime (pied « prime de N points sur X »). Le pied d'un avis donne les faits,
+  chacun seulement s'il est connu : niveau, classe, lieu (0.6.13). En champ de bataille ou en arène
   (0.6.3) : ni annonce de mort, ni point, ni prime ; le kill compte dans « Joueurs abattus » (événement `pk` marqué
   `bg`, que le site ignore pour le tableau). L'avis porte aussi
   une ligne de chat, et une **tête de mort rouge** (8e marqueur de raid, prime en chiffre) sur la carte et la minimap
@@ -75,10 +78,10 @@ transporte le code jusqu'au site.
   cadavre une fois ; deux pistes pour un même nom dans la fenêtre ne comptent qu'une fois. `/mf prime <nom>` joue le
   popup pour un nom du tableau sans rien enregistrer, et dit si le nom n'y est pas. Victoire honorable sur un
   joueur qui n'est pas recherché (0.6.6) : message « H » aux guildiens et popup vert « Victoire honorable » chez
-  tous, hors champ de bataille et arène, avec une phrase du lot des avis de décès (la victime dans le rôle du mort ;
-  les phrases qui citent son niveau ou sa classe sont écartées, le jeu ne les dit pas), sans son, un seul popup par
+  tous, hors champ de bataille et arène, avec une phrase de son propre lot (`KILL_PHRASES`, 0.6.13 : les chasseurs
+  en sont le sujet ; le pied dit où), sans son, un seul popup par
   kill (écho et répétition du même chasseur ; un coéquipier qui annonce le même kill dans les 15 s ajoute son nom
-  au popup déjà affiché, « A et B abattent X », 5 noms au plus ; le même joueur retué plus tard a son popup,
+  au popup déjà affiché, la phrase passe au pluriel, 5 noms au plus ; le même joueur retué plus tard a son popup,
   0.6.8 ; un popup reste 4 s au moins, le suivant attend son tour), gouverné par « Afficher les morts des autres » ; si la victime est
   recherchée chez celui qui reçoit, c'est une prime encaissée. Envoi tenace du « K » et du « H » (0.6.7) : refusé
   par le jeu, il est retenté toutes les 5 s ; parti en combat, il est répété une fois à la sortie du combat ; plus
@@ -92,7 +95,7 @@ transporte le code jusqu'au site.
   joueur est un événement `pk` du journal avec la prime encaissée (compteurs `pk` et `bounty`, d'où les chasseurs de
   primes du site) ; si l'ennemi est recherché (nom exact, ou prénom seul s'il est unique au tableau) : kill au tableau
   (dédoublonné à la minute par ennemi : coéquipiers, écho), message « K » aux guildiens, toast or « Prime encaissée »
-  avec une phrase troll (`Phrases.lua`, `{chasseur}`, `{ennemi}`, `{prime}`, `{zone}`), tête de mort déplacée là où il
+  avec une phrase troll (`Phrases.lua`, `{chasseur}`, `{ennemi}` ; pied « Prime de N points · lieu »), tête de mort déplacée là où il
   est tombé. **Poignée de main « W »** : 8 s après la connexion on demande le tableau ; un membre répond avec un résumé
   (nom, classe, prime, kills, dernière position ; lignes de 255 octets, 40 ennemis au plus) après un délai aléatoire
   de 1 à 6 s, sauf si quelqu'un a déjà répondu ; le receveur garde le maximum de chaque valeur. Côté site (lot 3) :

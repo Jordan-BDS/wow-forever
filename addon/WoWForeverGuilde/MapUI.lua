@@ -400,7 +400,7 @@ function MapUI.ShowWantedTooltip(entry, owner)
   GameTooltip:ClearLines()
   GameTooltip:AddDoubleLine(ns.ClassColored(entry.name, entry.class), L.WANTED_TAG, 1, 1, 1, 1, 0.3, 0.3)
   local class = ns.ClassLabel(entry.class)
-  local prime = string.format(L.WANTED_PRIME, entry.points or 0)
+  local prime = string.format(L.WANTED_PRIME, ns.Points(entry.points))
   GameTooltip:AddLine(class ~= "" and (class .. " · " .. prime) or prime, 1, 0.82, 0)
   if (entry.kills or 0) > 0 then GameTooltip:AddLine(string.format(L.WANTED_KILLED_BY_GUILD, entry.kills), 0.6, 0.8, 1) end
   local last = entry.last

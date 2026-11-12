@@ -316,13 +316,14 @@ StaticPopupDialogs["WFG_TRANSFER"] = {
   button2 = L.TRANSFER_NO,
   OnAccept = function(self, data)
     ns.Store.Merge(data.entry, data.candidate)
-    ns.Print("Compteurs conservés.")
+    ns.Print(L.TRANSFER_DONE)
   end,
   timeout = 0, whileDead = true, hideOnEscape = false, preferredIndex = 3,
 }
 
 function UI.AskTransfer(entry, candidate)
-  local text = string.format(L.TRANSFER_TEXT, UnitName("player") or "?", candidate.name or "?", candidate.class or "?", candidate.level or 0)
+  local class = ns.ClassLabel(candidate.class) -- le nom de la classe (« Chaman »), pas son jeton (« SHAMAN »)
+  local text = string.format(L.TRANSFER_TEXT, UnitName("player") or "?", candidate.name or "?", class ~= "" and class or "?", candidate.level or 0)
   local dialog = StaticPopup_Show("WFG_TRANSFER", text)
   if dialog then dialog.data = { entry = entry, candidate = candidate } end
 end
@@ -393,13 +394,14 @@ end
 --- Un texte encore à l'écran depuis moins de TOAST_MIN_SECONDS s n'est pas écrasé : le suivant attend son tour
 --- (0.6.8 ; deux kills à 2 s d'écart, et le premier popup n'était jamais lu). Exception : un texte de même `key`
 --- que celui à l'écran le corrige sur place (la même mort annoncée PvE puis PvP : un seul avis).
+--- `label` : ce que /mf api retient du popup (qui, quoi, où), la phrase étant tirée au hasard.
 local waiting, shownAt, shownKey, nextTimer = {}, nil, nil, nil
 
 -- /mf api : les derniers popups et ce qu'ils sont devenus (affiché, mis en attente, corrigé sur place, sorti de la
 -- file, éjecté), pour comprendre en jeu un popup qui manque.
 local toastLog = {}
-local function logToast(what, footer)
-  local label = tostring(footer or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
+local function logToast(what, label)
+  label = tostring(label or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
   toastLog[#toastLog + 1] = { t = ns.now(), what = what, label = label:sub(1, 60) }
   while #toastLog > 8 do table.remove(toastLog, 1) end
   ns.Trace("popup %s : %s", what, label)
@@ -437,7 +439,7 @@ local function showNext()
   nextTimer = nil
   local item = table.remove(waiting, 1)
   if not item then return end
-  logToast("sorti de la file", item[3])
+  logToast("sorti de la file", item[7])
   display(item[1], item[2], item[3], item[4], item[5], item[6])
   if #waiting > 0 then nextTimer = C_Timer.NewTimer(ns.Data.TOAST_MIN_SECONDS, showNext) end
 end
@@ -451,83 +453,77 @@ function UI.ToastPending(key)
   return false
 end
 
-function UI.ShowToast(headerText, text, footer, color, sound, key)
+function UI.ShowToast(headerText, text, footer, color, sound, key, label)
   if not toast then buildToast() end
+  label = label or footer
   local busy = toast:IsShown() and shownAt and ns.now() - shownAt < ns.Data.TOAST_MIN_SECONDS
   if (not busy and #waiting == 0) or (key and toast:IsShown() and key == shownKey) then
-    logToast((busy or #waiting > 0) and "corrigé sur place" or "affiché", footer)
+    logToast((busy or #waiting > 0) and "corrigé sur place" or "affiché", label)
     display(headerText, text, footer, color, sound, key)
     return
   end
   for i, item in ipairs(waiting) do
     if key and item[6] == key then -- encore en attente : corrigé à sa place dans la file
-      waiting[i] = { headerText, text, footer, color, sound, key }
-      logToast("corrigé dans la file", footer)
+      waiting[i] = { headerText, text, footer, color, sound, key, label }
+      logToast("corrigé dans la file", label)
       return
     end
   end
-  waiting[#waiting + 1] = { headerText, text, footer, color, sound, key }
-  logToast("mis en attente", footer)
-  while #waiting > ns.Data.TOAST_QUEUE do logToast("éjecté de la file", table.remove(waiting, 1)[3]) end
+  waiting[#waiting + 1] = { headerText, text, footer, color, sound, key, label }
+  logToast("mis en attente", label)
+  while #waiting > ns.Data.TOAST_QUEUE do logToast("éjecté de la file", table.remove(waiting, 1)[7]) end
   if not nextTimer then
     nextTimer = C_Timer.NewTimer(math.max(0.1, ns.Data.TOAST_MIN_SECONDS - (ns.now() - (shownAt or 0))), showNext)
   end
 end
 
---- Avis de décès ; `wanted` : l'entrée du tueur dans le tableau Wanted, quand c'est un joueur recherché, et que
---- les alertes Wanted sont cochées : l'en-tête et le pied portent alors la prime (un seul cadre flottant, pas deux).
+--- Avis de décès. La phrase (ns.DeathPhrase) arrive prête, noms colorés ; le pied donne les faits : niveau, classe,
+--- lieu, et pour une mort PvP la mention ou la prime. `wanted` : l'entrée du tueur dans le tableau Wanted quand
+--- c'est un joueur recherché ; avec les alertes Wanted cochées, le pied porte sa prime (un seul cadre, pas deux).
 function UI.ShowDeath(info, phrase, wanted)
-  local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[(info.class or ""):upper()]
-  local coloredName = color and ("|c" .. (color.colorStr or "ffffffff") .. info.name .. "|r") or info.name
-  -- Remplacement littéral : un nom n'est pas un motif Lua.
-  local at = phrase:find(info.name, 1, true)
-  if at then phrase = phrase:sub(1, at - 1) .. coloredName .. phrase:sub(at + #info.name) end
-  local header, footer = L.DEATH_HEADER, string.format(L.DEATH_FOOTER, info.level or 0, ns.ClassLabel(info.class))
-  if info.player then
-    -- Mort PvP : toujours dite « WANTED », même sans les alertes Wanted (alors sans la prime), et le tueur à la
-    -- couleur de sa classe (seuls les joueurs en ont une). La phrase, elle, reste tirée du même lot.
-    header, footer = L.DEATH_WANTED_HEADER, string.format(L.DEATH_PVP_FOOTER, info.level or 0, ns.ClassLabel(info.class))
-    local killer = info.killer or ""
-    if killer ~= "" and info.kclass and info.kclass ~= "" then
-      local from = phrase:find(killer, 1, true)
-      if from then phrase = phrase:sub(1, from - 1) .. ns.ClassColored(killer, info.kclass) .. phrase:sub(from + #killer) end
-    end
-  end
+  local parts = {}
+  if (info.level or 0) > 0 then parts[#parts + 1] = string.format(L.DEATH_LEVEL, info.level) end
+  local class = ns.ClassLabel(info.class)
+  if class ~= "" then parts[#parts + 1] = class end
+  local place = (info.zone and info.zone ~= "") and info.zone or (info.sub or "")
+  if place ~= "" then parts[#parts + 1] = place end
+  local header = L.DEATH_HEADER
   if wanted and ns.db.settings.wantedAlerts then
     header = L.DEATH_WANTED_HEADER
-    footer = string.format(L.DEATH_WANTED_FOOTER, info.level or 0, ns.ClassLabel(info.class), wanted.points or 0)
+    parts[#parts + 1] = string.format(L.DEATH_WANTED, ns.Points(wanted.points), wanted.name or info.killer or "?")
+  elseif info.player then
+    -- Mort PvP : toujours dite « WANTED », même sans les alertes Wanted (alors sans la prime).
+    header = L.DEATH_WANTED_HEADER
+    parts[#parts + 1] = L.DEATH_PVP
   end
-  UI.ShowToast(header, phrase, footer, { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths, "mort:" .. tostring(info.name))
+  local label = string.format(L.DEATH_LOG, tostring(info.name), info.killer or "")
+  UI.ShowToast(header, phrase, table.concat(parts, " · "), { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths,
+    "mort:" .. tostring(info.name), label)
 end
 
---- Appel à l'aide d'un membre dans ma zone.
+--- Appel à l'aide d'un membre dans ma zone : qui et par qui dans le texte, où dans le pied.
 function UI.ShowAlert(peer, text)
-  UI.ShowToast(L.ALERT_HEADER, text, ns.Positions.Where(peer), { 1, 0.62, 0.2 }, true)
+  local place = ns.Positions.Where(peer)
+  UI.ShowToast(L.ALERT_HEADER, text, place ~= "" and place or L.WHERE_UNKNOWN, { 1, 0.62, 0.2 }, true)
 end
 
 --- Victoire honorable : un joueur adverse abattu par un membre (moi ou un autre), hors champ de bataille. Vert,
---- sans son (il y en a bien plus que de morts) ; chasseur et victime à la couleur de leur classe.
+--- sans son (il y en a bien plus que de morts). La phrase (Wanted.KillPhrase) arrive prête ; le pied dit où.
 --- `hunters` : { { name, class }, … }, tous ceux du kill ; un chasseur de plus complète le popup sur place (même clé).
 --- `id` : le kill, clé du popup ; `updateOnly` : ne corrige que s'il est encore à l'écran ou en attente.
-function UI.ShowKill(victim, victimClass, hunters, phrase, place, id, updateOnly)
-  local who = { { victim, victimClass } }
-  for _, h in ipairs(hunters) do who[#who + 1] = { h.name, h.class } end
-  for _, w in ipairs(who) do
-    local at = phrase:find(w[1], 1, true) -- remplacement littéral : un nom n'est pas un motif Lua
-    if at and w[2] and w[2] ~= "" then
-      phrase = phrase:sub(1, at - 1) .. ns.ClassColored(w[1], w[2]) .. phrase:sub(at + #w[1])
-    end
-  end
-  local footer = string.format(#hunters > 1 and L.KILL_FOOTER_PLURAL or L.KILL_FOOTER, ns.Wanted.HunterNames(hunters, true),
-    ns.ClassColored(victim, victimClass), place ~= "" and place or L.WHERE_UNKNOWN)
+function UI.ShowKill(victim, hunters, phrase, place, id, updateOnly)
+  place = place ~= "" and place or L.WHERE_UNKNOWN
   local key = "kill:" .. tostring(id or victim)
   if updateOnly and not UI.ToastPending(key) then return end
-  UI.ShowToast(L.KILL_HEADER, phrase, footer, { 0.45, 0.9, 0.45 }, false, key)
+  local label = string.format(#hunters > 1 and L.KILL_LOG_PLURAL or L.KILL_LOG, ns.Wanted.HunterNames(hunters), victim, place)
+  UI.ShowToast(L.KILL_HEADER, phrase, place, { 0.45, 0.9, 0.45 }, false, key, label)
 end
 
---- Prime encaissée : un recherché abattu par un membre (moi ou un autre). Or, son si les morts en ont un.
-function UI.ShowBounty(entry, phrase, by, byClass, prime, place)
-  local footer = string.format(L.BOUNTY_FOOTER, ns.ClassColored(by, byClass), ns.ClassColored(entry.name, entry.class),
-    string.format(prime > 1 and L.POINTS_PLURAL or L.POINTS_SINGULAR, prime), place ~= "" and place or L.WHERE_UNKNOWN)
-  UI.ShowToast(L.BOUNTY_HEADER, phrase, footer, { 1, 0.82, 0 }, ns.db.settings.soundDeaths)
+--- Prime encaissée : un recherché abattu par un membre (moi ou un autre). Or, son si les morts en ont un. La
+--- phrase (Wanted.BountyPhrase) arrive prête ; le pied donne la prime et le lieu.
+function UI.ShowBounty(entry, phrase, by, prime, place)
+  place = place ~= "" and place or L.WHERE_UNKNOWN
+  local label = string.format(L.BOUNTY_LOG, by, entry.name, ns.Points(prime), place)
+  UI.ShowToast(L.BOUNTY_HEADER, phrase, string.format(L.BOUNTY_FOOTER, ns.Points(prime), place), { 1, 0.82, 0 },
+    ns.db.settings.soundDeaths, nil, label)
 end

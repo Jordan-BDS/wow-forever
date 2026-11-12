@@ -1,20 +1,20 @@
-{personnage} s'est fait saucer par {tueur} dans {zone} et est mort comme une merde.
-{personnage}, {classe} niveau {niveau}, vient de perdre un 1v1 contre {tueur} dans {zone}. Respect.
-Avis de décès : {personnage} a rencontré {tueur} dans {zone}. Le cimetière présente ses condoléances.
-{tueur} 1 – {personnage} 0. Match joué dans {zone}, revanche au cimetière.
-{personnage} a tenté un truc dans {zone}. {tueur} a dit non.
-Pensée pour {personnage}, mort au combat (ou presque) face à {tueur} dans {zone}.
-Spoiler : {personnage} ne survivra pas à {tueur} dans {zone}. Ah bah non, c'est déjà fait.
-Un {classe} niveau {niveau} qui meurt contre {tueur} dans {zone}, ça s'appelle {personnage}.
-{personnage} vient de tester la résurrection grâce à {tueur}. Verdict : ça marche.
-Le corps de {personnage} refroidit dans {zone}. Merci {tueur} pour ce moment.
-{personnage} voulait prouver que {tueur} c'était facile. {zone} s'en souviendra.
-Nouvelle mort pour {personnage}, encore à cause de {tueur}. Ça devient une habitude.
-{personnage} ({classe} {niveau}) a confondu courage et bêtise face à {tueur} dans {zone}.
-Breaking news : {personnage} est tombé face à {tueur} dans {zone}. Les heals n'y sont pour rien, paraît-il.
-{tueur} remercie {personnage} pour sa participation. Décès validé dans {zone}.
-Dix secondes de silence pour {personnage}, vaincu par {tueur}. Bon, cinq, on a du farm.
-{personnage} est parti voir l'Esprit guérisseur de {zone}, sur recommandation de {tueur}.
-Si {personnage} demande, {tueur} a cheaté. Dans {zone}. Évidemment.
-{tueur} fait savoir que {personnage} est en fantôme dans {zone}. Venez le rez si ça vous chante.
-Niveau {niveau} et toujours pas à l'abri de {tueur} : {personnage} vient de le prouver dans {zone}.
+{personnage} s'est fait saucer par {tueur} et a fini comme une merde.
+{personnage} vient de perdre un 1v1 contre {tueur}. Respect.
+{personnage} a rencontré {tueur}. Le cimetière présente ses condoléances.
+{tueur} 1 – {personnage} 0. Revanche au cimetière.
+{personnage} a tenté un truc. {tueur} a dit non.
+Pensée pour {personnage}, qui n'a pas fait le poids face {a_tueur}.
+Spoiler : {personnage} ne survivra pas {a_tueur}. Ah bah non, c'est déjà fait.
+{personnage} vient de tester la résurrection grâce {a_tueur}. Verdict : ça marche.
+Le corps {de_personnage} refroidit déjà. Merci {a_tueur} pour ce moment.
+{personnage} voulait prouver que {tueur}, c'était facile. Raté.
+{personnage} a confondu courage et bêtise face {a_tueur}.
+Breaking news : {tueur} a eu raison {de_personnage}. Les heals n'y sont pour rien, paraît-il.
+Décès validé pour {personnage}. {tueur} n'a même pas forcé.
+Dix secondes de silence pour {personnage}, qui n'a rien pu faire contre {tueur}. Bon, cinq, on a du farm.
+{personnage} file voir l'Esprit guérisseur, sur recommandation {de_tueur}.
+Si {personnage} demande, {tueur} a cheaté. Évidemment.
+{personnage} erre en fantôme à cause {de_tueur}. Venez rez si ça vous chante.
+Toujours pas à l'abri {de_tueur} : {personnage} vient de le prouver.
+{tueur} a encore frappé. Cette fois, c'est tombé sur {personnage}.
+{personnage} pensait gérer {tueur}. {personnage} ne gérait pas.

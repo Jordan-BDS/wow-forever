@@ -200,7 +200,7 @@ end
 --- Ligne de chat quand un recherché frappe (le popup, s'il est affiché, porte déjà la prime).
 function Wanted.Announce(entry, info)
   local place = info.zone ~= "" and info.zone or (info.sub ~= "" and info.sub or L.WHERE_UNKNOWN)
-  ns.Print(L.WANTED_CHAT, ns.ClassColored(entry.name, entry.class), ns.ClassColored(info.name, info.class), place, entry.points or 0)
+  ns.Print(L.WANTED_CHAT, ns.ClassColored(entry.name, entry.class), ns.ClassColored(info.name, info.class), place, ns.Points(entry.points))
 end
 
 -- --- kills -----------------------------------------------------------------------------------------------
@@ -505,9 +505,9 @@ function Wanted.Rehearse(name)
   local c = ns.char or {}
   local prime = entry.points or 0
   if ns.UI and ns.UI.ShowBounty then
-    ns.UI.ShowBounty(entry, Wanted.BountyPhrase(entry, myName(), prime, zone), myName(), c.class, prime, zone)
+    ns.UI.ShowBounty(entry, Wanted.BountyPhrase(entry, myName(), c.class), myName(), prime, zone)
   end
-  ns.Print(L.PRIME_TEST_OK, ns.ClassColored(entry.name, entry.class), prime)
+  ns.Print(L.PRIME_TEST_OK, ns.ClassColored(entry.name, entry.class), ns.Points(prime))
 end
 
 --- /mf api : le dernier message de victoire honorable lu et ce qu'on en a tiré, et le compteur du client.
@@ -662,21 +662,17 @@ function Wanted.HunterNames(hunters, colored)
   return table.concat(names, ", ", 1, #names - 1) .. L.AND .. names[#names]
 end
 
---- Phrase d'une victoire honorable : le lot des avis de décès, la victime dans le rôle du mort et le chasseur dans
---- celui du tueur. Le message du jeu ne dit ni le niveau ni la classe de la victime : les phrases qui les citent
---- sont laissées de côté.
---- `template` : le gabarit à réutiliser (un chasseur de plus sur le même popup) ; renvoie la phrase et son gabarit.
-function Wanted.KillPhrase(victim, by, place, template)
-  if not template then
-    local phrases = {}
-    for _, phrase in ipairs(ns.PHRASES or {}) do
-      if not phrase:find("{niveau}", 1, true) and not phrase:find("{classe}", 1, true) then phrases[#phrases + 1] = phrase end
-    end
-    template = #phrases > 0 and phrases[math.random(1, #phrases)] or "{tueur} a abattu {personnage}"
-  end
-  local values = { personnage = victim, tueur = by, zone = place ~= "" and place or "nulle part" }
-  local text = template:gsub("{(%w+)}", function(key) return values[key] or ("{" .. key .. "}") end)
-  return (text:gsub("^%l", string.upper)), template
+--- Phrase d'une victoire honorable, prête à afficher (chacun à la couleur de sa classe), tirée de son propre lot :
+--- les chasseurs en sont le sujet, accordé au pluriel quand ils sont plusieurs.
+--- `hunters` : { { name, class }, … } ; `template` : le gabarit à réutiliser (un chasseur de plus sur le même
+--- popup) ; renvoie la phrase et son gabarit.
+function Wanted.KillPhrase(victim, victimClass, hunters, template)
+  template = template or ns.Phrases.Pick(ns.KILL_PHRASES, "{tueur} {a|ont} abattu {personnage}.")
+  local roles = {
+    personnage = ns.Phrases.Role(victim, victimClass),
+    tueur = { plain = Wanted.HunterNames(hunters), shown = Wanted.HunterNames(hunters, true) },
+  }
+  return ns.Phrases.Fill(template, roles, #hunters > 1), template
 end
 
 --- Une victoire honorable sur un joueur qui n'est pas recherché (la mienne, ou un « H » reçu) : popup « Victoire
@@ -706,19 +702,20 @@ local function announceHonor(victim, victimClass, by, byClass, zone, sub, guid, 
     end
     if changed and ns.db.settings.showDeaths and ns.UI and ns.UI.ShowKill then
       local shownName = popup.name ~= "" and popup.name or L.SOMEONE
-      local phrase = Wanted.KillPhrase(shownName, Wanted.HunterNames(hunters), popup.place, popup.template)
+      local phrase = Wanted.KillPhrase(shownName, popup.class, hunters, popup.template)
       -- Hors de sa fenêtre, le popup a fait son temps : on le corrige s'il est encore là, sans le rejouer.
-      ns.UI.ShowKill(shownName, popup.class, hunters, phrase, popup.place, popup.id, popup ~= recent)
+      ns.UI.ShowKill(shownName, hunters, phrase, popup.place, popup.id, popup ~= recent)
     end
     return false
   end
   popup = markAnnounced(victim, t, guid, killT)
   local place = zone ~= "" and zone or (sub ~= "" and sub or L.WHERE_UNKNOWN)
   local shownName = victim ~= "" and victim or L.SOMEONE
-  local phrase, template = Wanted.KillPhrase(shownName, by, place)
-  popup.hunters, popup.class, popup.place, popup.template = { { name = by, class = byClass } }, victimClass, place, template
+  local hunters = { { name = by, class = byClass } }
+  local phrase, template = Wanted.KillPhrase(shownName, victimClass, hunters)
+  popup.hunters, popup.class, popup.place, popup.template = hunters, victimClass, place, template
   if ns.db.settings.showDeaths and ns.UI and ns.UI.ShowKill then
-    ns.UI.ShowKill(shownName, victimClass, popup.hunters, phrase, place, popup.id)
+    ns.UI.ShowKill(shownName, popup.hunters, phrase, place, popup.id)
   end
   return true
 end
@@ -748,24 +745,17 @@ local function announceKill(entry, by, byClass, zone, sub, prime)
   local place = zone ~= "" and zone or (sub ~= "" and sub or L.WHERE_UNKNOWN)
   markAnnounced(entry.name, ns.now())
   if ns.db.settings.wantedAlerts then
-    ns.Print(L.BOUNTY_CHAT, ns.ClassColored(by, byClass), ns.ClassColored(entry.name, entry.class), place, prime, entry.kills or 0)
+    ns.Print(L.BOUNTY_CHAT, ns.ClassColored(by, byClass), ns.ClassColored(entry.name, entry.class), place, ns.Points(prime), entry.kills or 0)
   end
   if ns.UI and ns.UI.ShowBounty then
-    ns.UI.ShowBounty(entry, Wanted.BountyPhrase(entry, by, prime, place), by, byClass, prime, place)
+    ns.UI.ShowBounty(entry, Wanted.BountyPhrase(entry, by, byClass), by, prime, place)
   end
 end
 
---- Phrase troll d'une prime encaissée. Variables : {chasseur}, {ennemi}, {prime}, {zone}.
-function Wanted.BountyPhrase(entry, by, prime, place)
-  local phrases = ns.BOUNTY_PHRASES or {}
-  if #phrases == 0 then return string.format("%s a abattu %s", by, entry.name) end
-  local phrase = phrases[math.random(1, #phrases)]
-  local values = {
-    chasseur = by, ennemi = entry.name, zone = place ~= "" and place or "nulle part",
-    prime = string.format(prime > 1 and L.POINTS_PLURAL or L.POINTS_SINGULAR, prime),
-  }
-  local text = phrase:gsub("{(%w+)}", function(key) return values[key] or ("{" .. key .. "}") end)
-  return (text:gsub("^%l", string.upper))
+--- Phrase troll d'une prime encaissée, prête à afficher. La prime et le lieu sont dans le pied du popup.
+function Wanted.BountyPhrase(entry, by, byClass)
+  local roles = { chasseur = ns.Phrases.Role(by, byClass), ennemi = ns.Phrases.Role(entry.name, entry.class) }
+  return ns.Phrases.Fill(ns.Phrases.Pick(ns.BOUNTY_PHRASES, "{chasseur} a abattu {ennemi}."), roles)
 end
 
 --- Un joueur abattu par moi ou mon groupe (message de victoire honorable). Toujours un événement `pk` du journal

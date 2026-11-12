@@ -17,7 +17,7 @@ local function line(entry)
   local parts = { L.ICON_SKULL .. " " .. ns.ClassColored(entry.name, entry.class) }
   local class = ns.ClassLabel(entry.class)
   if class ~= "" then parts[#parts + 1] = "|cff9a9a9a" .. class .. "|r" end
-  parts[#parts + 1] = "|cffffd100" .. string.format(L.WANTED_PRIME, entry.points or 0) .. "|r"
+  parts[#parts + 1] = "|cffffd100" .. string.format(L.WANTED_PRIME, ns.Points(entry.points)) .. "|r"
   if (entry.kills or 0) > 0 then parts[#parts + 1] = "|cff9accff" .. string.format(L.WANTED_KILLED_BY_GUILD, entry.kills) .. "|r" end
   local last = entry.last
   if last then

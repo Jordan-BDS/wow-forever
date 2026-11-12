@@ -306,7 +306,7 @@ class TestSession:
             and "|cff0070ddThrall|r" in toast.text.text
             and "Sanglier des Tarides" in toast.text.text
         )
-        assert toast.footer.text == "Niveau 60 · Chaman"
+        assert toast.footer.text == "Niveau 60 · Chaman · Forêt d'Elwynn"
         assert len(list(g._SOUNDS.values())) == 1
         # Ancienne version en face : nom de classe affiché au lieu du jeton, accepté tel quel (une autre mort,
         # plus d'une minute après : dans la minute, une seconde annonce du même personnage est un doublon).
@@ -314,7 +314,9 @@ class TestSession:
         g._FIRE(
             "CHAT_MSG_ADDON", "WFG", sent.text.replace("\tSHAMAN\t", "\tChaman\t"), "GUILD", "Thrall-Forever"
         )
-        assert toast.footer.text == "Niveau 60 · Chaman" and len(list(g._SOUNDS.values())) == 2
+        assert (
+            toast.footer.text == "Niveau 60 · Chaman · Forêt d'Elwynn" and len(list(g._SOUNDS.values())) == 2
+        )
         # Chuchoté par n'importe qui : ignoré.
         toast.shown = False
         g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "WHISPER", "Inconnu-Forever")
@@ -473,7 +475,7 @@ class TestSession:
             counters = { deaths = 9, kills = 4 }, mobs = { ["299"] = { n = 4, name = "Loup", first = 1, last = 2 } }, journal = {}, events = {}, previous_guids = {}, created_at = 1, updated_at = 2, counting_since = 1 } } }
         """)
         login(lua)
-        assert g._POPUP.which == "WFG_TRANSFER" and "Thrall" in g._POPUP.text
+        assert g._POPUP.which == "WFG_TRANSFER" and "Thrall (Chaman, niveau 58)" in g._POPUP.text
         ns = g._NS
         ns.char.mobs["299"] = lua.table(n=1, name="Loup", first=5, last=6)
         ns.Store.Merge(ns.char, g.WoWForeverGuildeDB.characters["Player-1-OLD"])
@@ -1625,10 +1627,10 @@ class TestWanted:
         pvp = f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\t\t{now}\t1\tMAGE\t1411\t0.4000\t0.6000"
         receive(lua, pvp)
         toast = g.WoWForeverGuildeDeath
-        # Alertes Wanted coupées : l'avis dit quand même WANTED et « tué par un joueur », sans la prime ; tueur coloré
+        # Alertes Wanted coupées : l'avis dit quand même WANTED et « mort en PvP », sans la prime ; tueur coloré
         # à sa classe ; la phrase vient du même lot que les morts PvE.
         assert toast.shown is True and "WANTED" in toast.header.text
-        assert toast.footer.text == "Niveau 60 · Mage · tué par un joueur"
+        assert toast.footer.text == "Niveau 60 · Mage · Durotar · mort en PvP"
         assert "|cff69ccf0Jaina|r" in toast.text.text and "|cff69ccf0Garrosh Hurlenfer|r" in toast.text.text
         assert g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"].points == 1
         assert not any("Wanted :" in m for m in list(g._CHAT.values()))
@@ -1637,12 +1639,12 @@ class TestWanted:
         toast.shown = False  # le popup précédent a fait son temps
         receive(lua, pvp.replace("00000JAI", "00000JA2"))
         assert "WANTED" in toast.header.text
-        assert toast.footer.text == "Niveau 60 · Mage · tueur recherché, prime 2"
+        assert toast.footer.text == "Niveau 60 · Mage · Durotar · prime de 2 points sur Garrosh Hurlenfer"
         # Mort PvE : ni WANTED ni couleur sur la créature.
         pve = f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tSanglier des Tarides\tDurotar\t\t{now}\t0\t\t1411\t0.4000\t0.6000"
         g._ADVANCE(60)  # une autre mort : dans la minute, l'annonce PvE d'un mort PvP serait un doublon
         receive(lua, pve)
-        assert "WANTED" not in toast.header.text and toast.footer.text == "Niveau 60 · Mage"
+        assert "WANTED" not in toast.header.text and toast.footer.text == "Niveau 60 · Mage · Durotar"
         assert "|cff69ccf0Jaina|r" in toast.text.text and "|cffffffffSanglier" not in toast.text.text
 
     def test_battlegrounds_and_arenas_neither_announce_deaths_nor_count_wanted(self):
@@ -1740,7 +1742,10 @@ class TestWanted:
         # L'avis de décès porte la prime : un seul cadre flottant, pas deux.
         toast = g.WoWForeverGuildeDeath
         assert toast.shown is True and "WANTED" in toast.header.text
-        assert toast.footer.text == "Niveau 60 · Chaman · tueur recherché, prime 1"
+        assert (
+            toast.footer.text
+            == "Niveau 60 · Chaman · Forêt d'Elwynn · prime de 1 point sur Garrosh Hurlenfer"
+        )
         # Tête de mort rouge sur la carte, là où il a frappé, avec la prime en chiffre.
         ((icon, pin),) = list(g._PINS.added.items())
         assert (pin.map, pin.x, pin.y) == (1429, 0.25, 0.75)
@@ -1754,12 +1759,12 @@ class TestWanted:
         assert (entry.last.victim, entry.last.map) == ("Jaina", 1411)
         ((icon, pin),) = list(g._PINS.added.items())
         assert (pin.map, pin.x, pin.y) == (1411, 0.4, 0.6) and icon.points.text == "2"
-        assert toast.footer.text == "Niveau 60 · Mage · tueur recherché, prime 2"
+        assert toast.footer.text == "Niveau 60 · Mage · Durotar · prime de 2 points sur Garrosh Hurlenfer"
         g._NS.MapUI.ShowWantedTooltip(entry, icon)
         lines = list(g.GameTooltip.lines.values())
         assert lines[0] == "|cffffffffGarrosh Hurlenfer|r  WANTED"
         assert lines[1:5] == [
-            "WARRIOR · prime 2",
+            "WARRIOR · prime de 2 points",
             "a tué |cff69ccf0Jaina|r ici · à l'instant",
             "Durotar · Orgrimmar",
             "Victimes : Jaina, Thrall",
@@ -1774,7 +1779,7 @@ class TestWanted:
         assert (
             entry.points == 2
             and "WANTED" not in toast.header.text
-            and toast.footer.text == "Niveau 58 · PALADIN"
+            and toast.footer.text == "Niveau 58 · PALADIN · Marais"
         )
         receive(
             lua,
@@ -1789,7 +1794,7 @@ class TestWanted:
         assert (
             len(rows) == 2
             and "Garrosh Hurlenfer" in rows[1].text
-            and "prime 2" in rows[1].text
+            and "prime de 2 points" in rows[1].text
             and "Jaina" in rows[1].text
         )
         # Cinq minutes plus tard la tête de mort a disparu ; la prime, elle, reste.
@@ -1803,7 +1808,7 @@ class TestWanted:
             f"D\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t60\tGarrosh Hurlenfer\tDurotar\t\t{g._CLOCK.now}\t1\tWARRIOR\t1411\t0.5000\t0.5000",
         )
         assert entry.points == 3 and list(g._PINS.added.items()) == [] and "WANTED" in toast.header.text
-        assert toast.footer.text == "Niveau 60 · Mage · tué par un joueur"
+        assert toast.footer.text == "Niveau 60 · Mage · Durotar · mort en PvP"
         g._NS.Wanted.SetAlerts(True)
         assert len(list(g._PINS.added.items())) == 1
         # L'export porte les nouveaux champs de la mort ; le tableau Wanted reste local (le site le recalcule).
@@ -1862,10 +1867,11 @@ class TestWantedKills:
         )
         # Mon kill : popup or « Prime encaissée », sans ligne de chat.
         assert toast.shown is True and "Prime encaissée" in toast.header.text
-        assert toast.footer.text.startswith(
-            "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffGarrosh Hurlenfer|r · 1 point"
+        assert toast.footer.text.startswith("Prime de 1 point · ")
+        assert (
+            "|cff0070ddThrall Fils-de-Durotan|r" in toast.text.text and "Garrosh Hurlenfer" in toast.text.text
         )
-        assert not any("Prime :" in m for m in list(g._CHAT.values())[chat_before:])
+        assert not any("Prime encaissée :" in m for m in list(g._CHAT.values())[chat_before:])
         # Le « K » d'un guildien pour un autre recherché : popup aussi.
         toast.shown = False
         receive(
@@ -1873,7 +1879,8 @@ class TestWantedKills:
             f"K	1	Player-1-00000UTH	Uther Lumière	PALADIN	Vol'jin	3	1	{g._CLOCK.now}	1411	0.1000	0.2000	Durotar	Orgrimmar	SHAMAN",
             "Uther-Forever",
         )
-        assert toast.shown is True and "Vol'jin" in toast.footer.text
+        assert toast.shown is True and "Vol'jin" in toast.text.text
+        assert toast.footer.text == "Prime de 3 points · Durotar"
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_honorable_kill_is_read_from_the_retail_strings_links_and_unknown_messages(self):
@@ -2095,14 +2102,82 @@ class TestWantedKills:
         g.SlashCmdList.WOWFOREVERGUILDE("prime garrosh")
         toast = g.WoWForeverGuildeDeath
         assert toast.shown is True and "Prime encaissée" in toast.header.text
-        assert "Garrosh Hurlenfer" in toast.footer.text
-        assert any("Essai : popup pour" in m and "(prime 1)" in m for m in list(g._CHAT.values()))
+        assert "Garrosh Hurlenfer" in toast.text.text and toast.footer.text.startswith("Prime de 1 point · ")
+        assert any("Essai : popup pour" in m and "(prime de 1 point)" in m for m in list(g._CHAT.values()))
         char = g._NS.char
         assert (char.counters.pk or 0) == 0 and wanted_sent(g, "K") == []
         assert g.WoWForeverGuildeDB.wanted["garrosh hurlenfer"].kills == 0
         g.SlashCmdList.WOWFOREVERGUILDE("prime")
         assert any("/mf prime <nom>" in m for m in list(g._CHAT.values()))
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_popup_phrases_agree_with_whoever_fills_them(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        fill = g._NS.Phrases.Fill
+        # « de » et « à » se contractent ou s'élident selon le nom : une cause de mort porte son article.
+        template = "Sur recommandation {de_tueur}, face {a_tueur}."
+        assert [
+            fill(template, lua.table(tueur=killer)) for killer in ("le feu", "une chute", "Arthas", "Hogger")
+        ] == [
+            "Sur recommandation du feu, face au feu.",
+            "Sur recommandation d'une chute, face à une chute.",
+            "Sur recommandation d'Arthas, face à Arthas.",
+            "Sur recommandation de Hogger, face à Hogger.",
+        ]
+        # Majuscule en tête de chaque phrase, même quand un nom commun l'ouvre.
+        roles = lua.table(personnage="Thrall", tueur="une chute")
+        assert fill("{personnage} a tenté un truc. {tueur} a dit non.", roles) == (
+            "Thrall a tenté un truc. Une chute a dit non."
+        )
+        # Kill à plusieurs : le verbe suit.
+        template = "{tueur} {a|ont} livré."
+        assert fill(template, lua.table(tueur="Thrall")) == "Thrall a livré."
+        assert fill(template, lua.table(tueur="Thrall et Jaina"), True) == "Thrall et Jaina ont livré."
+        # Un nom coloré s'élide d'après son nom nu.
+        colored = lua.table(tueur=lua.table(plain="Uther", shown="|cfff58cbaUther|r"))
+        assert fill("Victoire {de_tueur}.", colored) == "Victoire d'|cfff58cbaUther|r."
+        # Tous les lots, avec chaque sorte de tueur : aucune variable oubliée, aucune faute de contraction.
+        text = lua.eval("""(function()
+          local ns, out = _NS, {}
+          for _, killer in ipairs({ "le feu", "une chute", "l'épuisement", "quelque chose", "Sanglier des Tarides", "Arthas" }) do
+            for _, t in ipairs(ns.PHRASES) do
+              out[#out + 1] = ns.Phrases.Fill(t, { personnage = "un adversaire", tueur = killer })
+            end
+          end
+          for _, plural in ipairs({ false, true }) do
+            for _, t in ipairs(ns.KILL_PHRASES) do
+              local hunters = plural and "Thrall et Uther" or "Uther"
+              out[#out + 1] = ns.Phrases.Fill(t, { personnage = "un adversaire", tueur = hunters }, plural)
+            end
+          end
+          for _, t in ipairs(ns.BOUNTY_PHRASES) do
+            out[#out + 1] = ns.Phrases.Fill(t, { chasseur = "Uther", ennemi = "Arthas" })
+          end
+          return table.concat(out, "\\n")
+        end)()""")
+        lines = text.split("\n")
+        assert len(lines) == 6 * 20 + 2 * 12 + 10
+        for line in lines:
+            assert line[0].isupper() and line[-1] in ".?!", line
+            for wrong in (
+                "{",
+                "}",
+                " de le feu",
+                " à le feu",
+                " de un",
+                " de Arthas",
+                " de Uther",
+                ". u",
+                ". l",
+                ". q",
+            ):
+                assert wrong not in line, line
+        assert not any("Thrall et Uther a " in line or "Thrall et Uther vient" in line for line in lines)
+        # Les avis de décès ont leur source à la racine du dépôt : les deux listes restent identiques.
+        source = (ADDON_DIR.parents[1] / "templates-morts").read_text(encoding="utf-8").splitlines()
+        assert source == list(g._NS.PHRASES.values())
 
     def test_every_honorable_kill_outside_battlegrounds_is_announced(self):
         lua = boot()
@@ -2112,13 +2187,11 @@ class TestWantedKills:
         honor = "Sylvanas meurt, victoire honorable (Points d'honneur estimés : 50)"
         g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", honor)
         toast = g.WoWForeverGuildeDeath
-        # Une phrase du lot des avis de décès : la victime dans le rôle du mort, moi dans celui du tueur.
+        # Une phrase du lot des victoires honorables, chasseur et victime dedans ; le pied dit où.
         assert toast.shown is True and "Victoire honorable" in toast.header.text
         assert "Sylvanas" in toast.text.text and "{" not in toast.text.text
-        assert (
-            toast.footer.text
-            == "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffSylvanas|r · Forêt d'Elwynn"
-        )
+        assert "|cff0070ddThrall Fils-de-Durotan|r" in toast.text.text
+        assert toast.footer.text == "Forêt d'Elwynn"
         (h,) = wanted_sent(g, "H")
         assert h.split("	")[:8] == [
             "H",
@@ -2131,25 +2204,17 @@ class TestWantedKills:
             "Forêt d'Elwynn",
         ]
         assert wanted_sent(g, "K") == [] and "sylvanas" not in dict(g.WoWForeverGuildeDB.wanted)
-        # Aucune phrase tirée ne cite le niveau ou la classe de la victime, que le jeu ne dit pas.
-        for _ in range(60):
-            assert "{" not in g._NS.Wanted.KillPhrase("Sylvanas", "Thrall", "Durotar")
         # Mon écho ne refait pas de popup. Crédit de groupe : le « H » d'un coéquipier pour la même victime n'en
-        # fait pas un second, il ajoute son nom au mien (même phrase, pied au pluriel) ; sa répétition ne change rien.
+        # fait pas un second, il ajoute son nom au mien (même phrase, accordée au pluriel) ; sa répétition ne
+        # change rien.
         toast.shown = False
         receive(lua, h, "Thrall-Forever")
         assert toast.shown is False
         toast.shown = True
-        phrase = toast.text.text
         mate = f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Sylvanas	{g._CLOCK.now}	Durotar		"
         receive(lua, mate)
-        assert (
-            toast.footer.text
-            == "|cff0070ddThrall Fils-de-Durotan|r et |cff69ccf0Jaina Portvaillant|r abattent |cffffffffSylvanas|r"
-            " · Forêt d'Elwynn"
-        )
-        if "Thrall Fils-de-Durotan" in phrase:
-            assert "|cff0070ddThrall Fils-de-Durotan|r et |cff69ccf0Jaina Portvaillant|r" in toast.text.text
+        assert toast.footer.text == "Forêt d'Elwynn"
+        assert "|cff0070ddThrall Fils-de-Durotan|r et |cff69ccf0Jaina Portvaillant|r" in toast.text.text
         toast.shown = False
         receive(lua, mate)
         assert toast.shown is False and len(wanted_sent(g, "H")) == 1
@@ -2160,7 +2225,7 @@ class TestWantedKills:
             f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Nazgrel	{g._CLOCK.now}	Durotar	Tranchecolline	SHAMAN",
         )
         assert toast.shown is True and "Victoire honorable" in toast.header.text
-        assert toast.footer.text == "|cff69ccf0Jaina Portvaillant|r abat |cff0070ddNazgrel|r · Durotar"
+        assert toast.footer.text == "Durotar"
         assert (
             "|cff0070ddNazgrel|r" in toast.text.text and "|cff69ccf0Jaina Portvaillant|r" in toast.text.text
         )
@@ -2221,17 +2286,17 @@ class TestWantedKills:
             lua,
             f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE	Rexxar	{kill}	Durotar		",
         )
-        assert toast.shown is True and "Rexxar" in toast.footer.text
+        assert toast.shown is True and "Rexxar" in toast.text.text
         g._ADVANCE(2)
         mate = f"H	1	Player-1-00000UTH	Uther Lumière	PALADIN	Rexxar	{kill + 1}	Durotar		"
         receive(lua, mate, "Uther-Forever")
-        assert toast.footer.text == (
-            "|cff69ccf0Jaina Portvaillant|r et |cffffffffUther Lumière|r abattent |cffffffffRexxar|r · Durotar"
-        )
+        assert toast.footer.text == "Durotar" and "Rexxar" in toast.text.text
+        assert "|cff69ccf0Jaina Portvaillant|r et |cffffffffUther Lumière|r" in toast.text.text
         third = f"H	1	Player-1-00000VAR	Varian Wrynn	WARRIOR	Rexxar	{kill + 2}	Durotar		"
         receive(lua, third, "Varian-Forever")
-        assert toast.footer.text.startswith(
-            "|cff69ccf0Jaina Portvaillant|r, |cffffffffUther Lumière|r et |cffffffffVarian Wrynn|r abattent "
+        assert (
+            "|cff69ccf0Jaina Portvaillant|r, |cffffffffUther Lumière|r et |cffffffffVarian Wrynn|r"
+            in toast.text.text
         )
         g._ADVANCE(30)
         toast.shown = False
@@ -2249,11 +2314,11 @@ class TestWantedKills:
             f"H	1	Player-1-00000UTH	Uther Lumière	PALADIN	Zaela	{g._CLOCK.now}	Durotar		",
             "Uther-Forever",
         )
-        assert "Saurfang" in toast.footer.text
+        assert "Saurfang" in toast.text.text
         g._ADVANCE(2)
-        assert "Saurfang" in toast.footer.text
+        assert "Saurfang" in toast.text.text
         g._ADVANCE(1)
-        assert toast.shown is True and "Zaela" in toast.footer.text
+        assert toast.shown is True and "Zaela" in toast.text.text
         # /mf api raconte les derniers popups : affiché, mis en attente, sorti de la file.
         source = g._NS.UI.ToastSource()
         assert "il y a 4 s affiché « Jaina Portvaillant abat Saurfang · Durotar »" in source
@@ -2308,9 +2373,7 @@ class TestWantedKills:
         g._ADVANCE(3)
         toast = g.WoWForeverGuildeDeath
         assert toast.shown is True and "Victoire honorable" in toast.header.text
-        assert toast.footer.text == (
-            "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffun adversaire|r · Forêt d'Elwynn"
-        )
+        assert toast.footer.text == "Forêt d'Elwynn" and "n adversaire" in toast.text.text
         assert "Morgul" not in toast.text.text and "{" not in toast.text.text
         (h,) = wanted_sent(g, "H")
         kill = g._CLOCK.now
@@ -2326,10 +2389,8 @@ class TestWantedKills:
         g._FIRE("UNIT_HEALTH", "target")
         g._ADVANCE(3)
         assert char.counters.pk == 1
-        assert (
-            toast.footer.text
-            == "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffGarrosh|r · Forêt d'Elwynn"
-        )
+        assert toast.footer.text == "Forêt d'Elwynn"
+        assert "Garrosh" in toast.text.text and "n adversaire" not in toast.text.text
         sent = wanted_sent(g, "H")
         assert len(sent) == 2 and sent[1].split("\t")[5:7] == ["Garrosh", str(kill)]
         # Chez un guildien : un « H » sans nom fait un popup ; celui d'un coéquipier du chasseur s'y ajoute ; le nom
@@ -2337,19 +2398,17 @@ class TestWantedKills:
         g._ADVANCE(120)
         t = g._CLOCK.now
         receive(lua, f"H\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\t\t{t}\tDurotar\t\t")
-        assert toast.footer.text == "|cff69ccf0Jaina Portvaillant|r abat |cffffffffun adversaire|r · Durotar"
+        assert toast.footer.text == "Durotar" and "n adversaire" in toast.text.text
         g._ADVANCE(1)
         receive(
             lua, f"H\t1\tPlayer-1-00000UTH\tUther Lumière\tPALADIN\t\t{t + 1}\tDurotar\t\t", "Uther-Forever"
         )
-        assert toast.footer.text == (
-            "|cff69ccf0Jaina Portvaillant|r et |cffffffffUther Lumière|r abattent |cffffffffun adversaire|r · Durotar"
-        )
+        assert "n adversaire" in toast.text.text
+        assert "|cff69ccf0Jaina Portvaillant|r et |cffffffffUther Lumière|r" in toast.text.text
         g._ADVANCE(5)
         receive(lua, f"H\t1\tPlayer-1-00000JAI\tJaina Portvaillant\tMAGE\tNazgrel\t{t}\tDurotar\t\tSHAMAN")
-        assert toast.footer.text == (
-            "|cff69ccf0Jaina Portvaillant|r et |cffffffffUther Lumière|r abattent |cff0070ddNazgrel|r · Durotar"
-        )
+        assert "|cff0070ddNazgrel|r" in toast.text.text and "n adversaire" not in toast.text.text
+        assert "|cff69ccf0Jaina Portvaillant|r et |cffffffffUther Lumière|r" in toast.text.text
         # Le popup a fait son temps : le nom qui arrive trop tard ne le rejoue pas.
         g._ADVANCE(120)
         t = g._CLOCK.now
@@ -2498,11 +2557,11 @@ class TestWantedKills:
             and "Prime encaissée" in toast.header.text
             and "Garrosh Hurlenfer" in toast.text.text
         )
-        assert (
-            toast.footer.text
-            == "|cff0070ddThrall Fils-de-Durotan|r abat |cffffffffGarrosh Hurlenfer|r · 1 point · Forêt d'Elwynn"
+        assert "|cff0070ddThrall Fils-de-Durotan|r" in toast.text.text
+        assert toast.footer.text == "Prime de 1 point · Forêt d'Elwynn"
+        assert any(
+            "Prime encaissée :" in m and "a abattu" in m and "1 point." in m for m in list(g._CHAT.values())
         )
-        assert any("Prime :" in m and "a abattu" in m for m in list(g._CHAT.values()))
         # Prime encaissée : sa tête de mort quitte la carte et il quitte le tableau, jusqu'à sa prochaine victime.
         assert list(g._PINS.added.items()) == [] and list(g._NS.Wanted.Sorted().values()) == []
         # Crédit de groupe : l'écho de mon « K » et celui d'un coéquipier pour le même kill ne comptent pas deux fois.
@@ -2535,7 +2594,7 @@ class TestWantedKills:
             "SHAMAN",
             "Uther Lumière",
         )
-        assert toast.shown is True and toast.footer.text.endswith("· 3 points · Durotar")
+        assert toast.shown is True and toast.footer.text == "Prime de 3 points · Durotar"
         # Les motifs viennent des chaînes du jeu (avec et sans rang).
         patterns = list(g._NS.Wanted.HonorPatterns().values())
         assert patterns[0] == "^(.-) meurt, victoire honorable Rang : " and patterns[1].startswith(
@@ -2632,7 +2691,7 @@ class TestWantedKills:
         assert (garrosh.points, garrosh.kills, garrosh.last.kind, garrosh.last.x) == (4, 2, "seen", 0.5)
         rows = list(g._NS.WantedUI.Lines().values())
         assert (
-            "prime 4" in rows[1].text
+            "prime de 4 points" in rows[1].text
             and "abattu 2 fois" in rows[1].text
             and "vu pour la dernière fois" in rows[1].text
         )
