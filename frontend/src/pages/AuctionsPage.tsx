@@ -120,7 +120,7 @@ export function AuctionsPage() {
       <Card className="mb-4 space-y-3">
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex-1 text-sm">
-            <span className="text-muted">Objet (nom ou ID)</span>
+            <span className="text-muted">Objet (nom français ou anglais, ou ID)</span>
             <Input
               value={query}
               placeholder="Ex. Étoffe de lin"

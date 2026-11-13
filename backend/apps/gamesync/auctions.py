@@ -3,6 +3,7 @@ Prix de l'hôtel des ventes : le compagnon du GM envoie chaque scan complet lu d
 scan, le site les garde tous et en tire l'historique de chaque objet. Envoi et lecture réservés au GM.
 """
 
+import unicodedata
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -157,9 +158,15 @@ def _items(ids) -> dict[int, dict]:
     ids, found = list(ids), {}
     for start in range(0, len(ids), ID_BATCH):
         batch = Item.objects.filter(id__in=ids[start : start + ID_BATCH])
-        for item in batch.values("id", "name", "quality", "icon"):
+        for item in batch.values("id", "name", "name_en", "quality", "icon"):
             found[item["id"]] = item
     return found
+
+
+def _fold(text: str) -> str:
+    """Minuscules sans accents ni ligatures, pour la recherche : « etoffe » trouve « Étoffe »."""
+    text = text.lower().replace("œ", "oe").replace("æ", "ae").replace("’", "'")
+    return "".join(c for c in unicodedata.normalize("NFD", text) if not unicodedata.combining(c))
 
 
 def _movement(price: int, listed: int | None, previous: tuple[int, int | None] | None) -> dict:
@@ -179,7 +186,7 @@ def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[d
     """Chaque objet du dernier scan avec son prix de référence, par nom ; puis les objets du scan de référence
     absents du dernier (plus aucune enchère), montrés par les seuls tris de mouvements. Gardé en cache :
     filtrer, trier ou changer de page ne relit pas les deux scans."""
-    key = f"gamesync:auctions:2:{latest.pk}:{baseline.pk if baseline else 0}"
+    key = f"gamesync:auctions:3:{latest.pk}:{baseline.pk if baseline else 0}"
     cached = cache.get(key)
     if cached is not None:
         return cached
@@ -194,6 +201,9 @@ def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[d
             "item_id": item_id,
             "name": item["name"] if item else f"Objet {item_id}",
             "known": item is not None,
+            # Ce que la recherche parcourt : le nom français et le nom anglais (le client du jeu peut être
+            # dans l'une ou l'autre langue), sans accents. Retiré de la réponse.
+            "search": _fold(f"{item['name']}\n{item['name_en']}") if item else "",
             "quality": item["quality"] if item else 1,
             "icon_url": icon_url(item["icon"]) if item else "",
             "price": price,
@@ -242,9 +252,9 @@ def overview(house: str = "", q: str = "", sort: str = "name", since: str = "pre
     if sort in MOVEMENT_SORTS:
         rows = rows + gone
 
-    needle = q.strip().lower()
+    needle = _fold(" ".join(q.split()))
     if needle:
-        rows = [r for r in rows if needle in r["name"].lower() or needle == str(r["item_id"])]
+        rows = [r for r in rows if needle in r["search"] or needle == str(r["item_id"])]
     if sort == "price":
         rows = sorted(rows, key=lambda r: (-r["price"], r["name"]))
     elif sort == "listed":
@@ -272,7 +282,10 @@ def overview(house: str = "", q: str = "", sort: str = "name", since: str = "pre
         "total": len(rows),
         "page": page,
         "pages": pages,
-        "results": rows[(page - 1) * PAGE_SIZE : page * PAGE_SIZE],
+        "results": [
+            {k: v for k, v in r.items() if k != "search"}
+            for r in rows[(page - 1) * PAGE_SIZE : page * PAGE_SIZE]
+        ],
     }
 
 

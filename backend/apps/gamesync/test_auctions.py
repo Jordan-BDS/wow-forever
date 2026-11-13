@@ -157,6 +157,25 @@ class TestRead:
         assert horde["baseline"] is None
         assert [(r["price"], r["change"]) for r in horde["results"]] == [(999, None)]
 
+    def test_search_reads_both_names_whatever_the_accents(self, api_client, as_user, gm, scans):
+        # Le scan nomme l'objet par son ID : seul l'index du site lui donne un nom, français et anglais.
+        Item.objects.create(
+            id=1716, name="Robe du Magus", name_en="Robe of the Magi", quality=3, icon="inv_chest_cloth_38"
+        )
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(minutes=-1)), [[1716, 35000, 4], [2589, 100, 3]])
+        as_user(gm)
+
+        def found(q):
+            data = api_client.get("/api/sync/auctions/", {"q": q}).json()
+            assert all("search" not in r for r in data["results"])
+            return [r["item_id"] for r in data["results"]]
+
+        assert found("robe of the magi") == [1716]  # nom anglais
+        assert found("  Robe  du magus ") == [1716]  # nom français, espaces en trop
+        assert found("etoffe") == [2589] and found("ÉTOFFE DE LIN") == [2589]  # accents et casse
+        assert found("1716") == [1716]
+        assert found("of the linen") == []  # pas à cheval sur les deux noms
+
     def test_biggest_movements_are_estimated_from_the_number_of_auctions(
         self, api_client, as_user, gm, items
     ):
