@@ -161,6 +161,42 @@ class TestImporter:
         assert Item.objects.get(pk=999999).name == "Objet Forever"
         assert Item.objects.get(pk=19019).name == "Renommé"
 
+    def test_items_without_a_sheet_take_the_fallback_one(self, db, tmp_path):
+        # La table ItemSparse de Forever n'a pas la fiche de tous les objets de sa table Item : celle de
+        # Classic Era la remplace, pour ces objets seulement.
+        seed()
+        directory = tmp_path / "wago"
+        shutil.copytree(SAMPLE, directory)
+        with (directory / "Item.csv").open("a", encoding="utf-8", newline="") as handle:
+            handle.write("1716,4,1,7,20,0,0,-1,132658,7,0,0,0,0,0,0,0\n")
+        header = (
+            "ID,Description_lang,Display_lang,OverallQualityID,ItemLevel,RequiredLevel,InventoryType,"
+            "AllowableClass,MaxCount,ItemSet,StatModifier_bonusStat_0,StatModifier_bonusAmount_0,"
+            "StatModifier_bonusStat_1,StatModifier_bonusAmount_1\n"
+        )
+        rows = (
+            "1716,,{robe},3,40,35,20,-1,0,0,5,6,6,5\n"
+            "19019,,{other},1,1,0,0,-1,0,0,-1,0,-1,0\n"
+            "424242,,{out},1,1,0,0,-1,0,0,-1,0,-1,0\n"
+        )
+        (directory / "Fallback.ItemSparse.csv").write_text(
+            header + rows.format(robe="Robe du Magus", other="Autre nom", out="Hors client"), encoding="utf-8"
+        )
+        (directory / "Fallback.ItemSparse.enUS.csv").write_text(
+            header + rows.format(robe="Robe of the Magi", other="Other name", out="Not in client"),
+            encoding="utf-8",
+        )
+        run = import_directory(directory, build="sample", product="wowf")
+        assert run.counts["items_fallback"] == 1 and run.counts["items"] == Item.objects.count()
+        robe = Item.objects.get(pk=1716)
+        assert (robe.name, robe.name_en) == ("Robe du Magus", "Robe of the Magi")
+        assert (robe.quality, robe.item_level, robe.required_level, robe.inventory_type) == (3, 40, 35, 20)
+        assert (robe.class_id, robe.subclass_id) == (4, 1)
+        assert robe.stats == {"intellect": 6, "spirit": 5}
+        # La fiche de Forever prime, et un objet que le client ne connaît pas n'entre pas.
+        assert Item.objects.get(pk=19019).name_en == "Thunderfury, Blessed Blade of the Windseeker"
+        assert not Item.objects.filter(pk=424242).exists()
+
 
 TRAITS = {
     "SkillLineXTraitTree": "ID,SkillLineID,TraitTreeID,Variant\n1,237,1112,0\n",

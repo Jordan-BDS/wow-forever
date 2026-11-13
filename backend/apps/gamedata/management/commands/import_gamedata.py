@@ -33,6 +33,12 @@ class Command(BaseCommand):
             self.stdout.write(f"Données {product} {build} → {directory}")
             downloaded = wago.download_tables(build, directory, force=options["force_download"])
             self.stdout.write(f"{len(downloaded)} table(s) téléchargée(s)")
+            if product != wago.FALLBACK_PRODUCT:
+                # Un échec ici ne doit pas empêcher l'import : il se fait alors sans ces fiches, comme avant.
+                try:
+                    wago.download_fallback_tables(directory, force=options["force_download"])
+                except Exception as error:  # noqa: BLE001
+                    self.stderr.write(f"Fiches d'objets de secours non téléchargées : {error}")
 
         missing = importer.missing_tables(directory)
         if missing:

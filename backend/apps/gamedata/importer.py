@@ -67,6 +67,13 @@ TRAIT_TABLES = [
     "TraitEdge",
 ]
 
+# Fiches d'objets de secours, facultatives. La table `ItemSparse` de Forever n'a pas de fiche pour quatre
+# objets sur dix (le client les reçoit du serveur, surtout des armures et des armes), alors que sa table
+# `Item` les connaît : sans fiche, pas de nom, et le site affiche « Objet 1716 ». Celles de Classic Era, même
+# numérotation, en couvrent la plupart. Une fiche de Forever prime toujours ; celle de secours ne sert
+# qu'aux objets que le client connaît et pour lesquels il n'en a pas.
+FALLBACK_TABLES = ["Fallback.ItemSparse", "Fallback.ItemSparse.enUS"]
+
 EFFECT_CREATE_ITEM = 24
 EFFECT_ENCHANT_ITEM = 53
 ENCHANT_EFFECT_STAT = 5
@@ -145,6 +152,23 @@ def item_stats(row: dict, rand_prop: dict) -> dict[str, int]:
     return stats
 
 
+def fallback_stats(row: dict) -> dict[str, int]:
+    """Statistiques d'une fiche de secours : Classic Era donne les valeurs telles quelles, pas un budget."""
+    stats = {}
+    for index in range(10):
+        stat_type = to_int(row.get(f"StatModifier_bonusStat_{index}"), -1)
+        amount = to_int(row.get(f"StatModifier_bonusAmount_{index}"))
+        if stat_type < 0 or amount == 0:
+            continue
+        name = STAT_TYPES.get(stat_type, f"stat_{stat_type}")
+        stats[name] = stats.get(name, 0) + amount
+    return stats
+
+
+def has_fallback_tables(directory: Path) -> bool:
+    return all((Path(directory) / f"{table}.csv").exists() for table in FALLBACK_TABLES)
+
+
 def import_items(data: ClientData) -> dict[str, int]:
     english = {r["ID"]: r["Display_lang"] for r in read(data.directory, "ItemSparse.enUS")}
     base = {r["ID"]: r for r in read(data.directory, "Item")}
@@ -176,17 +200,17 @@ def import_items(data: ClientData) -> dict[str, int]:
 
     protected = set(Item.objects.filter(is_forever=True).values_list("id", flat=True))
     items = []
-    for row in read(data.directory, "ItemSparse"):
-        item_id = to_int(row["ID"])
-        if item_id in protected or not row["Display_lang"]:
-            continue
+    seen: set[str] = set()
+
+    def add(row: dict, name_en: str, stats: dict[str, int]) -> None:
         extra = base.get(row["ID"], {})
         set_id = to_int(row["ItemSet"])
+        seen.add(row["ID"])
         items.append(
             Item(
-                id=item_id,
-                name=row["Display_lang"],
-                name_en=english.get(row["ID"], ""),
+                id=to_int(row["ID"]),
+                name=row["Display_lang"][:120],
+                name_en=name_en[:120],
                 quality=to_int(row["OverallQualityID"]),
                 item_level=to_int(row["ItemLevel"], 1),
                 required_level=to_int(row["RequiredLevel"]),
@@ -197,10 +221,27 @@ def import_items(data: ClientData) -> dict[str, int]:
                 is_unique=to_int(row["MaxCount"]) == 1,
                 item_set_id=set_id if set_id in known_sets else None,
                 icon=data.icons.get(extra.get("IconFileDataID", ""), "") or fallback_icon.get(row["ID"], ""),
-                stats=item_stats(row, data.rand_prop),
+                stats=stats,
                 description=row["Description_lang"][:255],
             )
         )
+
+    for row in read(data.directory, "ItemSparse"):
+        if to_int(row["ID"]) in protected or not row["Display_lang"]:
+            continue
+        add(row, english.get(row["ID"], ""), item_stats(row, data.rand_prop))
+    main_count = len(items)
+    if has_fallback_tables(data.directory):
+        fallback_english = {
+            r["ID"]: r["Display_lang"] for r in read(data.directory, "Fallback.ItemSparse.enUS")
+        }
+        for row in read(data.directory, "Fallback.ItemSparse"):
+            # Seulement les objets du client de Forever (table `Item`) restés sans fiche.
+            if row["ID"] in seen or row["ID"] not in base or not row["Display_lang"]:
+                continue
+            if to_int(row["ID"]) in protected:
+                continue
+            add(row, fallback_english.get(row["ID"], ""), fallback_stats(row))
     fields = [
         "name", "name_en", "quality", "item_level", "required_level", "inventory_type", "class_id",
         "subclass_id", "allowable_class", "is_unique", "item_set", "icon", "stats", "description",
@@ -208,7 +249,10 @@ def import_items(data: ClientData) -> dict[str, int]:
     count = 0
     for start in range(0, len(items), 2000):
         count += upsert(Item, items[start : start + 2000], fields)
-    return {"items": count, "item_sets": set_count}
+    counts = {"items": count, "item_sets": set_count}
+    if len(items) > main_count:
+        counts["items_fallback"] = len(items) - main_count
+    return counts
 
 
 # --- enchantements ----------------------------------------------------------------
