@@ -211,6 +211,7 @@ ns.L = setmetatable({
 ns.CHANGELOG = {
   { version = "0.7.3", notes = {
     "Annonces : prénom et nom partout où l'addon les connaît. Le guildien mort n'avait que son prénom ; le tueur et le joueur abattu prennent leur nom complet dès que tu les as ciblés ou survolés.",
+    "Compagnon : une mise à jour qui n'arrive pas à s'installer n'est plus relancée en boucle ; la fenêtre propose de télécharger la dernière version à la main.",
   } },
   { version = "0.7.2", notes = {
     "Séries de kills : deux joueurs abattus à moins de 18 s d'écart font un double kill, puis triple kill, killing spree, dominating, rampage, unstoppable et monster kill (8 et plus), annoncés à toute la guilde avec leur voix.",
