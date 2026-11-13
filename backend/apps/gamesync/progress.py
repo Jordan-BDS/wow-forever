@@ -11,6 +11,7 @@ talents, métiers…) de l'export le plus récent. Les fonctions de lecture reç
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -156,6 +157,24 @@ def _seed_bases(data: dict) -> dict[str, int]:
     return {str(install): int(at) for install, at in bases.items() if _is_number(at)}
 
 
+def _seed_at(data: dict) -> int | None:
+    """Quand le compagnon a recopié l'état du site dans ce fichier (epoch), ou None sans marque."""
+    at = _dict(data.get("seed")).get("at")
+    return int(at) if _is_number(at) else None
+
+
+def _day_of_epoch(at: int) -> date:
+    return datetime.fromtimestamp(at, UTC).astimezone(PARIS).date()
+
+
+def _base_snapshot(snapshots, install: str, limit: int) -> CharacterSnapshot | None:
+    """Le plus récent instantané de `install` daté au plus de `limit` (`snapshots` du plus récent au plus
+    ancien)."""
+    return next(
+        (b for b in snapshots if b.batch.install_id == install and _epoch(b.exported_at) <= limit), None
+    )
+
+
 def _since(data: dict, base: dict, limit: int, base_day: date) -> dict:
     """La part d'un instantané postérieure à `base` (l'export de la même installation déjà compris
     ailleurs) : compteurs, créatures et champs de bataille en différence, événements et journal après."""
@@ -180,39 +199,123 @@ def _since(data: dict, base: dict, limit: int, base_day: date) -> dict:
     return out
 
 
+# Ce qui ne peut que croître dans une même installation : si un export en a moins que celui qui a servi de
+# base à sa complétion, c'est la complétion qui a perdu des chiffres, pas le joueur.
+GUARDED_KEYS = ("counters", "journal", "events", "mobs", "previous_guids")
+GUARDED_PVP = ("bg", "hk_lifetime")
+
+
+def _max(a: Any, b: Any, key: str = "") -> Any:
+    """Le plus grand de deux états d'une même installation : dictionnaires clé à clé, nombres au maximum
+    (`first` au minimum), listes réunies (sans doublon), texte conservé."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        out = {k: deepcopy(v) for k, v in a.items()}
+        for k, v in b.items():
+            out[k] = _max(out[k], v, k) if k in out else deepcopy(v)
+        return out
+    if isinstance(a, list) and isinstance(b, list):
+        seen = {json.dumps(e, sort_keys=True) for e in a}
+        return deepcopy(a) + [deepcopy(e) for e in b if json.dumps(e, sort_keys=True) not in seen]
+    if _is_number(a) and _is_number(b):
+        return min(a, b) if key == "first" else max(a, b)
+    if a in (None, "", {}, []):
+        return deepcopy(b)
+    return deepcopy(a)
+
+
+def _guarded(data: dict, base: dict) -> dict | None:
+    """`data`, l'export le plus récent d'une installation, relevé au niveau de `base`, l'export de la même
+    installation que sa marque désigne : None si rien ne manquait (le cas normal), sinon l'état relevé, qui
+    reprend la marque de la base (celle que porte `data` vient d'une complétion qui a perdu des chiffres)."""
+    guarded = deepcopy(data)
+    for key in GUARDED_KEYS:
+        if key in base:
+            value = _max(data.get(key), base[key], key)
+            if key in data or value not in (None, {}, []):
+                guarded[key] = value
+    base_pvp = {
+        k: v for k, v in _dict(base.get("pvp")).items() if k in GUARDED_PVP and v not in (None, {}, 0)
+    }
+    if base_pvp:
+        pvp = _dict(data.get("pvp"))
+        guarded["pvp"] = {**pvp, **{k: _max(pvp.get(k), v, k) for k, v in base_pvp.items()}}
+    if guarded == data:
+        return None
+    if "seed" in base:
+        guarded["seed"] = deepcopy(base["seed"])
+    else:
+        guarded.pop("seed", None)
+    return guarded
+
+
+def _seeded_state(character: Character, snapshots, bases: dict[str, int]) -> dict | None:
+    """L'état que le compagnon a recopié dans une installation : la fusion des instantanés que sa marque
+    désigne (conservés par le nettoyage, `kept`). None s'il n'en reste aucun."""
+    sources = [
+        s
+        for s in snapshots
+        if s.batch.install_id in bases and _epoch(s.exported_at) <= bases[s.batch.install_id]
+    ]
+    return merge_installs(character, sources).data if sources else None
+
+
 def merge_installs(character: Character, snapshots: list[CharacterSnapshot]) -> MergedSnapshot:
     """Fusionne le dernier instantané de chaque installation. `snapshots` : tous les instantanés appliqués du
     personnage, du plus récent au plus ancien (les anciens servent de base quand une installation a été
-    recopiée dans une autre par le compagnon : on ne compte alors que ce qu'elle a fait depuis)."""
+    recopiée dans une autre par le compagnon : on ne compte alors que ce qu'elle a fait depuis).
+
+    Quand plusieurs installations portent une marque, la plus récente gagne : son fichier contient l'état
+    du site au moment de sa complétion, il est compté entier. Chaque autre installation n'apporte que ce
+    qu'elle a fait depuis l'export que ce fichier comprend (sa base dans la marque) ; si elle a elle-même été
+    complétée après cet export, son fichier contient aussi l'état du site d'alors, et elle n'apporte que ce
+    qu'elle a fait depuis cette complétion (différence avec l'état recopié, rejoué à partir des instantanés
+    conservés). Appliquer toutes les marques à la fois retranchait à chacune ce que l'autre contenait, et
+    le tronc commun n'était compté par personne."""
     latest = _latest_per_install(snapshots)
     primary = latest[0]
-    absorbed: dict[str, int] = {}
-    for s in latest:
-        for install, at in _seed_bases(_dict(s.data)).items():
-            if install != s.batch.install_id:
-                absorbed[install] = max(absorbed.get(install, 0), at)
-    parts: list[tuple[dict, date]] = []
     bases: dict[str, int] = {}
+    datas: dict[str, dict] = {}
     for s in latest:
         install = s.batch.install_id
         bases[install] = _epoch(s.exported_at)
         data = _dict(s.data)
-        limit = absorbed.get(install)
-        if limit is not None:
-            if _epoch(s.exported_at) <= limit:
-                continue  # entièrement comprise dans une autre installation
-            base = next(
-                (b for b in snapshots if b.batch.install_id == install and _epoch(b.exported_at) <= limit),
-                None,
-            )
-            if base is not None:
-                data = _since(data, _dict(base.data), limit, day_of(base))
-        parts.append((data, day_of(s)))
-    if not parts:
-        parts = [(_dict(primary.data), day_of(primary))]
+        own = _seed_bases(data).get(install)
+        if own is not None and (base := _base_snapshot(snapshots, install, own)) is not None:
+            data = _guarded(data, _dict(base.data)) or data
+        datas[install] = data
     if len(latest) == 1:
-        return MergedSnapshot(character, primary.exported_at, _dict(primary.data), 1, bases, latest)
-    data = {k: deepcopy(v) for k, v in _dict(primary.data).items() if k not in MERGED_KEYS}
+        return MergedSnapshot(
+            character, primary.exported_at, datas[primary.batch.install_id], 1, bases, latest
+        )
+
+    marked = [(at, s) for s in latest if (at := _seed_at(datas[s.batch.install_id])) is not None]
+    parts: list[tuple[dict, date]] = []
+    if not marked:
+        parts = [(datas[s.batch.install_id], day_of(s)) for s in latest]
+    else:
+        _, winner = max(marked, key=lambda m: (m[0], _epoch(m[1].exported_at)))
+        limits = _seed_bases(datas[winner.batch.install_id])
+        parts.append((datas[winner.batch.install_id], day_of(winner)))
+        for s in latest:
+            install = s.batch.install_id
+            if s is winner:
+                continue
+            data = datas[install]
+            limit = limits.get(install)
+            own_at = _seed_at(data)
+            if own_at is not None and (limit is None or own_at > limit):
+                seeded = _seeded_state(character, snapshots, _seed_bases(data))
+                if seeded is not None:
+                    parts.append((_since(data, seeded, own_at, _day_of_epoch(own_at)), day_of(s)))
+                    continue
+            if limit is not None:
+                if _epoch(s.exported_at) <= limit:
+                    continue  # entièrement comprise dans le gagnant
+                base = _base_snapshot(snapshots, install, limit)
+                if base is not None:
+                    data = _since(data, _dict(base.data), limit, day_of(base))
+            parts.append((data, day_of(s)))
+    data = {k: deepcopy(v) for k, v in datas[primary.batch.install_id].items() if k not in MERGED_KEYS}
 
     counters: dict = {}
     mobs: dict = {}

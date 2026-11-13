@@ -189,6 +189,109 @@ class TestInstalls:
         by_key = {cat["key"]: cat for cat in result["categories"]}
         assert [e["value"] for e in by_key["deaths"]["entries"]] == [12.0]  # 22 − 10
 
+    def test_the_most_recent_mark_wins_when_both_installs_are_seeded(self, member):
+        # Le fixe exporte ; le portable est complété (fixe compris jusqu'à EXPORTED) et exporte ; puis le fixe est
+        # complété à son tour (portable compris jusqu'à son export) et exporte. Chaque fichier contient l'autre :
+        # appliquer les deux marques retranchait le tronc commun des deux côtés (4 morts au lieu de 18).
+        import_for(member, thrall(), install="pc-fixe")
+        thrall_char = Character.objects.get(name="Thrall")
+        served = progress.companion_state(member)["characters"][0]
+        portable = character(
+            "Player-1-T", "Thrall",
+            counters={**served["counters"], "deaths": 16}, journal=served["journal"], mobs=served["mobs"],
+            events=served["events"], pvp=served["pvp"], seed={"at": EXPORTED + 300, "bases": served["bases"]},
+        )  # fmt: skip
+        portable["exported_at"] = EXPORTED + 600
+        import_for(member, portable, install="portable")
+        served = progress.companion_state(member)["characters"][0]
+        assert served["counters"]["deaths"] == 16
+        assert served["bases"] == {"pc-fixe": EXPORTED, "portable": EXPORTED + 600}
+        fixe = character(
+            "Player-1-T", "Thrall",
+            counters={**served["counters"], "deaths": 18, "kills": 125}, journal=served["journal"],
+            mobs=served["mobs"], events=served["events"], pvp=served["pvp"],
+            seed={"at": EXPORTED + 900, "bases": served["bases"]},
+        )  # fmt: skip
+        fixe["exported_at"] = EXPORTED + 1200
+        import_for(member, fixe, install="pc-fixe")
+        merged = progress.latest_snapshot(thrall_char)
+        c = merged.data["counters"]
+        assert merged.installs == 2 and (c["deaths"], c["kills"], c["hk"]) == (18, 125, 100)
+        assert merged.data["mobs"]["299"]["n"] == 70 and len(merged.data["events"]) == 3
+        assert merged.data["journal"]["2026-09-20"]["deaths"] == 10  # le journal du fixe, entier
+        # Le portable rejoue sans être recomplété : seule la différence depuis l'export que le fixe contient.
+        portable["counters"]["deaths"] = 17
+        portable["exported_at"] = EXPORTED + 1800
+        import_for(member, portable, install="portable")
+        merged = progress.latest_snapshot(thrall_char)
+        assert merged.data["counters"]["deaths"] == 19
+        assert merged.data["journal"]["2026-09-20"]["deaths"] == 10
+
+    def test_an_install_seeded_after_the_export_the_winner_holds_counts_only_its_own_play(self, member):
+        # Le fixe exporte (14 morts) ; le portable est complété et exporte (16, marque +300). Le fixe est complété
+        # à son tour (+900, 16 morts recopiées) mais ne réexporte pas tout de suite ; le portable, recomplété
+        # (+1200), exporte une mort de plus (17). Le fixe exporte enfin : 16 recopiées + 4 à lui = 20, marque +900.
+        # Le portable est compté entier (17) et le fixe pour ce qu'il a fait depuis sa complétion (4) : 21.
+        import_for(member, thrall(), install="pc-fixe")
+        thrall_char = Character.objects.get(name="Thrall")
+        served = progress.companion_state(member)["characters"][0]
+        portable = character(
+            "Player-1-T", "Thrall",
+            counters={**served["counters"], "deaths": 16}, journal=served["journal"], mobs=served["mobs"],
+            events=served["events"], pvp=served["pvp"], seed={"at": EXPORTED + 300, "bases": served["bases"]},
+        )  # fmt: skip
+        portable["exported_at"] = EXPORTED + 600
+        import_for(member, portable, install="portable")
+        served = progress.companion_state(member)["characters"][0]  # complétion du fixe, à +900
+        assert served["counters"]["deaths"] == 16
+        fixe_bases = served["bases"]
+        served = progress.companion_state(member)["characters"][0]  # recomplétion du portable, à +1200
+        portable = character(
+            "Player-1-T", "Thrall",
+            counters={**served["counters"], "deaths": 17}, journal=served["journal"], mobs=served["mobs"],
+            events=served["events"], pvp=served["pvp"], seed={"at": EXPORTED + 1200, "bases": served["bases"]},
+        )  # fmt: skip
+        portable["exported_at"] = EXPORTED + 1500
+        import_for(member, portable, install="portable")
+        fixe = character(
+            "Player-1-T", "Thrall",
+            counters={**served["counters"], "deaths": 20, "kills": 130}, journal=served["journal"],
+            mobs=served["mobs"], events=served["events"], pvp=served["pvp"],
+            seed={"at": EXPORTED + 900, "bases": fixe_bases},
+        )  # fmt: skip
+        fixe["exported_at"] = EXPORTED + 1800
+        import_for(member, fixe, install="pc-fixe")
+        merged = progress.latest_snapshot(thrall_char)
+        c = merged.data["counters"]
+        assert merged.installs == 2 and (c["deaths"], c["kills"], c["hk"]) == (21, 130, 100)
+        assert merged.data["mobs"]["299"]["n"] == 70 and len(merged.data["events"]) == 3
+        assert merged.data["journal"]["2026-09-20"]["deaths"] == 10
+
+    def test_a_completion_that_lost_figures_never_lowers_an_install(self, member):
+        # Le fixe exporte (14 morts), un portable aussi (5, jamais complété). Le fixe est complété par un site qui
+        # avait perdu des chiffres et réexporte moins qu'avant (3 morts, journal vide) avec la marque : l'export
+        # qui a servi de base le relève (14), et la marque, qui aurait exclu le portable, est écartée.
+        import_for(member, thrall(), install="pc-fixe")
+        thrall_char = Character.objects.get(name="Thrall")
+        portable = character("Player-1-T", "Thrall", counters={"deaths": 5}, journal={})
+        portable["exported_at"] = EXPORTED + 100
+        import_for(member, portable, install="portable")
+        served = progress.companion_state(member)["characters"][0]
+        assert served["counters"]["deaths"] == 19
+        assert served["bases"] == {"pc-fixe": EXPORTED, "portable": EXPORTED + 100}
+        lossy = character(
+            "Player-1-T", "Thrall",
+            counters={"deaths": 3, "kills": 5}, journal={}, events=[],
+            seed={"at": EXPORTED + 300, "bases": served["bases"]},
+        )  # fmt: skip
+        lossy["exported_at"] = EXPORTED + 600
+        import_for(member, lossy, install="pc-fixe")
+        merged = progress.latest_snapshot(thrall_char)
+        c = merged.data["counters"]
+        assert merged.installs == 2 and (c["deaths"], c["kills"], c["hk"]) == (14 + 5, 120, 100)
+        assert merged.data["mobs"]["299"]["n"] == 70 and len(merged.data["events"]) == 3
+        assert merged.data["journal"]["2026-09-20"]["deaths"] == 10
+
 
 class TestRankings:
     def test_week_deltas_by_player_and_character(self, member, other_member):

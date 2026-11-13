@@ -1298,6 +1298,36 @@ tableau de chasse, Wanted) affichent désormais le **nom de famille** en retrait
 le Wanted le transmettant dans leurs réponses ; les inscriptions aux événements et les artisans des recettes gardent le
 prénom seul.
 
+### Deux PC complétés chacun par le compagnon : la marque la plus récente gagne (13 novembre 2026, site seulement)
+
+Constat : un joueur qui passe d'un PC à l'autre, le compagnon tournant sur les deux, a vu le site retomber à une
+poignée de kills et un journal vide alors que chaque fichier `SavedVariables` était complet. Chaque PC avait été
+complété depuis le site, donc chaque export portait une marque désignant l'autre installation comme base. La fusion
+appliquait **toutes** les marques à la fois : l'installation A ne comptait que ce qu'elle avait fait depuis l'export
+que B contenait, et B que ce qu'elle avait fait depuis l'export que A contenait ; le tronc commun (toute l'histoire
+jusqu'à la dernière complétion) n'était compté par personne. Pire, le compagnon recopiait ensuite cet état amputé
+dans l'addon, fichier et marque compris.
+
+Désormais, dans `progress.merge_installs` :
+
+- **La marque la plus récente gagne** (c'était l'intention écrite le 7 novembre) : son installation contient l'état du
+  site au moment de sa complétion, elle est comptée **entière**. Chaque autre installation n'apporte que ce qu'elle a
+  fait depuis l'export que ce fichier comprend (sa base dans la marque gagnante) ; entièrement comprise, elle ne
+  compte pas.
+- Une installation **complétée après** l'export que le gagnant comprend (complétée, puis sans export avant que
+  l'autre PC le soit à son tour) contient elle aussi l'état du site d'alors : elle n'apporte que la différence avec
+  cet état, **rejoué** à partir des instantanés que sa propre marque désigne (conservés par le nettoyage, `kept`) ;
+  s'il n'en reste aucun, retour à la base du gagnant comme avant.
+- **Garde-fou** : dans une même installation les compteurs, créatures, journal et événements ne peuvent que croître.
+  Si l'export le plus récent en a moins que l'export de la même installation que sa marque désigne (une complétion
+  qui a recopié un état amputé), il est relevé à ce niveau (maximum clé à clé, `first` au minimum, listes réunies)
+  et sa marque, qui n'est pas fiable, laisse place à celle de l'export de base. Un PC dont le fichier a été écrasé
+  par un mauvais état ne perd ainsi que ce qu'il a joué entre la complétion et l'export suivant, jamais l'histoire.
+
+Rien ne change dans l'addon ni dans le compagnon ; les instantanés complets des deux PC étant conservés, les
+chiffres reviennent au déploiement, et une complétion suivante recopie l'état réparé. Testé dans `test_rankings.py`
+(`TestInstalls` : deux PC marqués, PC complété sans export intermédiaire, complétion ayant perdu des chiffres).
+
 ### API Battle.net de Forever : sonde et archive brute (7 novembre 2026, site seulement)
 
 L'API Battle.net couvre WoW Forever depuis le 5 novembre, sans documentation de Blizzard : espaces de noms
