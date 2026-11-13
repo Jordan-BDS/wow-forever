@@ -89,7 +89,11 @@ transporte le code jusqu'au site.
   une ligne de chat, et une **tête de mort rouge** (8e marqueur de raid, prime en chiffre) sur la carte et la minimap
   là où il a frappé, qui pâlit puis disparaît après 5 min. Onglet Wanted (`/mf wanted`) : ennemis par
   prime décroissante, dernière victime, lieu, âge ; survol : la même infobulle que sur la carte. Réglage « Alertes
-  Wanted ». **Kills par la guilde** (lot 2, 0.6.0) : le journal de combat étant interdit, c'est le **message de chat de
+  Wanted ». **Plaques de nom** (`NameplateUI.lua`) : la même tête de mort au-dessus de la plaque de nom d'un joueur
+  adverse qui a une prime à encaisser, posée à l'apparition de la plaque, relue quand le tableau change et à la fin
+  d'un combat ; en combat un nom secret est retrouvé par l'identifiant de l'unité s'il a été lu peu avant, sinon
+  l'icône attend la fin du combat ; rien en champ de bataille. Réglage « Afficher les primes » (coché par défaut).
+  **Kills par la guilde** (lot 2, 0.6.0) : le journal de combat étant interdit, c'est le **message de chat de
   victoire honorable** (`CHAT_MSG_COMBAT_HONOR_GAIN`) qui nomme le joueur abattu ; tout le groupe le reçoit (crédit de
   groupe). Le motif est construit depuis toutes les chaînes `COMBATLOG_HONORGAIN*` du client (nom en tête, texte
   jusqu'au marqueur suivant, quel qu'il soit), avec les chaînes des clients classique et 12.0 en secours ; les codes

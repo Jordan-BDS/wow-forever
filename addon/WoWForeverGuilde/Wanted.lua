@@ -169,6 +169,7 @@ end
 local function refresh(entry)
   if ns.MapUI then ns.MapUI.UpdateWanted(entry) end
   if ns.WantedUI then ns.WantedUI.Refresh() end
+  if ns.Nameplates then ns.Safe("plaques", ns.Nameplates.Refresh) end
 end
 
 -- --- morts -----------------------------------------------------------------------------------------------

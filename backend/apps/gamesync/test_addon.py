@@ -80,7 +80,7 @@ class TestLoading:
         ns = lua.globals()._NS
         names = sorted(ns.collectors[i].name for i in range(1, len(ns.collectors) + 1))
         assert names == sorted(
-            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions", "wanted", "mapui"]
+            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions", "wanted", "mapui", "nameplates"]
         )  # fmt: skip
         assert lua.globals().SlashCmdList.WOWFOREVERGUILDE is not None
         # Icône de la guilde (portrait de Samwise, « Temp ») sur les fenêtres et dans la liste des addons.
@@ -532,7 +532,7 @@ class TestSession:
             [
                 "sharePosition", "minimapDots", "minimapButton", "gankAlerts",
                 "showDeaths", "soundDeaths", "announceDeaths", "wantedAlerts",
-                "showStreaks", "soundStreaks",
+                "bountyPlates", "showStreaks", "soundStreaks",
                 "send", "sharePlaytime", "reloadReminder",
             ]
         )  # fmt: skip
@@ -3634,6 +3634,142 @@ class TestWantedKills:
         death("Garrosh", 5)
         assert sorted(wanted.keys()) == ["garrosh", "garrosh autre", "garrosh hurlenfer"]
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+
+class TestBountyPlates:
+    """Tête de mort sur la plaque de nom d'un joueur adverse recherché (réglage « Afficher les primes »)."""
+
+    GARROSH = "{ name = 'Garrosh', surname = 'Hurlenfer', class = 'WARRIOR', hostile = true, player = true, guid = 'Player-1-00000EVIL' }"
+
+    def start(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        return lua, g
+
+    def wanted(self, lua, g, killer="Garrosh Hurlenfer", offset=1):
+        lua.execute(
+            f"_NS.Wanted.RecordDeath({{ player = true, killer = '{killer}', guid = 'G{offset}',"
+            f" name = 'V', t = {g._CLOCK.now} + {offset} }})"
+        )
+
+    def test_a_wanted_enemy_gets_a_skull_on_its_plate_and_only_him(self):
+        lua, g = self.start()
+        marks = g._NS.Nameplates
+        assert g.WoWForeverGuildeDB.settings.bountyPlates is True
+        self.wanted(lua, g)
+        lua.execute(f"""
+          _UNITS = {{
+            nameplate1 = {self.GARROSH},
+            nameplate2 = {{ name = 'Varian', surname = 'Wrynn', hostile = true, player = true }},
+            nameplate3 = {{ name = 'Garrosh Hurlenfer', hostile = true }},
+            nameplate4 = {{ name = 'Garrosh', surname = 'Hurlenfer', player = true }},
+          }}
+        """)
+        for i in range(1, 5):
+            g._FIRE("NAME_PLATE_UNIT_ADDED", f"nameplate{i}")
+        icon = marks.Mark("nameplate1")
+        assert icon.shown is True and icon.parent.token == "nameplate1"
+        assert (icon.point[1], icon.point[2].token, icon.point[3]) == ("BOTTOM", "nameplate1", "TOP")
+        assert icon.skull.texture == "Interface\\TargetingFrame\\UI-RaidTargetingIcons"
+        # Ni le joueur sans prime, ni la créature du même nom, ni l'allié.
+        assert [marks.Mark(f"nameplate{i}") for i in (2, 3, 4)] == [None, None, None]
+        assert (
+            "1 plaque(s) marquée(s)"
+            in [c for c in g._NS.collectors.values() if c.name == "nameplates"][0].status()
+        )
+        # La plaque disparaît : l'icône est rendue, et resservira pour un autre.
+        lua.execute("_UNITS.nameplate1 = nil")
+        g._FIRE("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+        assert marks.Mark("nameplate1") is None and icon.shown is False
+        assert lua.eval("function(icon) return icon.parent == UIParent end")(icon) is True
+        lua.execute(f"_UNITS.nameplate7 = {self.GARROSH}")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate7")
+        assert lua.eval("function(icon) return _NS.Nameplates.Mark('nameplate7') == icon end")(icon) is True
+        assert icon.parent.token == "nameplate7"
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_the_skull_follows_the_table_and_the_setting(self):
+        lua, g = self.start()
+        marks = g._NS.Nameplates
+        lua.execute(f"_UNITS = {{ nameplate1 = {self.GARROSH} }}")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        assert marks.Mark("nameplate1") is None
+        # Il tue un membre pendant que sa plaque est affichée : la tête de mort arrive.
+        self.wanted(lua, g)
+        assert marks.Mark("nameplate1").shown is True
+        # Réglage décoché puis recoché (case de l'onglet Réglages).
+        g.SlashCmdList.WOWFOREVERGUILDE("reglages")
+        check = g.WoWForeverGuildeSettings.checks.bountyPlates
+        check.checked = False
+        check.scripts.OnClick(check)
+        assert g.WoWForeverGuildeDB.settings.bountyPlates is False and marks.Mark("nameplate1") is None
+        check.checked = True
+        check.scripts.OnClick(check)
+        assert marks.Mark("nameplate1").shown is True
+        # Prime encaissée par un guildien : la tête de mort s'en va.
+        lua.execute(f"""
+          _NS.Wanted.RecordKillMessage({{ name = 'Garrosh Hurlenfer', class = 'WARRIOR', points = 1, kills = 1,
+            t = {g._CLOCK.now} + 5, by = 'Jaina', byClass = 'MAGE', zone = '', sub = '' }}, 'Jaina')
+        """)
+        assert marks.Mark("nameplate1") is None
+        # Champ de bataille : le Wanted est hors jeu, les plaques aussi.
+        self.wanted(lua, g, offset=10)
+        assert marks.Mark("nameplate1").shown is True
+        lua.execute("_INSTANCE = 'pvp'")
+        g._FIRE("PLAYER_ENTERING_WORLD")
+        assert marks.Mark("nameplate1") is None
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_a_secret_name_in_combat_is_found_by_guid_or_after_the_fight(self):
+        lua, g = self.start()
+        marks = g._NS.Nameplates
+        self.wanted(lua, g)
+        self.wanted(lua, g, killer="Sylvanas Coursevent", offset=2)
+        # Garrosh a été lu hors combat ; en combat sa plaque revient avec un nom secret : reconnu par son identifiant.
+        lua.execute(f"_UNITS = {{ nameplate1 = {self.GARROSH} }}")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        lua.execute("_UNITS = {}")
+        g._FIRE("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+        lua.execute("""
+          _COMBAT = true
+          _UNITS = {
+            nameplate2 = { name = _SECRET, hostile = true, player = true, guid = 'Player-1-00000EVIL' },
+            nameplate3 = { name = _SECRET, hostile = true, player = true, guid = 'Player-1-00000SYL' },
+          }
+        """)
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate2")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate3")
+        assert marks.Mark("nameplate2").shown is True
+        # Sylvanas n'a jamais été lue : rien tant que son nom est secret, la tête de mort à la fin du combat.
+        assert marks.Mark("nameplate3") is None
+        lua.execute(
+            "_COMBAT = false; _UNITS.nameplate3.name = 'Sylvanas'; _UNITS.nameplate3.surname = 'Coursevent'"
+        )
+        g._FIRE("PLAYER_REGEN_ENABLED")
+        assert marks.Mark("nameplate3").shown is True and marks.Mark("nameplate2").shown is True
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_a_plate_the_game_keeps_for_itself_is_left_alone_and_noted_once(self):
+        lua, g = self.start()
+        marks = g._NS.Nameplates
+        self.wanted(lua, g)
+        lua.execute(f"_UNITS = {{ nameplate1 = {self.GARROSH}, nameplate2 = {self.GARROSH} }}")
+        # Le jeu ne donne pas le cadre de la plaque : pas d'icône, pas d'erreur.
+        lua.execute("_PLATES_FORBIDDEN = true")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        assert marks.Mark("nameplate1") is None
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+        # Le jeu refuse l'ancrage : noté une seule fois, dit par le diagnostic.
+        lua.execute("_PLATES_FORBIDDEN = nil; _PARENT_REFUSED = true")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate2")
+        assert marks.Mark("nameplate1") is None and marks.Mark("nameplate2") is None
+        errors = list(g.WoWForeverGuildeDB.errors.values())
+        assert [e.where for e in errors] == ["plaques"] and "SetParent refusé" in errors[0].error
+        status = [c for c in g._NS.collectors.values() if c.name == "nameplates"][0].status()
+        assert "ancrage refusé" in status
 
 
 class TestPureModules:

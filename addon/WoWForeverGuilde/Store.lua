@@ -44,6 +44,7 @@ function Store.Init()
   if s.gankAlerts == nil then s.gankAlerts = true end
   if s.rosterMyZone == nil then s.rosterMyZone = false end
   if s.wantedAlerts == nil then s.wantedAlerts = true end
+  if s.bountyPlates == nil then s.bountyPlates = true end
   if s.showStreaks == nil then s.showStreaks = true end
   if s.soundStreaks == nil then s.soundStreaks = true end
   s.excluded = s.excluded or {}

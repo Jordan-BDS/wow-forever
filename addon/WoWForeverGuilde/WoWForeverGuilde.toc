@@ -44,3 +44,4 @@ UI.lua
 MapUI.lua
 RosterUI.lua
 WantedUI.lua
+NameplateUI.lua

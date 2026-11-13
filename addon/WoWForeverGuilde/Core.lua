@@ -463,6 +463,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
     ns.Safe("logout", onLogout)
   elseif event == "PLAYER_REGEN_ENABLED" then
     flushDeferred()
+    dispatch(event, ...) -- les collecteurs qui écoutent la fin du combat (Wanted, plaques de nom)
   elseif event == "ADDON_ACTION_FORBIDDEN" or event == "ADDON_ACTION_BLOCKED" then
     -- Le jeu a refusé un appel réservé à son interface : ce n'est pas une erreur Lua, on la note nous-mêmes
     -- (chat, /mf erreurs, et le site au prochain envoi) avec le nom de la fonction, pour savoir quoi corriger.

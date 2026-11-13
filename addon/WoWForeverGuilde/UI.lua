@@ -598,6 +598,7 @@ local SETTINGS = {
     { "soundDeaths", L.SOUND_DEATHS },
     { "announceDeaths", L.ANNOUNCE_DEATHS },
     { "wantedAlerts", L.WANTED_ALERTS, function(on) ns.Wanted.SetAlerts(on) end },
+    { "bountyPlates", L.BOUNTY_PLATES, function(on) ns.Nameplates.SetEnabled(on) end },
     { "showStreaks", L.SHOW_STREAKS },
     { "soundStreaks", L.SOUND_STREAKS },
   } },

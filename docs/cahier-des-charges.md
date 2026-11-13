@@ -1506,6 +1506,16 @@ et la minimap, qui pâlit (100 % → 40 %) puis disparaît après 5 min ; infobu
 « Alertes Wanted » (défaut coché) : décoché, ni prime dans l'avis ni tête de mort, le tableau se remplit quand même
 (depuis la 0.6.4, les popups « WANTED » et « Prime encaissée » s'affichent dans tous les cas, seules les lignes
 de chat suivent la case).
+Plaques de nom (`NameplateUI.lua`) : réglage « Afficher les primes » (`bountyPlates`, défaut coché), tête de mort
+rouge ancrée au-dessus de la plaque de nom d'un joueur adverse dont la prime est à encaisser
+(`C_NamePlate.GetNamePlateForUnit` à `NAME_PLATE_UNIT_ADDED`, retirée à `NAME_PLATE_UNIT_REMOVED`), relue quand le
+tableau change, à la fin d'un combat et au changement de zone ; nom secret en combat : retrouvé par l'identifiant
+de l'unité s'il a été lu dans les dix dernières minutes, sinon l'icône attend la fin du combat ; rien en champ de
+bataille ni en arène. Un ancrage refusé par le jeu est noté une fois (où = « plaques ») et dit par `/mf api`. La fin
+du combat (`PLAYER_REGEN_ENABLED`) est désormais transmise aux collecteurs : elle ne l'était pas, et la lecture du
+cadavre ciblé « à la fin du combat » du Wanted ne se déclenchait donc que par les deux autres signaux. Testé dans
+l'environnement simulé (classe `TestBountyPlates`) ; à valider en jeu : l'ancrage sur une plaque ennemie, la
+position de l'icône, et la fréquence des noms secrets en combat.
 Le compagnon conserve `db.wanted` quand il recopie l'état du site (il ne touche qu'aux personnages). Testé dans
 l'environnement simulé (`test_addon.py`, classe `TestWanted`) ; à valider en jeu : `UnitIsPlayer` et `UnitClass` sur
 une cible adverse hors combat, et la texture du marqueur de raid sur le client Forever.

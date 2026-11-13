@@ -36,6 +36,7 @@ ns.L = setmetatable({
   SHARE_MINIMAP = "Points aussi sur la minimap",
   GANK_ALERTS = "Me prévenir quand un membre appelle à l'aide",
   WANTED_ALERTS = "Alertes Wanted : prime dans l'avis de décès, tête de mort sur la carte, lignes de chat",
+  BOUNTY_PLATES = "Afficher les primes : tête de mort sur la plaque de nom d'un ennemi recherché",
   WANTED_BUTTON = "Wanted",
   WANTED_EMPTY = "Aucune tête mise à prix : aucun membre équipé de l'addon n'a encore été tué par un joueur.",
   WANTED_HINT = "Un point par membre tué ; la prime retombe à zéro quand un membre l'encaisse. La tête de mort reste 5 min sur la carte, là où il a frappé.",

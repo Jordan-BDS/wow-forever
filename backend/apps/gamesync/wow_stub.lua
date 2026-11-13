@@ -59,12 +59,19 @@ C_NamePlate = { GetNamePlates = function()
   for token in pairs(_UNITS) do if token:match("^nameplate") then plates[#plates + 1] = { namePlateUnitToken = token } end end
   return plates
 end }
+-- Cadre de la plaque d'un jeton, le même tant que la plaque est affichée ; _PLATES_FORBIDDEN : le jeu n'en donne aucun.
+_PLATES = {}
+function C_NamePlate.GetNamePlateForUnit(token)
+  if _PLATES_FORBIDDEN or not _UNITS[token] then return nil end
+  _PLATES[token] = _PLATES[token] or { token = token }
+  return _PLATES[token]
+end
 function UnitIsInMyGuild() return false end
 
 -- Personnage joué.
 _PLAYER = { guid = "Player-1-000ABC01", name = "Thrall Fils-de-Durotan", realm = "Forever", class = { "Chaman", "SHAMAN" },
             race = { "Orc", "Orc" }, level = 60, faction = "Horde" }
-function UnitGUID(unit) if unit == "player" then return _PLAYER.guid end end
+function UnitGUID(unit) if unit == "player" then return _PLAYER.guid end local u = unitData(unit) return u and u.guid end
 -- Forever : « prénom, nom de famille » en deux valeurs (_NAME_SHAPE = "joined" : « Prénom Nom », royaume).
 function UnitName(unit)
   if unit ~= "player" then local u = unitData(unit) return u and u.name, u and u.surname end
@@ -256,6 +263,8 @@ local function newFrame(kind, name)
     f[m] = noop
   end
   function f:SetAlpha(a) self.alpha = a end
+  -- _PARENT_REFUSED : le jeu refuse de rattacher un cadre à une plaque de nom.
+  function f:SetParent(p) if _PARENT_REFUSED and p ~= UIParent then error("SetParent refusé") end self.parent = p end
   -- Le dernier ancrage posé est retenu : la fenêtre /mf relit le sien quand on la lâche.
   function f:SetPoint(...) self.point = { ... } end
   function f:GetPoint() if self.point then return unpack(self.point, 1, 5) end end
