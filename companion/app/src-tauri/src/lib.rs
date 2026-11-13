@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use companion_core::api::SiteClient;
 use companion_core::auctions::{self, AuctionOutcome};
-use companion_core::config::{default_dir, Config};
+use companion_core::config::{default_dir, Config, UpdateAttempt};
 use companion_core::sync::{pull_once, sync_once, PullOutcome, SyncOutcome};
 use companion_core::{addon, savedvars, wowdir};
 use notify::{RecursiveMode, Watcher};
@@ -51,6 +51,8 @@ struct AppState {
     candidates: Vec<String>,
     /// Dossier d'un autre client que Forever (Retail, Classic…) : le site refusera ses exports.
     game_dir_warning: Option<String>,
+    /// Version dont l'installation a été lancée sans aboutir (le compagnon tourne encore dans l'ancienne).
+    update_stuck: Option<String>,
 }
 
 /// Secondes depuis l'epoch : le front en fait une date locale.
@@ -90,6 +92,11 @@ fn snapshot(inner: &Inner) -> AppState {
                 "Ce dossier est celui du client {client}, pas de WoW Forever : le site refusera les personnages qui en viennent. Choisis le dossier _forever_ pour la guilde."
             )
         }),
+        update_stuck: config
+            .update_attempt
+            .as_ref()
+            .filter(|a| a.version != env!("CARGO_PKG_VERSION"))
+            .map(|a| a.version.clone()),
         last_sync: inner.last_sync.clone(),
         last_sync_at: inner.last_sync_at,
         last_pull: inner.last_pull.clone(),
@@ -407,6 +414,15 @@ fn restart_watcher(app: &AppHandle, shared: Shared) {
 const UPDATE_CHECK_INTERVAL: Duration = Duration::from_secs(600);
 /// Pas plus d'une vérification toutes les deux minutes, quoi qui la demande.
 const UPDATE_CHECK_MIN_GAP: u64 = 120;
+/// Après une installation restée sans effet : pas de nouvel essai automatique de la même version avant un jour.
+const UPDATE_RETRY_AFTER_FAILURE: u64 = 24 * 3600;
+/// Où prendre l'installateur à la main quand la mise à jour automatique n'aboutit pas.
+const RELEASES_URL: &str = "https://github.com/Jordan-BDS/wow-forever/releases/latest";
+
+#[tauri::command]
+fn open_releases() -> Result<(), String> {
+    tauri_plugin_opener::open_url(RELEASES_URL, None::<&str>).map_err(|e| e.to_string())
+}
 
 static LAST_UPDATE_CHECK: AtomicU64 = AtomicU64::new(0);
 static UPDATE_BUSY: AtomicBool = AtomicBool::new(false);
@@ -414,8 +430,9 @@ static UPDATE_BUSY: AtomicBool = AtomicBool::new(false);
 /// Vérifie `latest.json` de la dernière release GitHub ; s'il y a plus récent, télécharge, installe et
 /// redémarre (la fonction ne revient alors pas). Renvoie `Ok(None)` si le compagnon est à jour,
 /// `Ok(Some(version))` si une mise à jour a été trouvée mais n'a pas pu s'installer (détail dans `Err`).
-async fn try_update(app: &AppHandle) -> Result<Option<String>, String> {
+async fn try_update(app: &AppHandle, forced: bool) -> Result<Option<String>, String> {
     use tauri_plugin_updater::UpdaterExt;
+    let shared = app.state::<Shared>().inner().clone();
     let updater = app
         .updater()
         .map_err(|e| format!("mise à jour indisponible : {e}"))?;
@@ -425,11 +442,55 @@ async fn try_update(app: &AppHandle) -> Result<Option<String>, String> {
         .map_err(|e| format!("vérification impossible : {e}"))?;
     let Some(update) = update else {
         log::info!("compagnon à jour");
+        let mut inner = shared.lock().unwrap();
+        if inner.config.update_attempt.take().is_some() {
+            let _ = save(&inner);
+        }
         return Ok(None);
     };
     log::info!("mise à jour {} disponible", update.version);
+    // Sous Windows, l'installateur ferme le compagnon avant de le remplacer ; s'il n'y arrive pas il abandonne,
+    // et le compagnon relancé retentait aussitôt : la même erreur en boucle. Une installation déjà lancée pour
+    // cette version et restée sans effet n'est donc pas retentée toute seule avant un jour (le bouton, si).
+    if !forced {
+        let recent = shared
+            .lock()
+            .unwrap()
+            .config
+            .update_attempt
+            .as_ref()
+            .is_some_and(|a| {
+                a.version == update.version
+                    && now_secs().saturating_sub(a.at) < UPDATE_RETRY_AFTER_FAILURE
+            });
+        if recent {
+            log::warn!(
+                "mise à jour {} déjà tentée sans succès, pas de nouvel essai automatique",
+                update.version
+            );
+            let _ = app.emit("update-stuck", &update.version);
+            return Ok(Some(update.version.clone()));
+        }
+    }
     let _ = app.emit("update-available", &update.version);
-    match update.download_and_install(|_, _| {}, || {}).await {
+    let bytes = match update.download(|_, _| {}, || {}).await {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            log::warn!("téléchargement de la mise à jour impossible : {e}");
+            let _ = app.emit("update-failed", e.to_string());
+            return Err(format!("mise à jour {} impossible : {e}", update.version));
+        }
+    };
+    // Noté avant de lancer l'installateur : sous Windows le compagnon s'arrête dans `install`.
+    {
+        let mut inner = shared.lock().unwrap();
+        inner.config.update_attempt = Some(UpdateAttempt {
+            version: update.version.clone(),
+            at: now_secs(),
+        });
+        let _ = save(&inner);
+    }
+    match update.install(bytes) {
         Ok(()) => {
             log::info!("mise à jour installée, redémarrage");
             app.restart();
@@ -450,7 +511,7 @@ async fn check_for_update(app: AppHandle) {
         return;
     }
     LAST_UPDATE_CHECK.store(now_secs(), Ordering::SeqCst);
-    if let Err(e) = try_update(&app).await {
+    if let Err(e) = try_update(&app, false).await {
         log::warn!("{e}");
     }
     UPDATE_BUSY.store(false, Ordering::SeqCst);
@@ -476,7 +537,7 @@ async fn update_loop(app: AppHandle) {
 /// Bouton « Vérifier les mises à jour » : réponse lisible, ou erreur si la vérification échoue.
 #[tauri::command]
 async fn check_update(app: AppHandle) -> Result<String, String> {
-    match try_update(&app).await? {
+    match try_update(&app, true).await? {
         None => Ok(format!("Compagnon {} à jour.", env!("CARGO_PKG_VERSION"))),
         Some(version) => Ok(format!(
             "Mise à jour {version} en cours, le compagnon va redémarrer."
@@ -527,7 +588,8 @@ pub fn run() {
             install_addon,
             check_update,
             set_settings,
-            open_site
+            open_site,
+            open_releases
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

@@ -24,6 +24,16 @@ pub struct Config {
     pub last_fingerprints: std::collections::BTreeMap<String, String>,
     /// Horodatage du dernier scan de l'hôtel des ventes envoyé, par hôtel.
     pub last_auction_scans: std::collections::BTreeMap<String, i64>,
+    /// Dernière mise à jour du compagnon lancée (l'installateur est parti). Encore là au lancement suivant
+    /// avec une version différente de celle qui tourne : l'installation a échoué.
+    pub update_attempt: Option<UpdateAttempt>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct UpdateAttempt {
+    pub version: String,
+    /// Secondes depuis l'epoch.
+    pub at: u64,
 }
 
 impl Default for Config {
@@ -37,6 +47,7 @@ impl Default for Config {
             autostart: true,
             last_fingerprints: Default::default(),
             last_auction_scans: Default::default(),
+            update_attempt: None,
         }
     }
 }

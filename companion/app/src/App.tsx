@@ -16,6 +16,7 @@ export function App() {
       api.onPull((outcome) => setState((s) => (s ? { ...s, last_pull: outcome, last_pull_at: Math.floor(Date.now() / 1000) } : s))),
       api.onAuctions((outcomes) => setState((s) => (s ? { ...s, last_auctions: outcomes } : s))),
       api.onUpdateAvailable((version) => setUpdating(version)),
+      api.onUpdateStuck((version) => setState((s) => (s ? { ...s, update_stuck: version } : s))),
       api.onUpdateFailed((e) => {
         setUpdating(null);
         setError(`Mise à jour impossible : ${e}`);
@@ -41,7 +42,20 @@ export function App() {
       </header>
       <main className="main">
         {updating && <div className="card">Mise à jour vers la version {updating} en cours, le compagnon va redémarrer…</div>}
-        {state.game_dir_warning && <div className="card warn">{state.game_dir_warning}</div>}
+        {state.update_stuck && !updating && (
+          <div className="card warn">
+            La mise à jour {state.update_stuck} n'a pas pu s'installer : l'installateur n'a pas réussi à fermer le compagnon.
+            Elle ne sera pas retentée toute seule avant demain. Télécharge l'installateur, quitte le compagnon (clic droit sur
+            son icône près de l'horloge, « Quitter »), puis lance l'installateur.
+            <div className="row">
+              <button className="primary" onClick={() => api.openReleases().catch((e) => setError(String(e)))}>
+                Télécharger la dernière version
+              </button>
+              <button onClick={() => api.checkUpdate().catch((e) => setError(String(e)))}>Réessayer maintenant</button>
+            </div>
+          </div>
+        )}
+        {state.game_dir_warning &&<div className="card warn">{state.game_dir_warning}</div>}
         {error && <div className="card ko">{error}</div>}
         {step === "gamedir" && <GameDirStep state={state} onDone={refresh} onError={setError} />}
         {step === "pair" && <PairStep state={state} onDone={refresh} onError={setError} />}

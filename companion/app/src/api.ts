@@ -20,6 +20,7 @@ export type AppState = {
   last_auctions: AuctionOutcome[] | null;
   candidates: string[];
   game_dir_warning: string | null;
+  update_stuck: string | null; // version dont l'installation n'a pas abouti
 };
 
 export type SyncOutcome =
@@ -55,6 +56,9 @@ export const api = {
   setSettings: (settings: { autostart?: boolean; site_url?: string }) =>
     invoke<AppState>("set_settings", { settings }),
   openSite: (path: string) => invoke<void>("open_site", { path }),
+  openReleases: () => invoke<void>("open_releases"),
+  onUpdateStuck: (handler: (version: string) => void): Promise<UnlistenFn> =>
+    listen<string>("update-stuck", (e) => handler(e.payload)),
   onSync: (handler: (outcomes: SyncOutcome[]) => void): Promise<UnlistenFn> =>
     listen<SyncOutcome[]>("sync-result", (e) => handler(e.payload)),
   onPull: (handler: (outcome: PullOutcome) => void): Promise<UnlistenFn> =>
