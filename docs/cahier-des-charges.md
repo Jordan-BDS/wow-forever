@@ -1516,6 +1516,18 @@ du combat (`PLAYER_REGEN_ENABLED`) est désormais transmise aux collecteurs : el
 cadavre ciblé « à la fin du combat » du Wanted ne se déclenchait donc que par les deux autres signaux. Testé dans
 l'environnement simulé (classe `TestBountyPlates`) ; à valider en jeu : l'ancrage sur une plaque ennemie, la
 position de l'icône, et la fréquence des noms secrets en combat.
+Kills que le jeu ne nomme pas (la plupart sur Forever : « Vous avez reçu N points d'honneur », rien sous la cible) :
+le collecteur PvE retient les joueurs adverses vus mourir (`UNIT_HEALTH` d'une plaque de nom, de la cible, du survol
+ou du focus, et `NAME_PLATE_UNIT_REMOVED`), à l'heure de la première fois, oubliés dès qu'ils sont revus vivants. Quand
+le compteur de victoires honorables bouge sans victime lisible, le seul vu mourir dans les 5 s d'avant
+(`WANTED_DEAD_WINDOW`) et pas déjà compté donne son nom au kill (journal : « vu mourir ») ; plusieurs : on ne tranche
+pas (« plusieurs vus mourir »), le kill reste sans nom. Un kill lu au compteur n'est jamais le nom tardif d'un kill
+sans nom précédent (deux kills à 22 s d'écart étaient fusionnés). À valider en jeu : que `UnitIsDeadOrGhost` se lise
+sur une plaque au moment de la mort.
+Dialogues de l'addon (transfert, rappel de sauvegarde, mise à jour) : fenêtre propre `WoWForeverGuildeDialog`, file
+d'attente d'une question à la fois, plus aucun `StaticPopup` du jeu (les afficher et y écrire `dialog.data` les
+contaminait : `ADDON_ACTION_BLOCKED` sur `CancelLogout()`, hypothèse à confirmer par l'absence de ce refus dans les
+prochains journaux). Pas de fermeture par Échap.
 Le compagnon conserve `db.wanted` quand il recopie l'état du site (il ne touche qu'aux personnages). Testé dans
 l'environnement simulé (`test_addon.py`, classe `TestWanted`) ; à valider en jeu : `UnitIsPlayer` et `UnitClass` sur
 une cible adverse hors combat, et la texture du marqueur de raid sur le client Forever.

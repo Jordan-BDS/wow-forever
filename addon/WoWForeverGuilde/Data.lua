@@ -102,6 +102,7 @@ ns.Data.WANTED_RESEND_DELAY = 5 -- s entre deux essais d'envoi d'un « K » ou d
 ns.Data.WANTED_RESEND_MAX = 45 -- s après le kill : plus d'essai (sous WANTED_KILL_DEDUPE, pour ne pas recompter un « K »)
 ns.Data.WANTED_HONOR_DEDUPE = 15 -- s : deux victoires honorables sur la même victime à moins de ce délai (le groupe) font un popup
 ns.Data.KILL_LOG_LINES = 14 -- lignes du journal des kills de la session, noté avec les erreurs à la déconnexion
+ns.Data.WANTED_DEAD_WINDOW = 5 -- s avant que le compteur de kills bouge : un seul joueur adverse vu mourir dans ce délai donne son nom au kill
 ns.Data.WANTED_NAMELESS_ADOPT = 90 -- s : un kill sans nom prend le nom lu ensuite (cadavre ciblé après le combat) au lieu d'en compter un second
 ns.Data.WANTED_HUNTERS = 5 -- chasseurs nommés au plus dans un popup de victoire honorable (kill à plusieurs)
 ns.Data.WANTED_HUNTERS_KEPT = 40 -- chasseurs retenus pour un même kill (un raid) : les premiers par ordre alphabétique sont nommés

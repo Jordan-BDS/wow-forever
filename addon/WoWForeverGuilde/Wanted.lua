@@ -420,8 +420,9 @@ end
 
 --- Le compteur de victoires honorables du personnage a bougé (PLAYER_PVP_KILLS_CHANGED) : filet quand le message
 --- de chat manque ou n'est pas reconnu. On lui laisse WANTED_KILL_WINDOW s ; sans kill lu entre-temps, celui-ci
---- compte, nommé d'après le joueur mort regardé (lu tout de suite : la cible peut disparaître), sans nom sinon
---- (compteur `pk` et événement, mais pas de Wanted faute de nom).
+--- compte, nommé d'après le joueur mort regardé (lu tout de suite : la cible peut disparaître), sinon d'après le
+--- seul joueur adverse vu mourir dans les WANTED_DEAD_WINDOW s d'avant (collecteur PvE), sans nom sinon (compteur
+--- `pk` et événement, mais pas de Wanted faute de nom).
 function Wanted.OnKillsChanged(char)
   local hk = lifetimeKills()
   if hk == nil then
@@ -442,6 +443,19 @@ function Wanted.OnKillsChanged(char)
   local victim, probe = deadPlayerAround()
   C_Timer.After(ns.Data.WANTED_KILL_WINDOW, function()
     if lastKillAt >= at then return end -- le message est arrivé entre-temps
+    -- Personne de mort sous mes yeux (cible, survol, focus…) : le seul joueur adverse vu mourir juste avant, sur
+    -- sa plaque de nom ou ailleurs, et pas déjà compté. Plusieurs : on ne tranche pas, le kill reste sans nom.
+    if victim == "" and ns.DeadEnemiesSince then
+      local found, several = nil, false
+      for _, seen in ipairs(ns.DeadEnemiesSince(at - ns.Data.WANTED_DEAD_WINDOW)) do
+        if not countedRecently(seen.name, ns.now(), ns.Data.WANTED_DEAD_WINDOW + ns.Data.WANTED_KILL_WINDOW) then
+          found, several = seen.name, found ~= nil
+        end
+      end
+      if found and not several then victim = found end
+      local note = several and "plusieurs vus mourir" or (found and "vu mourir" or nil)
+      if note then probe = probe ~= "" and (probe .. ", " .. note) or note end
+    end
     local unread = lastHonor and at - lastHonor.t < ns.Data.WANTED_KILL_WINDOW and lastHonor.text or "(aucun message)"
     lastHonor = { t = ns.now(), text = string.format("%s, victoires honorables %d → %d", unread, before, hk),
       name = victim ~= "" and victim or nil, how = "compteur" }

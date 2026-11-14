@@ -71,6 +71,19 @@ def wanted_sent(g, kind: str) -> list[str]:
     return [s.text for s in g._ADDON_SENT.values() if s.text.startswith(kind + "\t")]
 
 
+def popup(g):
+    """Le dialogue de l'addon à l'écran (`which`, `message`), None s'il n'y en a pas."""
+    frame = g.WoWForeverGuildeDialog
+    return frame if frame is not None and frame.shown else None
+
+
+def dismiss(g) -> None:
+    """Ferme le dialogue de l'addon sans répondre."""
+    frame = g.WoWForeverGuildeDialog
+    if frame is not None:
+        frame.Hide(frame)
+
+
 class TestLoading:
     def test_every_lua_file_is_listed_in_the_toc_and_loads(self):
         listed = set(toc_files())
@@ -550,7 +563,7 @@ class TestSession:
         click("wantedAlerts", False)
         assert settings.wantedAlerts is False
         # Le rappel de sauvegarde se recoche ici (le dialogue ne savait que le couper).
-        g.StaticPopupDialogs.WFG_RELOAD.OnAlt()
+        g._NS.UI.Dialogs.WFG_RELOAD.OnAlt()
         assert settings.reloadReminder is False
         click("reloadReminder", True)
         assert settings.reloadReminder is True
@@ -901,12 +914,46 @@ class TestSession:
         g = lua.globals()
         login(lua)
         g._ADVANCE(2 * 3600)
-        assert g._POPUP is None
+        assert popup(g) is None
         g._ADVANCE(3600 + 60)
-        assert g._POPUP.which == "WFG_RELOAD" and "3 h" in g._POPUP.text
-        g._POPUP = None
+        assert popup(g).which == "WFG_RELOAD" and "3 h" in popup(g).message
+        dismiss(g)
         g._ADVANCE(3600)
-        assert g._POPUP is None  # une seule fois par session
+        assert popup(g) is None  # une seule fois par session
+
+    def test_dialogs_are_the_addon_own_window_never_the_game_static_popups(self):
+        # Vu en jeu : ADDON_ACTION_BLOCKED sur CancelLogout(). Un addon qui affiche un StaticPopup du jeu le
+        # contamine ; l'addon a donc sa propre fenêtre, et ne touche plus à celles du jeu.
+        lua = boot()
+        g = lua.globals()
+        lua.execute("StaticPopup_Show = function() _STATIC_POPUP_USED = true end")
+        login(lua)
+        ui = g._NS.UI
+        assert len(list(g.StaticPopupDialogs.keys())) == 0
+        ui.SuggestReload(3 * 3600)
+        frame = popup(g)
+        assert frame.which == "WFG_RELOAD" and "3 h" in frame.message
+        labels = [b.text for b in frame.buttons.values() if b.shown]
+        assert len(labels) == 3
+        # Une seconde question attend son tour ; la même question n'est pas empilée deux fois.
+        ui.SuggestUpgrade("9.9.9")
+        ui.SuggestUpgrade("9.9.9")
+        ui.SuggestReload(3 * 3600)
+        assert popup(g).which == "WFG_RELOAD"
+        # Troisième bouton : « ne plus demander ». Le dialogue se ferme, le suivant arrive, avec ses deux boutons.
+        frame.buttons[3].scripts.OnClick(frame.buttons[3])
+        assert g.WoWForeverGuildeDB.settings.reloadReminder is False
+        assert popup(g).which == "WFG_UPGRADE" and "9.9.9" in popup(g).message
+        assert len([b for b in frame.buttons.values() if b.shown]) == 2
+        # Deuxième bouton : plus tard. Rien ne se passe, plus rien n'attend.
+        frame.buttons[2].scripts.OnClick(frame.buttons[2])
+        assert popup(g) is None and g._RELOADED is None
+        # Premier bouton : la fonction du dialogue reçoit sa donnée.
+        ui.SuggestUpgrade("9.9.9")
+        frame.buttons[1].scripts.OnClick(frame.buttons[1])
+        assert g._RELOADED is True and g.WoWForeverGuildeDB.upgradeTried.version == "9.9.9"
+        assert g._STATIC_POPUP_USED is None
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_transfer_detection_merges_counters(self):
         lua = boot()
@@ -916,7 +963,7 @@ class TestSession:
             counters = { deaths = 9, kills = 4 }, mobs = { ["299"] = { n = 4, name = "Loup", first = 1, last = 2 } }, journal = {}, events = {}, previous_guids = {}, created_at = 1, updated_at = 2, counting_since = 1 } } }
         """)
         login(lua)
-        assert g._POPUP.which == "WFG_TRANSFER" and "Thrall (Chaman, niveau 58)" in g._POPUP.text
+        assert popup(g).which == "WFG_TRANSFER" and "Thrall (Chaman, niveau 58)" in popup(g).message
         ns = g._NS
         ns.char.mobs["299"] = lua.table(n=1, name="Loup", first=5, last=6)
         ns.Store.Merge(ns.char, g.WoWForeverGuildeDB.characters["Player-1-OLD"])
@@ -1957,26 +2004,30 @@ _NS.MapUI.UsePins(lib)
         receive(lua, JAINA + "\t\t" + toc_version())  # 13e champ : recherche de groupe vide ; 14e : version
         receive(lua, JAINA + "\t\t0.1.0")
         receive(lua, JAINA)
-        assert g._POPUP is None and not any("disponible" in m for m in list(g._CHAT.values()))
+        assert popup(g) is None and not any("disponible" in m for m in list(g._CHAT.values()))
         # Plus récente chez un seul guildien, même répétée : rien (une version de développement ne dérange personne).
         receive(lua, JAINA + "\t\t9.9.9")
         receive(lua, JAINA + "\t\t9.9.9")
         g._ADVANCE(60)
-        assert g._POPUP is None and not any("disponible" in m for m in list(g._CHAT.values()))
+        assert popup(g) is None and not any("disponible" in m for m in list(g._CHAT.values()))
         # Un second l'a aussi, mais en combat : ligne de chat tout de suite, popup remis à la sortie du combat.
         lua.execute("_COMBAT = true")
         receive(lua, uther + "\t\t9.9.9", "Uther-Forever")
         assert any("Addon 9.9.9 disponible" in m and toc_version() in m for m in list(g._CHAT.values()))
-        assert g._POPUP is None
+        assert popup(g) is None
         lua.execute("_COMBAT = false")
         g._ADVANCE(60)
-        assert g._POPUP.which == "WFG_UPGRADE" and "9.9.9" in g._POPUP.text and toc_version() in g._POPUP.text
+        assert (
+            popup(g).which == "WFG_UPGRADE"
+            and "9.9.9" in popup(g).message
+            and toc_version() in popup(g).message
+        )
         # Une seule fois par version et par session ; accepter retient la tentative puis recharge l'interface.
-        g._POPUP = None
+        dismiss(g)
         receive(lua, JAINA + "\t\t9.9.9")
         g._ADVANCE(60)
-        assert g._POPUP is None and g.WoWForeverGuildeDB.upgradeTried is None
-        g.StaticPopupDialogs.WFG_UPGRADE.OnAccept()
+        assert popup(g) is None and g.WoWForeverGuildeDB.upgradeTried is None
+        g._NS.UI.Dialogs.WFG_UPGRADE.OnAccept()
         assert g._RELOADED is True
         tried = g.WoWForeverGuildeDB.upgradeTried
         assert (tried.version, tried.n, tried.t) == ("9.9.9", 1, g._CLOCK.now)
@@ -2012,21 +2063,21 @@ _NS.MapUI.UsePins(lib)
         missing = [m for m in list(g._CHAT.values()) if "toujours pas sur ce PC" in m]
         assert len(missing) == 1 and "9.9.9" in missing[0] and "Vérifier les mises à jour" in missing[0]
         g._ADVANCE(10 * 60)
-        assert g._POPUP is None
+        assert popup(g) is None
         # Un quart d'heure après, le compagnon a pu arriver : une seconde proposition, la dernière.
         g._ADVANCE(6 * 60)
-        assert g._POPUP.which == "WFG_UPGRADE" and "9.9.9" in g._POPUP.text
-        g.StaticPopupDialogs.WFG_UPGRADE.OnAccept(None, "9.9.9")
+        assert popup(g).which == "WFG_UPGRADE" and "9.9.9" in popup(g).message
+        g._NS.UI.Dialogs.WFG_UPGRADE.OnAccept(None, "9.9.9")
         assert g.WoWForeverGuildeDB.upgradeTried.n == 2
         # Deux rechargements sans effet : plus de popup pour cette version, quelle que soit l'attente.
         lua, g = session(2, 10**6)
         g._ADVANCE(3600)
-        assert g._POPUP is None and any("toujours pas sur ce PC" in m for m in list(g._CHAT.values()))
+        assert popup(g) is None and any("toujours pas sur ce PC" in m for m in list(g._CHAT.values()))
         # Une version encore plus récente repart de zéro.
         receive(lua, JAINA + "\t\t10.0.0")
         receive(lua, uther + "\t\t10.0.0", "Uther-Forever")
         g._ADVANCE(60)
-        assert g._POPUP.which == "WFG_UPGRADE" and "10.0.0" in g._POPUP.text
+        assert popup(g).which == "WFG_UPGRADE" and "10.0.0" in popup(g).message
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_version_comes_from_the_code_not_from_the_toc_the_game_loaded(self):
@@ -2051,7 +2102,7 @@ _NS.MapUI.UsePins(lib)
             "Uther-Forever",
         )
         g._ADVANCE(60)
-        assert g._POPUP is None and not any("disponible" in m for m in list(g._CHAT.values()))
+        assert popup(g) is None and not any("disponible" in m for m in list(g._CHAT.values()))
         # Il dit seulement de relancer le jeu, qui n'a pas relu la liste des fichiers.
         assert any("relance le jeu" in m and "0.0.1" in m for m in list(g._CHAT.values()))
         # Jeu relancé : plus rien à dire.
@@ -3344,6 +3395,70 @@ class TestWantedKills:
         log = g._NS.Wanted.KillLog()
         assert "c'est le kill sans nom" not in log and "kill « Lool Xd » : popup" in log
         assert "Lool Xd" in g.WoWForeverGuildeDeath.text.text
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_a_kill_the_game_does_not_name_takes_the_name_of_the_enemy_seen_dying(self):
+        # Forever ne nomme pas la victime et, en combat, rien n'est sous la cible ni le survol. Mais sa plaque de nom
+        # l'a montrée vivante puis morte juste avant que le compteur bouge : c'est elle.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+        char = g._NS.char
+        marco = "name = 'Marco', surname = 'Nancer', class = 'MAGE', player = true, guid = 'Player-1-00MARCO'"
+        lua.execute(f"_UNITS.nameplate1 = {{ {marco}, hostile = true }}")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        g._ADVANCE(30)
+        # Mort : il n'est plus attaquable, sa santé tombe, sa plaque disparaît.
+        lua.execute(f"_UNITS.nameplate1 = {{ {marco}, hostile = true, dead = true }}")
+        g._FIRE("UNIT_HEALTH", "nameplate1")
+        g._FIRE("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+        lua.execute("_UNITS.nameplate1 = nil; _HK = 2341")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._FIRE("CHAT_MSG_COMBAT_HONOR_GAIN", "Vous avez reçu 5 points d’honneur.")
+        g._ADVANCE(3)
+        assert char.counters.pk == 1
+        (h,) = wanted_sent(g, "H")
+        assert h.split("	")[5] == "Marco Nancer" and h.split("	")[9] == "MAGE"
+        assert "« Marco Nancer » [vu mourir]" in g._NS.Wanted.KillLog()
+        assert "Marco Nancer" in g.WoWForeverGuildeDeath.text.text
+        # Un allié vu mort, une créature, un ennemi mort il y a longtemps : aucun ne donne son nom.
+        g._ADVANCE(120)
+        lua.execute("""
+          _UNITS.nameplate2 = { name = 'Morgul', class = 'MAGE', player = true, dead = true }
+          _UNITS.nameplate3 = { name = 'Sanglier', hostile = true, dead = true }
+          _HK = 2342
+        """)
+        g._FIRE("UNIT_HEALTH", "nameplate2")
+        g._FIRE("UNIT_HEALTH", "nameplate3")
+        g._FIRE("UNIT_HEALTH", "raid7")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        assert char.counters.pk == 2
+        assert wanted_sent(g, "H")[-1].split("	")[5] == ""
+        # Deux ennemis vus mourir en même temps : on ne tranche pas, le kill reste sans nom, et le journal le dit.
+        g._ADVANCE(120)
+        for i, name in ((4, "Kam"), (5, "Sid")):
+            lua.execute(f"_UNITS.nameplate{i} = {{ name = '{name}', hostile = true, player = true }}")
+            g._FIRE("NAME_PLATE_UNIT_ADDED", f"nameplate{i}")
+        g._ADVANCE(10)
+        lua.execute("_UNITS.nameplate4.dead = true; _UNITS.nameplate5.dead = true; _HK = 2343")
+        g._FIRE("UNIT_HEALTH", "nameplate4")
+        g._FIRE("UNIT_HEALTH", "nameplate5")
+        lua.execute("_UNITS.nameplate4 = nil; _UNITS.nameplate5 = nil")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        assert char.counters.pk == 3 and wanted_sent(g, "H")[-1].split("	")[5] == ""
+        assert "plusieurs vus mourir" in g._NS.Wanted.KillLog()
+        # Le suivant, seul à mourir depuis : Kam et Sid, déjà vus morts, ne brouillent plus.
+        g._ADVANCE(120)
+        lua.execute("_UNITS.nameplate6 = { name = 'Lool', surname = 'Xd', hostile = true, player = true }")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate6")
+        lua.execute("_UNITS.nameplate6.dead = true; _HK = 2344")
+        g._FIRE("NAME_PLATE_UNIT_REMOVED", "nameplate6")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        assert char.counters.pk == 4 and wanted_sent(g, "H")[-1].split("	")[5] == "Lool Xd"
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_a_kill_announcement_is_retried_when_refused_and_repeated_out_of_combat(self):

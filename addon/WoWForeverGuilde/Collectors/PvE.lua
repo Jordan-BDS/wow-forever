@@ -20,6 +20,7 @@ local deathsThisSession = 0 -- identifiant du récapitulatif : le client les num
 local lastSource = nil -- d'où venait le tueur de la dernière mort, pour /mf api (« Tests en jeu »)
 local dead = false -- mort déjà comptée, jusqu'au retour à la vie : un second PLAYER_DEAD pour la même mort est ignoré
 local seenPlayers = {} -- clé = nom en minuscules → { name, class, at } : joueurs hostiles lus (cible, survol, plaque)
+local deadEnemies = {} -- clé = nom en minuscules → { name, class, t } : joueurs hostiles vus morts, t = première fois
 
 local function guildmatesInGroup()
   local count, members = 0, {}
@@ -88,6 +89,7 @@ end
 local function rememberPlayer(seen, t)
   if not (seen and seen.player) then return end
   seenPlayers[nameKey(seen.name)] = { name = seen.name, class = seen.class or "", at = t, guid = seen.guid }
+  deadEnemies[nameKey(seen.name)] = nil -- revu vivant : sa prochaine mort sera une nouvelle mort
 end
 
 --- Un joueur hostile lu dans les SEEN_PLAYERS_TTL dernières secondes, par son nom ou par son identifiant (en
@@ -117,6 +119,45 @@ function ns.SeenFullName(name)
   end
   return found
 end
+
+--- Un joueur adverse vu mort (santé d'une plaque de nom, de la cible, du survol ou du focus, plaque qui
+--- disparaît) : on retient l'heure de la première fois, pour nommer le kill que le jeu ne nomme pas (Wanted). Il
+--- faut l'avoir lu hostile et vivant dans les SEEN_PLAYERS_TTL dernières secondes, ou que le jeu le dise ennemi ;
+--- un nom secret est retrouvé par l'identifiant de l'unité.
+local function noteDeadEnemy(unit)
+  if type(unit) ~= "string" then return end
+  local okDead, isDead = pcall(UnitIsDeadOrGhost or function() end, unit)
+  if not (okDead and ns.plain(isDead) == true) then return end
+  local okPlayer, player = pcall(UnitIsPlayer or function() end, unit)
+  player = okPlayer and ns.plain(player)
+  if player == false then return end
+  local okFriend, friend = pcall(UnitIsFriend or function() end, "player", unit)
+  friend = okFriend and ns.plain(friend)
+  if friend == true then return end
+  local okGuid, guid = pcall(UnitGUID or function() end, unit)
+  guid = okGuid and ns.plain(guid) or nil
+  local name = ns.UnitDisplayName(unit)
+  local known = ns.SeenPlayer(name, type(guid) == "string" and guid or nil)
+  name = name or known
+  if not name or not (known or (player == true and friend == false)) then return end
+  local t, key = ns.now(), nameKey(name)
+  if deadEnemies[key] then return end -- déjà vu mort, pas revu vivant depuis : la même mort
+  for other, seen in pairs(deadEnemies) do
+    if t - seen.t > ns.Data.SEEN_PLAYERS_TTL then deadEnemies[other] = nil end
+  end
+  deadEnemies[key] = { name = name, class = ns.SeenPlayerClass(name), t = t }
+end
+
+--- Les joueurs adverses vus mourir depuis l'heure `since` : { { name, class, t }, … }.
+function ns.DeadEnemiesSince(since)
+  local list = {}
+  for _, seen in pairs(deadEnemies) do
+    if seen.t >= since then list[#list + 1] = seen end
+  end
+  return list
+end
+
+local WATCHED_HEALTH = { target = true, mouseover = true, focus = true }
 
 local function forgetOldPlayers(t)
   for key, seen in pairs(seenPlayers) do
@@ -255,6 +296,7 @@ ns.RegisterCollector({
     PLAYER_ENTERING_WORLD = true, ENCOUNTER_END = true, PLAYER_DEAD = true, PLAYER_ALIVE = true, PLAYER_UNGHOST = true,
     PLAYER_TARGET_CHANGED = true, PLAYER_REGEN_DISABLED = true,
     NAME_PLATE_UNIT_ADDED = true, UPDATE_MOUSEOVER_UNIT = true,
+    NAME_PLATE_UNIT_REMOVED = true, UNIT_HEALTH = true,
   },
   onEvent = function(char, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
@@ -271,6 +313,12 @@ ns.RegisterCollector({
       rememberPlayer(readUnit(ns.plain(...)), ns.now())
     elseif event == "UPDATE_MOUSEOVER_UNIT" then
       rememberPlayer(readUnit("mouseover"), ns.now())
+      noteDeadEnemy("mouseover")
+    elseif event == "NAME_PLATE_UNIT_REMOVED" then
+      noteDeadEnemy(ns.plain((...)))
+    elseif event == "UNIT_HEALTH" then
+      local unit = ns.plain((...))
+      if type(unit) == "string" and (WATCHED_HEALTH[unit] or unit:find("^nameplate")) then noteDeadEnemy(unit) end
     elseif event == "PLAYER_REGEN_DISABLED" then
       dead = false -- on n'entre en combat que vivant
       combatSince = ns.now()

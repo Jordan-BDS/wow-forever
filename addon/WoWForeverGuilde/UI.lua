@@ -837,50 +837,126 @@ end
 
 -- --- dialogues ---------------------------------------------------------------------------------------
 
-StaticPopupDialogs["WFG_TRANSFER"] = {
-  text = "%s",
+-- Fenêtre de dialogue propre à l'addon : une seule, réutilisée, une question à la fois (les suivantes attendent).
+-- On ne passe pas par les dialogues du jeu (StaticPopup) : un addon qui les affiche ou y écrit (`dialog.data`) les
+-- contamine, et le jeu refuse ensuite ses propres actions protégées depuis ces mêmes fenêtres (vu en jeu :
+-- ADDON_ACTION_BLOCKED sur CancelLogout(), la déconnexion ne s'annulait plus). Pas de fermeture par Échap : chaque
+-- dialogue a son bouton « plus tard ».
+-- Une définition : { button1, button2, button3, OnAccept = fn(dialog, data), OnAlt = fn(dialog, data) } ;
+-- bouton 1 = OnAccept, bouton 2 = fermer, bouton 3 = OnAlt.
+UI.Dialogs = {}
+local dialogFrame = nil
+local dialogQueue = {}
+
+local function showNextDialog()
+  local f = dialogFrame
+  if not f or f:IsShown() then return end
+  local request = table.remove(dialogQueue, 1)
+  if not request then return end
+  local def = UI.Dialogs[request.which]
+  f.which, f.data, f.message = request.which, request.data, request.text
+  f.text:SetText(request.text)
+  local labels, shown = { def.button1, def.button2, def.button3 }, {}
+  for i, button in ipairs(f.buttons) do
+    if labels[i] then
+      button:SetText(labels[i])
+      button:Show()
+      shown[#shown + 1] = button
+    else
+      button:Hide()
+    end
+  end
+  local width, gap = 120, 8
+  local total = #shown * width + (#shown - 1) * gap
+  for i, button in ipairs(shown) do
+    button:ClearAllPoints()
+    button:SetPoint("BOTTOMLEFT", f, "BOTTOM", -total / 2 + (i - 1) * (width + gap), 16)
+  end
+  f:Show()
+end
+
+local function buildDialog()
+  local f = CreateFrame("Frame", "WoWForeverGuildeDialog", UIParent, "BackdropTemplate")
+  f:SetSize(420, 150)
+  f:SetPoint("TOP", UIParent, "TOP", 0, -140)
+  f:SetFrameStrata("DIALOG")
+  f:EnableMouse(true)
+  if f.SetBackdrop then
+    f:SetBackdrop({
+      bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+      edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", edgeSize = 24,
+      insets = { left = 6, right = 6, top = 6, bottom = 6 },
+    })
+  end
+  f.text = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  f.text:SetPoint("TOP", 0, -20)
+  f.text:SetWidth(380)
+  f.text:SetJustifyH("CENTER")
+  f.buttons = {}
+  for i = 1, 3 do
+    local button = makeButton(f, "", 120)
+    button:SetScript("OnClick", function()
+      local def, data = UI.Dialogs[f.which], f.data
+      f:Hide()
+      local handler = def and ((i == 1 and def.OnAccept) or (i == 3 and def.OnAlt)) or nil
+      if handler then ns.Safe("ui.dialog", handler, f, data) end
+      showNextDialog()
+    end)
+    f.buttons[i] = button
+  end
+  f:Hide()
+  return f
+end
+
+--- Pose la question `which` (une clé de UI.Dialogs) avec ce texte ; `data` revient aux fonctions des boutons.
+function UI.ShowDialog(which, text, data)
+  if not UI.Dialogs[which] then return end
+  dialogFrame = dialogFrame or buildDialog()
+  -- La même question déjà posée (affichée ou en attente) n'est pas empilée une seconde fois.
+  if dialogFrame:IsShown() and dialogFrame.which == which then return end
+  for _, request in ipairs(dialogQueue) do
+    if request.which == which then return end
+  end
+  dialogQueue[#dialogQueue + 1] = { which = which, text = text, data = data }
+  showNextDialog()
+end
+
+UI.Dialogs.WFG_TRANSFER = {
   button1 = L.TRANSFER_YES,
   button2 = L.TRANSFER_NO,
   OnAccept = function(self, data)
     ns.Store.Merge(data.entry, data.candidate)
     ns.Print(L.TRANSFER_DONE)
   end,
-  timeout = 0, whileDead = true, hideOnEscape = false, preferredIndex = 3,
 }
 
 function UI.AskTransfer(entry, candidate)
   local class = ns.ClassLabel(candidate.class) -- le nom de la classe (« Chaman »), pas son jeton (« SHAMAN »)
   local text = string.format(L.TRANSFER_TEXT, UnitName("player") or "?", candidate.name or "?", class ~= "" and class or "?", candidate.level or 0)
-  local dialog = StaticPopup_Show("WFG_TRANSFER", text)
-  if dialog then dialog.data = { entry = entry, candidate = candidate } end
+  UI.ShowDialog("WFG_TRANSFER", text, { entry = entry, candidate = candidate })
 end
 
-StaticPopupDialogs["WFG_RELOAD"] = {
-  text = "%s",
+UI.Dialogs.WFG_RELOAD = {
   button1 = L.RELOAD_YES,
   button2 = L.RELOAD_LATER,
   button3 = L.RELOAD_NEVER,
   OnAccept = function() ReloadUI() end,
   OnAlt = function() ns.db.settings.reloadReminder = false end,
-  timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
 }
 
 function UI.SuggestReload(unsaved)
-  StaticPopup_Show("WFG_RELOAD", string.format(L.RELOAD_TEXT, duration(unsaved)))
+  UI.ShowDialog("WFG_RELOAD", string.format(L.RELOAD_TEXT, duration(unsaved)))
 end
 
-StaticPopupDialogs["WFG_UPGRADE"] = {
-  text = "%s",
+UI.Dialogs.WFG_UPGRADE = {
   button1 = L.UPGRADE_YES,
   button2 = L.UPGRADE_LATER,
   OnAccept = function(self, version) ns.UpgradeAccepted(version) end,
-  timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
 }
 
 --- Un guildien a une version plus récente de l'addon : proposer le /reload (le compagnon a déjà copié les fichiers).
 function UI.SuggestUpgrade(version)
-  local dialog = StaticPopup_Show("WFG_UPGRADE", string.format(L.UPGRADE_TEXT, version, tostring(ns.VERSION)))
-  if dialog then dialog.data = version end
+  UI.ShowDialog("WFG_UPGRADE", string.format(L.UPGRADE_TEXT, version, tostring(ns.VERSION)), version)
 end
 
 function UI.OnLogin(entry)

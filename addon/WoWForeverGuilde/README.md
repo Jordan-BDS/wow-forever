@@ -54,7 +54,8 @@ transporte le code jusqu'au site.
   GM et Tracer. Listes en colonnes (`UI.MakeColumnHeaders`, `UI.MakeRow`, `UI.FillRow`) pour Guilde en jeu et
   Wanted : `Lines()` rend, en plus du texte, une valeur par colonne. Bouton de la minimap, fait à la main (clic :
   la fenêtre ; clic droit : les réglages ; glissé : il tourne autour de la minimap, angle retenu ; case des
-  réglages pour le retirer). Dialogues, texte flottant des morts. `RosterUI.lua` et `WantedUI.lua` sont les
+  réglages pour le retirer). Dialogues (transfert, sauvegarde, mise à jour) dans une fenêtre propre à l'addon, une question à la fois, jamais
+  dans les `StaticPopup` du jeu : les afficher les contamine et le jeu refusait ensuite `CancelLogout()`. Texte flottant des morts. `RosterUI.lua` et `WantedUI.lua` sont les
   onglets Guilde en jeu (`/mf qui`) et Wanted (`/mf wanted`).
 - `Positions.lua`, `MapUI.lua` : partage de position. Case « Partager ma position » (cochée par défaut) : le client
   émet carte, coordonnées, niveau et résumé de talents par message addon (préfixe `WFG`, canal de guilde ; le client
