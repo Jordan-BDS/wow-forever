@@ -447,7 +447,7 @@ function Wanted.OnKillsChanged(char)
       name = victim ~= "" and victim or nil, how = "compteur" }
     ns.Trace("victoires honorables %d → %d sans message reconnu : kill de « %s »", before, hk, victim)
     logKill("compteur %d → %d : « %s » [%s]", before, hk, victim, probe ~= "" and probe or "rien regardé")
-    if char then ns.Safe("wanted.kills", Wanted.RecordKill, char, victim, nil, ns.InBattleground()) end
+    if char then ns.Safe("wanted.kills", Wanted.RecordKill, char, victim, nil, ns.InBattleground(), true) end
   end)
 end
 
@@ -875,7 +875,8 @@ end
 --- Un joueur abattu par moi ou mon groupe (message de victoire honorable). Toujours un événement `pk` du journal
 --- avec la prime encaissée ; s'il est recherché, kill au tableau (dédoublonné), message « K », toast. En champ de
 --- bataille ou en arène (`battleground`) : le compteur et l'événement (marqué `bg`), rien d'autre.
-function Wanted.RecordKill(char, name, t, battleground)
+--- `fresh` : kill lu au compteur de victoires honorables, donc jamais le nom tardif d'un kill déjà compté.
+function Wanted.RecordKill(char, name, t, battleground, fresh)
   t = t or ns.now()
   -- Le message du jeu peut ne donner que le prénom : le nom complet, si je l'ai lu sur ce joueur (0.7.3).
   if name ~= "" and ns.SeenFullName then name = ns.SeenFullName(name) or name end
@@ -898,7 +899,8 @@ function Wanted.RecordKill(char, name, t, battleground)
   -- Le nom d'un kill déjà compté sans nom (0.6.10) : c'est le même kill, il ne compte pas une seconde fois ; son
   -- popup et son « H » prennent le nom (même heure de kill, que les guildiens reconnaissent).
   local adopted = nil
-  if name ~= "" and nameless and not battleground and t - nameless <= ns.Data.WANTED_NAMELESS_ADOPT then
+  -- Sauf un kill lu au compteur (`fresh`) : le compteur a bougé de nouveau, c'est une autre victime.
+  if name ~= "" and nameless and not fresh and not battleground and t - nameless <= ns.Data.WANTED_NAMELESS_ADOPT then
     adopted, nameless = nameless, nil
     logKill("kill « %s » : c'est le kill sans nom d'il y a %d s", name, t - adopted)
   end

@@ -3317,6 +3317,35 @@ class TestWantedKills:
         assert toast.shown is False
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_a_second_kill_read_from_the_counter_is_not_the_late_name_of_the_first(self):
+        # Vu en jeu (0.7.3) : un kill sans nom, puis 22 s plus tard le compteur bouge de nouveau avec un nom lisible.
+        # C'est une autre victime : elle compte, a son propre « H » (sa propre heure de kill) et son popup.
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true; _MAP = { id = 1429, x = 0.3, y = 0.3 }")
+        char = g._NS.char
+        lua.execute("_HK = 2341")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        first = g._CLOCK.now
+        assert char.counters.pk == 1
+        g._ADVANCE(19)
+        lua.execute(
+            "_UNITS.mouseover = { name = 'Lool', surname = 'Xd', class = 'MAGE', hostile = true, player = true, dead = true }; _HK = 2342"
+        )
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        assert char.counters.pk == 2
+        sent = [h.split("\t") for h in wanted_sent(g, "H")]
+        assert [h[5:7] for h in sent if h[5] == ""][0] == ["", str(first)]
+        named = [h for h in sent if h[5] == "Lool Xd"]
+        assert named and all(h[6] == str(g._CLOCK.now) for h in named)
+        log = g._NS.Wanted.KillLog()
+        assert "c'est le kill sans nom" not in log and "kill « Lool Xd » : popup" in log
+        assert "Lool Xd" in g.WoWForeverGuildeDeath.text.text
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_a_kill_announcement_is_retried_when_refused_and_repeated_out_of_combat(self):
         lua = boot()
         g = lua.globals()
