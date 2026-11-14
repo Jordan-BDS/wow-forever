@@ -3866,6 +3866,22 @@ class TestBountyPlates:
         assert marks.Mark("nameplate1") is None
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_after_an_update_and_a_reload_the_new_file_is_not_loaded_yet(self):
+        # Le jeu ne relit la liste des fichiers qu'à son lancement : mise à jour puis /reload, NameplateUI.lua manque.
+        # Rien ne casse : le tableau se remplit, la case retient le choix, les plaques attendront la relance du jeu.
+        lua = boot([f for f in toc_files() if f != "NameplateUI.lua"])
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        assert g._NS.Nameplates is None
+        self.wanted(lua, g)
+        g.SlashCmdList.WOWFOREVERGUILDE("reglages")
+        check = g.WoWForeverGuildeSettings.checks.bountyPlates
+        check.checked = False
+        check.scripts.OnClick(check)
+        assert g.WoWForeverGuildeDB.settings.bountyPlates is False
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_a_secret_name_in_combat_is_found_by_guid_or_after_the_fight(self):
         lua, g = self.start()
         marks = g._NS.Nameplates

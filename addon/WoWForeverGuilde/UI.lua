@@ -598,7 +598,11 @@ local SETTINGS = {
     { "soundDeaths", L.SOUND_DEATHS },
     { "announceDeaths", L.ANNOUNCE_DEATHS },
     { "wantedAlerts", L.WANTED_ALERTS, function(on) ns.Wanted.SetAlerts(on) end },
-    { "bountyPlates", L.BOUNTY_PLATES, function(on) ns.Nameplates.SetEnabled(on) end },
+    -- NameplateUI.lua est un fichier neuf (0.7.4) : après une mise à jour suivie d'un /reload, le jeu ne l'a pas
+    -- encore chargé (il ne relit la liste des fichiers qu'à son lancement). La case retient alors le choix seul.
+    { "bountyPlates", L.BOUNTY_PLATES, function(on)
+      if ns.Nameplates then ns.Nameplates.SetEnabled(on) else ns.db.settings.bountyPlates = on and true or false end
+    end },
     { "showStreaks", L.SHOW_STREAKS },
     { "soundStreaks", L.SOUND_STREAKS },
   } },
