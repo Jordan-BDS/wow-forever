@@ -210,6 +210,11 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.4", notes = {
+    "Primes : une tête de mort au-dessus de la plaque de nom d'un ennemi recherché. Case « Afficher les primes » dans les réglages, cochée par défaut.",
+    "Kills : le joueur abattu est nommé plus souvent (l'addon retient l'ennemi qu'il vient de voir mourir), et deux kills à quelques secondes d'écart ne sont plus comptés comme un seul.",
+    "Les questions de l'addon (sauvegarde, mise à jour, transfert) ont leur propre fenêtre : celles du jeu pouvaient empêcher d'annuler une déconnexion. Échap ne les ferme plus, clique sur « plus tard ».",
+  } },
   { version = "0.7.3", notes = {
     "Annonces : prénom et nom partout où l'addon les connaît. Le guildien mort n'avait que son prénom ; le tueur et le joueur abattu prennent leur nom complet dès que tu les as ciblés ou survolés.",
     "Compagnon : une mise à jour qui n'arrive pas à s'installer n'est plus relancée en boucle ; la fenêtre propose de télécharger la dernière version à la main.",

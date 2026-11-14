@@ -2,7 +2,7 @@
 ## Title: Manuel Feralas
 ## Notes: Addon de la guilde Manuel Feralas : progression, carte de guilde, annonces de mort, Wanted. /mf en jeu.
 ## Author: WoW Forever
-## Version: 0.7.3
+## Version: 0.7.4
 ## IconTexture: Interface\AddOns\WoWForeverGuilde\Samwise
 ## SavedVariables: WoWForeverGuildeDB
 ## X-Category: Guild
