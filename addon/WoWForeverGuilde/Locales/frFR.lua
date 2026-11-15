@@ -272,6 +272,9 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.10", notes = {
+    "Compagnon : après une mise à jour, sa fenêtre affiche tout de suite la nouvelle version de l'addon au lieu de l'ancienne.",
+  } },
   { version = "0.7.9", notes = {
     "Les boutons « Sauvegarder » de /mf et « Recharger » des popups rechargent de nouveau l'interface (le jeu les refusait). En combat, tape /reload.",
   } },
