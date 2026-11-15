@@ -272,6 +272,9 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.12", notes = {
+    "Compagnon : il dit au site ce qu'il a fait des prix d'Auctionator et de NaowhForever (envoyé, rien de nouveau, fichier illisible), pour que le GM voie pourquoi un scan n'arrive pas.",
+  } },
   { version = "0.7.11", notes = {
     "Victoires honorables : deux adversaires abattus à quelques secondes d'écart comptent tous les deux (le second était perdu).",
     "Victoires honorables : quand le popup d'un coéquipier est passé sans nom et que tu as lu celui de la victime, toute la guilde le reçoit.",
