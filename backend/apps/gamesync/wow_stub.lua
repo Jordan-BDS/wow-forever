@@ -67,6 +67,9 @@ function C_NamePlate.GetNamePlateForUnit(token)
   return _PLATES[token]
 end
 function UnitIsInMyGuild() return false end
+-- Menu contextuel du jeu : les fonctions données à Menu.ModifyMenu, par étiquette (`_MENUS.MENU_UNIT_TARGET`).
+_MENUS = {}
+Menu = { ModifyMenu = function(tag, fn) _MENUS[tag] = fn end }
 function GetGuildInfo(unit) local u = unitData(unit) return u and u.guild end
 
 -- Personnage joué.
@@ -272,6 +275,7 @@ local function newFrame(kind, name)
   function f:SetText(t) self.text = t end
   function f:GetText() return self.text end
   function f:GetChecked() return self.checked end
+  function f:SetChecked(on) self.checked = on end
   function f:SetEnabled(on) self.enabled = on end
   if name then _G[name] = f end
   table.insert(_FRAMES, f)

@@ -3,6 +3,10 @@
 -- « Ma cible » reprend le nom de la cible (ou de sa guilde). « Poser la prime » passe par la même confirmation que
 -- `/mf prime`. En dessous les primes en cours, les plus fortes d'abord ; un clic sur l'une des miennes l'annule,
 -- après confirmation.
+--
+-- Clic droit sur le portrait d'un joueur adverse (cible, focus) : « Ajouter une prime » ouvre cet onglet, le nom
+-- rempli ; « Prime sur la guilde … » fait de même pour sa guilde. L'entrée passe par le menu du jeu
+-- (`Menu.ModifyMenu`), ou par l'ancien (`UnitPopup_ShowMenu`) si le client n'a que celui-là.
 local ADDON, ns = ...
 
 local BountiesUI = {}
@@ -206,3 +210,68 @@ ns.UI.AddTab({
 })
 
 function BountiesUI.Frame() return frame end -- tests
+
+--- Ouvre l'onglet, le formulaire rempli : ce nom (de joueur, ou de guilde si `guild`), un kill, l'or à saisir.
+function BountiesUI.Prefill(name, guild)
+  ns.UI.Open("bounties")
+  if not frame then return end
+  frame.guild:SetChecked(guild and true or false)
+  frame.nameLabel:SetText(guild and L.BOUNTY_FORM_GUILD_NAME or L.BOUNTY_FORM_NAME)
+  frame.name:SetText(name or "")
+  frame.gold:SetText("")
+  frame.kills:SetText("1")
+  say(L.BOUNTY_FORM_PREFILLED)
+  frame.gold:SetFocus()
+end
+
+-- --- clic droit sur un portrait --------------------------------------------------------------------------------
+
+--- Ce que le menu de cette unité propose : le nom du joueur adverse et sa guilde ; nil si ce n'en est pas un ou
+--- si son nom est illisible.
+local function menuTarget(unit)
+  if type(unit) ~= "string" then return nil end
+  local okPlayer, player = pcall(UnitIsPlayer or function() end, unit)
+  local okAttack, hostile = pcall(UnitCanAttack or function() end, "player", unit)
+  if not (okPlayer and ns.plain(player) == true and okAttack and ns.plain(hostile) == true) then return nil end
+  local name = ns.UnitDisplayName(unit)
+  if not name then return nil end
+  return name, ns.UnitGuild(unit)
+end
+
+--- Les entrées à ajouter au menu d'une unité : { { text, run }, … }, vide si rien à proposer. Exposé pour les tests.
+function BountiesUI.MenuEntries(unit)
+  local ok, name, guild = pcall(menuTarget, unit)
+  if not ok or not name then return {} end
+  local entries = {
+    { text = L.BOUNTY_MENU_ADD, run = function() ns.Safe("bounties.menu", BountiesUI.Prefill, name, false) end },
+  }
+  if guild then
+    entries[#entries + 1] = {
+      text = string.format(L.BOUNTY_MENU_ADD_GUILD, guild),
+      run = function() ns.Safe("bounties.menu", BountiesUI.Prefill, guild, true) end,
+    }
+  end
+  return entries
+end
+
+if type(Menu) == "table" and type(Menu.ModifyMenu) == "function" then
+  local function extend(_, root, context)
+    local entries = BountiesUI.MenuEntries(type(context) == "table" and context.unit or nil)
+    if #entries == 0 then return end
+    if root.CreateDivider then root:CreateDivider() end
+    for _, entry in ipairs(entries) do root:CreateButton(entry.text, entry.run) end
+  end
+  for _, tag in ipairs({ "MENU_UNIT_ENEMY_PLAYER", "MENU_UNIT_TARGET", "MENU_UNIT_FOCUS", "MENU_UNIT_PLAYER" }) do
+    pcall(Menu.ModifyMenu, tag, function(...)
+      local ok, err = pcall(extend, ...)
+      if not ok and ns.Store then ns.Store.LogError("bounties.menu", err) end
+    end)
+  end
+elseif type(UnitPopup_ShowMenu) == "function" and type(UIDropDownMenu_AddButton) == "function" then
+  hooksecurefunc("UnitPopup_ShowMenu", function(_, _, unit)
+    if (UIDROPDOWNMENU_MENU_LEVEL or 1) ~= 1 then return end
+    for _, entry in ipairs(BountiesUI.MenuEntries(unit)) do
+      UIDropDownMenu_AddButton({ text = entry.text, notCheckable = true, func = entry.run })
+    end
+  end)
+end

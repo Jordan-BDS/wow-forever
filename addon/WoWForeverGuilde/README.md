@@ -145,7 +145,8 @@ transporte le code jusqu'au site.
   de 1 à 6 s, sauf si quelqu'un a déjà répondu ; le receveur garde le maximum de chaque valeur. Côté site (lot 3) :
   tableau Wanted, classements « Joueurs abattus » et « Primes encaissées », Roxor « Chasseur de primes » ; le
   compagnon recopie le tableau de la guilde dans `db.wanted` au lancement, jeu fermé (maximum de chaque valeur).
-- `BountiesUI.lua` : onglet « Primes » de `/mf` (`/mf primes`). Formulaire (joueur ou guilde adverse, or par
+- `BountiesUI.lua` : onglet « Primes » de `/mf` (`/mf primes`). Clic droit sur le portrait d'un joueur adverse :
+  « Ajouter une prime » (et « Prime sur la guilde … ») ouvre l'onglet, le nom rempli. Formulaire (joueur ou guilde adverse, or par
   kill, kills payés au plus, « Ma cible » pour reprendre la cible ou sa guilde) qui passe par la même confirmation
   que `/mf prime` ; dessous, les primes en cours, un clic sur l'une des miennes l'annule après confirmation.
 - `Bounties.lua` : primes posées à la main. Prime de guilde : `/mf prime guilde <or> [kills]` sur la guilde de la

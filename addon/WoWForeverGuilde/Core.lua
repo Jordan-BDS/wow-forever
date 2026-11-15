@@ -202,6 +202,7 @@ local PROBES = {
     "UnitIsPlayer", "UnitIsDeadOrGhost", "GetPVPLifetimeStats", "GetPVPSessionStats", "COMBATLOG_HONORGAIN",
     "COMBATLOG_HONORGAIN_NO_RANK", "COMBATLOG_XPGAIN_FIRSTPERSON",
   } },
+  { "menu", { "Menu.ModifyMenu", "UnitPopup_ShowMenu", "UIDropDownMenu_AddButton" } },
   { "récolte", { "C_Spell.GetSpellName", "GetSpellInfo", "UnitChannelInfo" } },
 }
 

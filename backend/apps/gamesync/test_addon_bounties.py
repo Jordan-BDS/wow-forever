@@ -486,3 +486,53 @@ class TestTab:
         (left,) = g._NS.BountiesUI.Lines().values()
         assert "Garrosh Hurlenfer" in left.cells[1]
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+
+class TestPortraitMenu:
+    """Clic droit sur le portrait d'un joueur adverse : « Ajouter une prime » ouvre l'onglet, le nom rempli."""
+
+    def menu(self, lua, g, tag="MENU_UNIT_ENEMY_PLAYER", unit="target"):
+        lua.execute("""
+          _ROOT = { buttons = {}, dividers = 0 }
+          function _ROOT:CreateDivider() self.dividers = self.dividers + 1 end
+          function _ROOT:CreateButton(text, fn) table.insert(self.buttons, { text = text, run = fn }) end
+        """)
+        g._MENUS[tag](None, g._ROOT, lua.table(unit=unit))
+        return list(g._ROOT.buttons.values())
+
+    def test_an_enemy_player_gets_the_entry_and_it_fills_the_form(self):
+        lua, g, mf = start()
+        lua.execute("_TARGET = { name = 'Sylvanas', class = 'HUNTER', player = true, hostile = true }")
+        (add,) = self.menu(lua, g)
+        assert add.text == "Ajouter une prime" and g._ROOT.dividers == 1
+        add.run()
+        panel = g.WoWForeverGuildeBounties
+        assert panel.shown is True and g._NS.UI.Shown("bounties") is True
+        assert (panel.name.text, panel.gold.text, panel.kills.text) == ("Sylvanas", "", "1")
+        assert not panel.guild.checked and "Indique l'or" in panel.status.text
+        # Il ne reste qu'à donner l'or : la prime part par la confirmation habituelle.
+        panel.gold.text = "30"
+        panel.post.scripts.OnClick(panel.post)
+        assert "30 po sur Sylvanas" in popup(g).message
+
+    def test_a_guilded_enemy_also_offers_a_bounty_on_the_guild(self):
+        lua, g, mf = start()
+        lua.execute(f"_TARGET = {KORKRON}")
+        add, guild = self.menu(lua, g, tag="MENU_UNIT_TARGET")
+        assert guild.text == "Prime sur la guilde Les Kor'kron"
+        guild.run()
+        panel = g.WoWForeverGuildeBounties
+        assert panel.guild.checked is True and panel.nameLabel.text == "Guilde adverse"
+        assert panel.name.text == "Les Kor'kron"
+        panel.gold.text = "20"
+        panel.post.scripts.OnClick(panel.post)
+        assert "20 po sur la guilde Les Kor'kron" in popup(g).message
+
+    def test_nothing_is_added_for_a_friend_a_creature_or_a_bare_menu(self):
+        lua, g, mf = start()
+        lua.execute("_TARGET = { name = 'Jaina', class = 'MAGE', player = true }")
+        assert self.menu(lua, g) == []
+        lua.execute("_TARGET = { name = 'Sanglier', hostile = true }")
+        assert self.menu(lua, g) == [] and g._ROOT.dividers == 0
+        g._MENUS.MENU_UNIT_TARGET(None, g._ROOT, None)  # menu sans unité : rien, et pas d'erreur
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
