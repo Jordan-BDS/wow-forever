@@ -210,6 +210,38 @@ class AuctionScan(models.Model):
         return f"{self.house} — {self.scanned_at:%d/%m/%Y %H:%M}"
 
 
+class AuctionReport(models.Model):
+    """Ce qu'un compagnon a fait d'un fichier de scan de l'hôtel des ventes (Auctionator, NaowhForever) :
+    envoyé, rien de nouveau, illisible et pourquoi. Le même constat répété ne fait qu'une ligne (`count`,
+    `at`). Pour le GM, page Tests."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="auction_reports"
+    )
+    device = models.ForeignKey(CompanionDevice, on_delete=models.SET_NULL, null=True, blank=True)
+    source = models.CharField("Addon lu", max_length=32)
+    house = models.CharField("Hôtel ou royaume", max_length=96, blank=True)
+    kind = models.CharField("Résultat", max_length=24)
+    detail = models.TextField("Détail", blank=True)
+    day = models.IntegerField("Jour d'Auctionator", null=True, blank=True)
+    items = models.PositiveIntegerField("Objets", null=True, blank=True)
+    scanned_at = models.DateTimeField("Scan daté du", null=True, blank=True)
+    file_at = models.DateTimeField("Fichier écrit le", null=True, blank=True)
+    companion = models.CharField("Version du compagnon", max_length=24, blank=True)
+    first_at = models.DateTimeField(auto_now_add=True)
+    at = models.DateTimeField("Dernier constat")
+    count = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        verbose_name = "rapport d'envoi de l'hôtel des ventes"
+        verbose_name_plural = "rapports d'envoi de l'hôtel des ventes"
+        ordering = ["-at"]
+        indexes = [models.Index(fields=["user", "source", "house", "at"], name="auction_report_lookup")]
+
+    def __str__(self) -> str:
+        return f"{self.source} {self.house} : {self.kind}"
+
+
 class AuctionPrice(models.Model):
     """Le prix le plus bas d'un objet dans un scan (à l'unité, en cuivre) et le nombre d'enchères."""
 

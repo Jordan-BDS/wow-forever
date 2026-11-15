@@ -151,6 +151,25 @@ fn run_sync(app: &AppHandle, shared: &Shared) -> Vec<SyncOutcome> {
     outcomes
 }
 
+/// Les derniers constats dits au site : les mêmes ne sont pas redits à chaque passage.
+static LAST_AUCTION_REPORTS: Mutex<Option<Vec<auctions::ScanReport>>> = Mutex::new(None);
+
+/// Dit au site ce que ce passage a fait des fichiers de scan, si ça a changé depuis le dernier constat envoyé
+/// (ou depuis le lancement). Un échec ici est sans conséquence : on redira au passage suivant.
+fn send_auction_reports(client: &SiteClient, reports: Vec<auctions::ScanReport>) {
+    if reports.is_empty() {
+        return;
+    }
+    let mut last = LAST_AUCTION_REPORTS.lock().unwrap();
+    if last.as_ref() == Some(&reports) {
+        return;
+    }
+    match client.report_auctions(&reports) {
+        Ok(()) => *last = Some(reports),
+        Err(e) => log::warn!("hôtel des ventes : constat non envoyé ({e})"),
+    }
+}
+
 /// Après l'envoi des personnages : les scans de l'hôtel des ventes, pour qui en a le droit sur le site. À part
 /// et en arrière-plan, pour qu'un échec ou une lenteur ici ne touche jamais à la synchronisation des personnages.
 fn run_auctions(app: &AppHandle, shared: &Shared) {
@@ -160,7 +179,8 @@ fn run_auctions(app: &AppHandle, shared: &Shared) {
     };
     let Some(game_dir) = game_dir else { return };
     let client = client_for(&config);
-    let outcomes = auctions::upload_once(&game_dir, &mut config, &client);
+    let (outcomes, reports) = auctions::upload_with_reports(&game_dir, &mut config, &client);
+    send_auction_reports(&client, reports);
     if outcomes.is_empty() {
         return;
     }

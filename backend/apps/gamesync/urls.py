@@ -25,6 +25,7 @@ urlpatterns = [
     path("addon-errors/", views.AddonErrorsView.as_view(), name="sync-addon-errors"),
     path("auctions/", views.AuctionScansView.as_view(), name="sync-auctions"),
     path("auctions/rights/", views.AuctionRightsView.as_view(), name="sync-auction-rights"),
+    path("auctions/reports/", views.AuctionReportsView.as_view(), name="sync-auction-reports"),
     path("auctions/items/<int:item_id>/", views.AuctionItemView.as_view(), name="sync-auction-item"),
     path(
         "auctions/favorites/<int:item_id>/",

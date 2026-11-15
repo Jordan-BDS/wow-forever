@@ -3937,6 +3937,80 @@
                 }
             }
         },
+        "/api/sync/auctions/reports/": {
+            "get": {
+                "operationId": "sync_auctions_reports_retrieve",
+                "description": "Le compagnon dit ce qu'il a fait de ses fichiers de scan (POST) ; le GM lit ces constats (GET).",
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "sync_auctions_reports_create",
+                "description": "Le compagnon dit ce qu'il a fait de ses fichiers de scan (POST) ; le GM lit ces constats (GET).",
+                "tags": [
+                    "sync"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/sync/auctions/rights/": {
             "get": {
                 "operationId": "sync_auctions_rights_retrieve",

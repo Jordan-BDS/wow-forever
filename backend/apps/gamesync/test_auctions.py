@@ -76,6 +76,46 @@ class TestUpload:
         assert post_scan(api_client, [[2589, 100, 3]]).status_code == 201
         assert AuctionScan.objects.get().user == member
 
+    def test_companions_report_what_they_did_with_their_scan_files(self, api_client, as_user, member, gm):
+        api_client.credentials(
+            HTTP_AUTHORIZATION=f"Companion {companion_token(member)}",
+            HTTP_USER_AGENT="WoWForeverGuilde-Companion/0.7.12",
+        )
+        unreadable = {
+            "source": "Auctionator", "house": "PvP", "kind": "unreadable",
+            "detail": "base au format table (version 6), pas lue", "file_at": 1794342484,
+        }  # fmt: skip
+        body = {"reports": [unreadable, {"source": "", "kind": "sent"}, {"source": "X", "kind": "?"}, "?"]}
+        assert api_client.post("/api/sync/auctions/reports/", body, format="json").json() == {"reports": 1}
+        # Le même constat au passage suivant : la même ligne, comptée deux fois.
+        api_client.post("/api/sync/auctions/reports/", body, format="json")
+        # Puis ça passe : une nouvelle ligne, la plus récente en tête.
+        sent = {
+            "source": "Auctionator", "house": "PvP", "kind": "sent", "detail": "", "day": 2510,
+            "items": 5897, "scanned_at": 1794342484, "file_at": 1794342484,
+        }  # fmt: skip
+        api_client.post("/api/sync/auctions/reports/", {"reports": [sent]}, format="json")
+        assert api_client.post("/api/sync/auctions/reports/", {}, format="json").status_code == 400
+        # Un membre ne lit pas les constats, le GM si.
+        assert api_client.get("/api/sync/auctions/reports/").status_code == 403
+        api_client.credentials()
+        as_user(gm)
+        first, second = api_client.get("/api/sync/auctions/reports/").json()["reports"]
+        assert (first["kind"], first["day"], first["items"], first["count"]) == ("sent", 2510, 5897, 1)
+        assert (second["kind"], second["count"], second["detail"]) == ("unreadable", 2, unreadable["detail"])
+        assert (second["user"], second["device"], second["companion"]) == (
+            member.display_name,
+            "PC",
+            "0.7.12",
+        )
+        assert second["file_at"].startswith("2026-11-10")
+        # Les vieux constats partent au passage suivant.
+        from .models import AuctionReport
+
+        AuctionReport.objects.filter(kind="unreadable").update(at=timezone.now() - timedelta(days=15))
+        auctions.store_reports(gm, [])
+        assert AuctionReport.objects.count() == 1
+
     def test_the_right_to_send_has_a_single_rule(self, api_client, as_user, member, monkeypatch):
         # Changer qui a le droit se fait dans `can_upload` seulement : le drapeau et les vues suivent.
         monkeypatch.setattr(auctions, "can_upload", lambda user: False)

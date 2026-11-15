@@ -103,6 +103,43 @@ export function useAuctions(filters: AuctionFilters, enabled: boolean) {
   });
 }
 
+/** Ce qu'un compagnon a fait d'un fichier de scan (Auctionator, NaowhForever) : le constat le plus récent d'abord. */
+export type AuctionReport = {
+  id: number;
+  /** Dernière fois que le compagnon a fait ce constat, et première. */
+  at: string;
+  first_at: string;
+  count: number;
+  user: string;
+  device: string | null;
+  /** Version du compagnon. */
+  companion: string;
+  /** L'addon lu. */
+  source: string;
+  house: string;
+  kind: "sent" | "duplicate" | "unchanged" | "failed" | "unreadable" | "no_scan" | "no_file" | "not_allowed";
+  detail: string;
+  /** Jour du scan compté par Auctionator, depuis le 1er janvier 2020. */
+  day: number | null;
+  items: number | null;
+  scanned_at: string | null;
+  file_at: string | null;
+};
+
+/** GM : les constats des compagnons sur leurs fichiers de scan, relus toutes les 30 secondes. */
+export function useAuctionReports() {
+  return useQuery({
+    queryKey: ["sync", "auctions", "reports"] as const,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/sync/auctions/reports/");
+      if (error || !data) throw error ?? new Error();
+      return (data as unknown as { reports: AuctionReport[] }).reports;
+    },
+  });
+}
+
 export function useAuctionHistory(itemId: number, house: string) {
   return useQuery({
     queryKey: ["sync", "auctions", "item", itemId, house] as const,

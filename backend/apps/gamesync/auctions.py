@@ -22,7 +22,14 @@ from apps.gamedata.models import Item, Recipe
 from apps.gamedata.stats import icon_url
 
 from . import auction_categories
-from .models import AuctionPrice, AuctionScan, CompanionDevice, FavoriteItem, FavoriteRecipe
+from .models import (
+    AuctionPrice,
+    AuctionReport,
+    AuctionScan,
+    CompanionDevice,
+    FavoriteItem,
+    FavoriteRecipe,
+)
 
 MAX_ITEMS = 60_000
 RECIPE_RESULTS = 30  # recettes montrées par une recherche
@@ -166,6 +173,88 @@ def prune_due() -> int:
     if not cache.add("gamesync:auctions:prune", 1, PRUNE_EVERY):
         return 0
     return prune()
+
+
+REPORT_KINDS = ("sent", "duplicate", "unchanged", "failed", "unreadable", "no_scan", "no_file", "not_allowed")
+REPORTS_KEPT = timedelta(days=14)
+REPORTS_PER_CALL = 40
+
+
+def _text(value: Any, limit: int) -> str:
+    return " ".join(value.split())[:limit] if isinstance(value, str) else ""
+
+
+def _stamp(value: Any) -> datetime | None:
+    stamp = _int(value)
+    if not stamp or stamp <= 0:
+        return None
+    try:
+        return datetime.fromtimestamp(stamp, tz=UTC)
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+def store_reports(user, raw: Any, *, device: CompanionDevice | None = None, companion: str = "") -> int:
+    """Note ce que le compagnon dit avoir fait de ses fichiers de scan. Un constat identique au dernier du
+    même compagnon pour le même addon et le même royaume ne fait pas de nouvelle ligne : son heure et son
+    compte avancent. Les lignes de plus de `REPORTS_KEPT` sont supprimées. Renvoie le nombre de constats
+    lus."""
+    if not isinstance(raw, list):
+        raise AuctionError("Rapports illisibles.")
+    now = timezone.now()
+    read = 0
+    for item in raw[:REPORTS_PER_CALL]:
+        if not isinstance(item, dict):
+            continue
+        source, kind = _text(item.get("source"), 32), _text(item.get("kind"), 24)
+        if not source or kind not in REPORT_KINDS:
+            continue
+        read += 1
+        items = _int(item.get("items"))
+        fields = {
+            "kind": kind,
+            "detail": _text(item.get("detail"), 600),
+            "day": _int(item.get("day")),
+            "items": items if items is not None and 0 <= items < 2**31 else None,
+            "scanned_at": _stamp(item.get("scanned_at")),
+            "file_at": _stamp(item.get("file_at")),
+        }
+        if fields["day"] is not None and not -(2**31) <= fields["day"] < 2**31:
+            fields["day"] = None
+        mine = {"user": user, "device": device, "source": source, "house": _text(item.get("house"), 96)}
+        last = AuctionReport.objects.filter(**mine).order_by("-at", "-pk").first()
+        if last and all(getattr(last, name) == value for name, value in fields.items()):
+            last.at, last.count, last.companion = now, last.count + 1, companion[:24]
+            last.save(update_fields=["at", "count", "companion"])
+        else:
+            AuctionReport.objects.create(**mine, **fields, at=now, companion=companion[:24])
+    AuctionReport.objects.filter(at__lt=now - REPORTS_KEPT).delete()
+    return read
+
+
+def reports(limit: int = 150) -> list[dict]:
+    """Les constats des compagnons, le plus récent d'abord (GM)."""
+    rows = AuctionReport.objects.select_related("user", "device").order_by("-at", "-pk")[:limit]
+    return [
+        {
+            "id": r.pk,
+            "at": r.at,
+            "first_at": r.first_at,
+            "count": r.count,
+            "user": r.user.display_name,
+            "device": r.device.name if r.device else None,
+            "companion": r.companion,
+            "source": r.source,
+            "house": r.house,
+            "kind": r.kind,
+            "detail": r.detail,
+            "day": r.day,
+            "items": r.items,
+            "scanned_at": r.scanned_at,
+            "file_at": r.file_at,
+        }
+        for r in rows
+    ]
 
 
 def scan_summary(scan: AuctionScan) -> dict:

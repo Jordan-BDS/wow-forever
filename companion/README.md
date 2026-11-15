@@ -19,6 +19,9 @@ Auctionator est lu aussi (`AUCTIONATOR_PRICE_DATABASE` dans `SavedVariables/Auct
 royaume) : le dernier jour où une bonne part de la base a été vue (un scan complet, pas des recherches) part au
 site, daté de l'écriture du fichier, sans nombre d'enchères (Auctionator compte des quantités) ; il repart dès que
 les prix de ce jour ont changé (un second scan le même jour). Qui a les deux addons envoie les deux ; le site écarte les scans trop proches.
+À chaque passage, le compagnon dit aussi au site ce qu'il a fait de ces fichiers
+(`POST /api/sync/auctions/reports/` : envoyé, rien de nouveau, base illisible et pourquoi, aucun fichier),
+seulement quand le constat change ; le GM les lit sur la page `/tests` du site.
 
 ## Développer
 

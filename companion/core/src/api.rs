@@ -352,6 +352,19 @@ impl SiteClient {
         }
     }
 
+    /// Dit au site ce que ce compagnon a fait de ses fichiers de scan (page Tests du GM).
+    pub fn report_auctions(&self, reports: &[crate::auctions::ScanReport]) -> Result<()> {
+        let response = self
+            .authed(self.http.post(self.url("auctions/reports/")))
+            .json(&serde_json::json!({ "reports": reports }))
+            .send()?;
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(Self::error_from(response))
+        }
+    }
+
     /// L'état fusionné de mes personnages, pour compléter l'addon de ce PC.
     pub fn state(&self) -> Result<SiteState> {
         let response = self.authed(self.http.get(self.url("state/"))).send()?;

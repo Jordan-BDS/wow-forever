@@ -4,7 +4,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
@@ -371,6 +371,34 @@ class AuctionScansView(APIView):
         except auctions.AuctionError as exc:
             raise ValidationError({"detail": str(exc)}) from exc
         return Response(auctions.scan_summary(scan), status=status.HTTP_201_CREATED)
+
+
+class AuctionReportsView(APIView):
+    """Le compagnon dit ce qu'il a fait de ses fichiers de scan (POST) ; le GM lit ces constats (GET)."""
+
+    authentication_classes = [CompanionTokenAuthentication, SessionAuthentication]
+    permission_classes = [CanUseAuctions]
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    def get(self, request: Request) -> Response:
+        if not IsGM().has_permission(request, self):
+            raise PermissionDenied(IsGM.message)
+        return Response({"reports": auctions.reports()})
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses={200: OpenApiTypes.OBJECT})
+    def post(self, request: Request) -> Response:
+        data = request.data if isinstance(request.data, dict) else {}
+        device = request.auth if isinstance(request.auth, CompanionDevice) else None
+        # « WoWForeverGuilde-Companion/0.7.12 » : la version, pour savoir qui n'est pas à jour.
+        agent = request.headers.get("User-Agent", "")
+        companion = agent.split("/", 1)[1] if agent.startswith("WoWForeverGuilde-Companion/") else ""
+        try:
+            read = auctions.store_reports(
+                request.user, data.get("reports"), device=device, companion=companion
+            )
+        except auctions.AuctionError as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+        return Response({"reports": read})
 
 
 class AuctionItemView(APIView):
