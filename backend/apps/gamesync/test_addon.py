@@ -533,8 +533,19 @@ class TestSession:
         )
         assert all(tab(label) for label in labels)
         assert "sans sauvegarde" in window.session.text
+        # « Sauvegarder » : le jeu refuse ReloadUI() à un addon. La souris sur le bouton pose dessus le bouton
+        # sécurisé qui lance /reload ; en combat il ne peut pas se poser, et le clic dit de taper /reload.
+        window.save.scripts.OnEnter(window.save)
+        cover = g.WoWForeverGuildeReload
+        assert cover.shown and cover.attributes.type == "macro" and cover.attributes.macrotext == "/reload"
+        cover.scripts.OnLeave(cover)
+        assert not cover.shown
+        g._COMBAT = True
+        window.save.scripts.OnEnter(window.save)
+        assert not cover.shown
         window.save.scripts.OnClick(window.save)
-        assert g._RELOADED is True
+        assert "/reload" in g._CHAT[len(g._CHAT)] and g._RELOADED is None
+        g._COMBAT = None
         # La fenêtre lâchée ailleurs retient sa place.
         lua.execute('WoWForeverGuildeFrame.point = { "TOPLEFT", UIParent, "TOPLEFT", 40, -60 }')
         window.scripts.OnDragStop(window)
@@ -957,10 +968,27 @@ class TestSession:
         # Deuxième bouton : plus tard. Rien ne se passe, plus rien n'attend.
         frame.buttons[2].scripts.OnClick(frame.buttons[2])
         assert popup(g) is None and g._RELOADED is None
-        # Premier bouton : la fonction du dialogue reçoit sa donnée.
+        # Premier bouton d'un dialogue de rechargement : le bouton sécurisé le recouvre, et note la tentative
+        # juste avant que le jeu recharge, une seule fois (le clic passe à l'appui et au relâchement).
         ui.SuggestUpgrade("9.9.9")
+        frame.buttons[1].scripts.OnEnter(frame.buttons[1])
+        cover = g.WoWForeverGuildeReload
+        assert cover.shown and cover.attributes.macrotext == "/reload"
+        cover.scripts.PreClick(cover)
+        cover.scripts.PreClick(cover)
+        tried = g.WoWForeverGuildeDB.upgradeTried
+        assert tried.version == "9.9.9" and tried.n == 1 and g._RELOADED is None
+        # Le combat commence : le bouton sécurisé se retire, et le clic sur le bouton nu laisse le dialogue.
+        cover.scripts.OnEvent(cover, "PLAYER_REGEN_DISABLED")
+        assert not cover.shown
         frame.buttons[1].scripts.OnClick(frame.buttons[1])
-        assert g._RELOADED is True and g.WoWForeverGuildeDB.upgradeTried.version == "9.9.9"
+        assert popup(g).which == "WFG_UPGRADE" and "/reload" in g._CHAT[len(g._CHAT)]
+        dismiss(g)
+        # Sur une autre question, le premier bouton ne recharge pas.
+        ui.ShowDialog("WFG_TRANSFER", "?", lua.table())
+        frame.buttons[1].scripts.OnEnter(frame.buttons[1])
+        assert not cover.shown
+        dismiss(g)
         assert g._STATIC_POPUP_USED is None
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
@@ -2045,8 +2073,7 @@ _NS.MapUI.UsePins(lib)
         receive(lua, JAINA + "\t\t9.9.9")
         g._ADVANCE(60)
         assert popup(g) is None and g.WoWForeverGuildeDB.upgradeTried is None
-        g._NS.UI.Dialogs.WFG_UPGRADE.OnAccept()
-        assert g._RELOADED is True
+        g._NS.UI.Dialogs.WFG_UPGRADE.OnReload()
         tried = g.WoWForeverGuildeDB.upgradeTried
         assert (tried.version, tried.n, tried.t) == ("9.9.9", 1, g._CLOCK.now)
         assert g._NS.VersionNewer("0.10.0", "0.9.9") and not g._NS.VersionNewer("dev", "0.6.1")
@@ -2085,7 +2112,7 @@ _NS.MapUI.UsePins(lib)
         # Un quart d'heure après, le compagnon a pu arriver : une seconde proposition, la dernière.
         g._ADVANCE(6 * 60)
         assert popup(g).which == "WFG_UPGRADE" and "9.9.9" in popup(g).message
-        g._NS.UI.Dialogs.WFG_UPGRADE.OnAccept(None, "9.9.9")
+        g._NS.UI.Dialogs.WFG_UPGRADE.OnReload(None, "9.9.9")
         assert g.WoWForeverGuildeDB.upgradeTried.n == 2
         # Deux rechargements sans effet : plus de popup pour cette version, quelle que soit l'attente.
         lua, g = session(2, 10**6)

@@ -237,6 +237,7 @@ ns.L = setmetatable({
   TRANSFER_DONE = "Compteurs conservés.",
   RELOAD_TEXT = "Mettre tes données à l'abri ?\n\nTu joues depuis %s sans sauvegarde : le jeu n'écrit les données de l'addon qu'à la déconnexion ou au /reload, et un plantage perdrait la session. Recharger l'interface prend environ 3 secondes.",
   RELOAD_YES = "Sauvegarder",
+  RELOAD_TYPE = "Le jeu ne laisse pas l'addon recharger l'interface d'ici : tape |cffffd100/reload|r.",
   RELOAD_LATER = "Plus tard",
   RELOAD_NEVER = "Ne plus demander",
   UPGRADE_TEXT = "Une version plus récente de l'addon circule dans la guilde : %s (tu as %s).\n\nRecharger l'interface maintenant (environ 3 secondes) ? Le compagnon la copie dans ton dossier WoW dès qu'il la détecte. Si rien ne change après le rechargement, ouvre-le et clique « Vérifier les mises à jour ».",

@@ -69,6 +69,71 @@ local function makeButton(parent, text, width)
 end
 UI.MakeButton = makeButton
 
+-- --- recharger l'interface ---------------------------------------------------------------------------
+--
+-- Ce client refuse ReloadUI() à un addon, même sur un clic et hors combat (ADDON_ACTION_BLOCKED : Reload(), vu
+-- chez tout le monde) : seule la commande /reload du jeu recharge. Un bouton « recharger » ne recharge donc pas
+-- lui-même : quand la souris arrive dessus, un bouton sécurisé (macro « /reload ») vient le recouvrir et c'est lui
+-- qui reçoit le clic. Il est rattaché à UIParent, pas à nos fenêtres (elles ne pourraient plus s'ouvrir ni se
+-- fermer en combat), et se cache quand la souris le quitte ou que le combat commence. En combat le jeu interdit
+-- de le poser : le clic dit alors de taper /reload.
+local reloadCover = nil
+
+local function locked() return (InCombatLockdown and InCombatLockdown()) and true or false end
+
+local function buildReloadCover()
+  local cover = CreateFrame("Button", "WoWForeverGuildeReload", UIParent, "SecureActionButtonTemplate")
+  cover:SetFrameStrata("TOOLTIP")
+  cover:RegisterForClicks("AnyUp", "AnyDown")
+  cover:SetAttribute("type", "macro")
+  cover:SetAttribute("macrotext", "/reload")
+  local glow = cover:CreateTexture(nil, "HIGHLIGHT")
+  glow:SetAllPoints()
+  if glow.SetColorTexture then glow:SetColorTexture(1, 1, 1, 0.12) end
+  -- Ce qu'il faut noter avant de recharger (la tentative de mise à jour), une fois : le clic passe deux fois ici,
+  -- à l'appui et au relâchement.
+  cover:SetScript("PreClick", function(self)
+    local before = self.before
+    self.before = nil
+    if before then ns.Safe("ui.reload", before) end
+  end)
+  cover:SetScript("OnLeave", function(self) if not locked() then self:Hide() end end)
+  cover:RegisterEvent("PLAYER_REGEN_DISABLED") -- le combat commence : encore un instant pour le retirer
+  cover:SetScript("OnEvent", function(self) self:Hide() end)
+  cover:Hide()
+  return cover
+end
+
+local function coverWithReload(button)
+  if locked() then return end
+  if button.reloadWhen and not button.reloadWhen() then return end
+  local left, bottom = button:GetLeft(), button:GetBottom()
+  if not left or not bottom then return end
+  reloadCover = reloadCover or buildReloadCover()
+  local scale = button:GetEffectiveScale() / UIParent:GetEffectiveScale()
+  reloadCover:ClearAllPoints()
+  reloadCover:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left * scale, bottom * scale)
+  reloadCover:SetSize(button:GetWidth() * scale, button:GetHeight() * scale)
+  reloadCover.before = button.reloadBefore
+  reloadCover:Show()
+end
+
+--- Fait de ce bouton un bouton « recharger l'interface ». `before()` : appelé juste avant le rechargement ;
+--- `when()` : le bouton ne recharge que si elle répond vrai (un bouton de dialogue sert à plusieurs questions).
+--- Son propre OnClick ne sert plus que si le bouton sécurisé n'a pas pu se poser : voir UI.ReloadBlocked.
+function UI.MakeReloadButton(button, before, when)
+  button.reloadBefore, button.reloadWhen = before, when
+  button:HookScript("OnEnter", function(self) ns.Safe("ui.reload", coverWithReload, self) end)
+  return button
+end
+
+--- Le rechargement n'a pas pu partir d'ici (combat, commande /mf) : dire de taper /reload.
+function UI.ReloadBlocked() ns.Print(L.RELOAD_TYPE) end
+
+local function hideReloadCover()
+  if reloadCover and not locked() then reloadCover:Hide() end
+end
+
 local function makeCheck(parent, label, get, set)
   local c = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
   c:SetSize(24, 24)
@@ -215,7 +280,8 @@ local function buildWindow()
   -- Sauvegarde : à droite du titre, à portée depuis tous les onglets.
   window.save = makeButton(window, L.SAVE_NOW, 160)
   window.save:SetPoint("TOPRIGHT", -36, -10)
-  window.save:SetScript("OnClick", function() ReloadUI() end)
+  window.save:SetScript("OnClick", UI.ReloadBlocked)
+  UI.MakeReloadButton(window.save)
   window.session = window:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   window.session:SetPoint("RIGHT", window.save, "LEFT", -10, 0)
   local saved = ns.db and ns.db.settings.windowPoint
@@ -852,7 +918,8 @@ end
 -- ADDON_ACTION_BLOCKED sur CancelLogout(), la déconnexion ne s'annulait plus). Pas de fermeture par Échap : chaque
 -- dialogue a son bouton « plus tard ».
 -- Une définition : { button1, button2, button3, OnAccept = fn(dialog, data), OnAlt = fn(dialog, data) } ;
--- bouton 1 = OnAccept, bouton 2 = fermer, bouton 3 = OnAlt.
+-- bouton 1 = OnAccept, bouton 2 = fermer, bouton 3 = OnAlt. `reload = true` : le bouton 1 recharge l'interface
+-- (UI.MakeReloadButton), après `OnReload(dialog, data)` s'il y en a un.
 UI.Dialogs = {}
 local dialogFrame = nil
 local dialogQueue = {}
@@ -906,6 +973,8 @@ local function buildDialog()
     local button = makeButton(f, "", 120)
     button:SetScript("OnClick", function()
       local def, data = UI.Dialogs[f.which], f.data
+      -- Le clic est arrivé jusqu'ici : le bouton sécurisé n'était pas posé (combat). Le dialogue reste.
+      if i == 1 and def and def.reload then UI.ReloadBlocked() return end
       f:Hide()
       local handler = def and ((i == 1 and def.OnAccept) or (i == 3 and def.OnAlt)) or nil
       if handler then ns.Safe("ui.dialog", handler, f, data) end
@@ -913,6 +982,14 @@ local function buildDialog()
     end)
     f.buttons[i] = button
   end
+  UI.MakeReloadButton(f.buttons[1], function()
+    local def = UI.Dialogs[f.which]
+    if def and def.OnReload then def.OnReload(f, f.data) end
+  end, function()
+    local def = UI.Dialogs[f.which]
+    return def ~= nil and def.reload == true
+  end)
+  f:SetScript("OnHide", hideReloadCover)
   f:Hide()
   return f
 end
@@ -949,7 +1026,7 @@ UI.Dialogs.WFG_RELOAD = {
   button1 = L.RELOAD_YES,
   button2 = L.RELOAD_LATER,
   button3 = L.RELOAD_NEVER,
-  OnAccept = function() ReloadUI() end,
+  reload = true,
   OnAlt = function() ns.db.settings.reloadReminder = false end,
 }
 
@@ -960,7 +1037,8 @@ end
 UI.Dialogs.WFG_UPGRADE = {
   button1 = L.UPGRADE_YES,
   button2 = L.UPGRADE_LATER,
-  OnAccept = function(self, version) ns.UpgradeAccepted(version) end,
+  reload = true,
+  OnReload = function(self, version) ns.UpgradeAccepted(version) end,
 }
 
 --- Un guildien a une version plus récente de l'addon : proposer le /reload (le compagnon a déjà copié les fichiers).

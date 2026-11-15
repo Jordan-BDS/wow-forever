@@ -250,6 +250,16 @@ local function newFrame(kind, name)
   function f:UnregisterEvent(e) self.events[e] = nil end
   function f:SetScript(k, fn) self.scripts[k] = fn end
   function f:GetScript(k) return self.scripts[k] end
+  function f:HookScript(k, fn)
+    local before = self.scripts[k]
+    self.scripts[k] = before and function(...) before(...) fn(...) end or fn
+  end
+  function f:SetAttribute(k, v) self.attributes = self.attributes or {} self.attributes[k] = v end
+  function f:GetLeft() return 100 end
+  function f:GetBottom() return 200 end
+  function f:GetWidth() return 160 end
+  function f:GetHeight() return 24 end
+  function f:GetEffectiveScale() return 1 end
   function f:Show() self.shown = true if self.scripts.OnShow then self.scripts.OnShow(self) end end
   function f:Hide() self.shown = false end
   function f:IsShown() return self.shown end

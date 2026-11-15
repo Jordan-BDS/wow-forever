@@ -410,7 +410,8 @@ function ns.NoticeVersion(version, guid)
   ns.TryUpgradePopup()
 end
 
---- « Recharger » du popup : on retient la tentative avant de recharger, le client écrit la base au passage.
+--- « Recharger » du popup : on retient la tentative juste avant que le jeu recharge (le client écrit la base au
+--- passage). Le rechargement lui-même est celui du bouton sécurisé (UI.MakeReloadButton) : un addon n'y a pas droit.
 function ns.UpgradeAccepted(version)
   version = version or ns.upgrade.seen
   if version and ns.db then
@@ -418,7 +419,6 @@ function ns.UpgradeAccepted(version)
     local count = (type(tried) == "table" and tried.version == version and tried.n or 0) + 1
     ns.db.upgradeTried = { version = version, n = count, t = ns.now() }
   end
-  ReloadUI()
 end
 
 --- À la connexion : la version attendue est arrivée → la tentative est oubliée. Le jeu a été lancé avec un .toc
@@ -504,7 +504,8 @@ SlashCmdList.WOWFOREVERGUILDE = function(raw)
   raw = raw or ""
   local msg = raw:lower():gsub("^%s+", "")
   if msg == "export" and ns.UI then ns.UI.ShowExport()
-  elseif msg == "save" or msg == "reload" then ReloadUI()
+  elseif msg == "save" or msg == "reload" then
+    if ns.UI then ns.UI.ReloadBlocked() end -- le jeu refuse ReloadUI() à un addon
   elseif msg == "qui" or msg == "who" then ns.RosterUI.Toggle()
   elseif msg == "wanted" then ns.WantedUI.Toggle()
   elseif msg == "primes" and ns.BountiesUI then ns.UI.Toggle("bounties")
