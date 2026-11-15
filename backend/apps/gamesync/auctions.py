@@ -21,6 +21,7 @@ from django.utils import timezone
 from apps.gamedata.models import Item, Recipe
 from apps.gamedata.stats import icon_url
 
+from . import auction_categories
 from .models import AuctionPrice, AuctionScan, CompanionDevice, FavoriteRecipe
 
 MAX_ITEMS = 60_000
@@ -199,7 +200,8 @@ def _items(ids) -> dict[int, dict]:
     ids, found = list(ids), {}
     for start in range(0, len(ids), ID_BATCH):
         batch = Item.objects.filter(id__in=ids[start : start + ID_BATCH])
-        for item in batch.values("id", "name", "name_en", "quality", "icon"):
+        fields = ("id", "name", "name_en", "quality", "icon", "class_id", "subclass_id", "inventory_type")
+        for item in batch.values(*fields):
             found[item["id"]] = item
     return found
 
@@ -227,7 +229,7 @@ def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[d
     """Chaque objet du dernier scan avec son prix de référence, par nom ; puis les objets du scan de référence
     absents du dernier (plus aucune enchère), montrés par les seuls tris de mouvements. Gardé en cache :
     filtrer, trier ou changer de page ne relit pas les deux scans."""
-    key = f"gamesync:auctions:3:{latest.pk}:{baseline.pk if baseline else 0}"
+    key = f"gamesync:auctions:4:{latest.pk}:{baseline.pk if baseline else 0}"
     cached = cache.get(key)
     if cached is not None:
         return cached
@@ -245,6 +247,8 @@ def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[d
             # Ce que la recherche parcourt : le nom français et le nom anglais (le client du jeu peut être
             # dans l'une ou l'autre langue), sans accents. Retiré de la réponse.
             "search": _fold(f"{item['name']}\n{item['name_en']}") if item else "",
+            # Ce que le filtre par type lit : classe, sous-classe et emplacement. Retiré de la réponse.
+            "kind": (item["class_id"], item["subclass_id"], item["inventory_type"]) if item else None,
             "quality": item["quality"] if item else 1,
             "icon_url": icon_url(item["icon"]) if item else "",
             "price": price,
@@ -273,15 +277,22 @@ def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[d
     return rows, gone
 
 
-def overview(house: str = "", q: str = "", sort: str = "name", since: str = "prev", page: int = 1) -> dict:
-    """Le dernier scan d'un hôtel, comparé à un scan de référence : une page d'objets filtrés et triés."""
+def overview(
+    house: str = "", q: str = "", sort: str = "name", since: str = "prev", page: int = 1, category: str = ""
+) -> dict:
+    """Le dernier scan d'un hôtel, comparé à un scan de référence : une page d'objets filtrés et triés.
+    `category` : clé d'un type d'objet (`auction_categories`), ignorée si elle n'en nomme aucun. Un objet
+    absent de l'index du site n'est d'aucun type."""
     known = houses()
+    in_category = auction_categories.test_for(category)
+    category = category if in_category else ""
+    shared = {"categories": auction_categories.tree(), "category": category}
     house = canonical_house(house)
     sort = sort if sort in SORTS else "name"
     since = since if since in BASELINES else "prev"
     empty = {
         "houses": known, "house": "", "scan": None, "baseline": None, "since": since, "sort": sort,
-        "total": 0, "page": 1, "pages": 1, "results": [],
+        "total": 0, "page": 1, "pages": 1, "results": [], **shared,
     }  # fmt: skip
     if not known:
         return empty
@@ -294,6 +305,8 @@ def overview(house: str = "", q: str = "", sort: str = "name", since: str = "pre
     if sort in MOVEMENT_SORTS:
         rows = rows + gone
 
+    if in_category:
+        rows = [r for r in rows if r["kind"] is not None and in_category(r["kind"])]
     needle = _fold(" ".join(q.split()))
     if needle:
         rows = [r for r in rows if needle in r["search"] or needle == str(r["item_id"])]
@@ -325,9 +338,10 @@ def overview(house: str = "", q: str = "", sort: str = "name", since: str = "pre
         "page": page,
         "pages": pages,
         "results": [
-            {k: v for k, v in r.items() if k != "search"}
+            {k: v for k, v in r.items() if k not in ("search", "kind")}
             for r in rows[(page - 1) * PAGE_SIZE : page * PAGE_SIZE]
         ],
+        **shared,
     }
 
 

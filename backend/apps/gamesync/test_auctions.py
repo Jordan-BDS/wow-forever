@@ -309,6 +309,56 @@ class TestRead:
         data = api_client.get("/api/sync/auctions/").json()
         assert (data["houses"], data["scan"], data["results"]) == ([], None, [])
 
+    def test_item_types_filter_like_the_house_in_game(self, api_client, as_user, gm, scans):
+        def item(item_id, name, class_id, subclass_id, inventory_type=0):
+            Item.objects.create(
+                id=item_id,
+                name=name,
+                class_id=class_id,
+                subclass_id=subclass_id,
+                inventory_type=inventory_type,
+            )
+
+        Item.objects.filter(id__in=[2589, 2592]).update(class_id=7, subclass_id=5)  # artisanat, tissu
+        item(1716, "Robe du Magus", 4, 1, 20)  # armure en tissu, torse (robe)
+        item(4320, "Bottes en étoffe", 4, 1, 8)
+        item(2520, "Épée large", 2, 7, 13)
+        item(11000, "Clé de Shadowforge", 13, 0)  # classe qu'aucune catégorie ne nomme : Divers
+        scan = [
+            [2589, 100, 3],
+            [1716, 35000, 4],
+            [4320, 900, 1],
+            [2520, 5000, 2],
+            [11000, 10, 1],
+            [99999, 7, 1],
+        ]
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(minutes=-45)), scan)
+        as_user(gm)
+
+        def found(category, **more):
+            data = api_client.get("/api/sync/auctions/", {"category": category, **more}).json()
+            assert all("kind" not in r for r in data["results"])
+            return data["category"], sorted(r["item_id"] for r in data["results"])
+
+        assert found("armor") == ("armor", [1716, 4320])
+        assert found("armor.1") == ("armor.1", [1716, 4320])
+        assert found("armor.1.chest") == ("armor.1.chest", [1716])
+        assert found("armor.2") == ("armor.2", [])
+        assert found("weapon.7") == ("weapon.7", [2520])
+        assert found("trade.5") == ("trade.5", [2589])
+        assert found("misc") == ("misc", [11000])  # l'objet inconnu de l'index n'est d'aucun type
+        assert found("armor", q="bottes") == ("armor", [4320])
+        # Une clé qui ne nomme aucun type est ignorée : tous les objets.
+        assert found("nimporte") == ("", [1716, 2520, 2589, 4320, 11000, 99999])
+        # La page reçoit l'arbre : catégories, sous-catégories, emplacements des armures.
+        tree = api_client.get("/api/sync/auctions/").json()["categories"]
+        assert [c["label"] for c in tree][:2] == ["Armes", "Armures"]
+        cloth = next(s for s in tree[1]["children"] if s["key"] == "armor.1")
+        assert (cloth["label"], cloth["children"][0]) == (
+            "Tissu",
+            {"key": "armor.1.head", "label": "Tête", "children": []},
+        )
+
 
 class TestRecipes:
     @pytest.fixture

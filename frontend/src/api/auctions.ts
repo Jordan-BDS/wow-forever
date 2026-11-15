@@ -32,6 +32,9 @@ export type AuctionRow = {
   moved: number | null;
 };
 
+/** Un type d'objet, rangé comme dans l'hôtel des ventes du jeu : catégorie, sous-catégorie, emplacement. */
+export type AuctionCategory = { key: string; label: string; children: AuctionCategory[] };
+
 export type AuctionOverview = {
   houses: { house: string; scans: number; last_scan: string; first_scan: string }[];
   house: string;
@@ -43,6 +46,9 @@ export type AuctionOverview = {
   page: number;
   pages: number;
   results: AuctionRow[];
+  categories: AuctionCategory[];
+  /** Clé du type d'objet retenu, vide si aucun. */
+  category: string;
 };
 
 export type AuctionHistory = {
@@ -63,6 +69,8 @@ export type AuctionFilters = {
   sort: AuctionSort;
   since: AuctionSince;
   page: number;
+  /** Clé d'un type d'objet, vide pour tous. */
+  category: string;
 };
 
 export function useAuctions(filters: AuctionFilters, enabled: boolean) {
@@ -73,7 +81,14 @@ export function useAuctions(filters: AuctionFilters, enabled: boolean) {
     placeholderData: (previous) => previous,
     queryFn: async () => {
       const { data, error } = await api.GET("/api/sync/auctions/", {
-        params: { query: { ...filters, house: filters.house || undefined, q: filters.q || undefined } },
+        params: {
+          query: {
+            ...filters,
+            house: filters.house || undefined,
+            q: filters.q || undefined,
+            category: filters.category || undefined,
+          },
+        },
       });
       if (error || !data) throw error ?? new Error();
       return data as unknown as AuctionOverview;
@@ -166,6 +181,16 @@ export function useSetFavoriteRecipe() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: RECIPES_KEY }),
   });
+}
+
+/** Les catégories qui mènent à `key`, de la plus large à la plus précise. Vide si la clé n'en nomme aucune. */
+export function categoryPath(categories: AuctionCategory[], key: string): AuctionCategory[] {
+  for (const category of categories) {
+    if (category.key === key) return [category];
+    const below = categoryPath(category.children, key);
+    if (below.length) return [category, ...below];
+  }
+  return [];
 }
 
 /** 123456 cuivres → « 12 po 34 pa 56 pc » (les parties nulles sont omises). */

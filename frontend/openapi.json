@@ -3600,6 +3600,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "category",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "type d'objet : une clé de `categories`"
+                    },
+                    {
+                        "in": "query",
                         "name": "house",
                         "schema": {
                             "type": "string"
@@ -3635,7 +3643,7 @@
                         "schema": {
                             "type": "string"
                         },
-                        "description": "name (défaut), price, listed, up, down"
+                        "description": "name (défaut), price, listed, up, down, sold, posted"
                     }
                 ],
                 "tags": [

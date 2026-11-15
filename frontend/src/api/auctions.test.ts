@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { formatChange, formatMoney, niceTicks } from "./auctions";
+import { categoryPath, formatChange, formatMoney, niceTicks } from "./auctions";
+
+describe("categoryPath", () => {
+  const leaf = (key: string, label: string) => ({ key, label, children: [] });
+  const tree = [
+    leaf("weapon", "Armes"),
+    {
+      key: "armor",
+      label: "Armures",
+      children: [{ key: "armor.1", label: "Tissu", children: [leaf("armor.1.head", "Tête")] }],
+    },
+  ];
+
+  it("donne le chemin jusqu'au type retenu, vide s'il n'existe pas", () => {
+    expect(categoryPath(tree, "armor.1.head").map((c) => c.label)).toEqual(["Armures", "Tissu", "Tête"]);
+    expect(categoryPath(tree, "weapon").map((c) => c.key)).toEqual(["weapon"]);
+    expect(categoryPath(tree, "")).toEqual([]);
+    expect(categoryPath(tree, "armor.9")).toEqual([]);
+  });
+});
 
 describe("formatMoney", () => {
   it("découpe les cuivres en or, argent, cuivre et omet les parties nulles", () => {

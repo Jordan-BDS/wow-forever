@@ -4799,6 +4799,8 @@ export interface operations {
     sync_auctions_retrieve: {
         parameters: {
             query?: {
+                /** @description type d'objet : une clé de `categories` */
+                category?: string;
                 /** @description hôtel (défaut : le dernier scanné) */
                 house?: string;
                 page?: number;
@@ -4806,7 +4808,7 @@ export interface operations {
                 q?: string;
                 /** @description prev (défaut), day, week */
                 since?: string;
-                /** @description name (défaut), price, listed, up, down */
+                /** @description name (défaut), price, listed, up, down, sold, posted */
                 sort?: string;
             };
             header?: never;

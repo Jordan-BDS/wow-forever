@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 import clsx from "clsx";
 import {
+  categoryPath,
   formatChange,
   formatMoney,
   useAuctions,
+  type AuctionCategory,
   type AuctionRow,
   type AuctionSince,
   type AuctionSort,
@@ -41,12 +43,13 @@ export function AuctionsPage() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<AuctionSort>("name");
   const [since, setSince] = useState<AuctionSince>("prev");
+  const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<number | null>(null);
   const [params, setParams] = useSearchParams();
   const onRecipes = params.get("onglet") === "recettes";
   const q = useDebounced(query.trim());
-  const auctions = useAuctions({ house, q, sort, since, page }, true);
+  const auctions = useAuctions({ house, q, sort, since, page, category }, true);
   useWowheadTooltips([auctions.data]);
 
   if (auctions.isError) return <p className="text-sm text-danger">Impossible de charger les prix.</p>;
@@ -109,92 +112,171 @@ export function AuctionsPage() {
     );
   }
 
+  const path = categoryPath(data.categories, category);
+  const pick = (key: string) => change(() => setCategory(key));
+
   return (
     <>
       <PageTitle>Hôtel des ventes</PageTitle>
       {tabs}
-      <Card className="mb-4 space-y-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex-1 text-sm">
-            <span className="text-muted">Objet (nom français ou anglais, ou ID)</span>
-            <Input
-              value={query}
-              placeholder="Ex. Étoffe de lin"
-              onChange={(e) => change(() => setQuery(e.target.value))}
-            />
-          </label>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted">Variation depuis</span>
-          {SINCE.map((s) => (
-            <Pill key={s.value} active={since === s.value} onClick={() => change(() => setSince(s.value))}>
-              {s.label}
-            </Pill>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted">Trier par</span>
-          {SORTS.map((s) => (
-            <Pill key={s.value} active={sort === s.value} onClick={() => change(() => setSort(s.value))}>
-              {s.label}
-            </Pill>
-          ))}
-        </div>
-        <p className="text-xs text-muted">
-          {data.house} · dernier scan le {formatDateTime(data.scan.scanned_at)} ({data.scan.items} objets) ·{" "}
-          {data.baseline
-            ? `comparé au scan du ${formatDateTime(data.baseline.scanned_at)}`
-            : since === "prev"
-              ? "pas encore de scan plus ancien : les variations arriveront au prochain"
-              : "pas de scan assez ancien pour cette période"}
-        </p>
-        {isMovement(sort) && (
-          <p className="text-xs text-muted">
-            Estimation d'après le nombre d'enchères des deux scans : une enchère partie a pu être vendue,
-            annulée ou avoir expiré. Valeur comptée au prix le plus bas, une unité par enchère.
-          </p>
-        )}
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
+        <Card className="hidden p-2 lg:block">
+          <CategoryTree categories={data.categories} path={path} onPick={pick} />
+        </Card>
+        {/* Écran étroit : le même arbre, replié sous le type retenu. */}
+        <Card className="p-2 lg:hidden">
+          <details>
+            <summary className="cursor-pointer px-2 py-1 text-sm">
+              <span className="text-muted">Type d'objet : </span>
+              {path.length ? path.map((c) => c.label).join(" › ") : "tous"}
+            </summary>
+            <div className="mt-2">
+              <CategoryTree categories={data.categories} path={path} onPick={pick} />
+            </div>
+          </details>
+        </Card>
+        <div className="min-w-0">
+          <Card className="mb-4 space-y-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex-1 text-sm">
+                <span className="text-muted">Objet (nom français ou anglais, ou ID)</span>
+                <Input
+                  value={query}
+                  placeholder="Ex. Étoffe de lin"
+                  onChange={(e) => change(() => setQuery(e.target.value))}
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted">Variation depuis</span>
+              {SINCE.map((s) => (
+                <Pill
+                  key={s.value}
+                  active={since === s.value}
+                  onClick={() => change(() => setSince(s.value))}
+                >
+                  {s.label}
+                </Pill>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted">Trier par</span>
+              {SORTS.map((s) => (
+                <Pill key={s.value} active={sort === s.value} onClick={() => change(() => setSort(s.value))}>
+                  {s.label}
+                </Pill>
+              ))}
+            </div>
+            <p className="text-xs text-muted">
+              {data.house} · dernier scan le {formatDateTime(data.scan.scanned_at)} ({data.scan.items} objets)
+              ·{" "}
+              {data.baseline
+                ? `comparé au scan du ${formatDateTime(data.baseline.scanned_at)}`
+                : since === "prev"
+                  ? "pas encore de scan plus ancien : les variations arriveront au prochain"
+                  : "pas de scan assez ancien pour cette période"}
+            </p>
+            {isMovement(sort) && (
+              <p className="text-xs text-muted">
+                Estimation d'après le nombre d'enchères des deux scans : une enchère partie a pu être vendue,
+                annulée ou avoir expiré. Valeur comptée au prix le plus bas, une unité par enchère.
+              </p>
+            )}
+          </Card>
 
-      <Card className="p-0">
-        {data.results.length === 0 ? (
-          <p className="p-6 text-center text-sm text-muted">
-            {sort === "up" || sort === "down"
-              ? "Aucune variation à montrer : il faut un scan de référence."
-              : isMovement(sort)
-                ? "Aucun mouvement à montrer entre ces deux scans."
-                : "Aucun objet ne correspond."}
-          </p>
-        ) : (
-          <ul className="divide-y divide-border/60">
-            {data.results.map((row) => (
-              <AuctionItem
-                key={row.item_id}
-                row={row}
-                house={data.house}
-                movement={isMovement(sort)}
-                open={open === row.item_id}
-                onToggle={() => setOpen(open === row.item_id ? null : row.item_id)}
-              />
-            ))}
-          </ul>
-        )}
-      </Card>
+          <Card className="p-0">
+            {data.results.length === 0 ? (
+              <p className="p-6 text-center text-sm text-muted">
+                {sort === "up" || sort === "down"
+                  ? "Aucune variation à montrer : il faut un scan de référence."
+                  : isMovement(sort)
+                    ? "Aucun mouvement à montrer entre ces deux scans."
+                    : path.length && !q
+                      ? "Aucun objet de ce type en vente."
+                      : "Aucun objet ne correspond."}
+              </p>
+            ) : (
+              <ul className="divide-y divide-border/60">
+                {data.results.map((row) => (
+                  <AuctionItem
+                    key={row.item_id}
+                    row={row}
+                    house={data.house}
+                    movement={isMovement(sort)}
+                    open={open === row.item_id}
+                    onToggle={() => setOpen(open === row.item_id ? null : row.item_id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </Card>
 
-      {data.pages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-3 text-sm">
-          <Pill active={false} onClick={() => setPage(Math.max(1, data.page - 1))}>
-            Précédent
-          </Pill>
-          <span className="text-muted">
-            Page {data.page} / {data.pages} · {data.total} objets
-          </span>
-          <Pill active={false} onClick={() => setPage(Math.min(data.pages, data.page + 1))}>
-            Suivant
-          </Pill>
+          {data.pages > 1 && (
+            <div className="mt-4 flex items-center justify-center gap-3 text-sm">
+              <Pill active={false} onClick={() => setPage(Math.max(1, data.page - 1))}>
+                Précédent
+              </Pill>
+              <span className="text-muted">
+                Page {data.page} / {data.pages} · {data.total} objets
+              </span>
+              <Pill active={false} onClick={() => setPage(Math.min(data.pages, data.page + 1))}>
+                Suivant
+              </Pill>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </>
+  );
+}
+
+/** Les types d'objets, comme le panneau de gauche de l'hôtel des ventes en jeu : seule la branche retenue est
+ * dépliée. Cliquer le type déjà retenu revient à son parent. */
+function CategoryTree({
+  categories,
+  path,
+  onPick,
+}: {
+  categories: AuctionCategory[];
+  /** Du type le plus large au type retenu, vide si aucun. */
+  path: AuctionCategory[];
+  onPick: (key: string) => void;
+}) {
+  const selected = path.at(-1)?.key ?? "";
+  const row = (active: boolean, depth: number) =>
+    clsx(
+      "block w-full rounded-sm py-1 pr-2 text-left text-sm transition-colors",
+      depth === 0 ? "pl-2" : depth === 1 ? "pl-5" : "pl-8",
+      active ? "bg-surface-2 text-gold-light" : "text-muted hover:bg-surface-2/60 hover:text-text",
+    );
+  const branch = (nodes: AuctionCategory[], depth: number, parent: string) => (
+    <ul className="space-y-0.5">
+      {nodes.map((node) => {
+        const open = path[depth]?.key === node.key;
+        return (
+          <li key={node.key}>
+            <button
+              type="button"
+              aria-current={selected === node.key ? "true" : undefined}
+              aria-expanded={node.children.length ? open : undefined}
+              className={row(selected === node.key, depth)}
+              onClick={() => onPick(selected === node.key ? parent : node.key)}
+            >
+              {node.label}
+            </button>
+            {open && node.children.length > 0 && branch(node.children, depth + 1, node.key)}
+          </li>
+        );
+      })}
+    </ul>
+  );
+  return (
+    <nav aria-label="Type d'objet">
+      <button type="button" className={row(selected === "", 0)} onClick={() => onPick("")}>
+        Tous les types
+      </button>
+      {branch(categories, 0, "")}
+    </nav>
   );
 }
 
