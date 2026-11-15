@@ -15,6 +15,7 @@ export function App() {
       api.onSync((outcomes) => setState((s) => (s ? { ...s, last_sync: outcomes, last_sync_at: Math.floor(Date.now() / 1000) } : s))),
       api.onPull((outcome) => setState((s) => (s ? { ...s, last_pull: outcome, last_pull_at: Math.floor(Date.now() / 1000) } : s))),
       api.onAuctions((outcomes) => setState((s) => (s ? { ...s, last_auctions: outcomes } : s))),
+      api.onAddonInstalled(() => void refresh()),
       api.onUpdateAvailable((version) => setUpdating(version)),
       api.onUpdateStuck((version) => setState((s) => (s ? { ...s, update_stuck: version } : s))),
       api.onUpdateFailed((e) => {

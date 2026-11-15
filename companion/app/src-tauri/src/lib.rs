@@ -645,7 +645,11 @@ pub fn run() {
                     // Un échec ici laisse l'ancien addon dans le jeu alors que le compagnon, lui, est à jour :
                     // il doit se voir dans la fenêtre, pas seulement dans le journal.
                     match addon::install(&wowdir::addons_dir(&game_dir), false) {
-                        Ok(outcome) => log::info!("addon : {outcome:?}"),
+                        Ok(outcome) => {
+                            log::info!("addon : {outcome:?}");
+                            // La fenêtre a lu la version installée avant cette copie : elle la relit.
+                            let _ = boot.emit("addon-installed", ());
+                        }
                         Err(e) => {
                             log::warn!("addon non copié : {e}");
                             let _ = boot.emit(

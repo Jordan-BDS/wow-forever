@@ -65,6 +65,8 @@ export const api = {
     listen<PullOutcome>("pull-result", (e) => handler(e.payload)),
   onAuctions: (handler: (outcomes: AuctionOutcome[]) => void): Promise<UnlistenFn> =>
     listen<AuctionOutcome[]>("auction-result", (e) => handler(e.payload)),
+  // L'addon vient d'être copié dans le jeu (au lancement, après une mise à jour du compagnon).
+  onAddonInstalled: (handler: () => void): Promise<UnlistenFn> => listen("addon-installed", () => handler()),
   onUpdateAvailable: (handler: (version: string) => void): Promise<UnlistenFn> =>
     listen<string>("update-available", (e) => handler(e.payload)),
   onUpdateFailed: (handler: (error: string) => void): Promise<UnlistenFn> =>
