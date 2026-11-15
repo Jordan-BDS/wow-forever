@@ -3506,6 +3506,53 @@ class TestWantedKills:
         assert char.counters.pk == 4 and wanted_sent(g, "H")[-1].split("	")[5] == "Lool Xd"
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_kills_in_quick_succession_each_count_at_the_counter(self):
+        """Journal du 15 novembre (Skreez, 22:48) : compteur 83 → 84 → 85 → 86 en cinq secondes, un seul kill compté."""
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        char = g._NS.char
+        lua.execute(
+            "_TARGET = { name = 'Nallyozz Eel', class = 'MAGE', hostile = true, player = true, dead = true }; _HK = 2341"
+        )
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")  # l'événement arrive en double : « rien à compter »
+        # Le deuxième avant que le premier soit compté, le troisième juste après : la cible, elle, n'a pas changé.
+        g._ADVANCE(1)
+        lua.execute("_HK = 2342")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        lua.execute("_HK = 2343")
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        assert char.counters.pk == 3
+        assert [e.name for e in char.events.values() if e.k == "pk"].count("Nallyozz Eel") == 1
+        assert "déjà compté" in g._NS.Wanted.KillLog()
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
+    def test_my_kill_gives_its_name_to_the_guild_when_a_teammates_popup_had_none(self):
+        """Journal du 15 novembre (PouxSeins, 23:07) : le « H » sans nom d'un coéquipier, puis mon kill, nommé."""
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        receive(lua, f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE		{g._CLOCK.now}	Durotar		")
+        assert wanted_sent(g, "H") == []
+        lua.execute(
+            "_TARGET = { name = 'Ywilz Ashbringer', class = 'PALADIN', hostile = true, player = true, dead = true }; _HK = 2341"
+        )
+        g._FIRE("PLAYER_PVP_KILLS_CHANGED")
+        g._ADVANCE(3)
+        (h,) = wanted_sent(g, "H")
+        assert h.split("	")[5] == "Ywilz Ashbringer"
+        assert "kill « Ywilz Ashbringer » : popup complété" in g._NS.Wanted.KillLog()
+        assert "Ywilz Ashbringer" in g.WoWForeverGuildeDeath.text.text
+        # Le popup a déjà son nom : le kill suivant d'un coéquipier sur le même joueur ne fait pas de « H ».
+        receive(lua, f"H	1	Player-1-00000UTH	Uther	PALADIN	Ywilz Ashbringer	{g._CLOCK.now}	Durotar		")
+        assert len(wanted_sent(g, "H")) == 1
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_a_kill_announcement_is_retried_when_refused_and_repeated_out_of_combat(self):
         lua = boot()
         g = lua.globals()

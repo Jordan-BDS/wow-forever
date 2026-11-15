@@ -208,6 +208,7 @@ end
 
 local lastHonor = nil -- /mf api : dernier message de victoire honorable { t, text, name, how }
 local lastKillAt = 0 -- heure du dernier kill compté, toutes pistes : message, compteur, cadavre
+local lastReadAt = 0 -- heure du dernier kill lu ailleurs qu'au compteur (message, cadavre) : celui que le compteur répète
 local nameless = nil -- heure de mon dernier kill annoncé sans nom, tant qu'aucun nom ne l'a repris
 local recentKills = {} -- { name, t } des derniers kills comptés : un même adversaire ne compte pas deux fois d'un coup
 local killsBaseline = nil -- victoires honorables du personnage à la dernière lecture (GetPVPLifetimeStats)
@@ -435,14 +436,25 @@ function Wanted.OnKillsChanged(char)
     logKill("compteur %s → %d : rien à compter", tostring(before), hk)
     return
   end
+  -- Seul un kill lu dans le message (ou sur un cadavre) est le même que celui du compteur. Un kill compté au
+  -- compteur juste avant est un autre kill (0.7.11 : deux adversaires abattus à moins de WANTED_KILL_WINDOW s
+  -- l'un de l'autre, le second était perdu).
   local at = ns.now()
-  if at - lastKillAt < ns.Data.WANTED_KILL_WINDOW then
+  if at - lastReadAt < ns.Data.WANTED_KILL_WINDOW then
     ns.Trace("victoires honorables %d → %d : kill déjà lu dans le message", before, hk)
+    logKill("compteur %d → %d : kill déjà lu", before, hk)
     return
   end
   local victim, probe = deadPlayerAround()
   C_Timer.After(ns.Data.WANTED_KILL_WINDOW, function()
-    if lastKillAt >= at then return end -- le message est arrivé entre-temps
+    if lastReadAt >= at then -- le message est arrivé entre-temps
+      logKill("compteur %d → %d : kill lu entre-temps", before, hk)
+      return
+    end
+    -- Le mort regardé est celui du kill d'avant (deux kills coup sur coup, la cible n'a pas changé) : pas lui.
+    if victim ~= "" and countedRecently(victim, ns.now(), ns.Data.WANTED_DEAD_WINDOW + ns.Data.WANTED_KILL_WINDOW) then
+      victim, probe = "", probe ~= "" and (probe .. ", déjà compté") or "déjà compté"
+    end
     -- Personne de mort sous mes yeux (cible, survol, focus…) : le seul joueur adverse vu mourir juste avant, sur
     -- sa plaque de nom ou ailleurs, et pas déjà compté. Plusieurs : on ne tranche pas, le kill reste sans nom.
     if victim == "" and ns.DeadEnemiesSince then
@@ -790,6 +802,7 @@ end
 --- honorable », une fois par victime dans la fenêtre, avec « Afficher les morts des autres ». Faux si un popup
 --- (celui-ci ou une prime) est déjà passé pour ce kill. `guid`, `killT` : le chasseur et l'heure de son kill, qui
 --- identifient ses répétitions (retenus même pour un doublon : la répétition d'un coéquipier arrive plus tard).
+--- Second retour : vrai si ce kill vient de donner son nom à un popup qui n'en avait pas.
 ---
 --- Kill à plusieurs : une seule annonce, la même chez tous. Chaque chasseur envoie la sienne et elles n'arrivent
 --- pas dans le même ordre partout ; le popup garde donc pour graine le chasseur au plus petit GUID parmi ceux
@@ -804,11 +817,11 @@ local function announceHonor(victim, victimClass, by, byClass, zone, sub, guid, 
     if not same then -- retenu sans rallonger la fenêtre de la victime : la répétition de ce chasseur sera reconnue
       markAnnounced(victim, t - ns.Data.WANTED_HONOR_DEDUPE, guid, killT).primary = popup
     end
-    local hunters, changed = popup.hunters, false
+    local hunters, changed, named = popup.hunters, false, false
     if not hunters then return false end -- une prime : rien à compléter
     -- Le nom arrive après coup (un coéquipier ciblait la victime, ou son cadavre ciblé après le combat).
     if popup.name == "" and victim ~= "" then
-      popup.name, popup.class, changed = victim, victimClass, true
+      popup.name, popup.class, changed, named = victim, victimClass, true, true
     end
     -- Kill à plusieurs (0.6.8) : le chasseur s'ajoute au popup déjà affiché, qui se complète sur place.
     local known = false
@@ -830,7 +843,7 @@ local function announceHonor(victim, victimClass, by, byClass, zone, sub, guid, 
       -- Popup décoché : le kill est quand même noté dans l'historique de /mf.
       ns.UI.ShowKill(shownName, hunters, phrase, popup.place, popup.id, popup ~= recent, not ns.db.settings.showDeaths)
     end
-    return false
+    return false, named
   end
   popup = markAnnounced(victim, t, guid, killT)
   local place = zone ~= "" and zone or (sub ~= "" and sub or L.WHERE_UNKNOWN)
@@ -951,6 +964,7 @@ function Wanted.RecordKill(char, name, t, battleground, fresh)
     end
   end
   lastKillAt = t
+  if not fresh then lastReadAt = t end
   table.insert(recentKills, { name = name, t = t })
   while #recentKills > ns.Data.WANTED_VICTIMS do table.remove(recentKills, 1) end
   if not entry then
@@ -960,10 +974,12 @@ function Wanted.RecordKill(char, name, t, battleground, fresh)
       local class = name ~= "" and ns.SeenPlayerClass and ns.SeenPlayerClass(name) or ""
       local killT = adopted or t
       if name == "" then nameless = t end
-      local fresh = announceHonor(name, class, myName(), char.class, zone, sub, char.guid, killT)
-      if fresh or adopted or streak >= 2 then -- une série est annoncée même si le popup du kill est déjà passé
+      local fresh, named = announceHonor(name, class, myName(), char.class, zone, sub, char.guid, killT)
+      -- Une série est annoncée même si le popup du kill est déjà passé ; de même le nom que je suis seul à avoir lu
+      -- (0.7.11 : le popup d'un coéquipier est passé sans nom, le mien le donne à toute la guilde).
+      if fresh or adopted or named or streak >= 2 then
         announceToGuild(Wanted.EncodeHonor(name, class, killT, zone, sub, streak, guild))
-        logKill("kill « %s » : %s, H %s", name, fresh and "popup" or (adopted and "popup complété" or "série"),
+        logKill("kill « %s » : %s, H %s", name, fresh and "popup" or ((adopted or named) and "popup complété" or "série"),
           lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
       else
         logKill("kill « %s » : popup déjà passé, pas de H", name)
