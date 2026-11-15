@@ -2,6 +2,8 @@ from django.contrib import admin
 
 from .models import (
     AuctionScan,
+    Bounty,
+    BountyPayment,
     CharacterSnapshot,
     CompanionDevice,
     IgnoredCharacter,
@@ -57,3 +59,15 @@ class AuctionScanAdmin(admin.ModelAdmin):
 class WantedExclusionAdmin(admin.ModelAdmin):
     list_display = ["name", "reason", "created_at"]
     search_fields = ["name"]
+
+
+@admin.register(Bounty)
+class BountyAdmin(admin.ModelAdmin):
+    list_display = ["target_name", "poster", "amount", "max_kills", "created_at", "cancelled_at"]
+    search_fields = ["target_name"]
+    raw_id_fields = ["item"]
+
+
+@admin.register(BountyPayment)
+class BountyPaymentAdmin(admin.ModelAdmin):
+    list_display = ["bounty", "hunter", "amount", "item_count", "recorded_by", "created_at"]

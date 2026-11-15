@@ -13,10 +13,10 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsGM
 from apps.characters.models import Character
 
-from . import auctions, services
+from . import auctions, bounties, services
 from .authentication import CompanionTokenAuthentication
 from .format import ExportError
-from .models import CharacterSnapshot, CompanionDevice, ImportBatch, ImportSource
+from .models import Bounty, CharacterSnapshot, CompanionDevice, ImportBatch, ImportSource
 from .serializers import (
     CharacterSnapshotSerializer,
     CompanionDeviceSerializer,
@@ -230,6 +230,47 @@ class WantedView(APIView):
             data = {"period": period, **wanted.wanted_report(None, start, end)}
             cache.set(key, data, 60)
         return Response(data)
+
+
+class BountiesView(APIView):
+    """Primes posées à la main sur des joueurs adverses : la liste avec les kills, les comptes et le registre
+    des dettes (GET), une nouvelle prime (POST). Ouvert à tous les membres."""
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    def get(self, request: Request) -> Response:
+        return Response(bounties.report(request.user))
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses={201: OpenApiTypes.OBJECT})
+    def post(self, request: Request) -> Response:
+        try:
+            bounties.create(request.user, request.data)
+        except bounties.BountyError as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+        return Response(bounties.report(request.user), status=status.HTTP_201_CREATED)
+
+
+class BountyCancelView(APIView):
+    """Annule une prime (son commanditaire, un officier ou le GM) : les kills déjà faits restent dus."""
+
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
+    def post(self, request: Request, pk: int) -> Response:
+        try:
+            bounties.cancel(request.user, get_object_or_404(Bounty, pk=pk))
+        except bounties.BountyError as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+        return Response(bounties.report(request.user))
+
+
+class BountyPaymentView(APIView):
+    """Le commanditaire (ou le GM) déclare avoir payé tout ce que la prime doit encore à un chasseur."""
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses={200: OpenApiTypes.OBJECT})
+    def post(self, request: Request, pk: int) -> Response:
+        try:
+            bounties.pay(request.user, get_object_or_404(Bounty, pk=pk), request.data.get("hunter_id"))
+        except bounties.BountyError as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+        return Response(bounties.report(request.user))
 
 
 class AddonErrorsView(APIView):

@@ -22,6 +22,7 @@ import { ProfessionsPage } from "./pages/ProfessionsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RankingsPage } from "./pages/RankingsPage";
 import { WantedPage } from "./pages/WantedPage";
+import { BountiesPage } from "./pages/BountiesPage";
 import { RecipesPage } from "./pages/RecipesPage";
 import { RosterPage } from "./pages/RosterPage";
 import { TalentsPage } from "./pages/TalentsPage";
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
               { path: "sondages/:id", Component: PollPage },
               { path: "classements", Component: RankingsPage },
               { path: "wanted", Component: WantedPage },
+              { path: "primes", Component: BountiesPage },
               { path: "guilde", Component: GuildPage },
               { path: "tests", Component: TestsPage },
               { path: "hv", Component: AuctionsPage },

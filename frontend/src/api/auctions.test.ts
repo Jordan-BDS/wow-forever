@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { rewardParts } from "./bounties";
 import { categoryPath, formatChange, formatMoney, niceTicks } from "./auctions";
 
 describe("categoryPath", () => {
@@ -49,5 +50,14 @@ describe("niceTicks", () => {
   it("donne une marge à une série plate", () => {
     expect(niceTicks(100, 100, 4)).toEqual([90, 95, 100, 105, 110]);
     expect(niceTicks(0, 0, 2)).toEqual([0, 1]);
+  });
+});
+
+describe("rewardParts", () => {
+  it("dit ce qu'une prime offre : or, objets, ou les deux", () => {
+    expect(rewardParts(500000, 0, undefined)).toEqual(["50 po"]);
+    expect(rewardParts(0, 3, "Étoffe runique")).toEqual(["3 × Étoffe runique"]);
+    expect(rewardParts(100000, 1, "Lotus noir")).toEqual(["10 po", "1 × Lotus noir"]);
+    expect(rewardParts(0, 0, "Lotus noir")).toEqual([]);
   });
 });

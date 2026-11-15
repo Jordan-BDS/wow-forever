@@ -5,6 +5,7 @@ Les règles sont décrites au cahier des charges, étape 11.
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class PairingCode(models.Model):
@@ -268,3 +269,57 @@ class WantedExclusion(models.Model):
     def save(self, *args, **kwargs):
         self.name = " ".join(self.name.split()).lower()
         super().save(*args, **kwargs)
+
+
+class Bounty(models.Model):
+    """Prime posée à la main par un membre sur un joueur adverse : tant par kill, pour un nombre de kills au
+    plus. Les kills sont lus dans les événements `pk` exportés par l'addon (`bounties.py`), pas stockés."""
+
+    poster = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bounties")
+    target_name = models.CharField("Cible", max_length=64)
+    target_key = models.CharField(max_length=64, db_index=True, editable=False)
+    amount = models.PositiveBigIntegerField("Or par kill (en cuivre)", default=0)
+    item = models.ForeignKey(
+        "gamedata.Item", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    item_count = models.PositiveIntegerField("Objets par kill", default=0)
+    max_kills = models.PositiveIntegerField("Kills payés au plus", default=1)
+    note = models.CharField("Mot du commanditaire", max_length=200, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "prime"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Prime de {self.poster} sur {self.target_name}"
+
+    def save(self, *args, **kwargs):
+        self.target_name = " ".join(self.target_name.split())
+        self.target_key = self.target_name.lower()
+        super().save(*args, **kwargs)
+
+
+class BountyPayment(models.Model):
+    """Ce que le commanditaire d'une prime déclare avoir remis à un chasseur. Le paiement se fait en jeu : le
+    site ne le voit pas, il tient les comptes."""
+
+    bounty = models.ForeignKey(Bounty, on_delete=models.CASCADE, related_name="payments")
+    hunter = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bounty_payments"
+    )
+    amount = models.PositiveBigIntegerField("Or remis (en cuivre)", default=0)
+    item_count = models.PositiveIntegerField("Objets remis", default=0)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "paiement de prime"
+        verbose_name_plural = "paiements de primes"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.bounty} : payé à {self.hunter}"
