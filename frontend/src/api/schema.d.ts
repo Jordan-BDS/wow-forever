@@ -957,14 +957,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description GM : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier scan
-         *     comparé à un scan de référence (GET).
+         * @description Membres : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier
+         *     scan comparé à un scan de référence (GET).
          */
         get: operations["sync_auctions_retrieve"];
         put?: never;
         /**
-         * @description GM : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier scan
-         *     comparé à un scan de référence (GET).
+         * @description Membres : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier
+         *     scan comparé à un scan de référence (GET).
          */
         post: operations["sync_auctions_create"];
         delete?: never;
@@ -980,7 +980,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GM : l'historique de prix d'un objet dans un hôtel des ventes. */
+        /** @description Membres : l'historique de prix d'un objet dans un hôtel des ventes. */
         get: operations["sync_auctions_items_retrieve"];
         put?: never;
         post?: never;
@@ -998,7 +998,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description GM : ses recettes favorites, ou celles que trouve `q`, avec le coût des composants et le prix du
+         * @description Membres : ses recettes favorites, ou celles que trouve `q`, avec le coût des composants et le prix du
          *     produit au dernier scan.
          */
         get: operations["sync_auctions_recipes_retrieve"];
@@ -1018,10 +1018,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** @description GM : suivre (PUT) ou ne plus suivre (DELETE) une recette. */
+        /** @description Membres : suivre (PUT) ou ne plus suivre (DELETE) une recette. */
         put: operations["sync_auctions_recipes_update"];
         post?: never;
-        /** @description GM : suivre (PUT) ou ne plus suivre (DELETE) une recette. */
+        /** @description Membres : suivre (PUT) ou ne plus suivre (DELETE) une recette. */
         delete: operations["sync_auctions_recipes_destroy"];
         options?: never;
         head?: never;

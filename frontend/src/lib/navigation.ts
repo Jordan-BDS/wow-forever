@@ -44,7 +44,7 @@ export const SECTIONS: NavSection[] = [
       { to: "/wanted", label: "Wanted" },
       { to: "/guilde", label: "Paramètres", gmOnly: true },
       { to: "/tests", label: "Tests en jeu", gmOnly: true },
-      { to: "/hv", label: "Hôtel des ventes", gmOnly: true },
+      { to: "/hv", label: "Hôtel des ventes" },
     ],
   },
   {

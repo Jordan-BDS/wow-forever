@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import clsx from "clsx";
 import {
   formatChange,
@@ -9,7 +9,6 @@ import {
   type AuctionSince,
   type AuctionSort,
 } from "@/api/auctions";
-import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ItemPriceHistory } from "@/components/PriceChart";
 import { RecipeCosts } from "@/components/RecipeCosts";
 import { Card, Input, PageTitle, Pill, Select, Spinner } from "@/components/ui";
@@ -36,10 +35,8 @@ const SORTS: { value: AuctionSort; label: string }[] = [
 
 const isMovement = (sort: AuctionSort) => sort === "sold" || sort === "posted";
 
-/** Prix de l'hôtel des ventes scannés en jeu et envoyés par le compagnon : réservé au GM. */
+/** Prix de l'hôtel des ventes scannés en jeu et envoyés par le compagnon des membres. */
 export function AuctionsPage() {
-  const me = useCurrentUser();
-  const isGm = me.site_role === "gm";
   const [house, setHouse] = useState("");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<AuctionSort>("name");
@@ -49,10 +46,9 @@ export function AuctionsPage() {
   const [params, setParams] = useSearchParams();
   const onRecipes = params.get("onglet") === "recettes";
   const q = useDebounced(query.trim());
-  const auctions = useAuctions({ house, q, sort, since, page }, isGm);
+  const auctions = useAuctions({ house, q, sort, since, page }, true);
   useWowheadTooltips([auctions.data]);
 
-  if (!isGm) return <Navigate to="/roster" replace />;
   if (auctions.isError) return <p className="text-sm text-danger">Impossible de charger les prix.</p>;
   if (!auctions.data) return <Spinner />;
   const data = auctions.data;

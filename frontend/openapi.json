@@ -3596,7 +3596,7 @@
         "/api/sync/auctions/": {
             "get": {
                 "operationId": "sync_auctions_retrieve",
-                "description": "GM : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier scan\ncomparé à un scan de référence (GET).",
+                "description": "Membres : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier\nscan comparé à un scan de référence (GET).",
                 "parameters": [
                     {
                         "in": "query",
@@ -3662,7 +3662,7 @@
             },
             "post": {
                 "operationId": "sync_auctions_create",
-                "description": "GM : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier scan\ncomparé à un scan de référence (GET).",
+                "description": "Membres : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier\nscan comparé à un scan de référence (GET).",
                 "tags": [
                     "sync"
                 ],
@@ -3717,7 +3717,7 @@
         "/api/sync/auctions/items/{item_id}/": {
             "get": {
                 "operationId": "sync_auctions_items_retrieve",
-                "description": "GM : l'historique de prix d'un objet dans un hôtel des ventes.",
+                "description": "Membres : l'historique de prix d'un objet dans un hôtel des ventes.",
                 "parameters": [
                     {
                         "in": "query",
@@ -3761,7 +3761,7 @@
         "/api/sync/auctions/recipes/": {
             "get": {
                 "operationId": "sync_auctions_recipes_retrieve",
-                "description": "GM : ses recettes favorites, ou celles que trouve `q`, avec le coût des composants et le prix du\nproduit au dernier scan.",
+                "description": "Membres : ses recettes favorites, ou celles que trouve `q`, avec le coût des composants et le prix du\nproduit au dernier scan.",
                 "parameters": [
                     {
                         "in": "query",
@@ -3806,7 +3806,7 @@
         "/api/sync/auctions/recipes/{recipe_id}/": {
             "put": {
                 "operationId": "sync_auctions_recipes_update",
-                "description": "GM : suivre (PUT) ou ne plus suivre (DELETE) une recette.",
+                "description": "Membres : suivre (PUT) ou ne plus suivre (DELETE) une recette.",
                 "parameters": [
                     {
                         "in": "path",
@@ -3836,7 +3836,7 @@
             },
             "delete": {
                 "operationId": "sync_auctions_recipes_destroy",
-                "description": "GM : suivre (PUT) ou ne plus suivre (DELETE) une recette.",
+                "description": "Membres : suivre (PUT) ou ne plus suivre (DELETE) une recette.",
                 "parameters": [
                     {
                         "in": "path",

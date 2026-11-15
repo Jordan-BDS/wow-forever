@@ -1,6 +1,7 @@
 """
-Prix de l'hôtel des ventes : le compagnon du GM envoie chaque scan complet lu dans le fichier de l'addon de
-scan, le site les garde tous et en tire l'historique de chaque objet. Envoi et lecture réservés au GM.
+Prix de l'hôtel des ventes : le compagnon de chaque membre envoie chaque scan complet lu dans le fichier de
+l'addon de scan, le site les garde tous et en tire l'historique de chaque objet. Envoi et lecture ouverts à
+tous les membres connectés.
 """
 
 import unicodedata
@@ -45,8 +46,8 @@ class DuplicateScan(AuctionError):
 
 
 def can_upload(user) -> bool:
-    """Qui peut envoyer et lire les prix : le GM seulement, pour l'instant."""
-    return bool(user and user.is_authenticated and user.is_gm)
+    """Qui peut envoyer et lire les prix : tout membre connecté."""
+    return bool(user and user.is_authenticated)
 
 
 def _int(value: Any) -> int | None:

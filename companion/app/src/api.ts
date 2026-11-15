@@ -36,7 +36,7 @@ export type PullOutcome =
   | { kind: "completed"; accounts: string[]; characters: number; created: string[] }
   | { kind: "failed"; error: string };
 
-// Scans de l'hôtel des ventes lus dans le fichier de l'addon NaowhForever, envoyés par le compagnon du GM.
+// Scans de l'hôtel des ventes lus dans le fichier de l'addon NaowhForever, envoyés par le compagnon de chaque membre.
 export type AuctionOutcome =
   | { kind: "not_allowed" }
   | { kind: "unchanged"; house: string }

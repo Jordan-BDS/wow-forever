@@ -1,4 +1,4 @@
-// Prix de l'hôtel des ventes (GM) : dernier scan comparé à un scan de référence, historique par objet,
+// Prix de l'hôtel des ventes (tous les membres) : dernier scan comparé à un scan de référence, historique par objet,
 // recettes favorites avec le coût de leurs composants.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";

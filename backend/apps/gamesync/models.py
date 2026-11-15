@@ -184,7 +184,7 @@ class WeeklyTitle(models.Model):
 
 
 class AuctionScan(models.Model):
-    """Un scan complet d'un hôtel des ventes, envoyé par le compagnon du GM : un seul par hôtel et instant."""
+    """Un scan complet d'un hôtel des ventes, envoyé par un compagnon : un par hôtel et par instant."""
 
     house = models.CharField(
         "Hôtel des ventes",

@@ -46,7 +46,7 @@ struct AppState {
     /// Complétion de l'addon depuis le site (sens site → fichier), faite au lancement, jeu fermé.
     last_pull: Option<PullOutcome>,
     last_pull_at: Option<u64>,
-    /// Envoi des scans de l'hôtel des ventes (GM) : vide ou absent chez qui n'envoie rien.
+    /// Envoi des scans de l'hôtel des ventes : vide ou absent chez qui n'envoie rien.
     last_auctions: Option<Vec<AuctionOutcome>>,
     candidates: Vec<String>,
     /// Dossier d'un autre client que Forever (Retail, Classic…) : le site refusera ses exports.

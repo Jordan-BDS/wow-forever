@@ -1,5 +1,5 @@
 //! Prix de l'hôtel des ventes : l'addon NaowhForever garde le dernier scan complet dans son `SavedVariables`
-//! (`ahPrices`, par hôtel : `prices`, `listed`, `time`). Le compagnon de qui en a le droit sur le site (le GM)
+//! (`ahPrices`, par hôtel : `prices`, `listed`, `time`). Le compagnon de qui en a le droit sur le site (tout membre)
 //! envoie chaque nouveau scan ; chez les autres, rien n'est lu ni envoyé. Notre addon n'y est pour rien.
 
 use std::fs;
@@ -144,7 +144,7 @@ pub fn extract_scans(lua: &str) -> Vec<HouseScan> {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AuctionOutcome {
-    /// Ce compte n'envoie pas les prix (réservé au GM) : aucun fichier n'a été lu.
+    /// Le site refuse les prix de ce compte : aucun fichier n'a été lu.
     NotAllowed,
     Unchanged {
         house: String,

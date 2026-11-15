@@ -43,15 +43,17 @@ def companion_token(user) -> str:
 
 
 class TestUpload:
-    def test_only_the_gm_sends_and_reads(self, api_client, as_user, member, officer):
-        for user in (member, officer):
+    def test_every_member_sends_and_reads_but_not_a_visitor(self, api_client, as_user, member, officer, gm):
+        for ago, user in enumerate((member, officer, gm)):
             as_user(user)
-            assert post_scan(api_client, [[2589, 100, 3]]).status_code == 403
-            assert api_client.get("/api/sync/auctions/").status_code == 403
-            assert api_client.get("/api/sync/auctions/items/2589/").status_code == 403
+            assert post_scan(api_client, [[2589, 100, 3]], timedelta(minutes=ago)).status_code == 201
+            assert api_client.get("/api/sync/auctions/").status_code == 200
+            assert api_client.get("/api/sync/auctions/items/2589/").status_code == 200
+        assert set(AuctionScan.objects.values_list("user", flat=True)) == {member.pk, officer.pk, gm.pk}
         api_client.force_authenticate(None)
-        assert post_scan(api_client, [[2589, 100, 3]]).status_code in (401, 403)
-        assert not AuctionScan.objects.exists()
+        assert post_scan(api_client, [[2589, 100, 3]], timedelta(hours=1)).status_code in (401, 403)
+        assert api_client.get("/api/sync/auctions/").status_code in (401, 403)
+        assert AuctionScan.objects.count() == 3
 
     def test_companion_of_the_gm_sends_a_scan_once(self, api_client, gm):
         api_client.credentials(HTTP_AUTHORIZATION=f"Companion {companion_token(gm)}")
@@ -68,21 +70,20 @@ class TestUpload:
         assert post_scan(api_client, [[2589, 100, 3]]).status_code == 409
         assert AuctionPrice.objects.count() == 2
 
-    def test_companion_of_a_member_is_refused_and_told_so(self, api_client, member, gm):
+    def test_companion_of_a_member_is_told_it_may_send_and_sends(self, api_client, member):
         api_client.credentials(HTTP_AUTHORIZATION=f"Companion {companion_token(member)}")
-        assert api_client.get("/api/sync/auctions/rights/").json() == {"upload": False}
-        assert post_scan(api_client, [[2589, 100, 3]]).status_code == 403
-        api_client.credentials(HTTP_AUTHORIZATION=f"Companion {companion_token(gm)}")
-        assert api_client.get("/api/sync/auctions/rights/").json() == {"upload": True}
-
-    def test_the_right_to_send_has_a_single_rule(self, api_client, as_user, member, monkeypatch):
-        # Ouvrir le droit à d'autres se fait dans `can_upload` seulement : le drapeau et les vues suivent.
-        monkeypatch.setattr(auctions, "can_upload", lambda user: user == member)
-        as_user(member)
         assert api_client.get("/api/sync/auctions/rights/").json() == {"upload": True}
         assert post_scan(api_client, [[2589, 100, 3]]).status_code == 201
-        assert api_client.get("/api/sync/auctions/").status_code == 200
-        assert api_client.get("/api/sync/auctions/items/2589/").status_code == 200
+        assert AuctionScan.objects.get().user == member
+
+    def test_the_right_to_send_has_a_single_rule(self, api_client, as_user, member, monkeypatch):
+        # Changer qui a le droit se fait dans `can_upload` seulement : le drapeau et les vues suivent.
+        monkeypatch.setattr(auctions, "can_upload", lambda user: False)
+        as_user(member)
+        assert api_client.get("/api/sync/auctions/rights/").json() == {"upload": False}
+        assert post_scan(api_client, [[2589, 100, 3]]).status_code == 403
+        assert api_client.get("/api/sync/auctions/").status_code == 403
+        assert api_client.get("/api/sync/auctions/items/2589/").status_code == 403
 
     def test_old_scans_are_thinned_to_one_per_day(self, gm):
         old = [timedelta(days=40, hours=h) for h in (3, 2, 0)]
@@ -254,10 +255,9 @@ class TestRecipes:
         auctions.store_scan(gm, HOUSE, stamp(timedelta(hours=1)), [[2589, 1, 1]])
         auctions.store_scan(gm, HOUSE, stamp(timedelta(0)), [[2589, 100, 3], [2996, 350, 5], [2570, 900]])
 
-    def test_favorites_are_personal_and_reserved_to_the_gm(self, api_client, as_user, gm, member, recipes):
-        as_user(member)
-        assert api_client.get("/api/sync/auctions/recipes/").status_code == 403
-        assert api_client.put("/api/sync/auctions/recipes/2963/").status_code == 403
+    def test_favorites_are_personal_and_closed_to_visitors(self, api_client, as_user, gm, member, recipes):
+        assert api_client.get("/api/sync/auctions/recipes/").status_code in (401, 403)
+        assert api_client.put("/api/sync/auctions/recipes/2963/").status_code in (401, 403)
         as_user(gm)
         assert api_client.put("/api/sync/auctions/recipes/424242/").status_code == 404
         for _ in range(2):  # suivre deux fois ne crée qu'un favori
@@ -269,6 +269,12 @@ class TestRecipes:
         assert api_client.delete("/api/sync/auctions/recipes/2963/").status_code == 204
         assert api_client.get("/api/sync/auctions/recipes/").json()["results"] == []
         assert FavoriteRecipe.objects.filter(user=member).count() == 1
+        # Un membre suit ses propres recettes, sans voir celles des autres.
+        as_user(member)
+        data = api_client.get("/api/sync/auctions/recipes/").json()
+        assert [(r["recipe_id"], r["favorite"]) for r in data["results"]] == [(2387, True)]
+        assert api_client.put("/api/sync/auctions/recipes/2963/").status_code == 204
+        assert FavoriteRecipe.objects.filter(user=member).count() == 2
 
     def test_cost_and_profit_come_from_the_latest_scan(self, api_client, as_user, gm, recipes):
         as_user(gm)

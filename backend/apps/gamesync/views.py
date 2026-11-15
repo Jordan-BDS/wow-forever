@@ -255,7 +255,7 @@ def _page(value) -> int:
 class CanUseAuctions(permissions.BasePermission):
     """Envoyer et lire les prix : la règle est dans `auctions.can_upload`, nulle part ailleurs."""
 
-    message = "Réservé au GM."
+    message = "Réservé aux membres de la guilde."
 
     def has_permission(self, request, view) -> bool:
         return auctions.can_upload(request.user)
@@ -273,8 +273,8 @@ class AuctionRightsView(APIView):
 
 
 class AuctionScansView(APIView):
-    """GM : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier scan
-    comparé à un scan de référence (GET)."""
+    """Membres : le compagnon envoie un scan complet de l'hôtel des ventes (POST), le site liste le dernier
+    scan comparé à un scan de référence (GET)."""
 
     authentication_classes = [CompanionTokenAuthentication, SessionAuthentication]
     permission_classes = [CanUseAuctions]
@@ -326,7 +326,7 @@ class AuctionScansView(APIView):
 
 
 class AuctionItemView(APIView):
-    """GM : l'historique de prix d'un objet dans un hôtel des ventes."""
+    """Membres : l'historique de prix d'un objet dans un hôtel des ventes."""
 
     permission_classes = [CanUseAuctions]
 
@@ -339,7 +339,7 @@ class AuctionItemView(APIView):
 
 
 class AuctionRecipesView(APIView):
-    """GM : ses recettes favorites, ou celles que trouve `q`, avec le coût des composants et le prix du
+    """Membres : ses recettes favorites, ou celles que trouve `q`, avec le coût des composants et le prix du
     produit au dernier scan."""
 
     permission_classes = [CanUseAuctions]
@@ -359,7 +359,7 @@ class AuctionRecipesView(APIView):
 
 
 class AuctionFavoriteRecipeView(APIView):
-    """GM : suivre (PUT) ou ne plus suivre (DELETE) une recette."""
+    """Membres : suivre (PUT) ou ne plus suivre (DELETE) une recette."""
 
     permission_classes = [CanUseAuctions]
 
