@@ -272,6 +272,11 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.11", notes = {
+    "Victoires honorables : deux adversaires abattus à quelques secondes d'écart comptent tous les deux (le second était perdu).",
+    "Victoires honorables : quand le popup d'un coéquipier est passé sans nom et que tu as lu celui de la victime, toute la guilde le reçoit.",
+    "Compagnon : un second scan Auctionator fait le même jour part au site (avant, un seul par jour).",
+  } },
   { version = "0.7.10", notes = {
     "Compagnon : après une mise à jour, sa fenêtre affiche tout de suite la nouvelle version de l'addon au lieu de l'ancienne.",
   } },
