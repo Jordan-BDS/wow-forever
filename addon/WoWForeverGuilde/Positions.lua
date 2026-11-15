@@ -283,7 +283,7 @@ local function onAddonMessage(prefix, text, channel, sender)
   local msg = Positions.Decode(text)
   if not msg then
     local kind = text:sub(1, 1)
-    if kind ~= "D" and kind ~= "K" and kind ~= "W" and kind ~= "H" then ns.Trace("reçu de %s : message illisible", tostring(sender)) end -- D, K, W, H : Wanted
+    if kind ~= "D" and kind ~= "K" and kind ~= "W" and kind ~= "H" and kind ~= "B" and kind ~= "S" then ns.Trace("reçu de %s : message illisible", tostring(sender)) end -- D, K, W, H : Wanted
     return
   end
   if ns.char and msg.guid == ns.char.guid then

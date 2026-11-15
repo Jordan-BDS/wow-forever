@@ -276,6 +276,12 @@ class Bounty(models.Model):
     plus. Les kills sont lus dans les événements `pk` exportés par l'addon (`bounties.py`), pas stockés."""
 
     poster = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bounties")
+    addon_id = models.CharField(
+        "Identifiant en jeu",
+        max_length=40,
+        blank=True,
+        help_text="Celui que l'addon a donné à une prime posée en jeu ; vide si elle est posée sur le site.",
+    )
     target_name = models.CharField("Cible", max_length=64)
     target_key = models.CharField(max_length=64, db_index=True, editable=False)
     amount = models.PositiveBigIntegerField("Or par kill (en cuivre)", default=0)
@@ -291,6 +297,11 @@ class Bounty(models.Model):
     class Meta:
         verbose_name = "prime"
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["addon_id"], condition=~models.Q(addon_id=""), name="unique_bounty_addon_id"
+            )
+        ]
 
     def __str__(self) -> str:
         return f"Prime de {self.poster} sur {self.target_name}"

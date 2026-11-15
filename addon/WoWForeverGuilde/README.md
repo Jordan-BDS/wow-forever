@@ -145,6 +145,20 @@ transporte le code jusqu'au site.
   de 1 à 6 s, sauf si quelqu'un a déjà répondu ; le receveur garde le maximum de chaque valeur. Côté site (lot 3) :
   tableau Wanted, classements « Joueurs abattus » et « Primes encaissées », Roxor « Chasseur de primes » ; le
   compagnon recopie le tableau de la guilde dans `db.wanted` au lancement, jeu fermé (maximum de chaque valeur).
+- `Bounties.lua` : primes posées à la main. `/mf prime <or> [kills]` sur la cible (ou `/mf prime <nom> <or> [kills]`)
+  pose, après confirmation, tant d'or par kill sur un joueur adverse, pour un nombre de kills au plus (un par
+  défaut) ; `/mf prime annuler [nom]` l'annule, `/mf prime` liste les primes en cours, `/mf prime test <nom>` (ou un
+  nom seul) joue comme avant le popup « Prime encaissée » du Wanted. Les primes vivent dans `db.bounties` (niveau
+  compte, clé = identifiant de la prime). Une prime posée part aux guildiens par un message « B » ; à la connexion on
+  les demande (« B » sans rien), un membre répond après un délai aléatoire sauf si quelqu'un l'a fait. Elle remonte au
+  site dans l'export (`bounties`) de chacun de ceux qui la connaissent ; celles posées sur le site, et l'état de
+  toutes (kills comptés, prime finie ou annulée), reviennent par le compagnon, jeu fermé. **Cible vue** : un joueur
+  adverse lu (plaque de nom, cible, survol) qui porte une prime en cours est annoncé par un message « S » après un
+  délai aléatoire de 1,5 s au plus, sauf si un guildien l'a fait dans les 2 min ; on n'envoie rien pour les autres
+  joueurs. Chez tous : pièce d'or avec le montant sur la carte pendant 3 min, popup « Prime en vue » au plus une fois
+  par cible et par quart d'heure (case « Alertes de primes »), pièce d'or sur la plaque de nom à la place de la tête
+  de mort. Rien en champ de bataille. Les kills vus (les miens, les « K » et « H » reçus) ferment la prime quand le
+  compte est atteint : c'est une estimation, le compte qui fait foi et les dettes sont sur le site (page Primes).
 - `RosterUI.lua` : liste « Guilde en jeu » (`/mf qui`) : membres en ligne par zone d'après le roster de guilde (même
   sans addon), enrichis des positions reçues ; section « Cherchent un groupe » ; clic → même menu que la carte.
 - `Libs/` : LibStub, LibDeflate (export), CallbackHandler-1.0 et HereBeDragons-2.0 (+ Pins) pour la carte ;

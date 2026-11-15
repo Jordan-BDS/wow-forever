@@ -39,6 +39,7 @@ Collectors\Quests.lua
 Collectors\Deaths.lua
 Positions.lua
 Wanted.lua
+Bounties.lua
 
 UI.lua
 MapUI.lua

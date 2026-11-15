@@ -5,6 +5,8 @@
 -- Les membres de mon groupe ou de mon raid n'ont pas de point : le jeu les affiche déjà, le nôtre ferait doublon.
 -- Wanted : tête de mort rouge (8e marqueur de raid), plus grande que les points, avec la prime en chiffre, posée là où
 -- l'ennemi a tué un membre ; elle pâlit puis disparaît au bout de WANTED_TTL s (Wanted.lua la rafraîchit).
+-- Prime posée à la main : pièce d'or avec le montant par kill, là où la cible a été vue pour la dernière fois ;
+-- elle pâlit puis disparaît au bout de BOUNTY_SEEN_TTL s (Bounties.lua la rafraîchit).
 local ADDON, ns = ...
 
 local MapUI = {}
@@ -392,6 +394,99 @@ function MapUI.RemoveWanted(key)
 end
 
 function MapUI.WantedIcons() return wantedIcons end -- tests
+
+-- --- primes posées à la main -------------------------------------------------------------------------------------
+
+local COIN = "Interface\\Icons\\INV_Misc_Coin_01"
+local bountyIcons = {} -- identifiant de prime → { map = cadre carte, mini = cadre minimap }
+local bountyPool = {}
+
+local function newCoin(size)
+  local f = CreateFrame("Button", nil, UIParent)
+  f:SetSize(size, size)
+  f.coin = f:CreateTexture(nil, "ARTWORK")
+  f.coin:SetAllPoints()
+  f.coin:SetTexture(COIN)
+  f.gold = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  f.gold:SetPoint("LEFT", f, "RIGHT", 1, 0)
+  f.gold:SetTextColor(1, 0.82, 0)
+  f:EnableMouse(true)
+  passRightClick(f)
+  f:SetScript("OnEnter", function(self) MapUI.ShowBountyTooltip(self.entry, self) end)
+  f:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+  return f
+end
+
+local function paintCoin(icon, entry, alpha)
+  icon.entry = entry
+  icon.gold:SetText(tostring(entry.gold or 0))
+  icon:SetAlpha(alpha)
+end
+
+--- Pose (ou déplace) la pièce d'or d'une prime là où sa cible a été vue ; la retire si l'observation est trop
+--- vieille ou sans coordonnées, si la prime n'est plus en cours, ou si les alertes de primes sont décochées.
+function MapUI.UpdateBounty(entry)
+  local lib = pins()
+  if not lib or not ns.Bounties then return end
+  local now = ns.now()
+  if not (ns.db and ns.db.settings.bountyAlerts) or not ns.Bounties.Open(entry) or not ns.Bounties.Fresh(entry, now) then
+    MapUI.RemoveBounty(entry.id)
+    return
+  end
+  local seen = entry.seen
+  local pair = bountyIcons[entry.id]
+  if not pair then
+    pair = table.remove(bountyPool) or { map = newCoin(20), mini = newCoin(13) }
+    bountyIcons[entry.id] = pair
+  end
+  local alpha = 1 - 0.6 * math.min(1, math.max(0, (now - (seen.t or now)) / ns.Data.BOUNTY_SEEN_TTL))
+  paintCoin(pair.map, entry, alpha)
+  lib:RemoveWorldMapIcon(ns, pair.map)
+  if not lib:AddWorldMapIconMap(ns, pair.map, seen.map, seen.x, seen.y, HBD_PINS_WORLDMAP_SHOW_WORLD or 3) then
+    MapUI.RemoveBounty(entry.id)
+    return
+  end
+  if lib.RemoveMinimapIcon then lib:RemoveMinimapIcon(ns, pair.mini) end
+  pair.mini:Hide()
+  if minimapWanted() and lib.AddMinimapIconMap then
+    paintCoin(pair.mini, entry, alpha)
+    lib:AddMinimapIconMap(ns, pair.mini, seen.map, seen.x, seen.y, true, true)
+  end
+end
+
+function MapUI.RemoveBounty(id)
+  local pair = bountyIcons[id]
+  if not pair then return end
+  bountyIcons[id] = nil
+  local lib = pins()
+  if lib then
+    lib:RemoveWorldMapIcon(ns, pair.map)
+    if lib.RemoveMinimapIcon then lib:RemoveMinimapIcon(ns, pair.mini) end
+  end
+  pair.map.entry, pair.mini.entry = nil, nil
+  pair.map:Hide()
+  pair.mini:Hide()
+  bountyPool[#bountyPool + 1] = pair
+end
+
+function MapUI.BountyIcons() return bountyIcons end -- tests
+
+--- Infobulle d'une pièce d'or : la cible, ce que paie la prime, qui l'a posée, qui l'a vue ici et quand.
+function MapUI.ShowBountyTooltip(entry, owner)
+  if not entry or not GameTooltip then return end
+  GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+  GameTooltip:ClearLines()
+  GameTooltip:AddDoubleLine(ns.ClassColored(entry.name, entry.class), L.BOUNTY_TAG, 1, 1, 1, 1, 0.82, 0)
+  GameTooltip:AddLine(ns.Bounties.Reward(entry), 1, 0.82, 0)
+  GameTooltip:AddLine(string.format(L.BOUNTY_POSTED_BY, entry.by or "?"), 0.85, 0.85, 0.85)
+  local seen = entry.seen
+  if seen then
+    GameTooltip:AddLine(string.format(L.BOUNTY_SEEN_HERE, ns.ClassColored(seen.by or "?", seen.byClass), ns.UI.Ago(seen.t)), 0.6, 0.9, 0.6)
+    local place = ns.Bounties.Where(entry)
+    if place ~= "" then GameTooltip:AddLine(place, 0.6, 0.6, 0.6) end
+  end
+  GameTooltip:Show()
+end
 
 --- Infobulle d'une tête de mort : nom coloré, classe, prime, kills de la guilde, dernière victime ici, victimes.
 function MapUI.ShowWantedTooltip(entry, owner)

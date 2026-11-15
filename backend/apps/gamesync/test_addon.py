@@ -62,8 +62,8 @@ def logout_code(lua: LuaRuntime) -> str:
 
 
 def addon_sent(g) -> list:
-    """Messages addon envoyés, sans la demande de tableau Wanted (« W », 8 s après la connexion)."""
-    return [s for s in g._ADDON_SENT.values() if not s.text.startswith("W\t")]
+    """Messages addon envoyés, sans les demandes du tableau Wanted (« W », 8 s après la connexion) et des primes (« B », 12 s)."""
+    return [s for s in g._ADDON_SENT.values() if not s.text.startswith(("W\t", "B\t"))]
 
 
 def wanted_sent(g, kind: str) -> list[str]:
@@ -93,7 +93,7 @@ class TestLoading:
         ns = lua.globals()._NS
         names = sorted(ns.collectors[i].name for i in range(1, len(ns.collectors) + 1))
         assert names == sorted(
-            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions", "wanted", "mapui", "nameplates"]
+            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions", "wanted", "bounties", "mapui", "nameplates"]
         )  # fmt: skip
         assert lua.globals().SlashCmdList.WOWFOREVERGUILDE is not None
         # Icône de la guilde (portrait de Samwise, « Temp ») sur les fenêtres et dans la liste des addons.
@@ -545,7 +545,7 @@ class TestSession:
             [
                 "sharePosition", "minimapDots", "minimapButton", "gankAlerts",
                 "showDeaths", "soundDeaths", "announceDeaths", "wantedAlerts",
-                "bountyPlates", "showStreaks", "soundStreaks",
+                "bountyPlates", "bountyAlerts", "showStreaks", "soundStreaks",
                 "send", "sharePlaytime", "reloadReminder",
             ]
         )  # fmt: skip
@@ -1233,7 +1233,16 @@ class TestSession:
         login(lua)
         payload = decode_export(logout_code(lua))
         assert payload["client"] == {"version": "1.60.1", "build": "12345", "toc": 16001, "project": 1}
-        assert set(payload) == {"v", "addon", "install", "exported_at", "client", "characters", "errors"}
+        assert set(payload) == {
+            "v",
+            "addon",
+            "install",
+            "exported_at",
+            "client",
+            "characters",
+            "bounties",
+            "errors",
+        }
 
     def test_export_omits_client_when_build_info_is_unavailable(self):
         lua = boot()

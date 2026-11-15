@@ -164,6 +164,34 @@ pub struct StateWanted {
     pub y: Option<f64>,
 }
 
+/// Une prime posée à la main (sur le site, ou en jeu par `/mf prime`), à recopier dans `db.bounties` de l'addon.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct StateBounty {
+    /// Identifiant de la prime : celui de l'addon si elle a été posée en jeu, « s » et son numéro sinon.
+    pub id: String,
+    pub name: String,
+    /// Pièces d'or par kill.
+    #[serde(default)]
+    pub gold: i64,
+    /// Objets offerts par kill, en clair (« 2 × Lotus noir »).
+    #[serde(default)]
+    pub item: Option<String>,
+    /// Kills payés au plus.
+    #[serde(default)]
+    pub max: i64,
+    #[serde(default)]
+    pub t: i64,
+    /// Nom du commanditaire sur le site.
+    #[serde(default)]
+    pub by: Option<String>,
+    /// Kills comptés par le site.
+    #[serde(default)]
+    pub kills: i64,
+    /// Finie ou annulée : l'addon cesse d'alerter.
+    #[serde(default)]
+    pub closed: bool,
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct SiteState {
     pub seed_at: i64,
@@ -171,6 +199,8 @@ pub struct SiteState {
     pub characters: Vec<StateCharacter>,
     #[serde(default)]
     pub wanted: Vec<StateWanted>,
+    #[serde(default)]
+    pub bounties: Vec<StateBounty>,
 }
 
 #[derive(Debug, Deserialize)]

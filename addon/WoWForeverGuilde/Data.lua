@@ -161,6 +161,16 @@ ns.Data.LOOT_CLOSED_GRACE = 1 -- s après la fermeture de la fenêtre de butin :
 ns.Data.CRAFT_DEDUPE = 1 -- s : sort réussi puis résultat de fabrication de la même recette = une seule fabrication
 ns.Data.KILLER_MEMORY = 60 -- s : une cible hostile ciblée dans ce délai avant le combat (ou pendant) est le tueur présumé
 ns.Data.SEEN_PLAYERS_TTL = 600 -- s : un joueur hostile lu (cible, survol, plaque) reste connu comme joueur ce temps-là, pour le Wanted
+ns.Data.BOUNTY_MAX = 100 -- primes posées à la main gardées : au-delà, les plus anciennes qui ne sont plus en cours sautent
+ns.Data.BOUNTY_MAX_GOLD = 100000 -- po par kill au plus (la règle du site)
+ns.Data.BOUNTY_MAX_KILLS = 100 -- kills payés au plus par prime (la règle du site)
+ns.Data.BOUNTY_SEEN_DEDUPE = 120 -- s : une cible vue n'est annoncée à la guilde qu'une fois dans ce délai, par un seul membre
+ns.Data.BOUNTY_SEEN_SPREAD = 1.5 -- s : délai aléatoire avant d'annoncer une cible vue (un guildien qui la voit aussi peut me devancer)
+ns.Data.BOUNTY_SEEN_TTL = 180 -- s : la pièce d'or reste sur la carte 3 min là où la cible a été vue (elle bouge)
+ns.Data.BOUNTY_ALERT_REPEAT = 900 -- s : un seul popup « prime en vue » par cible dans ce délai
+ns.Data.BOUNTY_HANDSHAKE_DELAY = 12 -- s après la connexion avant de demander les primes aux guildiens (après le Wanted)
+ns.Data.BOUNTY_DIGEST_MAX = 30 -- primes redites à un membre qui se connecte
+ns.Data.BOUNTY_EXPORT_MAX = 100 -- primes posées en jeu envoyées au site dans l'export
 ns.Data.DEATH_RECAP_DELAY = 1 -- s après la mort avant de lire le récapitulatif du client et d'annoncer
 ns.Data.DEATH_DEDUPE = 60 -- s : deux annonces de mort du même personnage à moins de ce délai n'en font qu'une (la mort PvP l'emporte)
 ns.Data.TOAST_SECONDS = 10 -- durée d'affichage des textes flottants (avis de décès, appel à l'aide)

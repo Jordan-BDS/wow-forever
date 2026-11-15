@@ -603,6 +603,10 @@ local SETTINGS = {
     { "bountyPlates", L.BOUNTY_PLATES, function(on)
       if ns.Nameplates then ns.Nameplates.SetEnabled(on) else ns.db.settings.bountyPlates = on and true or false end
     end },
+    -- Bounties.lua est un fichier neuf : même précaution que pour les plaques, tant que le jeu n'a pas redémarré.
+    { "bountyAlerts", L.BOUNTY_ALERTS, function(on)
+      if ns.Bounties then ns.Bounties.SetAlerts(on) else ns.db.settings.bountyAlerts = on and true or false end
+    end },
     { "showStreaks", L.SHOW_STREAKS },
     { "soundStreaks", L.SOUND_STREAKS },
   } },

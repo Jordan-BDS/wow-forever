@@ -1,4 +1,5 @@
--- NameplateUI : tête de mort sur la plaque de nom d'un joueur adverse recherché (prime à encaisser).
+-- NameplateUI : tête de mort sur la plaque de nom d'un joueur adverse recherché (prime à encaisser), pièce d'or
+-- sur celle de la cible d'une prime posée à la main (Bounties.lua) ; la pièce l'emporte quand il a les deux.
 -- À l'apparition d'une plaque (NAME_PLATE_UNIT_ADDED) on lit l'unité : un joueur attaquable dont le nom est au
 -- tableau Wanted avec une prime reçoit une icône ancrée au-dessus de sa plaque, retirée quand la plaque disparaît
 -- (le jeu recycle les plaques d'un joueur à l'autre). Les plaques affichées sont relues quand le tableau change
@@ -14,6 +15,7 @@ ns.Nameplates = Nameplates
 
 local SKULLS = "Interface\\TargetingFrame\\UI-RaidTargetingIcons" -- planche des marqueurs de raid, crâne en case 8
 local SKULL_COORDS = { 0.75, 1, 0.25, 0.5 }
+local COIN = "Interface\\Icons\\INV_Misc_Coin_01"
 local SIZE = 20
 local OFFSET_Y = 2 -- au-dessus de la plaque
 
@@ -33,7 +35,8 @@ local function enabled()
   return ns.db ~= nil and ns.db.settings.bountyPlates == true and not ns.InBattleground()
 end
 
---- L'entrée Wanted du joueur adverse derrière ce jeton, s'il a une prime à encaisser ; nil sinon.
+--- Ce que porte le joueur adverse derrière ce jeton : sa prime posée à la main (et vrai), sinon son entrée
+--- Wanted s'il a une prime à encaisser ; nil sinon.
 local function bountyOn(token)
   if not read(UnitExists, token) then return nil end
   if read(UnitIsPlayer, token) == false then return nil end
@@ -44,8 +47,26 @@ local function bountyOn(token)
     name = type(guid) == "string" and ns.SeenPlayer and ns.SeenPlayer(nil, guid) or nil
   end
   if not name then return nil end
+  local posted = ns.Bounties and ns.Bounties.Match(name) or nil
+  if posted then return posted, true end
   local entry = ns.Wanted.Match(name)
   return ns.Wanted.Active(entry) and entry or nil
+end
+
+--- Tête de mort rouge, ou pièce d'or pour une prime posée à la main.
+local function paint(icon, coin)
+  coin = coin == true
+  if icon.coin == coin then return end
+  icon.coin = coin
+  if coin then
+    icon.skull:SetTexture(COIN)
+    icon.skull:SetTexCoord(0, 1, 0, 1)
+    icon.skull:SetVertexColor(1, 1, 1)
+  else
+    icon.skull:SetTexture(SKULLS)
+    icon.skull:SetTexCoord(unpack(SKULL_COORDS))
+    icon.skull:SetVertexColor(1, 0.25, 0.25)
+  end
 end
 
 local function plateFor(token)
@@ -61,6 +82,7 @@ local function newIcon()
   f.skull:SetTexture(SKULLS)
   f.skull:SetTexCoord(unpack(SKULL_COORDS))
   f.skull:SetVertexColor(1, 0.25, 0.25)
+  f.coin = false
   f:Hide()
   return f
 end
@@ -88,7 +110,8 @@ end
 --- Pose, garde ou retire l'icône de la plaque de ce jeton, d'après ce qu'on lit de l'unité maintenant.
 function Nameplates.Update(token)
   if type(token) ~= "string" then return end
-  local entry = enabled() and bountyOn(token) or nil
+  local entry, coin
+  if enabled() then entry, coin = bountyOn(token) end
   local plate = entry and plateFor(token) or nil
   if not plate then
     release(token)
@@ -111,6 +134,7 @@ function Nameplates.Update(token)
     end
   end
   icon.entry = entry
+  paint(icon, coin)
   icon:Show()
 end
 

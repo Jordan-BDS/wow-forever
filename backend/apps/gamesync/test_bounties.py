@@ -174,3 +174,79 @@ class TestCounting:
         posted.save()
         hunt(member, "Player-1-T", "Thrall", pk(600, "Garrosh Hurlenfer"), pk(2000, "Garrosh Hurlenfer"))
         assert len(bounties.bounty_kills(posted, bounties.player_kills())) == 1
+
+
+class TestInGame:
+    """Primes posées en jeu (`/mf prime`) : elles arrivent par l'export, l'état repart par le compagnon."""
+
+    def export(self, user, guid, name, posted, *events):
+        from . import services
+        from .format import encode_export
+
+        char = character(guid, name, counters={"pk": len(events)}, journal={}, events=events)
+        payload = {"v": 1, "install": f"pc-{user.pk}", "characters": [char], "bounties": posted}
+        services.import_code(user, encode_export(payload), source="paste")
+        cache.clear()
+
+    def posted(self, bounty="000ABC01-1", guid="Player-1-T", **extra):
+        return {
+            "id": bounty,
+            "guid": guid,
+            "name": "Garrosh  Hurlenfer",
+            "gold": 50,
+            "max": 2,
+            "t": T0,
+            **extra,
+        }
+
+    def test_a_bounty_posted_in_game_reaches_the_site_once(self, gm, member, other_member):
+        # Rexxar relaie la prime de Thrall avant que Thrall n'ait envoyé son personnage : elle attend.
+        self.export(gm, "Player-1-X", "Rexxar", [self.posted()])
+        assert not Bounty.objects.exists()
+        self.export(
+            member, "Player-1-T", "Thrall", [self.posted(), {"id": "x", "guid": "Player-1-T"}, "bruit"]
+        )
+        found = Bounty.objects.get()
+        assert (found.poster, found.addon_id, found.target_name, found.amount, found.max_kills) == (
+            member,
+            "000ABC01-1",
+            "Garrosh Hurlenfer",
+            50 * PO,
+            2,
+        )
+        assert int(found.created_at.timestamp()) == T0
+        # Redite par un autre export, puis annulée en jeu : une seule prime, annulée.
+        self.export(
+            other_member, "Player-1-G", "Garona", [self.posted(cancelled=T0 + 900)], pk(600, "Garrosh")
+        )
+        found = Bounty.objects.get()
+        assert int(found.cancelled_at.timestamp()) == T0 + 900
+        assert len(bounties.bounty_kills(found, bounties.player_kills())) == 1  # le kill d'avant l'annulation
+
+    def test_the_companion_gets_every_bounty_with_its_count(self, api_client, gm, member, other_member):
+        self.export(member, "Player-1-T", "Thrall", [self.posted(max=1)])
+        crown = Item.objects.get(pk=16842)
+        site = bounty(gm, target="Sylvanas", gold=0, max_kills=3, item=crown, item_count=2)
+        self.export(
+            other_member, "Player-1-G", "Garona", [], pk(600, "Garrosh Hurlenfer"), pk(700, "Sylvanas")
+        )
+        state = {b["id"]: b for b in bounties.companion_bounties()}
+        assert state["000ABC01-1"] == {
+            "id": "000ABC01-1", "name": "Garrosh Hurlenfer", "gold": 50, "item": None, "max": 1, "t": T0,
+            "by": member.display_name, "kills": 1, "closed": True,
+        }  # fmt: skip
+        mine = state[f"s{site.pk}"]
+        assert (mine["gold"], mine["item"], mine["kills"], mine["closed"]) == (
+            0,
+            f"2 × {crown.name}",
+            1,
+            False,
+        )
+        # C'est ce que reçoit le compagnon de chaque membre.
+        from . import services
+
+        pairing = services.create_pairing_code(member)
+        _, token = services.pair_device(pairing.code, "PC")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Companion {token}")
+        sent = api_client.get("/api/sync/state/").json()
+        assert {b["id"] for b in sent["bounties"]} == set(state)

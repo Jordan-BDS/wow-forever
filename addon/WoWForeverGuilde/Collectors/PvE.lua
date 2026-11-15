@@ -90,6 +90,7 @@ local function rememberPlayer(seen, t)
   if not (seen and seen.player) then return end
   seenPlayers[nameKey(seen.name)] = { name = seen.name, class = seen.class or "", at = t, guid = seen.guid }
   deadEnemies[nameKey(seen.name)] = nil -- revu vivant : sa prochaine mort sera une nouvelle mort
+  if ns.Bounties then ns.Safe("bounties.seen", ns.Bounties.OnSeen, seen, t) end -- porte-t-il une prime posée ?
 end
 
 --- Un joueur hostile lu dans les SEEN_PLAYERS_TTL dernières secondes, par son nom ou par son identifiant (en

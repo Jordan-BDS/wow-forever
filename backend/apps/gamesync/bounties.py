@@ -16,13 +16,14 @@ Le paiement se fait en jeu, le site ne le voit pas : le commanditaire déclare c
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 
+from apps.characters.models import Character
 from apps.gamedata.models import Item
 from apps.gamedata.stats import icon_url
 
@@ -36,6 +37,10 @@ MAX_KILLS = 100
 MAX_ITEMS = 1000  # objets par kill
 KILLS_TTL = 60  # s : les kills lus dans les exports sont gardés en cache, comme la page Wanted
 KILLS_CACHE = "gamesync:bounties:kills"
+COMPANION_DAYS = (
+    60  # une prime finie ou annulée est encore dite au compagnon ce temps-là, pour que l'addon la ferme
+)
+COMPANION_LIMIT = 100  # Data.BOUNTY_MAX de l'addon
 
 
 class BountyError(ValueError):
@@ -232,6 +237,90 @@ def report(user) -> dict:
     order = {"open": 0, "done": 1, "cancelled": 2}
     bounties.sort(key=lambda b: order[b["status"]])  # tri stable : les plus récentes d'abord dans chaque état
     return {"bounties": bounties, "ledger": _ledger(bounties)}
+
+
+def _number(value: Any) -> float | None:
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def import_posted(raw: Any) -> int:
+    """Primes posées en jeu (`/mf prime`), lues dans un export : celles du joueur et celles qu'il a reçues de
+    guildiens, chacune avec l'identifiant que l'addon lui a donné. Le commanditaire est le propriétaire du
+    personnage qui l'a posée : une prime d'un personnage inconnu du site attend l'export de son joueur.
+    Une prime déjà connue n'est pas recréée ; son annulation en jeu est reprise. Renvoie le nombre de primes
+    créées."""
+    created = 0
+    for entry in raw if isinstance(raw, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        addon_id, guid, name = entry.get("id"), entry.get("guid"), entry.get("name")
+        gold, max_kills, posted = (
+            _number(entry.get("gold")),
+            _number(entry.get("max")),
+            _number(entry.get("t")),
+        )
+        if not (isinstance(addon_id, str) and isinstance(guid, str) and isinstance(name, str)):
+            continue
+        name = " ".join(name.split())
+        if not 1 <= len(addon_id) <= 40 or not guid or not 2 <= len(name) <= 64:
+            continue
+        if gold is None or max_kills is None or posted is None or posted <= 0:
+            continue
+        if not 1 <= gold <= MAX_GOLD or not 1 <= max_kills <= MAX_KILLS or gold != int(gold):
+            continue
+        bounty = Bounty.objects.filter(addon_id=addon_id).first()
+        if bounty is None:
+            poster = Character.objects.filter(guid=guid).select_related("owner").first()
+            if poster is None:
+                continue
+            try:
+                at = min(datetime.fromtimestamp(posted, tz=UTC), timezone.now())
+            except (OverflowError, OSError, ValueError):
+                continue
+            bounty = Bounty.objects.create(
+                poster=poster.owner, addon_id=addon_id, target_name=name, amount=int(gold) * COPPER,
+                max_kills=int(max_kills), created_at=at,
+            )  # fmt: skip
+            created += 1
+        cancelled = _number(entry.get("cancelled"))
+        if cancelled and cancelled > 0 and bounty.cancelled_at is None:
+            try:
+                at = datetime.fromtimestamp(cancelled, tz=UTC)
+            except (OverflowError, OSError, ValueError):
+                continue
+            bounty.cancelled_at = max(bounty.created_at, min(at, timezone.now()))
+            bounty.save(update_fields=["cancelled_at"])
+    return created
+
+
+def companion_bounties() -> list[dict]:
+    """Les primes dans les termes de l'addon, que le compagnon recopie dans `db.bounties` jeu fermé : celles
+    en cours, et celles finies ou annulées depuis peu (`closed`) pour que l'addon cesse d'alerter.
+    Identifiant : celui de l'addon pour une prime posée en jeu, « s » et son numéro pour une prime du site."""
+    kills = player_kills()
+    recent = timezone.now() - timedelta(days=COMPANION_DAYS)
+    out = []
+    for bounty in Bounty.objects.select_related("poster", "item")[: COMPANION_LIMIT * 3]:
+        counted = len(bounty_kills(bounty, kills))
+        closed = bounty.cancelled_at is not None or counted >= bounty.max_kills
+        if closed and bounty.created_at < recent:
+            continue
+        out.append(
+            {
+                "id": bounty.addon_id or f"s{bounty.pk}",
+                "name": bounty.target_name,
+                "gold": bounty.amount // COPPER,
+                "item": f"{bounty.item_count} × {bounty.item.name}" if bounty.item else None,
+                "max": bounty.max_kills,
+                "t": int(bounty.created_at.timestamp()),
+                "by": bounty.poster.display_name,
+                "kills": counted,
+                "closed": closed,
+            }
+        )
+        if len(out) >= COMPANION_LIMIT:
+            break
+    return out
 
 
 def _whole(value: Any, label: str, low: int, high: int) -> int:

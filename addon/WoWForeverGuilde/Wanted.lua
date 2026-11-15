@@ -898,6 +898,9 @@ function Wanted.RecordKill(char, name, t, battleground, fresh)
     logKill("kill « %s » : déjà compté", name)
     return nil
   end
+  if not battleground and name ~= "" and ns.Bounties then -- primes posées à la main : un kill de plus
+    ns.Safe("bounties.kill", ns.Bounties.OnKill, name, t, ns.char and ns.char.guid)
+  end
   local entry = (not battleground) and name ~= "" and Wanted.Match(name) or nil
   -- Recherché : une prime à encaisser, ou ce même kill déjà encaissé par un coéquipier (crédit de groupe : j'encaisse
   -- la même prime). Encaissé plus tôt et pas retombé sur un membre depuis : une victoire honorable ordinaire.
@@ -1101,6 +1104,7 @@ local function onAddonMessage(prefix, text, channel, sender)
       return
     end
     ns.Trace("reçu K de %s : %s abattu", tostring(sender), msg.name)
+    if ns.Bounties then ns.Safe("bounties.kill", ns.Bounties.OnKill, msg.name, msg.t, msg.guid) end
     -- La série d'abord : sa voix l'emporte sur celle de la prime du même kill.
     ns.Safe("wanted.streak", Wanted.ShowStreak, msg.guid, msg.by, msg.byClass, msg.streak, msg.name, msg.t)
     local ok, err, shown = pcall(Wanted.RecordKillMessage, msg, sender)
@@ -1114,6 +1118,7 @@ local function onAddonMessage(prefix, text, channel, sender)
       return
     end
     ns.Trace("reçu H de %s : %s abattu", tostring(sender), msg.name)
+    if ns.Bounties then ns.Safe("bounties.kill", ns.Bounties.OnKill, msg.name, msg.t, msg.guid) end
     ns.Safe("wanted.streak", Wanted.ShowStreak, msg.guid, msg.by, msg.byClass, msg.streak, msg.name, msg.t)
     -- Recherché chez moi sans l'être chez le chasseur (les tableaux diffèrent) : c'est une prime encaissée.
     local entry = msg.name ~= "" and Wanted.Match(msg.name) or nil

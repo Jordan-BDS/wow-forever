@@ -94,6 +94,7 @@ function Export.BuildPayload(db, ts)
     exported_at = ts or ns.now(),
     client = clientInfo(),
     characters = characters,
+    bounties = ns.Bounties and ns.Bounties.Export() or nil, -- primes posées en jeu, les miennes et celles reçues
     errors = arrayOf(db.errors),
   }
 end

@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::api::{SiteState, StateCharacter, StateWanted};
+use crate::api::{SiteState, StateBounty, StateCharacter, StateWanted};
 use crate::error::{CoreError, Result};
 use crate::luatable::{from_json, parse_file, write_file, Key, Table, Value};
 
@@ -151,6 +151,41 @@ fn wanted_key(table: &mut Table, key: String, name: &str) -> String {
     }
 }
 
+/// Les primes posées à la main : celles que ce fichier ne connaît pas y entrent telles que le site les donne ;
+/// pour les autres (posées en jeu, ou déjà recopiées), l'addon garde ce qu'il sait (commanditaire, dernière
+/// observation) et le site apporte son compte de kills, s'il est plus haut, et la fermeture (prime finie ou
+/// annulée). Rien n'est retiré.
+fn complete_bounties(db: &mut Table, bounties: &[StateBounty]) {
+    if bounties.is_empty() {
+        return;
+    }
+    let table = db.table_mut("bounties");
+    for bounty in bounties {
+        if bounty.id.is_empty() || bounty.name.trim().is_empty() {
+            continue;
+        }
+        let entry = table.table_mut(&bounty.id);
+        if entry.get("id").is_none() {
+            entry.set("id", Value::Str(bounty.id.clone()));
+            entry.set("name", Value::Str(bounty.name.clone()));
+            entry.set("gold", Value::Num(bounty.gold as f64));
+            entry.set("max", Value::Num(bounty.max.max(1) as f64));
+            entry.set("t", Value::Num(bounty.t as f64));
+            if let Some(by) = bounty.by.as_deref().filter(|by| !by.is_empty()) {
+                entry.set("by", Value::Str(by.to_string()));
+            }
+        }
+        if let Some(item) = bounty.item.as_deref().filter(|item| !item.is_empty()) {
+            entry.set("item", Value::Str(item.to_string()));
+        }
+        let kills = entry.get_num("kills").unwrap_or(0.0).max(bounty.kills as f64);
+        entry.set("kills", Value::Num(kills));
+        if bounty.closed {
+            entry.set("closed", Value::Bool(true));
+        }
+    }
+}
+
 /// Le tableau Wanted de la guilde : le maximum de chaque valeur entre ce fichier et le site, la dernière position
 /// la plus récente (« vu pour la dernière fois ») ; rien n'est retiré, les victimes et heures de kill locales restent.
 /// La prime suit le dernier encaissement (`cashed`, heure du dernier kill) : celui du site plus récent que celui
@@ -260,6 +295,7 @@ pub fn complete_file(path: &Path, state: &SiteState, now: i64) -> Result<Complet
         complete_entry(entry, character, state.seed_at, now);
     }
     complete_wanted(db, &state.wanted, now);
+    complete_bounties(db, &state.bounties);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -344,6 +380,51 @@ WoWForeverGuildeDB = {
 
     fn character<'a>(db: &'a Table, guid: &str) -> &'a Table {
         db.get_table("characters").unwrap().get_table(guid).unwrap()
+    }
+
+    #[test]
+    fn copies_the_bounties_keeping_what_the_addon_knows() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("WoWForeverGuilde.lua");
+        let existing = EXISTING.replace(
+            "\t[\"characters\"] = {",
+            "\t[\"bounties\"] = {\n\t\t[\"000ABC01-1764000000\"] = {\n\t\t\t[\"id\"] = \"000ABC01-1764000000\",\n\t\t\t[\"name\"] = \"Garrosh Hurlenfer\",\n\t\t\t[\"gold\"] = 50,\n\t\t\t[\"max\"] = 3,\n\t\t\t[\"t\"] = 1764000000,\n\t\t\t[\"by\"] = \"Thrall Fils-de-Durotan\",\n\t\t\t[\"guid\"] = \"Player-1-T\",\n\t\t\t[\"kills\"] = 2,\n\t\t},\n\t},\n\t[\"characters\"] = {",
+        );
+        assert_ne!(existing, EXISTING);
+        std::fs::write(&path, existing).unwrap();
+        let mut state = state();
+        state.bounties = serde_json::from_value(serde_json::json!([
+            { "id": "000ABC01-1764000000", "name": "Garrosh Hurlenfer", "gold": 50, "item": null, "max": 3, "t": 1764000000, "by": "Uther", "kills": 1, "closed": true },
+            { "id": "s7", "name": "Sylvanas", "gold": 0, "item": "2 × Lotus noir", "max": 1, "t": 1764100000, "by": "Uther", "kills": 0, "closed": false },
+            { "id": "", "name": "Sans identifiant" }
+        ]))
+        .unwrap();
+        complete_file(&path, &state, 1764200001).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let assignments = parse_file(&text).unwrap();
+        let Value::Table(db) = &assignments.iter().find(|(n, _)| n == DB_NAME).unwrap().1 else {
+            panic!("pas une table");
+        };
+        let bounties = db.get_table("bounties").unwrap();
+        assert_eq!(bounties.entries.len(), 2);
+        // Posée en jeu : l'addon garde son commanditaire et son compte plus haut, le site la ferme.
+        let known = bounties.get_table("000ABC01-1764000000").unwrap();
+        assert_eq!(known.get_str("by"), Some("Thrall Fils-de-Durotan"));
+        assert_eq!(known.get_str("guid"), Some("Player-1-T"));
+        assert_eq!(known.get_num("kills"), Some(2.0));
+        assert_eq!(known.get("closed"), Some(&Value::Bool(true)));
+        // Posée sur le site : recopiée telle quelle, en cours.
+        let site = bounties.get_table("s7").unwrap();
+        assert_eq!(
+            (site.get_str("id"), site.get_str("name"), site.get_str("by")),
+            (Some("s7"), Some("Sylvanas"), Some("Uther"))
+        );
+        assert_eq!(
+            (site.get_num("gold"), site.get_num("max"), site.get_num("t"), site.get_num("kills")),
+            (Some(0.0), Some(1.0), Some(1764100000.0), Some(0.0))
+        );
+        assert_eq!(site.get_str("item"), Some("2 × Lotus noir"));
+        assert!(site.get("closed").is_none() && site.get("guid").is_none());
     }
 
     #[test]
