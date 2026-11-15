@@ -26,8 +26,9 @@ def post_scan(client, items, ago=timedelta(0), house=HOUSE):
 
 @pytest.fixture(autouse=True)
 def fresh_cache():
-    # La comparaison de deux scans est en cache par identifiants, réutilisés d'un test à l'autre.
+    # La comparaison de deux scans est gardée par identifiants, réutilisés d'un test à l'autre.
     cache.clear()
+    auctions.forget_comparisons()
 
 
 @pytest.fixture
@@ -75,6 +76,27 @@ class TestUpload:
         assert api_client.get("/api/sync/auctions/rights/").json() == {"upload": True}
         assert post_scan(api_client, [[2589, 100, 3]]).status_code == 201
         assert AuctionScan.objects.get().user == member
+
+    def test_a_scan_far_smaller_than_the_last_one_is_not_a_full_scan(self, api_client, as_user, gm, member):
+        """Prod, 15 novembre : une base Auctionator de 433 objets rangée parmi des scans de 6 500."""
+        full = [[item_id, 100, 3] for item_id in range(1, 1201)]
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(hours=3)), full)
+        as_user(member)
+        body = {"house": HOUSE, "scanned_at": stamp(timedelta(hours=1)), "items": full[:433]}
+        response = api_client.post("/api/sync/auctions/", body, format="json")
+        assert response.status_code == 409  # le compagnon le retient, comme un scan déjà reçu
+        assert (
+            response.json()["detail"]
+            == "Scan partiel : 433 objets, le dernier scan de cet hôtel en compte 1200."
+        )
+        assert AuctionScan.objects.count() == 1
+        # Un scan un peu plus court passe ; un petit hôtel n'a pas de plancher.
+        body["items"] = full[:800]
+        assert api_client.post("/api/sync/auctions/", body, format="json").status_code == 201
+        other = {"house": "Autre", "scanned_at": stamp(timedelta(hours=3)), "items": full[:50]}
+        assert api_client.post("/api/sync/auctions/", other, format="json").status_code == 201
+        other.update(scanned_at=stamp(timedelta(hours=1)), items=full[:5])
+        assert api_client.post("/api/sync/auctions/", other, format="json").status_code == 201
 
     def test_companions_report_what_they_did_with_their_scan_files(self, api_client, as_user, member, gm):
         api_client.credentials(

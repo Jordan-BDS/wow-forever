@@ -19,4 +19,6 @@ ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--access-logfile", "-"]
+# --max-requests : un worker ne rend jamais la mémoire d'une grosse requête ; il est remplacé toutes les 500
+# requêtes environ (le serveur n'a que 2 Go), pas les deux en même temps (jitter).
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--max-requests", "500", "--max-requests-jitter", "100", "--access-logfile", "-"]

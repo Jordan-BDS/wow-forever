@@ -9,6 +9,7 @@ d'au moins `MIN_GAP` : le premier reçu reste, l'autre est refusé comme un doub
 `KEEP_ALL`, puis un par jour jusqu'à `KEEP_DAILY`, puis supprimés (`prune`).
 """
 
+import time
 import unicodedata
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -39,12 +40,17 @@ MAX_FAVORITE_ITEMS = 500  # objets suivis par joueur
 PAGE_SIZE = 100
 HISTORY_POINTS = 500
 MIN_GAP = timedelta(minutes=30)  # écart minimal entre deux scans d'un même hôtel
+# Un scan partiel (des recherches prises pour un scan, une petite base Auctionator) : moins de cette part des
+# objets du dernier scan de l'hôtel, quand celui-ci en compte au moins `PARTIAL_FLOOR`.
+PARTIAL_SHARE = 0.6
+PARTIAL_FLOOR = 1000
 KEEP_ALL = timedelta(days=14)  # tous les scans sont gardés ce temps-là, puis un par jour
 KEEP_DAILY = timedelta(days=183)  # au-delà (six mois), les scans sont supprimés
 PVP_HOUSE = "PvP"  # l'hôtel de tous les royaumes PvP : même jeu de règles, même hôtel
 PRUNE_EVERY = 3600  # s : le balayage périodique ne nettoie pas plus souvent
-ROWS_TTL = (
-    300  # s : la comparaison de deux scans (immuables) est gardée en cache, seuls les noms peuvent bouger
+ROWS_TTL = 900  # s : la comparaison de deux scans (immuables) est gardée, seuls les noms peuvent bouger
+ROWS_KEPT = (
+    4  # comparaisons gardées par processus : le dernier scan contre ses trois références, et une de plus
 )
 ID_BATCH = 5000  # objets par requête sur l'index (SQLite borne le nombre de paramètres)
 
@@ -61,6 +67,11 @@ class AuctionError(ValueError):
 
 class DuplicateScan(AuctionError):
     pass
+
+
+class PartialScan(DuplicateScan):
+    """Bien moins d'objets que le dernier scan de l'hôtel : ce n'est pas un scan complet. Pour le compagnon,
+    comme un scan déjà reçu : il le retient et ne le renvoie pas."""
 
 
 class TooCloseScan(DuplicateScan):
@@ -109,7 +120,8 @@ def store_scan(
     user, house: Any, scanned_at: Any, items: Any, *, device: CompanionDevice | None = None
 ) -> AuctionScan:
     """Enregistre un scan. `DuplicateScan` si cet hôtel a déjà un scan à cet instant, `TooCloseScan` s'il en a
-    un à moins de `MIN_GAP` (avant ou après : les scans n'arrivent pas forcément dans l'ordre)."""
+    un à moins de `MIN_GAP` (avant ou après : les scans n'arrivent pas forcément dans l'ordre), `PartialScan`
+    s'il compte bien moins d'objets que le dernier scan de l'hôtel."""
     house = canonical_house(house)
     if not house or len(house) > 96:
         raise AuctionError("Hôtel des ventes manquant ou trop long.")
@@ -123,6 +135,11 @@ def store_scan(
     if when > timezone.now() + timedelta(days=1):
         raise AuctionError("Le scan est daté dans le futur.")
     rows = _rows(items)
+    last = AuctionScan.objects.filter(house=house).order_by("-scanned_at").first()
+    if last and last.items >= PARTIAL_FLOOR and len(rows) < PARTIAL_SHARE * last.items:
+        raise PartialScan(
+            f"Scan partiel : {len(rows)} objets, le dernier scan de cet hôtel en compte {last.items}."
+        )
     near = AuctionScan.objects.filter(
         house=house, scanned_at__gt=when - MIN_GAP, scanned_at__lt=when + MIN_GAP
     ).exclude(scanned_at=when)
@@ -175,7 +192,9 @@ def prune_due() -> int:
     return prune()
 
 
-REPORT_KINDS = ("sent", "duplicate", "unchanged", "failed", "unreadable", "no_scan", "no_file", "not_allowed")
+REPORT_KINDS = (
+    "sent", "duplicate", "unchanged", "failed", "unreadable", "no_scan", "stale", "no_file", "not_allowed",
+)  # fmt: skip
 REPORTS_KEPT = timedelta(days=14)
 REPORTS_PER_CALL = 40
 
@@ -315,14 +334,27 @@ def _movement(price: int, listed: int | None, previous: tuple[int, int | None] |
     return {"previous_listed": previous_listed, "listed_change": delta, "moved": abs(delta) * unit}
 
 
+# Les comparaisons gardées : (dernier scan, référence) → (échéance, lignes, disparus). Dans la mémoire du
+# processus et non dans le cache de Django : celui-ci recopie la valeur à chaque lecture (6 000 lignes, 6 Mo
+# et 5 ms par requête, sur un serveur de 2 Go). Les lignes sont donc partagées entre les requêtes : à lire
+# seulement.
+_COMPARED: dict[tuple[int, int], tuple[float, list[dict], list[dict]]] = {}
+
+
+def forget_comparisons() -> None:
+    """Oublie les comparaisons gardées (tests : les identifiants de scan y sont réutilisés)."""
+    _COMPARED.clear()
+
+
 def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[dict], list[dict]]:
     """Chaque objet du dernier scan avec son prix de référence, par nom ; puis les objets du scan de référence
-    absents du dernier (plus aucune enchère), montrés par les seuls tris de mouvements. Gardé en cache :
-    filtrer, trier ou changer de page ne relit pas les deux scans."""
-    key = f"gamesync:auctions:4:{latest.pk}:{baseline.pk if baseline else 0}"
-    cached = cache.get(key)
-    if cached is not None:
-        return cached
+    absents du dernier (plus aucune enchère), montrés par les seuls tris de mouvements. Gardé `ROWS_TTL` :
+    filtrer, trier ou changer de page ne relit pas les deux scans. Les listes rendues sont partagées :
+    l'appelant ne les modifie pas, ni leurs lignes."""
+    key = (latest.pk, baseline.pk if baseline else 0)
+    kept = _COMPARED.get(key)
+    if kept is not None and kept[0] > time.monotonic():
+        return kept[1], kept[2]
     current = _prices(latest)
     before = _prices(baseline) if baseline else {}
     names = _items(current.keys() | before.keys())
@@ -363,7 +395,10 @@ def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[d
     ]
     rows.sort(key=lambda r: r["name"].lower())
     gone.sort(key=lambda r: r["name"].lower())
-    cache.set(key, (rows, gone), ROWS_TTL)
+    _COMPARED.pop(key, None)
+    while len(_COMPARED) >= ROWS_KEPT:  # la plus proche de son échéance s'en va
+        del _COMPARED[min(_COMPARED, key=lambda k: _COMPARED[k][0])]
+    _COMPARED[key] = (time.monotonic() + ROWS_TTL, rows, gone)
     return rows, gone
 
 

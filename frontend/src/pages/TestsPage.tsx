@@ -44,9 +44,10 @@ type Tone = "ok" | "quiet" | "bad";
 const KINDS: Record<AuctionReport["kind"], { label: string; tone: Tone }> = {
   sent: { label: "Envoyé", tone: "ok" },
   unchanged: { label: "Rien de nouveau", tone: "quiet" },
-  duplicate: { label: "Déjà reçu par le site", tone: "quiet" },
+  duplicate: { label: "Refusé par le site", tone: "quiet" },
   no_file: { label: "Pas d'addon de scan", tone: "quiet" },
   no_scan: { label: "Pas de scan complet", tone: "bad" },
+  stale: { label: "Base trop ancienne", tone: "bad" },
   unreadable: { label: "Fichier illisible", tone: "bad" },
   failed: { label: "Envoi refusé", tone: "bad" },
   not_allowed: { label: "Compte non autorisé", tone: "bad" },

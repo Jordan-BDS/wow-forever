@@ -117,7 +117,16 @@ export type AuctionReport = {
   /** L'addon lu. */
   source: string;
   house: string;
-  kind: "sent" | "duplicate" | "unchanged" | "failed" | "unreadable" | "no_scan" | "no_file" | "not_allowed";
+  kind:
+    | "sent"
+    | "duplicate"
+    | "unchanged"
+    | "failed"
+    | "unreadable"
+    | "no_scan"
+    | "stale"
+    | "no_file"
+    | "not_allowed";
   detail: string;
   /** Jour du scan compté par Auctionator, depuis le 1er janvier 2020. */
   day: number | null;
