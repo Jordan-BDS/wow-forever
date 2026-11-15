@@ -4,9 +4,13 @@ import { Pill, Spinner } from "@/components/ui";
 import { formatDateTime } from "@/lib/game";
 
 type Point = AuctionHistory["points"][number];
-type Range = "week" | "month" | "all";
+type Timed = Point & { t: number };
+type Period = [number, number]; // début et fin, en millisecondes
+type Range = "day" | "three" | "week" | "month" | "all";
 
 const RANGES: { value: Range; label: string; days: number | null }[] = [
+  { value: "day", label: "24 h", days: 1 },
+  { value: "three", label: "3 jours", days: 3 },
   { value: "week", label: "7 jours", days: 7 },
   { value: "month", label: "30 jours", days: 30 },
   { value: "all", label: "Tout", days: null },
@@ -27,10 +31,10 @@ const hourFormat = new Intl.DateTimeFormat("fr-FR", {
 });
 
 function useWidth() {
-  const ref = useRef<HTMLDivElement>(null);
+  // Une référence par fonction : le cadre mesuré disparaît et revient (période sans scan), l'effet doit le suivre.
+  const [element, ref] = useState<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(640);
   useLayoutEffect(() => {
-    const element = ref.current;
     if (!element) return;
     if (element.clientWidth) setWidth(element.clientWidth);
     if (typeof ResizeObserver === "undefined") return;
@@ -39,7 +43,7 @@ function useWidth() {
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [element]);
   return [ref, width] as const;
 }
 
@@ -53,17 +57,25 @@ export function ItemPriceHistory({ itemId, house }: { itemId: number; house: str
 
 /** Courbe du prix le plus bas et du nombre d'enchères d'un objet, scan après scan. */
 export function PriceHistory({ points }: { points: Point[] }) {
-  const [range, setRange] = useState<Range>("all");
+  // La période affichée : null = tout l'historique. Les raccourcis et la réglette du bas la changent tous les deux.
+  const [period, setPeriod] = useState<Period | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [ref, width] = useWidth();
 
   const all = useMemo(() => points.map((p) => ({ ...p, t: new Date(p.at).getTime() })), [points]);
-  const visible = useMemo(() => {
-    const days = RANGES.find((r) => r.value === range)?.days;
-    if (days == null || all.length === 0) return all;
-    const from = all[all.length - 1].t - days * DAY; // compté depuis le dernier scan, pas depuis aujourd'hui
-    return all.filter((p) => p.t >= from);
-  }, [all, range]);
+  const start = all.length ? all[0].t : 0;
+  const end = all.length ? all[all.length - 1].t : 0;
+  const visible = useMemo(
+    () => (period ? all.filter((p) => p.t >= period[0] && p.t <= period[1]) : all),
+    [all, period],
+  );
+  // Compté depuis le dernier scan, pas depuis aujourd'hui.
+  const preset = (days: number | null): Period | null =>
+    days == null || end - days * DAY <= start ? null : [end - days * DAY, end];
+  const choose = (next: Period | null) => {
+    setPeriod(next && next[0] <= start && next[1] >= end ? null : next);
+    setHover(null);
+  };
 
   if (all.length < 2) {
     return (
@@ -77,25 +89,28 @@ export function PriceHistory({ points }: { points: Point[] }) {
 
   const ranges = (
     <div className="flex flex-wrap items-center gap-2">
-      {RANGES.map((r) => (
-        <Pill
-          key={r.value}
-          active={range === r.value}
-          onClick={() => {
-            setRange(r.value);
-            setHover(null);
-          }}
-        >
-          {r.label}
-        </Pill>
-      ))}
+      {RANGES.filter((r) => r.days == null || end - r.days * DAY > start).map((r) => {
+        const target = preset(r.days);
+        return (
+          <Pill
+            key={r.value}
+            active={target ? period?.[0] === target[0] && period?.[1] === target[1] : period == null}
+            onClick={() => choose(target)}
+          >
+            {r.label}
+          </Pill>
+        );
+      })}
     </div>
   );
+  // La clé garde la même réglette quand la courbe disparaît ou revient : sans elle, le glissement en cours se perd.
+  const brush = <Brush key="brush" width={width} points={all} period={period} onChange={choose} />;
   if (visible.length < 2) {
     return (
       <div className="space-y-2 text-xs text-muted">
         {ranges}
-        <p>Moins de deux scans sur cette période.</p>
+        <p>Moins de deux scans sur cette période : élargis-la sur la réglette.</p>
+        {brush}
       </div>
     );
   }
@@ -216,6 +231,8 @@ export function PriceHistory({ points }: { points: Point[] }) {
         )}
       </div>
 
+      {brush}
+
       <details>
         <summary className="cursor-pointer hover:text-text">Voir les valeurs</summary>
         <div className="mt-2 max-h-56 overflow-y-auto rounded-sm border border-border/60">
@@ -239,6 +256,147 @@ export function PriceHistory({ points }: { points: Point[] }) {
           </table>
         </div>
       </details>
+    </div>
+  );
+}
+
+const BRUSH_HEIGHT = 56;
+const HANDLE = 10; // demi-largeur de prise d'une poignée, en pixels
+
+/**
+ * La réglette sous la courbe : tout l'historique en miniature, et la période affichée en surbrillance. On tire
+ * une poignée pour changer un bord, le milieu pour déplacer la période, ailleurs pour en tracer une nouvelle ;
+ * double-clic : tout l'historique. Au clavier, chaque poignée se règle avec les flèches.
+ */
+function Brush({
+  width,
+  points,
+  period,
+  onChange,
+}: {
+  width: number;
+  points: Timed[];
+  period: Period | null;
+  onChange: (period: Period | null) => void;
+}) {
+  const drag = useRef<{ mode: "from" | "to" | "move" | "new"; px: number; from: number; to: number } | null>(
+    null,
+  );
+  const start = points[0].t;
+  const end = points[points.length - 1].t;
+  const span = Math.max(1, end - start);
+  const [from, to] = period ?? [start, end];
+  const plotWidth = Math.max(60, width - MARGIN.left - MARGIN.right);
+  const x = (t: number) => MARGIN.left + ((t - start) / span) * plotWidth;
+  const time = (px: number) => start + ((px - MARGIN.left) / plotWidth) * span;
+  const least = span / 50; // une période plus étroite ne se rattrape plus à la souris
+  const clamp = (t: number) => Math.max(start, Math.min(end, t));
+
+  const prices = points.map((p) => p.price);
+  const low = Math.min(...prices);
+  const high = Math.max(...prices);
+  const y = (v: number) => BRUSH_HEIGHT - 6 - ((v - low) / Math.max(1, high - low)) * (BRUSH_HEIGHT - 12);
+  const line = points.map((p) => `${x(p.t).toFixed(1)},${y(p.price).toFixed(1)}`).join(" ");
+
+  const moved = (clientX: number, element: Element) => {
+    const state = drag.current;
+    if (!state) return;
+    const px = clientX - element.getBoundingClientRect().left;
+    if (state.mode === "new" && Math.abs(px - state.px) < 4) return; // un simple clic ne change rien
+    const t = clamp(time(px));
+    if (state.mode === "from") onChange([Math.min(t, state.to - least), state.to]);
+    else if (state.mode === "to") onChange([state.from, Math.max(t, state.from + least)]);
+    else if (state.mode === "move") {
+      const length = state.to - state.from;
+      const shifted = Math.max(start, Math.min(end - length, state.from + time(px) - time(state.px)));
+      onChange([shifted, shifted + length]);
+    } else {
+      const anchor = clamp(time(state.px));
+      const a = Math.min(anchor, t);
+      const b = Math.max(anchor, t);
+      onChange(b - a >= least ? [a, b] : a + least <= end ? [a, a + least] : [end - least, end]);
+    }
+  };
+
+  const nudge = (edge: "from" | "to") => (e: React.KeyboardEvent) => {
+    const steps: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, PageDown: -5, PageUp: 5 };
+    let t = edge === "from" ? from : to;
+    if (e.key === "Home") t = start;
+    else if (e.key === "End") t = end;
+    else if (e.key in steps) t = clamp(t + steps[e.key] * least);
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+    onChange(edge === "from" ? [Math.min(t, to - least), to] : [from, Math.max(t, from + least)]);
+  };
+  const handle = (edge: "from" | "to") => {
+    const t = edge === "from" ? from : to;
+    return (
+      <g
+        tabIndex={0}
+        role="slider"
+        aria-label={edge === "from" ? "Début de la période" : "Fin de la période"}
+        aria-valuemin={start}
+        aria-valuemax={end}
+        aria-valuenow={Math.round(t)}
+        aria-valuetext={hourFormat.format(t)}
+        onKeyDown={nudge(edge)}
+        className="outline-none [&:focus-visible>rect]:fill-text"
+      >
+        <rect x={x(t) - 3} y={BRUSH_HEIGHT / 2 - 12} width="6" height="24" rx="2" fill={PRICE_COLOR} />
+      </g>
+    );
+  };
+
+  return (
+    <div className="space-y-1">
+      <svg
+        width={width}
+        height={BRUSH_HEIGHT}
+        className="box-content block cursor-crosshair touch-pan-y rounded-sm border border-border/60 bg-bg/60 select-none"
+        role="group"
+        aria-label="Période affichée : tirer les poignées, ou le milieu pour la déplacer"
+        onPointerDown={(e) => {
+          const px = e.clientX - e.currentTarget.getBoundingClientRect().left;
+          const mode =
+            Math.abs(px - x(from)) <= HANDLE && (px <= x(from) || Math.abs(px - x(to)) > HANDLE)
+              ? "from"
+              : Math.abs(px - x(to)) <= HANDLE
+                ? "to"
+                : px > x(from) && px < x(to) && period
+                  ? "move"
+                  : "new";
+          drag.current = { mode, px, from, to };
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+        }}
+        onPointerMove={(e) => moved(e.clientX, e.currentTarget)}
+        onPointerUp={() => (drag.current = null)}
+        onPointerCancel={() => (drag.current = null)}
+        onDoubleClick={() => onChange(null)}
+      >
+        <polyline points={line} fill="none" stroke="var(--color-muted)" strokeWidth="1.5" opacity="0.7" />
+        <rect
+          x={x(from)}
+          y="1"
+          width={Math.max(1, x(to) - x(from))}
+          height={BRUSH_HEIGHT - 2}
+          fill={PRICE_COLOR}
+          opacity="0.14"
+          className={period ? "cursor-grab" : undefined}
+        />
+        <g className="cursor-ew-resize">
+          {handle("from")}
+          {handle("to")}
+        </g>
+      </svg>
+      <div className="flex flex-wrap justify-between gap-2">
+        <span>Tire les poignées ou le milieu pour régler la période ; double-clic : tout l'historique.</span>
+        {period && (
+          <button type="button" className="underline hover:text-text" onClick={() => onChange(null)}>
+            Tout afficher
+          </button>
+        )}
+      </div>
     </div>
   );
 }
