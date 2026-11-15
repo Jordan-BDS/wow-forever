@@ -268,6 +268,11 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.6", notes = {
+    "Onglet « Primes » dans /mf (ou /mf primes) : pose une prime sans commande. Nom du joueur adverse ou « Ma cible », or par kill, kills payés au plus ; coche « Prime de guilde » pour viser toute une guilde.",
+    "Le même onglet liste les primes en cours ; un clic sur l'une des tiennes l'annule, après confirmation.",
+    "Après cette mise à jour, relance le jeu : un /reload ne suffit pas à charger le nouvel onglet.",
+  } },
   { version = "0.7.5", notes = {
     "Primes posées à la main : cible un joueur adverse et tape /mf prime 50 pour mettre 50 po sur sa tête, /mf prime 50 5 pour payer jusqu'à 5 kills. /mf prime <nom> 50 marche sans cible, /mf prime annuler l'annule, /mf prime seul liste les primes en cours. Les comptes (qui doit quoi à qui) sont sur le site, page Primes, où l'on peut aussi offrir des objets.",
     "Primes de guilde : /mf prime guilde 20 5 sur un membre de la guilde visée (ou /mf prime guilde <nom de guilde> 20 5). Chaque membre abattu compte, s'il a été vu avant le kill (plaque de nom, cible ou survol).",
