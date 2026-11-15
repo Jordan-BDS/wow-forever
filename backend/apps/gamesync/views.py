@@ -331,6 +331,7 @@ class AuctionScansView(APIView):
             OpenApiParameter(
                 "category", OpenApiTypes.STR, description="type d'objet : une clé de `categories`"
             ),
+            OpenApiParameter("favorites", OpenApiTypes.BOOL, description="seulement mes objets suivis"),
             OpenApiParameter("page", OpenApiTypes.INT),
         ],
         responses={200: OpenApiTypes.OBJECT},
@@ -345,6 +346,8 @@ class AuctionScansView(APIView):
                 since=params.get("since", "prev"),
                 page=_page(params.get("page")),
                 category=params.get("category", ""),
+                user=request.user,
+                favorites=params.get("favorites", "").lower() in ("1", "true"),
             )
         )
 
@@ -381,6 +384,27 @@ class AuctionItemView(APIView):
     )
     def get(self, request: Request, item_id: int) -> Response:
         return Response(auctions.item_history(item_id, request.query_params.get("house", "")))
+
+
+class AuctionFavoriteItemView(APIView):
+    """Membres : suivre (PUT) ou ne plus suivre (DELETE) un objet de l'hôtel des ventes."""
+
+    permission_classes = [CanUseAuctions]
+
+    @extend_schema(
+        request=None, responses={204: None, 400: OpenApiResponse(description="Trop d'objets suivis")}
+    )
+    def put(self, request: Request, item_id: int) -> Response:
+        try:
+            auctions.set_favorite_item(request.user, item_id, True)
+        except auctions.AuctionError as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=None, responses={204: None})
+    def delete(self, request: Request, item_id: int) -> Response:
+        auctions.set_favorite_item(request.user, item_id, False)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AuctionRecipesView(APIView):

@@ -1,5 +1,5 @@
 // Prix de l'hôtel des ventes (tous les membres) : dernier scan comparé à un scan de référence, historique par objet,
-// recettes favorites avec le coût de leurs composants.
+// objets favoris.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 
@@ -30,6 +30,8 @@ export type AuctionRow = {
   listed_change: number | null;
   /** Valeur estimée du mouvement, en cuivre : une unité par enchère, au prix le plus bas. */
   moved: number | null;
+  /** Vrai si le joueur suit cet objet. */
+  favorite: boolean;
 };
 
 /** Un type d'objet, rangé comme dans l'hôtel des ventes du jeu : catégorie, sous-catégorie, emplacement. */
@@ -49,6 +51,8 @@ export type AuctionOverview = {
   categories: AuctionCategory[];
   /** Clé du type d'objet retenu, vide si aucun. */
   category: string;
+  /** Nombre d'objets que le joueur suit. */
+  favorites: number;
 };
 
 export type AuctionHistory = {
@@ -71,6 +75,8 @@ export type AuctionFilters = {
   page: number;
   /** Clé d'un type d'objet, vide pour tous. */
   category: string;
+  /** Seulement les objets suivis, ceux sans enchère compris. */
+  favorites: boolean;
 };
 
 export function useAuctions(filters: AuctionFilters, enabled: boolean) {
@@ -87,6 +93,7 @@ export function useAuctions(filters: AuctionFilters, enabled: boolean) {
             house: filters.house || undefined,
             q: filters.q || undefined,
             category: filters.category || undefined,
+            favorites: filters.favorites || undefined,
           },
         },
       });
@@ -110,76 +117,18 @@ export function useAuctionHistory(itemId: number, house: string) {
   });
 }
 
-/** Un objet d'une recette (produit ou composant) et son prix au dernier scan, null s'il n'est pas en vente. */
-export type RecipeItem = {
-  item_id: number;
-  name: string;
-  quality: number;
-  icon_url: string;
-  price: number | null;
-  listed: number | null;
-};
-
-export type RecipeCost = {
-  recipe_id: number;
-  name: string;
-  icon_url: string;
-  profession: string;
-  min_skill: number;
-  /** Nombre d'objets produits par fabrication. */
-  quantity: number;
-  favorite: boolean;
-  product: RecipeItem | null;
-  reagents: (RecipeItem & { count: number; total: number | null })[];
-  /** Coût des composants en vente, null si aucun ne l'est. */
-  cost: number | null;
-  /** Composants sans prix à l'hôtel des ventes : ils manquent au coût et au bénéfice. */
-  missing: number;
-  revenue: number | null;
-  profit: number | null;
-  /** Bénéfice en % du coût. */
-  margin: number | null;
-};
-
-export type RecipeCosts = {
-  house: string;
-  scan: AuctionScan | null;
-  /** Vrai si `results` répond à la recherche, faux si ce sont les favorites. */
-  searching: boolean;
-  favorites: number;
-  results: RecipeCost[];
-};
-
-const RECIPES_KEY = ["sync", "auctions", "recipes"] as const;
-
-/** Les recettes favorites, ou celles que trouve `q` (deux lettres au moins). */
-export function useRecipeCosts(house: string, q: string, enabled: boolean) {
-  return useQuery({
-    queryKey: [...RECIPES_KEY, house, q] as const,
-    enabled,
-    staleTime: 60_000,
-    placeholderData: (previous) => previous,
-    queryFn: async () => {
-      const { data, error } = await api.GET("/api/sync/auctions/recipes/", {
-        params: { query: { house: house || undefined, q: q || undefined } },
-      });
-      if (error || !data) throw error ?? new Error();
-      return data as unknown as RecipeCosts;
-    },
-  });
-}
-
-export function useSetFavoriteRecipe() {
+/** Suit ou ne suit plus un objet : la liste est relue, l'étoile et le filtre « Mes favoris » suivent. */
+export function useSetFavoriteItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ recipeId, favorite }: { recipeId: number; favorite: boolean }) => {
-      const params = { path: { recipe_id: recipeId } };
+    mutationFn: async ({ itemId, favorite }: { itemId: number; favorite: boolean }) => {
+      const params = { path: { item_id: itemId } };
       const { error } = favorite
-        ? await api.PUT("/api/sync/auctions/recipes/{recipe_id}/", { params })
-        : await api.DELETE("/api/sync/auctions/recipes/{recipe_id}/", { params });
+        ? await api.PUT("/api/sync/auctions/favorites/{item_id}/", { params })
+        : await api.DELETE("/api/sync/auctions/favorites/{item_id}/", { params });
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: RECIPES_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sync", "auctions"] }),
   });
 }
 

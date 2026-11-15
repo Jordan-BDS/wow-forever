@@ -1,18 +1,17 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router";
 import clsx from "clsx";
 import {
   categoryPath,
   formatChange,
   formatMoney,
   useAuctions,
+  useSetFavoriteItem,
   type AuctionCategory,
   type AuctionRow,
   type AuctionSince,
   type AuctionSort,
 } from "@/api/auctions";
 import { ItemPriceHistory } from "@/components/PriceChart";
-import { RecipeCosts } from "@/components/RecipeCosts";
 import { Card, Input, PageTitle, Pill, Select, Spinner } from "@/components/ui";
 import { WowheadLink } from "@/components/wowhead";
 import { formatDateTime } from "@/lib/game";
@@ -46,10 +45,10 @@ export function AuctionsPage() {
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<number | null>(null);
-  const [params, setParams] = useSearchParams();
-  const onRecipes = params.get("onglet") === "recettes";
+  const [onFavorites, setOnFavorites] = useState(false);
   const q = useDebounced(query.trim());
-  const auctions = useAuctions({ house, q, sort, since, page, category }, true);
+  const auctions = useAuctions({ house, q, sort, since, page, category, favorites: onFavorites }, true);
+  const setFavorite = useSetFavoriteItem();
   useWowheadTooltips([auctions.data]);
 
   if (auctions.isError) return <p className="text-sm text-danger">Impossible de charger les prix.</p>;
@@ -77,40 +76,20 @@ export function AuctionsPage() {
     setOpen(null);
   };
 
-  const tabs = (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap gap-2">
-        <Pill active={!onRecipes} onClick={() => setParams({}, { replace: true })}>
-          Tous les objets
-        </Pill>
-        <Pill active={onRecipes} onClick={() => setParams({ onglet: "recettes" }, { replace: true })}>
-          Recettes favorites
-        </Pill>
-      </div>
-      {data.houses.length > 1 && (
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-muted">Hôtel des ventes</span>
-          <Select value={data.house} onChange={(e) => change(() => setHouse(e.target.value))}>
-            {data.houses.map((h) => (
-              <option key={h.house} value={h.house}>
-                {h.house}
-              </option>
-            ))}
-          </Select>
-        </label>
-      )}
+  const houses = data.houses.length > 1 && (
+    <div className="mb-4 flex justify-end">
+      <label className="flex items-center gap-2 text-sm">
+        <span className="text-muted">Hôtel des ventes</span>
+        <Select value={data.house} onChange={(e) => change(() => setHouse(e.target.value))}>
+          {data.houses.map((h) => (
+            <option key={h.house} value={h.house}>
+              {h.house}
+            </option>
+          ))}
+        </Select>
+      </label>
     </div>
   );
-
-  if (onRecipes) {
-    return (
-      <>
-        <PageTitle>Hôtel des ventes</PageTitle>
-        {tabs}
-        <RecipeCosts house={data.house} />
-      </>
-    );
-  }
 
   const path = categoryPath(data.categories, category);
   const pick = (key: string) => change(() => setCategory(key));
@@ -118,7 +97,7 @@ export function AuctionsPage() {
   return (
     <>
       <PageTitle>Hôtel des ventes</PageTitle>
-      {tabs}
+      {houses}
       <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
         <Card className="hidden p-2 lg:block">
           <CategoryTree categories={data.categories} path={path} onPick={pick} />
@@ -146,6 +125,15 @@ export function AuctionsPage() {
                   onChange={(e) => change(() => setQuery(e.target.value))}
                 />
               </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted">Afficher</span>
+              <Pill active={!onFavorites} onClick={() => change(() => setOnFavorites(false))}>
+                Tous les objets
+              </Pill>
+              <Pill active={onFavorites} onClick={() => change(() => setOnFavorites(true))}>
+                {data.favorites > 0 ? `★ Mes favoris (${data.favorites})` : "★ Mes favoris"}
+              </Pill>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-muted">Variation depuis</span>
@@ -191,9 +179,11 @@ export function AuctionsPage() {
                   ? "Aucune variation à montrer : il faut un scan de référence."
                   : isMovement(sort)
                     ? "Aucun mouvement à montrer entre ces deux scans."
-                    : path.length && !q
-                      ? "Aucun objet de ce type en vente."
-                      : "Aucun objet ne correspond."}
+                    : onFavorites && data.favorites === 0
+                      ? "Aucun objet favori : clique l'étoile d'un objet pour le suivre."
+                      : path.length && !q
+                        ? "Aucun objet de ce type en vente."
+                        : "Aucun objet ne correspond."}
               </p>
             ) : (
               <ul className="divide-y divide-border/60">
@@ -205,11 +195,16 @@ export function AuctionsPage() {
                     movement={isMovement(sort)}
                     open={open === row.item_id}
                     onToggle={() => setOpen(open === row.item_id ? null : row.item_id)}
+                    busy={setFavorite.isPending}
+                    onFavorite={() => setFavorite.mutate({ itemId: row.item_id, favorite: !row.favorite })}
                   />
                 ))}
               </ul>
             )}
           </Card>
+          {setFavorite.isError && (
+            <p className="mt-2 text-sm text-danger">Le favori n'a pas pu être changé.</p>
+          )}
 
           {data.pages > 1 && (
             <div className="mt-4 flex items-center justify-center gap-3 text-sm">
@@ -286,6 +281,8 @@ function AuctionItem({
   movement,
   open,
   onToggle,
+  busy,
+  onFavorite,
 }: {
   row: AuctionRow;
   house: string;
@@ -293,6 +290,8 @@ function AuctionItem({
   movement: boolean;
   open: boolean;
   onToggle: () => void;
+  busy: boolean;
+  onFavorite: () => void;
 }) {
   return (
     <li className="text-sm">
@@ -353,6 +352,19 @@ function AuctionItem({
           className="rounded-sm border border-border px-2 py-1 text-xs text-muted hover:border-gold hover:text-gold"
         >
           {open ? "Fermer" : "Historique"}
+        </button>
+        <button
+          type="button"
+          onClick={onFavorite}
+          disabled={busy}
+          aria-pressed={row.favorite}
+          title={row.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+          className={clsx(
+            "text-xl leading-none transition-colors disabled:opacity-50",
+            row.favorite ? "text-gold hover:text-gold-light" : "text-muted hover:text-gold",
+          )}
+        >
+          {row.favorite ? "★" : "☆"}
         </button>
       </div>
       {open && (

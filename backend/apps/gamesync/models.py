@@ -249,6 +249,25 @@ class FavoriteRecipe(models.Model):
         return f"{self.user} suit {self.recipe}"
 
 
+class FavoriteItem(models.Model):
+    """Objet suivi par un joueur sur la page de l'hôtel des ventes. L'objet est nommé par son ID seul : un
+    objet en vente peut manquer à l'index du site."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favorite_items"
+    )
+    item_id = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "objet favori"
+        verbose_name_plural = "objets favoris"
+        constraints = [models.UniqueConstraint(fields=["user", "item_id"], name="unique_favorite_item")]
+
+    def __str__(self) -> str:
+        return f"{self.user} suit l'objet {self.item_id}"
+
+
 class WantedExclusion(models.Model):
     """Nom retiré du tableau Wanted par le GM (PNJ homonyme pris pour un joueur, erreur de lecture)."""
 

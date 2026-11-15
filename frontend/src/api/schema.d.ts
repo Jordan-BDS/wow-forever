@@ -973,6 +973,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/auctions/favorites/{item_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Membres : suivre (PUT) ou ne plus suivre (DELETE) un objet de l'hôtel des ventes. */
+        put: operations["sync_auctions_favorites_update"];
+        post?: never;
+        /** @description Membres : suivre (PUT) ou ne plus suivre (DELETE) un objet de l'hôtel des ventes. */
+        delete: operations["sync_auctions_favorites_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sync/auctions/items/{item_id}/": {
         parameters: {
             query?: never;
@@ -4859,6 +4877,8 @@ export interface operations {
             query?: {
                 /** @description type d'objet : une clé de `categories` */
                 category?: string;
+                /** @description seulement mes objets suivis */
+                favorites?: boolean;
                 /** @description hôtel (défaut : le dernier scanné) */
                 house?: string;
                 page?: number;
@@ -4927,6 +4947,53 @@ export interface operations {
             };
             /** @description Déjà reçu */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sync_auctions_favorites_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Trop d'objets suivis */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sync_auctions_favorites_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -22,12 +22,13 @@ from apps.gamedata.models import Item, Recipe
 from apps.gamedata.stats import icon_url
 
 from . import auction_categories
-from .models import AuctionPrice, AuctionScan, CompanionDevice, FavoriteRecipe
+from .models import AuctionPrice, AuctionScan, CompanionDevice, FavoriteItem, FavoriteRecipe
 
 MAX_ITEMS = 60_000
 RECIPE_RESULTS = 30  # recettes montrées par une recherche
 MAX_PRICE = 10**12
 MAX_LISTED = 10**7
+MAX_FAVORITE_ITEMS = 500  # objets suivis par joueur
 PAGE_SIZE = 100
 HISTORY_POINTS = 500
 MIN_GAP = timedelta(minutes=30)  # écart minimal entre deux scans d'un même hôtel
@@ -277,16 +278,43 @@ def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[d
     return rows, gone
 
 
+def set_favorite_item(user, item_id: int, favorite: bool) -> None:
+    """Suit ou ne suit plus un objet. `AuctionError` si l'ID est hors bornes ou si le joueur en suit déjà
+    `MAX_FAVORITE_ITEMS`."""
+    if not favorite:
+        FavoriteItem.objects.filter(user=user, item_id=item_id).delete()
+        return
+    if not 0 < item_id < 2**31:
+        raise AuctionError("Objet inconnu.")
+    if FavoriteItem.objects.filter(user=user, item_id=item_id).exists():
+        return
+    if FavoriteItem.objects.filter(user=user).count() >= MAX_FAVORITE_ITEMS:
+        raise AuctionError(f"Tu suis déjà {MAX_FAVORITE_ITEMS} objets : retires-en un d'abord.")
+    FavoriteItem.objects.get_or_create(user=user, item_id=item_id)
+
+
 def overview(
-    house: str = "", q: str = "", sort: str = "name", since: str = "prev", page: int = 1, category: str = ""
+    house: str = "",
+    q: str = "",
+    sort: str = "name",
+    since: str = "prev",
+    page: int = 1,
+    category: str = "",
+    user=None,
+    favorites: bool = False,
 ) -> dict:
     """Le dernier scan d'un hôtel, comparé à un scan de référence : une page d'objets filtrés et triés.
     `category` : clé d'un type d'objet (`auction_categories`), ignorée si elle n'en nomme aucun. Un objet
-    absent de l'index du site n'est d'aucun type."""
+    absent de l'index du site n'est d'aucun type. `user` : chaque objet dit s'il le suit (`favorite`) ;
+    `favorites` : seuls ses objets suivis, ceux qui n'ont plus d'enchère compris (leur dernier prix connu au
+    scan de référence, `gone`)."""
+    followed: set[int] = set()
+    if user is not None and getattr(user, "is_authenticated", False):
+        followed = set(FavoriteItem.objects.filter(user=user).values_list("item_id", flat=True))
     known = houses()
     in_category = auction_categories.test_for(category)
     category = category if in_category else ""
-    shared = {"categories": auction_categories.tree(), "category": category}
+    shared = {"categories": auction_categories.tree(), "category": category, "favorites": len(followed)}
     house = canonical_house(house)
     sort = sort if sort in SORTS else "name"
     since = since if since in BASELINES else "prev"
@@ -304,6 +332,12 @@ def overview(
     rows, gone = _compared(latest, baseline)
     if sort in MOVEMENT_SORTS:
         rows = rows + gone
+    if favorites:
+        # Un favori sans enchère reste dans la liste : c'est justement lui qu'on guette.
+        pool = rows if sort in MOVEMENT_SORTS else rows + gone
+        rows = [r for r in pool if r["item_id"] in followed]
+        if sort == "name":
+            rows.sort(key=lambda r: r["name"].lower())
 
     if in_category:
         rows = [r for r in rows if r["kind"] is not None and in_category(r["kind"])]
@@ -338,7 +372,10 @@ def overview(
         "page": page,
         "pages": pages,
         "results": [
-            {k: v for k, v in r.items() if k not in ("search", "kind")}
+            {
+                **{k: v for k, v in r.items() if k not in ("search", "kind")},
+                "favorite": r["item_id"] in followed,
+            }
             for r in rows[(page - 1) * PAGE_SIZE : page * PAGE_SIZE]
         ],
         **shared,

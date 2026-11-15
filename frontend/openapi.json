@@ -3608,6 +3608,14 @@
                     },
                     {
                         "in": "query",
+                        "name": "favorites",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "seulement mes objets suivis"
+                    },
+                    {
+                        "in": "query",
                         "name": "house",
                         "schema": {
                             "type": "string"
@@ -3718,6 +3726,65 @@
                     },
                     "409": {
                         "description": "Déjà reçu"
+                    }
+                }
+            }
+        },
+        "/api/sync/auctions/favorites/{item_id}/": {
+            "put": {
+                "operationId": "sync_auctions_favorites_update",
+                "description": "Membres : suivre (PUT) ou ne plus suivre (DELETE) un objet de l'hôtel des ventes.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "item_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "400": {
+                        "description": "Trop d'objets suivis"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "sync_auctions_favorites_destroy",
+                "description": "Membres : suivre (PUT) ou ne plus suivre (DELETE) un objet de l'hôtel des ventes.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "item_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             }

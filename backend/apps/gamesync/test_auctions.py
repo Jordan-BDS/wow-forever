@@ -7,7 +7,7 @@ from django.utils import timezone
 from apps.gamedata.models import Item, Profession, Recipe
 
 from . import auctions, services
-from .models import AuctionPrice, AuctionScan, FavoriteRecipe
+from .models import AuctionPrice, AuctionScan, FavoriteItem, FavoriteRecipe
 
 pytestmark = pytest.mark.django_db
 
@@ -296,6 +296,51 @@ class TestRead:
         auctions.store_scan(gm, "Forever-Horde", stamp(timedelta(0)), [[2589, 999, 1]])
         horde = api_client.get("/api/sync/auctions/", {"house": "Forever-Horde", "sort": "sold"}).json()
         assert horde["results"] == []
+
+    def test_favorite_items_are_personal_and_stay_listed_once_sold_out(
+        self, api_client, as_user, gm, member, scans, monkeypatch
+    ):
+        assert api_client.put("/api/sync/auctions/favorites/2589/").status_code in (401, 403)
+        as_user(gm)
+        data = api_client.get("/api/sync/auctions/").json()
+        assert data["favorites"] == 0 and not any(r["favorite"] for r in data["results"])
+        for _ in range(2):  # suivre deux fois ne crée qu'un favori
+            assert api_client.put("/api/sync/auctions/favorites/2589/").status_code == 204
+        # Un objet absent de l'index du site se suit aussi.
+        assert api_client.put("/api/sync/auctions/favorites/99999/").status_code == 204
+        FavoriteItem.objects.create(user=member, item_id=2592)
+        data = api_client.get("/api/sync/auctions/").json()
+        assert data["favorites"] == 2 and data["total"] == 3
+        assert {r["item_id"]: r["favorite"] for r in data["results"]} == {
+            2589: True,
+            2592: False,
+            99999: True,
+        }
+        only = api_client.get("/api/sync/auctions/?favorites=1").json()
+        assert sorted(r["item_id"] for r in only["results"]) == [2589, 99999] and only["total"] == 2
+        # La recherche et les tris s'appliquent aux favoris.
+        assert [
+            r["item_id"] for r in api_client.get("/api/sync/auctions/?favorites=1&q=lin").json()["results"]
+        ] == [2589]
+        # Plus aucune enchère au dernier scan : le favori reste, avec son dernier prix connu.
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(0)) + 3600, [[2592, 300, 2]])
+        only = api_client.get("/api/sync/auctions/?favorites=1").json()
+        assert sorted((r["item_id"], r["gone"], r["price"]) for r in only["results"]) == [
+            (2589, True, 100),
+            (99999, True, 7),
+        ]
+        assert api_client.delete("/api/sync/auctions/favorites/2589/").status_code == 204
+        assert [
+            r["item_id"] for r in api_client.get("/api/sync/auctions/?favorites=1").json()["results"]
+        ] == [99999]
+        # Les favoris d'un membre sont les siens.
+        as_user(member)
+        only = api_client.get("/api/sync/auctions/?favorites=1").json()
+        assert [(r["item_id"], r["favorite"]) for r in only["results"]] == [(2592, True)]
+        # Un plafond par joueur.
+        monkeypatch.setattr(auctions, "MAX_FAVORITE_ITEMS", 1)
+        assert api_client.put("/api/sync/auctions/favorites/2592/").status_code == 204  # déjà suivi
+        assert api_client.put("/api/sync/auctions/favorites/2589/").status_code == 400
 
     def test_item_history_is_per_house_oldest_first(self, api_client, as_user, gm, scans):
         as_user(gm)
