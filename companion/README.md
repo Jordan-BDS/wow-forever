@@ -17,8 +17,8 @@ Hôtel des ventes (`core/src/auctions.rs`) : si l'addon tiers NaowhForever est i
 rien n'est envoyé ; un échec ici ne touche jamais à l'envoi des personnages. Le site en tire la page `/hv`.
 Auctionator est lu aussi (`AUCTIONATOR_PRICE_DATABASE` dans `SavedVariables/Auctionator.lua`, une chaîne CBOR par
 royaume) : le dernier jour où une bonne part de la base a été vue (un scan complet, pas des recherches) part au
-site, un scan par jour au plus, daté de l'écriture du fichier, sans nombre d'enchères (Auctionator compte des
-quantités). Qui a les deux addons envoie les deux ; le site écarte les scans trop proches.
+site, daté de l'écriture du fichier, sans nombre d'enchères (Auctionator compte des quantités) ; il repart dès que
+les prix de ce jour ont changé (un second scan le même jour). Qui a les deux addons envoie les deux ; le site écarte les scans trop proches.
 
 ## Développer
 

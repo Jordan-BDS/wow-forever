@@ -4,8 +4,9 @@
 //!
 //! Auctionator est lu de la même façon (`AUCTIONATOR_PRICE_DATABASE`, par royaume : une chaîne CBOR écrite par
 //! le client). Sa base ne date pas ses scans à la seconde, seulement au jour : le scan envoyé est le dernier jour
-//! où une bonne part de la base a été vue (un scan complet, pas une recherche), daté de l'écriture du fichier,
-//! un par jour au plus. Elle compte des quantités, pas des enchères : le nombre d'enchères n'est pas envoyé.
+//! où une bonne part de la base a été vue (un scan complet, pas une recherche), daté de l'écriture du fichier.
+//! Il repart dès que les prix de ce jour ont changé (un second scan le même jour ; avant la 0.7.11, un seul par
+//! jour). Elle compte des quantités, pas des enchères : le nombre d'enchères n'est pas envoyé.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -390,6 +391,19 @@ pub fn extract_auctionator(lua: &[u8]) -> Vec<AuctionatorScan> {
     scans
 }
 
+/// L'empreinte des prix d'un scan (FNV-1a sur chaque objet et son prix), réduite à 53 bits : elle est gardée dans
+/// la configuration, que la fenêtre lit en JavaScript.
+fn fingerprint(items: &[(u32, u64, Option<u32>)]) -> i64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for (id, price, _) in items {
+        for byte in id.to_le_bytes().iter().chain(price.to_le_bytes().iter()) {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+    (hash >> 11) as i64
+}
+
 /// L'heure de la dernière écriture d'un fichier, en secondes.
 fn modified_at(path: &Path) -> Option<i64> {
     let modified = fs::metadata(path).ok()?.modified().ok()?;
@@ -453,8 +467,10 @@ fn send(
 
 /// Un passage : s'il existe un fichier de scan (NaowhForever ou Auctionator) et que le site autorise ce compte,
 /// envoie les scans plus récents que le dernier envoyé. Met à jour `config.last_auction_scans` (à sauvegarder par
-/// l'appelant) : l'heure du scan par hôtel pour NaowhForever, le jour du scan sous « Auctionator:<royaume> » pour
-/// Auctionator. Ne touche à rien d'autre : un échec ici n'empêche jamais l'envoi des personnages.
+/// l'appelant) : l'heure du scan par hôtel pour NaowhForever ; pour Auctionator, le jour du scan sous
+/// « Auctionator:<royaume> » et l'empreinte de ses prix sous « Auctionator:<royaume>:prix » (les mêmes prix le
+/// même jour ne repartent pas, d'autres prix si). Ne touche à rien d'autre : un échec ici n'empêche jamais
+/// l'envoi des personnages.
 pub fn upload_once(
     game_dir: &Path,
     config: &mut Config,
@@ -516,8 +532,13 @@ pub fn upload_once(
         for found in extract_auctionator(&bytes) {
             let label = format!("{} ({AUCTIONATOR})", found.house);
             let key = format!("{AUCTIONATOR}:{}", found.house);
+            let print_key = format!("{key}:prix");
+            let print = fingerprint(&found.items);
             let known = config.last_auction_scans.get(&key).copied().unwrap_or(-1);
-            if found.day <= known {
+            // Le même jour : un nouveau scan si les prix ont changé. Sans empreinte retenue (jour envoyé par une
+            // version d'avant), il repart une fois : le site reconnaît le sien s'il l'a déjà.
+            let same_prices = config.last_auction_scans.get(&print_key).copied() == Some(print);
+            if found.day < known || (found.day == known && same_prices) {
                 outcomes.push(AuctionOutcome::Unchanged { house: label });
                 continue;
             }
@@ -529,7 +550,14 @@ pub fn upload_once(
                 scanned_at: modified.min(day_end),
                 items: found.items,
             };
-            outcomes.push(send(client, config, &scan, key, found.day, label));
+            let outcome = send(client, config, &scan, key, found.day, label);
+            if matches!(
+                outcome,
+                AuctionOutcome::Sent { .. } | AuctionOutcome::Duplicate { .. }
+            ) {
+                config.last_auction_scans.insert(print_key, print);
+            }
+            outcomes.push(outcome);
         }
     }
     outcomes
@@ -666,6 +694,11 @@ NaowhForeverDB = {
 
     /// 250 objets : les 240 premiers vus le jour 2507 (le scan complet), les autres le jour 2501 seulement.
     fn auctionator_database(scan_day: &str) -> Vec<u8> {
+        auctionator_database_priced(scan_day, 10)
+    }
+
+    /// La même base, chaque objet au prix de `factor` fois son numéro.
+    fn auctionator_database_priced(scan_day: &str, factor: u16) -> Vec<u8> {
         let mut entries = vec![(cbor_text("version"), vec![0x02])];
         for id in 1..=250u16 {
             let day = if id <= 240 { scan_day } else { "2501" };
@@ -674,12 +707,12 @@ NaowhForeverDB = {
                 cbor_map(&[
                     (cbor_text("a"), cbor_map(&[(cbor_text(day), cbor_uint(3))])),
                     (cbor_text("l"), vec![0x80]),
-                    (cbor_text("m"), cbor_uint(id * 10)),
+                    (cbor_text("m"), cbor_uint(id * factor)),
                     (
                         cbor_text("h"),
                         cbor_map(&[
                             (cbor_text("2500"), cbor_uint(1)),
-                            (cbor_text(day), cbor_uint(id * 10)),
+                            (cbor_text(day), cbor_uint(id * factor)),
                         ]),
                     ),
                 ]),
@@ -713,7 +746,7 @@ NaowhForeverDB = {
     }
 
     #[test]
-    fn sends_an_auctionator_scan_once_a_day_without_auction_counts() {
+    fn sends_an_auctionator_scan_when_its_prices_change_without_auction_counts() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().join("WTF/Account/WOW1/SavedVariables");
         std::fs::create_dir_all(&dir).unwrap();
@@ -746,6 +779,29 @@ NaowhForeverDB = {
             }]
         );
         assert_eq!(upload.hits(), 1);
+        // Un second scan le même jour, d'autres prix : il part ; puis plus rien tant que rien ne change.
+        std::fs::write(
+            dir.join("Auctionator.lua"),
+            auctionator_file(&auctionator_database_priced("2507", 11)),
+        )
+        .unwrap();
+        let outcomes = upload_once(tmp.path(), &mut config, &client);
+        assert!(matches!(
+            &outcomes[0],
+            AuctionOutcome::Sent { house, items: 240, .. } if house == "PvP (Auctionator)"
+        ));
+        assert_eq!(config.last_auction_scans["Auctionator:PvP"], 2507);
+        assert_eq!(upload.hits(), 2);
+        assert!(matches!(
+            &upload_once(tmp.path(), &mut config, &client)[0],
+            AuctionOutcome::Unchanged { .. }
+        ));
+        assert_eq!(upload.hits(), 2);
+        // Un jour envoyé par une version d'avant, sans empreinte : il repart une fois.
+        config.last_auction_scans.remove("Auctionator:PvP:prix");
+        upload_once(tmp.path(), &mut config, &client);
+        assert_eq!(upload.hits(), 3);
+        assert!(config.last_auction_scans.contains_key("Auctionator:PvP:prix"));
     }
 
     #[test]
