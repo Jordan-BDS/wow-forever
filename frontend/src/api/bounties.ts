@@ -1,4 +1,4 @@
-// Primes posées à la main sur des joueurs adverses : liste, pose, annulation, paiements déclarés, registre des dettes.
+// Primes posées à la main sur des joueurs ou des guildes adverses : liste, pose, annulation, paiements déclarés, registre des dettes.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 
@@ -20,6 +20,8 @@ export type BountyDue = {
 export type BountyKill = {
   at: string;
   zone: string;
+  /** Le joueur abattu (pour une prime de guilde, l'un de ses membres). */
+  victim: string;
   /** Les chasseurs du kill et la part de chacun. */
   hunters: {
     user: BountyUser;
@@ -32,6 +34,8 @@ export type BountyKill = {
 export type Bounty = {
   id: number;
   target: string;
+  /** La cible est une guilde adverse : chaque membre abattu compte pour un kill. */
+  guild: boolean;
   poster: BountyUser;
   /** Or par kill, en cuivre. */
   amount: number;
@@ -60,6 +64,7 @@ export type BountyReport = { bounties: Bounty[]; ledger: LedgerLine[] };
 
 export type NewBounty = {
   target: string;
+  guild?: boolean;
   /** Pièces d'or par kill. */
   gold: number;
   max_kills: number;

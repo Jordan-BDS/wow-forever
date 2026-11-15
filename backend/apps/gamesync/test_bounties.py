@@ -176,6 +176,60 @@ class TestCounting:
         assert len(bounties.bounty_kills(posted, bounties.player_kills())) == 1
 
 
+class TestGuild:
+    """Prime sur une guilde adverse : chaque membre abattu compte, si l'addon du chasseur a lu sa guilde."""
+
+    def test_every_member_of_the_guild_counts_once(self, api_client, as_user, gm, member, other_member):
+        as_user(gm)
+        body = {"target": "Les  Kor'kron", "guild": True, "gold": 10, "max_kills": 3}
+        posted = api_client.post("/api/sync/bounties/", body, format="json").json()["bounties"][0]
+        assert (posted["target"], posted["guild"]) == ("Les Kor'kron", True)
+        # Une prime sur le joueur du même nom reste possible ; une seconde sur la guilde, non.
+        assert (
+            api_client.post("/api/sync/bounties/", {**body, "guild": False}, format="json").status_code == 201
+        )
+        assert api_client.post("/api/sync/bounties/", body, format="json").status_code == 400
+        found = Bounty.objects.get(is_guild=True)
+        Bounty.objects.update(created_at=POSTED)
+        found.refresh_from_db()
+        hunt(
+            member,
+            "Player-1-T",
+            "Thrall",
+            pk(600, "Garrosh Hurlenfer", guild="les kor'kron"),
+            pk(610, "Nazgrel", guild="Les Kor'kron"),  # une autre victime au même moment : un autre kill
+            pk(700, "Sylvanas", guild="Les Réprouvés"),  # une autre guilde
+            pk(800, "Malkorok"),  # guilde non lue : il ne compte pas
+            pk(900, "Zaela", guild="Les Kor'kron", bg=True),  # champ de bataille
+            pk(2000, "Garrosh", guild="Les Kor'kron"),  # le même joueur, plus tard : un troisième kill
+            pk(4000, "Nazgrel", guild="Les Kor'kron"),  # au-delà du nombre payé
+        )
+        # Garona était du premier kill : sa part suit, même arrivée après le kill de Nazgrel.
+        hunt(other_member, "Player-1-G", "Garona", pk(615, "Garrosh Hurlenfer", guild="Les Kor'kron"))
+        kills = bounties.bounty_kills(found, bounties.player_kills())
+        assert [(k["victim"], len(k["hunters"])) for k in kills] == [
+            ("Garrosh Hurlenfer", 2),
+            ("Nazgrel", 1),
+            ("Garrosh", 1),
+        ]
+        report = api_client.get("/api/sync/bounties/").json()
+        shown = next(b for b in report["bounties"] if b["guild"])
+        assert shown["status"] == "done" and shown["kills"][-1]["victim"] == "Garrosh Hurlenfer"
+        assert [(d["hunter"]["id"], d["owed"]) for d in shown["dues"]] == [
+            (member.pk, 25 * PO),
+            (other_member.pk, 5 * PO),
+        ]
+
+    def test_a_guild_bounty_goes_through_the_game_both_ways(self, gm, member):
+        TestInGame().export(
+            member, "Player-1-T", "Thrall", [TestInGame().posted(name="Les Kor'kron", kind="g")]
+        )
+        found = Bounty.objects.get()
+        assert found.is_guild and found.target_name == "Les Kor'kron"
+        (state,) = bounties.companion_bounties()
+        assert (state["name"], state["kind"]) == ("Les Kor'kron", "g")
+
+
 class TestInGame:
     """Primes posées en jeu (`/mf prime`) : elles arrivent par l'export, l'état repart par le compagnon."""
 
@@ -233,7 +287,7 @@ class TestInGame:
         state = {b["id"]: b for b in bounties.companion_bounties()}
         assert state["000ABC01-1"] == {
             "id": "000ABC01-1", "name": "Garrosh Hurlenfer", "gold": 50, "item": None, "max": 1, "t": T0,
-            "by": member.display_name, "kills": 1, "closed": True,
+            "by": member.display_name, "kills": 1, "closed": True, "kind": None,
         }  # fmt: skip
         mine = state[f"s{site.pk}"]
         assert (mine["gold"], mine["item"], mine["kills"], mine["closed"]) == (

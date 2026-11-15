@@ -47,7 +47,7 @@ local function bountyOn(token)
     name = type(guid) == "string" and ns.SeenPlayer and ns.SeenPlayer(nil, guid) or nil
   end
   if not name then return nil end
-  local posted = ns.Bounties and ns.Bounties.Match(name) or nil
+  local posted = ns.Bounties and ns.Bounties.Match(name, ns.UnitGuild(token)) or nil
   if posted then return posted, true end
   local entry = ns.Wanted.Match(name)
   return ns.Wanted.Active(entry) and entry or nil

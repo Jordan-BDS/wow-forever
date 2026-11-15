@@ -67,6 +67,7 @@ function C_NamePlate.GetNamePlateForUnit(token)
   return _PLATES[token]
 end
 function UnitIsInMyGuild() return false end
+function GetGuildInfo(unit) local u = unitData(unit) return u and u.guild end
 
 -- Personnage joué.
 _PLAYER = { guid = "Player-1-000ABC01", name = "Thrall Fils-de-Durotan", realm = "Forever", class = { "Chaman", "SHAMAN" },

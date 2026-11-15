@@ -190,6 +190,9 @@ pub struct StateBounty {
     /// Finie ou annulée : l'addon cesse d'alerter.
     #[serde(default)]
     pub closed: bool,
+    /// « g » : prime de guilde, `name` est le nom de la guilde visée.
+    #[serde(default)]
+    pub kind: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]

@@ -476,7 +476,9 @@ function MapUI.ShowBountyTooltip(entry, owner)
   if not entry or not GameTooltip then return end
   GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
   GameTooltip:ClearLines()
-  GameTooltip:AddDoubleLine(ns.ClassColored(entry.name, entry.class), L.BOUNTY_TAG, 1, 1, 1, 1, 0.82, 0)
+  local seenName = entry.kind == "g" and entry.seen and entry.seen.name or entry.name
+  GameTooltip:AddDoubleLine(ns.ClassColored(seenName, entry.class), L.BOUNTY_TAG, 1, 1, 1, 1, 0.82, 0)
+  if entry.kind == "g" then GameTooltip:AddLine(string.format(L.BOUNTY_GUILD_OF, entry.name), 1, 1, 1) end
   GameTooltip:AddLine(ns.Bounties.Reward(entry), 1, 0.82, 0)
   GameTooltip:AddLine(string.format(L.BOUNTY_POSTED_BY, entry.by or "?"), 0.85, 0.85, 0.85)
   local seen = entry.seen

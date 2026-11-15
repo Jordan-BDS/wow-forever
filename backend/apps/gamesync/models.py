@@ -272,8 +272,9 @@ class WantedExclusion(models.Model):
 
 
 class Bounty(models.Model):
-    """Prime posée à la main par un membre sur un joueur adverse : tant par kill, pour un nombre de kills au
-    plus. Les kills sont lus dans les événements `pk` exportés par l'addon (`bounties.py`), pas stockés."""
+    """Prime posée à la main par un membre sur un joueur adverse, ou sur une guilde adverse (`is_guild` :
+    chaque membre abattu compte) : tant par kill, pour un nombre de kills au plus. Les kills sont lus dans les
+    événements `pk` exportés par l'addon (`bounties.py`), pas stockés."""
 
     poster = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bounties")
     addon_id = models.CharField(
@@ -284,6 +285,11 @@ class Bounty(models.Model):
     )
     target_name = models.CharField("Cible", max_length=64)
     target_key = models.CharField(max_length=64, db_index=True, editable=False)
+    is_guild = models.BooleanField(
+        "Prime de guilde",
+        default=False,
+        help_text="La cible est une guilde adverse : chaque membre abattu compte pour un kill.",
+    )
     amount = models.PositiveBigIntegerField("Or par kill (en cuivre)", default=0)
     item = models.ForeignKey(
         "gamedata.Item", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
@@ -304,7 +310,7 @@ class Bounty(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"Prime de {self.poster} sur {self.target_name}"
+        return f"Prime de {self.poster} sur {'la guilde ' if self.is_guild else ''}{self.target_name}"
 
     def save(self, *args, **kwargs):
         self.target_name = " ".join(self.target_name.split())

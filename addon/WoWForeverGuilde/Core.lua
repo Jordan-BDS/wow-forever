@@ -69,6 +69,17 @@ function ns.UnitDisplayName(unit)
   return surname and (first .. " " .. surname) or first
 end
 
+--- Nom de la guilde d'une unité, nil si elle n'en a pas ou si le jeu ne le donne pas (secret en combat, unité
+--- trop loin, fiche pas encore chargée).
+function ns.UnitGuild(unit)
+  if type(GetGuildInfo) ~= "function" then return nil end
+  local ok, guild = pcall(GetGuildInfo, unit)
+  guild = ok and ns.plain(guild) or nil
+  if type(guild) ~= "string" then return nil end
+  guild = guild:gsub("^%s+", ""):gsub("%s+$", "")
+  return guild ~= "" and guild or nil
+end
+
 --- En champ de bataille ou en arène : le Wanted est hors jeu (ni annonce de mort, ni point, ni prime).
 function ns.InBattleground()
   local ok, inside, kind = pcall(IsInInstance or function() end)

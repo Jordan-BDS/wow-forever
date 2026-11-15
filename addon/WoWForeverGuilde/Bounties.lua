@@ -15,6 +15,10 @@
 -- un popup, au plus un par cible et par BOUNTY_ALERT_REPEAT s (case « Alertes de primes »). Rien en champ de
 -- bataille ni en arène.
 --
+-- Prime de guilde (`kind = "g"`, `/mf prime guilde <or> [kills]`) : la cible est une guilde adverse, `name` est
+-- son nom. Chaque membre vu ou abattu compte, s'il a été lu avec sa guilde (plaque de nom, cible, survol) : le
+-- message de victoire honorable ne nomme que la victime, sa guilde vient de ce qu'on a lu de lui juste avant.
+--
 -- Kills : l'addon compte ceux qu'il voit (les siens, les « K » et « H » des guildiens) pour savoir quand une prime
 -- est finie ; c'est une estimation, le compte qui fait foi est celui du site. Le kill du commanditaire ne compte
 -- pas : il ne se doit rien.
@@ -26,6 +30,7 @@ local L = ns.L
 
 local digests = 0 -- primes redites reçues (« B » qui n'est pas une pose) : une de plus, quelqu'un a répondu
 local pending = {} -- identifiant de prime → vrai : cible vue, annonce en attente du délai aléatoire
+local lastKills = {} -- identifiant de prime, prénom de la victime → heure du dernier kill compté (dédoublonnage)
 
 local function table_()
   local db = ns.db
@@ -91,17 +96,30 @@ local function send(text)
   return ns.Positions.Send(text)
 end
 
+--- La prime vise-t-elle ce joueur ? Par son nom, ou par sa guilde pour une prime de guilde.
+local function targets(entry, name, guild)
+  if entry.kind == "g" then return guild ~= nil and guild ~= "" and key(guild) == key(entry.name) end
+  return sameName(entry.name, name)
+end
+
+--- « la guilde Les Kor'kron » pour une prime de guilde, le nom du joueur sinon.
+function Bounties.Label(entry)
+  if entry.kind == "g" then return string.format(L.BOUNTY_GUILD_LABEL, entry.name) end
+  return entry.name
+end
+
 --- Prime en cours : ni annulée, ni fermée par le site, et il reste des kills à payer.
 function Bounties.Open(entry)
   return entry ~= nil and not entry.cancelled and not entry.closed and (entry.kills or 0) < (entry.max or 1)
 end
 
---- La prime en cours la plus forte sur ce nom, nil s'il n'y en a pas.
-function Bounties.Match(name)
+--- La prime en cours la plus forte sur ce joueur (son nom, ou sa guilde si on la connaît), nil s'il n'y en a pas.
+function Bounties.Match(name, guild)
   if key(name) == "" then return nil end
+  if not guild and ns.SeenPlayerGuild then guild = ns.SeenPlayerGuild(name) end
   local best
   for _, entry in pairs(table_() or {}) do
-    if Bounties.Open(entry) and sameName(entry.name, name) and (not best or (entry.gold or 0) > (best.gold or 0)) then
+    if Bounties.Open(entry) and targets(entry, name, guild) and (not best or (entry.gold or 0) > (best.gold or 0)) then
       best = entry
     end
   end
@@ -174,13 +192,16 @@ end
 -- --- messages ---------------------------------------------------------------------------------------------
 
 --- B, 1, identifiant, commanditaire (guid, nom, classe), cible, or par kill, kills payés, heure de pose, heure
---- d'annulation (0 : en cours), kills comptés, 1 si la prime vient d'être posée (annonce chez les guildiens).
+--- d'annulation (0 : en cours), kills comptés, 1 si la prime vient d'être posée (annonce chez les guildiens),
+--- « g » pour une prime de guilde.
 function Bounties.Encode(entry, live)
-  return table.concat({
+  local fields = {
     "B", "1", field(entry.id), field(entry.guid or ""), field(entry.by or ""), field(entry.byClass or ""),
     field(entry.name), tostring(entry.gold or 0), tostring(entry.max or 1), tostring(entry.t or 0),
     tostring(entry.cancelled or 0), tostring(entry.kills or 0), live and "1" or "0",
-  }, "\t")
+  }
+  if entry.kind == "g" then fields[14] = "g" end
+  return table.concat(fields, "\t")
 end
 
 function Bounties.Decode(text)
@@ -194,6 +215,7 @@ function Bounties.Decode(text)
     id = f[3], guid = f[4] ~= "" and f[4] or nil, by = f[5] or "", byClass = f[6] ~= "" and f[6] or nil,
     name = trim(f[7]), gold = math.floor(gold), max = math.floor(max), t = t,
     cancelled = tonumber(f[11]) or 0, kills = tonumber(f[12]) or 0, live = f[13] == "1",
+    kind = f[14] == "g" and "g" or nil,
   }
 end
 
@@ -222,28 +244,30 @@ end
 -- --- pose et annulation -------------------------------------------------------------------------------------
 
 --- Pose une prime et l'annonce à la guilde. Renvoie la prime, nil si le personnage n'est pas encore connu.
-function Bounties.Post(name, gold, max)
+function Bounties.Post(name, gold, max, kind)
   local c, tbl = ns.char, table_()
   if not (c and c.guid and tbl) then return nil end
   local t = ns.now()
   local id = (tostring(c.guid):gsub("[^%w]", "")):sub(-10) .. "-" .. tostring(t)
   local entry = {
     id = id, name = trim(name), gold = gold, max = max or 1, t = t, by = myName(), byClass = c.class, guid = c.guid,
-    kills = 0,
+    kills = 0, kind = kind == "g" and "g" or nil,
   }
   tbl[id] = entry
   cap()
   send(Bounties.Encode(entry, true))
-  ns.Print(L.BOUNTY_POSTED, entry.name, Bounties.Reward(entry))
+  ns.Print(L.BOUNTY_POSTED, Bounties.Label(entry), Bounties.Reward(entry))
   refresh(entry)
   return entry
 end
 
---- Ma prime en cours sur ce nom, posée en jeu ou sur le site.
-local function mine(name)
+--- Ma prime en cours sur ce nom (de joueur, ou de guilde si `kind` vaut « g »), posée en jeu ou sur le site.
+local function mine(name, kind)
   local c = ns.char or {}
   for _, entry in pairs(table_() or {}) do
-    if Bounties.Open(entry) and sameName(entry.name, name) and (entry.guid == c.guid or (not entry.guid and entry.by == myName())) then
+    local same = (entry.kind == "g") == (kind == "g")
+      and (kind == "g" and key(entry.name) == key(name) or kind ~= "g" and sameName(entry.name, name))
+    if Bounties.Open(entry) and same and (entry.guid == c.guid or (not entry.guid and entry.by == myName())) then
       return entry
     end
   end
@@ -251,26 +275,27 @@ local function mine(name)
 end
 
 --- Annule ma prime sur ce nom. Les kills déjà faits restent dus.
-function Bounties.Cancel(name)
-  local entry = mine(name)
+function Bounties.Cancel(name, kind)
+  local entry = mine(name, kind)
   if not entry then
-    ns.Print(L.BOUNTY_CANCEL_NONE, name)
+    ns.Print(L.BOUNTY_CANCEL_NONE, kind == "g" and string.format(L.BOUNTY_GUILD_LABEL, name) or name)
     return false
   end
   if not entry.guid then -- posée sur le site : elle s'y annule
-    ns.Print(L.BOUNTY_CANCEL_SITE, entry.name)
+    ns.Print(L.BOUNTY_CANCEL_SITE, Bounties.Label(entry))
     return false
   end
   entry.cancelled = ns.now()
   send(Bounties.Encode(entry, false))
-  ns.Print(L.BOUNTY_CANCELLED, entry.name)
+  ns.Print(L.BOUNTY_CANCELLED, Bounties.Label(entry))
   if ns.MapUI and ns.MapUI.RemoveBounty then ns.MapUI.RemoveBounty(entry.id) end
   if ns.Nameplates then ns.Nameplates.Refresh() end
   return true
 end
 
---- Le nom du joueur adverse ciblé, nil (et la raison dite) si la cible ne convient pas.
-local function targetName()
+--- Le nom du joueur adverse ciblé, ou celui de sa guilde (`guild`) ; nil (et la raison dite) si la cible ne
+--- convient pas.
+local function targetName(guild)
   local ok, exists = pcall(UnitExists or function() end, "target")
   if not (ok and ns.plain(exists)) then
     ns.Print(L.BOUNTY_NEED_TARGET)
@@ -282,9 +307,21 @@ local function targetName()
     ns.Print(L.BOUNTY_NEED_ENEMY)
     return nil
   end
+  if guild then
+    local found = ns.UnitGuild("target")
+    if not found then ns.Print(L.BOUNTY_NO_GUILD) end
+    return found
+  end
   local name = ns.UnitDisplayName("target")
   if not name then ns.Print(L.BOUNTY_NAME_HIDDEN) end
   return name
+end
+
+--- « guilde » ou « guilde <reste> » en tête : vrai et le reste ; sinon faux et le texte tel quel.
+local function guildWord(text)
+  local lower = text:lower()
+  if lower == "guilde" or lower:match("^guilde%s") then return true, trim(text:sub(7)) end
+  return false, text
 end
 
 local function list()
@@ -292,12 +329,15 @@ local function list()
   if #open == 0 then
     ns.Print(L.BOUNTY_LIST_NONE)
   else
-    for _, entry in ipairs(open) do ns.Print(L.BOUNTY_LIST_LINE, entry.name, Bounties.Reward(entry), entry.by or "?") end
+    for _, entry in ipairs(open) do
+      ns.Print(L.BOUNTY_LIST_LINE, Bounties.Label(entry), Bounties.Reward(entry), entry.by or "?")
+    end
   end
   ns.Print(L.BOUNTY_USAGE)
 end
 
 --- /mf prime : seul, la liste ; `<or> [kills]` sur la cible ; `<nom> <or> [kills]` ; `annuler [nom]` ;
+--- `guilde <or> [kills]` sur la guilde de la cible, `guilde <nom de guilde> <or> [kills]`, `annuler guilde [nom]` ;
 --- `test <nom>` (ou un nom seul, l'usage d'avant) joue le popup « Prime encaissée » du Wanted.
 function Bounties.Command(rest)
   rest = trim(rest)
@@ -305,40 +345,47 @@ function Bounties.Command(rest)
   local lower = rest:lower()
   if lower == "test" or lower:match("^test%s") then return ns.Wanted.Rehearse(rest:sub(5)) end
   if lower == "annuler" or lower:match("^annuler%s") then
-    local name = trim(rest:sub(8))
-    if name == "" then name = targetName() end
-    if name then Bounties.Cancel(name) end
+    local guild, name = guildWord(trim(rest:sub(8)))
+    if name == "" then name = targetName(guild) end
+    if name then Bounties.Cancel(name, guild and "g" or nil) end
     return
   end
-  local name, gold, max = rest:match("^(.-)%s*(%d+)%s+(%d+)$")
-  if not gold then name, gold = rest:match("^(.-)%s*(%d+)$") end
-  if not gold then return ns.Wanted.Rehearse(rest) end
+  local guild, body = guildWord(rest)
+  local name, gold, max = body:match("^(.-)%s*(%d+)%s+(%d+)$")
+  if not gold then name, gold = body:match("^(.-)%s*(%d+)$") end
+  if not gold then
+    if guild then return ns.Print(L.BOUNTY_USAGE) end
+    return ns.Wanted.Rehearse(rest)
+  end
   gold, max, name = tonumber(gold), tonumber(max) or 1, trim(name)
   if gold < 1 or gold > ns.Data.BOUNTY_MAX_GOLD or max < 1 or max > ns.Data.BOUNTY_MAX_KILLS then
     ns.Print(L.BOUNTY_BAD_AMOUNT, ns.Data.BOUNTY_MAX_GOLD, ns.Data.BOUNTY_MAX_KILLS)
     return
   end
-  if name == "" then name = targetName() end
+  local kind = guild and "g" or nil
+  if name == "" then name = targetName(guild) end
   if not name then return end
   if #name < 2 or #name > 64 then
     ns.Print(L.BOUNTY_USAGE)
     return
   end
-  if mine(name) then
-    ns.Print(L.BOUNTY_ALREADY, name)
+  local label = guild and string.format(L.BOUNTY_GUILD_LABEL, name) or name
+  if mine(name, kind) then
+    ns.Print(L.BOUNTY_ALREADY, label)
     return
   end
   if not (ns.UI and ns.UI.ShowDialog) then
-    Bounties.Post(name, gold, max)
+    Bounties.Post(name, gold, max, kind)
     return
   end
   ns.UI.Dialogs.WFG_BOUNTY = ns.UI.Dialogs.WFG_BOUNTY or {
     button1 = L.BOUNTY_CONFIRM_YES,
     button2 = L.BOUNTY_CONFIRM_NO,
-    OnAccept = function(_, data) Bounties.Post(data.name, data.gold, data.max) end,
+    OnAccept = function(_, data) Bounties.Post(data.name, data.gold, data.max, data.kind) end,
   }
-  local text = string.format(max > 1 and L.BOUNTY_CONFIRM_MANY or L.BOUNTY_CONFIRM_ONE, gold, name, max, gold * max)
-  ns.UI.ShowDialog("WFG_BOUNTY", text, { name = name, gold = gold, max = max })
+  local text = string.format(max > 1 and L.BOUNTY_CONFIRM_MANY or L.BOUNTY_CONFIRM_ONE, gold, label, max, gold * max)
+  if guild then text = text .. "\n\n" .. L.BOUNTY_CONFIRM_GUILD end
+  ns.UI.ShowDialog("WFG_BOUNTY", text, { name = name, gold = gold, max = max, kind = kind })
 end
 
 -- --- cible vue ----------------------------------------------------------------------------------------------
@@ -350,7 +397,8 @@ local function alert(entry, seen)
   entry.alerted = now
   local place = Bounties.Where(entry)
   place = place ~= "" and place or L.WHERE_UNKNOWN
-  local target = ns.ClassColored(seen.name or entry.name, entry.class)
+  local target = ns.ClassColored(seen.name or entry.name, seen.class ~= "" and seen.class or entry.class)
+  if entry.kind == "g" then target = target .. " <" .. entry.name .. ">" end
   local by = ns.ClassColored(seen.by ~= "" and seen.by or "?", seen.byClass)
   ns.Print(L.BOUNTY_SEEN_CHAT, target, place, by, Bounties.Reward(entry))
   if ns.UI and ns.UI.ShowToast then
@@ -376,7 +424,7 @@ end
 --- depuis BOUNTY_SEEN_DEDUPE s, je l'annonce après un court délai aléatoire, sauf si un guildien me devance.
 function Bounties.OnSeen(player, t)
   if not (player and player.player and player.name) then return end
-  local entry = Bounties.Match(player.name)
+  local entry = Bounties.Match(player.name, player.guild)
   if not entry or pending[entry.id] or ns.InBattleground() then return end
   t = t or ns.now()
   if entry.seen and t - (entry.seen.t or 0) < ns.Data.BOUNTY_SEEN_DEDUPE then return end
@@ -400,20 +448,24 @@ end
 
 -- --- kills ----------------------------------------------------------------------------------------------------
 
---- Un joueur adverse abattu par un membre (moi, ou un « K » ou « H » reçu) : les primes en cours sur ce nom
---- comptent un kill de plus, une fois par kill (le groupe en envoie autant que de chasseurs). Le kill du
---- commanditaire d'une prime ne compte pas pour elle.
-function Bounties.OnKill(name, t, hunterGuid)
+--- Un joueur adverse abattu par un membre (moi, ou un « K » ou « H » reçu) : les primes en cours sur ce nom,
+--- ou sur sa guilde (`guild` : celle que le chasseur a lue, sinon celle que j'ai lue moi), comptent un kill de
+--- plus, une fois par kill (le groupe en envoie autant que de chasseurs). Le kill du commanditaire d'une prime
+--- ne compte pas pour elle.
+function Bounties.OnKill(name, t, hunterGuid, guild)
   t = t or ns.now()
+  if (not guild or guild == "") and ns.SeenPlayerGuild then guild = ns.SeenPlayerGuild(name) end
+  local victim = key(name):match("^(%S*)")
   local changed = false
   for _, entry in pairs(table_() or {}) do
-    if Bounties.Open(entry) and sameName(entry.name, name) and t >= (entry.t or 0)
+    local last = lastKills[entry.id .. "\t" .. victim] or 0
+    if Bounties.Open(entry) and targets(entry, name, guild) and t >= (entry.t or 0)
       and not (entry.guid and entry.guid == hunterGuid)
-      and math.abs(t - (entry.last_kill or 0)) >= ns.Data.WANTED_KILL_DEDUPE then
+      and math.abs(t - last) >= ns.Data.WANTED_KILL_DEDUPE then
       entry.kills = (entry.kills or 0) + 1
-      entry.last_kill = t
+      lastKills[entry.id .. "\t" .. victim] = t
       changed = true
-      ns.Print(L.BOUNTY_KILL_CHAT, entry.name, Bounties.Reward(entry), entry.by or "?")
+      ns.Print(L.BOUNTY_KILL_CHAT, Bounties.Label(entry), Bounties.Reward(entry), entry.by or "?")
       if not Bounties.Open(entry) and ns.MapUI and ns.MapUI.RemoveBounty then ns.MapUI.RemoveBounty(entry.id) end
     end
   end
@@ -431,13 +483,13 @@ function Bounties.Merge(msg)
   if not entry then
     entry = {
       id = msg.id, name = msg.name, gold = msg.gold, max = msg.max, t = msg.t, by = msg.by, byClass = msg.byClass,
-      guid = msg.guid, kills = msg.kills or 0,
+      guid = msg.guid, kills = msg.kills or 0, kind = msg.kind,
     }
     if (msg.cancelled or 0) > 0 then entry.cancelled = msg.cancelled end
     tbl[msg.id] = entry
     cap()
     if msg.live and Bounties.Open(entry) then
-      ns.Print(L.BOUNTY_NEW_CHAT, ns.ClassColored(entry.by, entry.byClass), entry.name, Bounties.Reward(entry))
+      ns.Print(L.BOUNTY_NEW_CHAT, ns.ClassColored(entry.by, entry.byClass), Bounties.Label(entry), Bounties.Reward(entry))
     end
     refresh(entry)
     return true
@@ -450,7 +502,7 @@ function Bounties.Merge(msg)
   if (msg.cancelled or 0) > 0 and not entry.cancelled then
     entry.cancelled = msg.cancelled
     changed = true
-    ns.Print(L.BOUNTY_CANCELLED_BY, entry.by or "?", entry.name)
+    ns.Print(L.BOUNTY_CANCELLED_BY, entry.by or "?", Bounties.Label(entry))
   end
   if changed then
     if not Bounties.Open(entry) and ns.MapUI and ns.MapUI.RemoveBounty then ns.MapUI.RemoveBounty(entry.id) end
@@ -531,7 +583,7 @@ function Bounties.Export()
     if entry.guid and entry.guid ~= "" then
       out[#out + 1] = {
         id = entry.id, guid = entry.guid, name = entry.name, gold = entry.gold, max = entry.max, t = entry.t,
-        cancelled = entry.cancelled,
+        cancelled = entry.cancelled, kind = entry.kind,
       }
     end
   end

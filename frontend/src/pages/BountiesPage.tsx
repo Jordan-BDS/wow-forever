@@ -26,7 +26,7 @@ const STATUS: Record<Bounty["status"], string> = {
   cancelled: "Annulée",
 };
 
-/** Primes posées à la main : un membre met tant par kill sur un joueur adverse, le site compte et tient les comptes. */
+/** Primes posées à la main : un membre met tant par kill sur un joueur ou une guilde adverse, le site compte et tient les comptes. */
 export function BountiesPage() {
   const report = useBounties();
   const me = useCurrentUser();
@@ -100,7 +100,10 @@ function BountyCard({ bounty }: { bounty: Bounty }) {
   return (
     <Card className={clsx("space-y-3", bounty.status !== "open" && "opacity-80")}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 className="font-display text-lg">{bounty.target}</h2>
+        <h2 className="font-display text-lg">
+          {bounty.guild && <span className="text-muted">Guilde </span>}
+          {bounty.target}
+        </h2>
         <span className="font-mono text-sm text-gold-light">{reward} par kill</span>
         <span
           className={clsx(
@@ -171,6 +174,7 @@ function BountyCard({ bounty }: { bounty: Bounty }) {
             {bounty.kills.map((kill) => (
               <li key={kill.at}>
                 {formatDateTime(kill.at)}
+                {bounty.guild && kill.victim ? ` · ${kill.victim}` : ""}
                 {kill.zone ? ` · ${kill.zone}` : ""} · {kill.hunters.map((h) => h.character.name).join(", ")}
               </li>
             ))}
@@ -185,6 +189,7 @@ function BountyCard({ bounty }: { bounty: Bounty }) {
 function NewBountyForm() {
   const post = usePostBounty();
   const [target, setTarget] = useState("");
+  const [guild, setGuild] = useState(false);
   const [gold, setGold] = useState("");
   const [maxKills, setMaxKills] = useState("1");
   const [note, setNote] = useState("");
@@ -209,6 +214,7 @@ function NewBountyForm() {
     post.mutate(
       {
         target: target.trim(),
+        ...(guild ? { guild: true } : {}),
         gold: goldValue,
         max_kills: kills,
         note: note.trim() || undefined,
@@ -231,9 +237,31 @@ function NewBountyForm() {
     <Card>
       <h2 className="mb-3 font-display text-lg">Poser une prime</h2>
       <form className="space-y-3" onSubmit={submit}>
-        <Field label="Joueur adverse (nom exact en jeu)">
+        <div className="flex gap-2" role="group" aria-label="Cible de la prime">
+          {[false, true].map((choice) => (
+            <button
+              key={String(choice)}
+              type="button"
+              aria-pressed={guild === choice}
+              className={clsx(
+                "flex-1 rounded-sm border px-2 py-1 text-sm",
+                guild === choice ? "border-gold text-gold-light" : "border-border text-muted",
+              )}
+              onClick={() => setGuild(choice)}
+            >
+              {choice ? "Une guilde" : "Un joueur"}
+            </button>
+          ))}
+        </div>
+        <Field label={guild ? "Guilde adverse (nom exact en jeu)" : "Joueur adverse (nom exact en jeu)"}>
           <Input value={target} maxLength={64} onChange={(e) => setTarget(e.target.value)} />
         </Field>
+        {guild && (
+          <p className="text-xs text-muted">
+            Chaque membre abattu compte pour un kill, si l'addon du chasseur a lu sa guilde (plaque de nom,
+            cible ou survol) avant le kill.
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Or par kill (po)">
             <Input

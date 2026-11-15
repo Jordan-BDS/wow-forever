@@ -631,7 +631,7 @@ local function streakField(streak)
 end
 
 --- Ligne « K » : j'ai abattu un recherché. `streak` : ma série de kills, si ce kill en prolonge une.
-function Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime, streak)
+function Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime, streak, guild)
   local c = ns.char or {}
   local fields = {
     "K", "1", field(c.guid), field(myName()), field(c.class), field(entry.name),
@@ -639,6 +639,10 @@ function Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime, streak)
     y and string.format("%.4f", y) or "", field(zone), field(sub), field(entry.class),
   }
   fields[16] = streakField(streak)
+  if guild and guild ~= "" then -- guilde de la victime (primes de guilde)
+    fields[16] = fields[16] or ""
+    fields[17] = field(guild)
+  end
   local line = table.concat(fields, "\t")
   for _, i in ipairs({ 14, 13 }) do
     if #line <= 255 then break end
@@ -661,6 +665,7 @@ function Wanted.DecodeKill(text)
     guid = f[3], by = f[4], byClass = f[5], name = f[6], points = tonumber(f[7]) or 0, kills = tonumber(f[8]) or 0,
     t = tonumber(f[9]) or ns.now(), map = tonumber(f[10]), x = tonumber(f[11]), y = tonumber(f[12]),
     zone = f[13] or "", sub = f[14] or "", class = f[15] or "", streak = tonumber(f[16]) or 0,
+    guild = f[17] or "",
   }
 end
 
@@ -843,13 +848,17 @@ end
 
 --- Ligne « H » : j'ai abattu un joueur qui n'est pas recherché (0.6.6 ; les versions d'avant l'ignorent).
 --- `streak` : ma série de kills, si ce kill en prolonge une (0.7.2).
-function Wanted.EncodeHonor(name, class, t, zone, sub, streak)
+function Wanted.EncodeHonor(name, class, t, zone, sub, streak, guild)
   local c = ns.char or {}
   local fields = {
     "H", "1", field(c.guid), field(myName()), field(c.class), field(name), tostring(t), field(zone), field(sub),
     field(class),
   }
   fields[11] = streakField(streak)
+  if guild and guild ~= "" then -- guilde de la victime (primes de guilde)
+    fields[11] = fields[11] or ""
+    fields[12] = field(guild)
+  end
   return ns.Positions.Cut(table.concat(fields, "\t"), 255)
 end
 
@@ -858,7 +867,7 @@ function Wanted.DecodeHonor(text)
   if f[1] ~= "H" or f[2] ~= "1" or #f < 7 then return nil end -- victime vide : kill sans nom (0.6.10)
   return {
     guid = f[3], by = f[4], byClass = f[5], name = f[6], t = tonumber(f[7]) or ns.now(), zone = f[8] or "",
-    sub = f[9] or "", class = f[10] or "", streak = tonumber(f[11]) or 0,
+    sub = f[9] or "", class = f[10] or "", streak = tonumber(f[11]) or 0, guild = f[12] or "",
   }
 end
 
@@ -898,8 +907,10 @@ function Wanted.RecordKill(char, name, t, battleground, fresh)
     logKill("kill « %s » : déjà compté", name)
     return nil
   end
+  -- Sa guilde, si je l'ai lue sur lui : le message du jeu ne la donne pas (primes de guilde).
+  local guild = name ~= "" and ns.SeenPlayerGuild and ns.SeenPlayerGuild(name) or ""
   if not battleground and name ~= "" and ns.Bounties then -- primes posées à la main : un kill de plus
-    ns.Safe("bounties.kill", ns.Bounties.OnKill, name, t, ns.char and ns.char.guid)
+    ns.Safe("bounties.kill", ns.Bounties.OnKill, name, t, ns.char and ns.char.guid, guild)
   end
   local entry = (not battleground) and name ~= "" and Wanted.Match(name) or nil
   -- Recherché : une prime à encaisser, ou ce même kill déjà encaissé par un coéquipier (crédit de groupe : j'encaisse
@@ -925,6 +936,7 @@ function Wanted.RecordKill(char, name, t, battleground, fresh)
     ns.Journal.Increment(char, "pk")
     local event = { name = name, prime = prime, zone = zone }
     if battleground then event.bg = true end
+    if guild ~= "" then event.guild = guild end
     if map then event.map = map end
     if x and y then event.x, event.y = x, y end
     ns.Journal.Event(char, "pk", event, t)
@@ -950,7 +962,7 @@ function Wanted.RecordKill(char, name, t, battleground, fresh)
       if name == "" then nameless = t end
       local fresh = announceHonor(name, class, myName(), char.class, zone, sub, char.guid, killT)
       if fresh or adopted or streak >= 2 then -- une série est annoncée même si le popup du kill est déjà passé
-        announceToGuild(Wanted.EncodeHonor(name, class, killT, zone, sub, streak))
+        announceToGuild(Wanted.EncodeHonor(name, class, killT, zone, sub, streak, guild))
         logKill("kill « %s » : %s, H %s", name, fresh and "popup" or (adopted and "popup complété" or "série"),
           lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
       else
@@ -963,12 +975,12 @@ function Wanted.RecordKill(char, name, t, battleground, fresh)
   end
   if seen then
     -- Déjà au tableau par un coéquipier : rien à annoncer, sauf ma série (les guildiens reconnaissent le kill).
-    if streak >= 2 then announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime, streak)) end
+    if streak >= 2 then announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime, streak, guild)) end
     logKill("kill « %s » : recherché, déjà au tableau%s", name, streak >= 2 and ", K pour la série" or "")
     return entry, false
   end
   markKill(entry, t, myName(), char.class, map, x, y, zone, sub, prime)
-  announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime, streak))
+  announceToGuild(Wanted.EncodeKill(entry, t, map, x, y, zone, sub, prime, streak, guild))
   logKill("kill « %s » : prime, K %s", name, lastAnnounce.sent and "accepté" or ("refusé " .. tostring(lastAnnounce.result)))
   announceKill(entry, myName(), char.class, zone, sub, prime, t)
   return entry, true
@@ -1104,7 +1116,7 @@ local function onAddonMessage(prefix, text, channel, sender)
       return
     end
     ns.Trace("reçu K de %s : %s abattu", tostring(sender), msg.name)
-    if ns.Bounties then ns.Safe("bounties.kill", ns.Bounties.OnKill, msg.name, msg.t, msg.guid) end
+    if ns.Bounties then ns.Safe("bounties.kill", ns.Bounties.OnKill, msg.name, msg.t, msg.guid, msg.guild) end
     -- La série d'abord : sa voix l'emporte sur celle de la prime du même kill.
     ns.Safe("wanted.streak", Wanted.ShowStreak, msg.guid, msg.by, msg.byClass, msg.streak, msg.name, msg.t)
     local ok, err, shown = pcall(Wanted.RecordKillMessage, msg, sender)
@@ -1118,7 +1130,7 @@ local function onAddonMessage(prefix, text, channel, sender)
       return
     end
     ns.Trace("reçu H de %s : %s abattu", tostring(sender), msg.name)
-    if ns.Bounties then ns.Safe("bounties.kill", ns.Bounties.OnKill, msg.name, msg.t, msg.guid) end
+    if ns.Bounties then ns.Safe("bounties.kill", ns.Bounties.OnKill, msg.name, msg.t, msg.guid, msg.guild) end
     ns.Safe("wanted.streak", Wanted.ShowStreak, msg.guid, msg.by, msg.byClass, msg.streak, msg.name, msg.t)
     -- Recherché chez moi sans l'être chez le chasseur (les tableaux diffèrent) : c'est une prime encaissée.
     local entry = msg.name ~= "" and Wanted.Match(msg.name) or nil

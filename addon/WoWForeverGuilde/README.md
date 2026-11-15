@@ -145,7 +145,10 @@ transporte le code jusqu'au site.
   de 1 à 6 s, sauf si quelqu'un a déjà répondu ; le receveur garde le maximum de chaque valeur. Côté site (lot 3) :
   tableau Wanted, classements « Joueurs abattus » et « Primes encaissées », Roxor « Chasseur de primes » ; le
   compagnon recopie le tableau de la guilde dans `db.wanted` au lancement, jeu fermé (maximum de chaque valeur).
-- `Bounties.lua` : primes posées à la main. `/mf prime <or> [kills]` sur la cible (ou `/mf prime <nom> <or> [kills]`)
+- `Bounties.lua` : primes posées à la main. Prime de guilde : `/mf prime guilde <or> [kills]` sur la guilde de la
+  cible (ou `/mf prime guilde <nom de guilde> <or> [kills]`, `/mf prime annuler guilde [nom]`) ; chaque membre vu
+  ou abattu compte, si sa guilde a été lue sur lui (plaque de nom, cible, survol) : le kill exporté (`pk`) et les
+  messages « K » et « H » portent alors la guilde de la victime. `/mf prime <or> [kills]` sur la cible (ou `/mf prime <nom> <or> [kills]`)
   pose, après confirmation, tant d'or par kill sur un joueur adverse, pour un nombre de kills au plus (un par
   défaut) ; `/mf prime annuler [nom]` l'annule, `/mf prime` liste les primes en cours, `/mf prime test <nom>` (ou un
   nom seul) joue comme avant le popup « Prime encaissée » du Wanted. Les primes vivent dans `db.bounties` (niveau

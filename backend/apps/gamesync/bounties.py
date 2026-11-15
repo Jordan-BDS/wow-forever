@@ -1,6 +1,7 @@
 """
 Primes posées à la main : un membre met tant d'or (et, s'il veut, des objets) par kill sur un joueur adverse,
-pour un nombre de kills au plus. Le site compte les kills et tient le registre de qui doit quoi à qui.
+ou sur une guilde adverse, pour un nombre de kills au plus. Le site compte les kills et tient le registre de
+qui doit quoi à qui.
 
 Les kills ne sont pas stockés : comme le Wanted, ils sont relus dans les événements `pk` que l'addon exporte
 (kill de joueur, hors champ de bataille). Un kill compte pour une prime s'il nomme sa cible (nom exact, ou
@@ -9,6 +10,10 @@ prénom seul d'un côté ou de l'autre), entre la pose de la prime et son annula
 ses chasseurs, un joueur comptant une fois quel que soit son nombre de personnages. Le commanditaire ne se
 doit rien : sa part n'est due à personne, et un kill qu'il fait seul ne consomme pas la prime. Seuls les
 `max_kills` premiers kills sont payés.
+
+Prime de guilde : un kill compte si l'addon du chasseur a noté la guilde de sa victime (`guild` du `pk`, lue
+sur le joueur juste avant : plaque de nom, cible, survol) et que c'est la guilde visée, au nom exact. Chaque
+membre abattu est un kill ; deux victimes différentes au même moment sont deux kills.
 
 Le paiement se fait en jeu, le site ne le voit pas : le commanditaire déclare ce qu'il a remis
 (`BountyPayment`). Le reste dû à un chasseur est ce que ses kills lui valent, moins ce qui a été déclaré.
@@ -66,7 +71,7 @@ def split(total: int, parts: int) -> list[int]:
 
 def player_kills() -> list[dict]:
     """Chaque kill de joueur exporté par l'addon, hors champ de bataille, du plus ancien au plus récent :
-    { key, t, zone, who }. Un kill fait à plusieurs y est autant de fois que de chasseurs."""
+    { key, name, guild, t, zone, who }. Un kill fait à plusieurs y est autant de fois que de chasseurs."""
     cached = cache.get(KILLS_CACHE)
     if cached is not None:
         return cached
@@ -82,6 +87,8 @@ def player_kills() -> list[dict]:
                 kills.append(
                     {
                         "key": key,
+                        "name": " ".join(event["name"].split()),
+                        "guild": key_of(event["guild"]) if isinstance(event.get("guild"), str) else "",
                         "t": number(event.get("t")),
                         "zone": str(event.get("zone") or ""),
                         "who": who,
@@ -93,24 +100,35 @@ def player_kills() -> list[dict]:
 
 
 def bounty_kills(bounty: Bounty, kills: list[dict]) -> list[dict]:
-    """Les kills payés par une prime, du plus ancien au plus récent : { t, zone, hunters }, chaque chasseur
-    avec sa part { who, amount, items }. Le commanditaire n'est pas un chasseur de sa propre prime."""
+    """Les kills payés par une prime, du plus ancien au plus récent : { t, zone, victim, hunters }, chaque
+    chasseur avec sa part { who, amount, items }. Le commanditaire n'est pas un chasseur de sa propre
+    prime."""
     start = bounty.created_at.timestamp()
     end = bounty.cancelled_at.timestamp() if bounty.cancelled_at else float("inf")
     found: list[dict] = []
+    latest: dict[str, dict] = {}  # prénom de la victime → son dernier kill payé (un kill fait à plusieurs)
     for kill in kills:
-        if not start <= kill["t"] <= end or not names_match(bounty.target_key, kill["key"]):
+        if not start <= kill["t"] <= end:
+            continue
+        if bounty.is_guild:
+            if kill["guild"] != bounty.target_key:
+                continue
+        elif not names_match(bounty.target_key, kill["key"]):
             continue
         if kill["who"]["user"]["id"] == bounty.poster_id:
             continue
-        same = found[-1] if found and kill["t"] - found[-1]["t"] < KILL_DEDUPE_SECONDS else None
-        if same is None:
+        victim = kill["key"].split(" ")[0]
+        same = latest.get(victim)
+        if same is None or kill["t"] - same["t"] >= KILL_DEDUPE_SECONDS:
             if len(found) >= bounty.max_kills:
-                break
-            same = {"t": kill["t"], "zone": kill["zone"], "hunters": {}}
+                continue  # au-delà du nombre payé ; un chasseur de plus d'un kill payé peut encore suivre
+            same = {"t": kill["t"], "zone": kill["zone"], "victim": kill["name"], "hunters": {}}
             found.append(same)
+            latest[victim] = same
         same["hunters"].setdefault(kill["who"]["user"]["id"], kill["who"])
         same["zone"] = same["zone"] or kill["zone"]
+        if len(kill["name"]) > len(same["victim"]):
+            same["victim"] = kill["name"]  # « Prénom Nom » plutôt que le prénom seul
     for kill in found:
         hunters = list(kill["hunters"].values())
         gold = split(bounty.amount, len(hunters))
@@ -182,6 +200,7 @@ def _serialize(bounty: Bounty, kills: list[dict], user) -> dict:
     return {
         "id": bounty.pk,
         "target": bounty.target_name,
+        "guild": bounty.is_guild,
         "poster": _user(bounty.poster),
         "amount": bounty.amount,
         "item": _item(bounty.item),
@@ -195,6 +214,7 @@ def _serialize(bounty: Bounty, kills: list[dict], user) -> dict:
             {
                 "at": _iso(kill["t"]),
                 "zone": kill["zone"],
+                "victim": kill["victim"],
                 "hunters": [
                     {**share["who"], "amount": share["amount"], "items": share["items"]}
                     for share in kill["hunters"]
@@ -247,6 +267,7 @@ def import_posted(raw: Any) -> int:
     """Primes posées en jeu (`/mf prime`), lues dans un export : celles du joueur et celles qu'il a reçues de
     guildiens, chacune avec l'identifiant que l'addon lui a donné. Le commanditaire est le propriétaire du
     personnage qui l'a posée : une prime d'un personnage inconnu du site attend l'export de son joueur.
+    `kind` « g » : prime de guilde, `name` est le nom de la guilde visée.
     Une prime déjà connue n'est pas recréée ; son annulation en jeu est reprise. Renvoie le nombre de primes
     créées."""
     created = 0
@@ -279,7 +300,7 @@ def import_posted(raw: Any) -> int:
                 continue
             bounty = Bounty.objects.create(
                 poster=poster.owner, addon_id=addon_id, target_name=name, amount=int(gold) * COPPER,
-                max_kills=int(max_kills), created_at=at,
+                max_kills=int(max_kills), created_at=at, is_guild=entry.get("kind") == "g",
             )  # fmt: skip
             created += 1
         cancelled = _number(entry.get("cancelled"))
@@ -296,7 +317,8 @@ def import_posted(raw: Any) -> int:
 def companion_bounties() -> list[dict]:
     """Les primes dans les termes de l'addon, que le compagnon recopie dans `db.bounties` jeu fermé : celles
     en cours, et celles finies ou annulées depuis peu (`closed`) pour que l'addon cesse d'alerter.
-    Identifiant : celui de l'addon pour une prime posée en jeu, « s » et son numéro pour une prime du site."""
+    Identifiant : celui de l'addon pour une prime posée en jeu, « s » et son numéro pour une prime du site.
+    `kind` « g » : prime de guilde."""
     kills = player_kills()
     recent = timezone.now() - timedelta(days=COMPANION_DAYS)
     out = []
@@ -316,6 +338,7 @@ def companion_bounties() -> list[dict]:
                 "by": bounty.poster.display_name,
                 "kills": counted,
                 "closed": closed,
+                "kind": "g" if bounty.is_guild else None,
             }
         )
         if len(out) >= COMPANION_LIMIT:
@@ -330,11 +353,13 @@ def _whole(value: Any, label: str, low: int, high: int) -> int:
 
 
 def create(user, data: Any) -> Bounty:
-    """Pose une prime. `data` : target, gold (po par kill), max_kills, item_id, item_count, note."""
+    """Pose une prime. `data` : target, guild (vrai : la cible est une guilde), gold (po par kill), max_kills,
+    item_id, item_count, note."""
     data = data if isinstance(data, dict) else {}
     target = " ".join(data["target"].split()) if isinstance(data.get("target"), str) else ""
     if not 2 <= len(target) <= 64:
         raise BountyError("Nom de la cible manquant ou trop long.")
+    guild = data.get("guild") is True
     gold = _whole(data.get("gold", 0), "Or par kill", 0, MAX_GOLD)
     max_kills = _whole(data.get("max_kills", 1), "Nombre de kills", 1, MAX_KILLS)
     item, item_count = None, 0
@@ -346,13 +371,15 @@ def create(user, data: Any) -> Bounty:
     if not gold and item is None:
         raise BountyError("Une prime offre de l'or, des objets, ou les deux.")
     note = " ".join(data["note"].split())[:200] if isinstance(data.get("note"), str) else ""
-    already = Bounty.objects.filter(poster=user, target_key=target.lower(), cancelled_at__isnull=True)
+    already = Bounty.objects.filter(
+        poster=user, target_key=target.lower(), is_guild=guild, cancelled_at__isnull=True
+    )
     kills = player_kills()
     if any(len(bounty_kills(bounty, kills)) < bounty.max_kills for bounty in already):
-        raise BountyError("Tu as déjà une prime en cours sur ce joueur.")
+        raise BountyError(f"Tu as déjà une prime en cours sur {'cette guilde' if guild else 'ce joueur'}.")
     return Bounty.objects.create(
         poster=user, target_name=target, amount=gold * COPPER, item=item, item_count=item_count,
-        max_kills=max_kills, note=note,
+        max_kills=max_kills, note=note, is_guild=guild,
     )  # fmt: skip
 
 

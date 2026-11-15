@@ -67,7 +67,7 @@ local function readUnit(unit, anyone)
   guid = okGuid and ns.plain(guid) or nil
   return {
     name = name, player = okPlayer and ns.plain(player) == true, class = type(class) == "string" and class or "",
-    guid = type(guid) == "string" and guid or nil,
+    guid = type(guid) == "string" and guid or nil, guild = ns.UnitGuild(unit),
   }
 end
 
@@ -88,7 +88,12 @@ end
 --- Un joueur hostile lu : on le retient SEEN_PLAYERS_TTL s comme joueur, avec sa classe.
 local function rememberPlayer(seen, t)
   if not (seen and seen.player) then return end
-  seenPlayers[nameKey(seen.name)] = { name = seen.name, class = seen.class or "", at = t, guid = seen.guid }
+  local before = seenPlayers[nameKey(seen.name)]
+  -- La guilde ne se lit pas à chaque fois (fiche pas encore chargée) : on garde celle lue avant.
+  seen.guild = seen.guild or (before and before.guild) or nil
+  seenPlayers[nameKey(seen.name)] = {
+    name = seen.name, class = seen.class or "", at = t, guid = seen.guid, guild = seen.guild,
+  }
   deadEnemies[nameKey(seen.name)] = nil -- revu vivant : sa prochaine mort sera une nouvelle mort
   if ns.Bounties then ns.Safe("bounties.seen", ns.Bounties.OnSeen, seen, t) end -- porte-t-il une prime posée ?
 end
@@ -104,6 +109,18 @@ function ns.SeenPlayer(name, guid)
     end
   end
   return nil
+end
+
+--- Guilde d'un joueur hostile lu dans les SEEN_PLAYERS_TTL dernières secondes, "" si elle est inconnue (primes
+--- de guilde : le message de victoire honorable ne nomme que la victime).
+function ns.SeenPlayerGuild(name)
+  local t = ns.now()
+  for _, seen in pairs(seenPlayers) do
+    if seen.guild and t - (seen.at or 0) <= ns.Data.SEEN_PLAYERS_TTL and sameName(seen.name, name) then
+      return seen.guild
+    end
+  end
+  return ""
 end
 
 --- « Prénom Nom » d'un joueur hostile lu récemment dont on n'a que le prénom (le récapitulatif de mort et le

@@ -174,6 +174,9 @@ fn complete_bounties(db: &mut Table, bounties: &[StateBounty]) {
             if let Some(by) = bounty.by.as_deref().filter(|by| !by.is_empty()) {
                 entry.set("by", Value::Str(by.to_string()));
             }
+            if bounty.kind.as_deref() == Some("g") {
+                entry.set("kind", Value::Str("g".to_string()));
+            }
         }
         if let Some(item) = bounty.item.as_deref().filter(|item| !item.is_empty()) {
             entry.set("item", Value::Str(item.to_string()));
@@ -395,7 +398,7 @@ WoWForeverGuildeDB = {
         let mut state = state();
         state.bounties = serde_json::from_value(serde_json::json!([
             { "id": "000ABC01-1764000000", "name": "Garrosh Hurlenfer", "gold": 50, "item": null, "max": 3, "t": 1764000000, "by": "Uther", "kills": 1, "closed": true },
-            { "id": "s7", "name": "Sylvanas", "gold": 0, "item": "2 × Lotus noir", "max": 1, "t": 1764100000, "by": "Uther", "kills": 0, "closed": false },
+            { "id": "s7", "kind": "g", "name": "Sylvanas", "gold": 0, "item": "2 × Lotus noir", "max": 1, "t": 1764100000, "by": "Uther", "kills": 0, "closed": false },
             { "id": "", "name": "Sans identifiant" }
         ]))
         .unwrap();
@@ -425,6 +428,8 @@ WoWForeverGuildeDB = {
         );
         assert_eq!(site.get_str("item"), Some("2 × Lotus noir"));
         assert!(site.get("closed").is_none() && site.get("guid").is_none());
+        assert_eq!(site.get_str("kind"), Some("g"));
+        assert!(known.get("kind").is_none());
     }
 
     #[test]

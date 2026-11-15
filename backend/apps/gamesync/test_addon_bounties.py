@@ -295,3 +295,105 @@ class TestKills:
         assert g._NS.Bounties.Match("Sylvanas").id == "s8"
         # Posées sur le site : elles n'y retournent pas par l'export.
         assert decode_export(logout_code(lua))["bounties"] == []
+
+
+KORKRON = "{ name = 'Garrosh Hurlenfer', class = 'WARRIOR', player = true, hostile = true, guild = \"Les Kor'kron\" }"
+NAZGREL = "{ name = 'Nazgrel', class = 'SHAMAN', player = true, hostile = true, guild = \"Les Kor'kron\" }"
+
+
+class TestGuildBounty:
+    """Prime sur une guilde adverse : `/mf prime guilde`, chaque membre lu avec sa guilde compte."""
+
+    def post(self, lua, g, mf, command="prime guilde 20 5"):
+        lua.execute(f"_TARGET = {KORKRON}")
+        mf(command)
+        ask = popup(g)
+        g._NS.UI.Dialogs.WFG_BOUNTY.OnAccept(None, ask.data)
+        ask.Hide(ask)
+        (entry,) = bounties(g).values()
+        return ask, entry
+
+    def test_prime_guilde_takes_the_guild_of_my_target(self):
+        lua, g, mf = start()
+        ask, entry = self.post(lua, g, mf)
+        assert "20 po par kill sur la guilde Les Kor'kron" in ask.message
+        assert "Chaque membre de cette guilde" in ask.message
+        assert (entry.name, entry.kind, entry.gold, entry.max) == ("Les Kor'kron", "g", 20, 5)
+        assert sent(g, "B")[-1].split("\t")[13] == "g"
+        assert any("Prime posée sur la guilde Les Kor'kron" in line for line in chat(g))
+        # Une seule par guilde ; le nom se donne aussi à la main ; une cible sans guilde est refusée.
+        mf("prime guilde Les Kor'kron 10")
+        assert popup(g) is None and any("déjà une prime en cours sur la guilde" in line for line in chat(g))
+        lua.execute("_TARGET = { name = 'Sylvanas', class = 'HUNTER', player = true, hostile = true }")
+        mf("prime guilde 10")
+        assert popup(g) is None and any("pas de guilde lisible" in line for line in chat(g))
+        # Elle remonte au site comme prime de guilde, et s'annule par son nom ou par la cible.
+        (exported,) = decode_export(logout_code(lua))["bounties"]
+        assert (exported["name"], exported["kind"]) == ("Les Kor'kron", "g")
+        mf("prime annuler guilde Les Kor'kron")
+        assert entry.cancelled == g._CLOCK.now
+
+    def test_any_member_of_the_guild_is_announced_and_carries_the_coin(self):
+        lua, g, mf = start()
+        self.post(lua, g, mf)
+        lua.execute("_TARGET = nil")
+        # Un joueur du même nom que la guilde, ou sans guilde lue : rien.
+        lua.execute(
+            '_UNITS = { nameplate1 = { name = "Les Kor\'kron", class = "ROGUE", hostile = true, player = true } }'
+        )
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        g._ADVANCE(2)
+        assert sent(g, "S") == [] and g._NS.Nameplates.Mark("nameplate1") is None
+        lua.execute(f"_UNITS = {{ nameplate2 = {NAZGREL} }}")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate2")
+        g._ADVANCE(2)
+        (line,) = sent(g, "S")
+        assert line.split("\t")[6:8] == ["Nazgrel", "SHAMAN"]
+        toast = g.WoWForeverGuildeDeath
+        assert toast.shown is True and "Nazgrel" in toast.text.text and "<Les Kor'kron>" in toast.text.text
+        assert g._NS.Nameplates.Mark("nameplate2").coin is True
+
+    def test_kills_count_per_member_and_the_export_names_the_guild(self):
+        lua, g, mf = start()
+        _, entry = self.post(lua, g, mf)
+        lua.execute("_TARGET = nil")
+        lua.execute(f"_UNITS = {{ nameplate1 = {KORKRON}, nameplate2 = {NAZGREL} }}")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate2")
+        uther = "Player-1-00000UTH\tUther Lumière\tPALADIN"
+        now = g._CLOCK.now
+        # Uther a lu la guilde de sa victime : son « H » la porte. Deux victimes au même moment : deux kills.
+        receive(lua, f"H\t1\t{uther}\tGarrosh Hurlenfer\tWARRIOR\t{now}\tDurotar\t\tWARRIOR\t\tLes Kor'kron")
+        receive(lua, f"H\t1\t{uther}\tNazgrel\tSHAMAN\t{now}\tDurotar\t\tSHAMAN\t\tLes Kor'kron")
+        receive(
+            lua, f"H\t1\tPlayer-1-00000ARC\tArthas\tPALADIN\tNazgrel\tSHAMAN\t{now + 2}\tDurotar\t"
+        )  # son groupe
+        assert entry.kills == 2
+        # Un « H » sans guilde (addon plus ancien) sur un joueur que j'ai lu moi-même : compté aussi.
+        g._ADVANCE(300)
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        receive(lua, f"H\t1\t{uther}\tGarrosh\tWARRIOR\t{g._CLOCK.now}\tDurotar\t")
+        assert entry.kills == 3
+        # Un inconnu, sans guilde lue nulle part : rien.
+        receive(lua, f"H\t1\t{uther}\tMalkorok\tWARRIOR\t{g._CLOCK.now}\tDurotar\t")
+        assert entry.kills == 3
+
+    def test_my_own_kill_names_the_guild_for_the_site_and_the_guild(self):
+        lua, g, mf = start()
+        receive(
+            lua,
+            f"B\t1\tJAI-9\t{JAINA}\tJaina Portvaillant\tMAGE\tLes Kor'kron\t20\t5\t{g._CLOCK.now}\t0\t0\t1\tg",
+        )
+        entry = bounties(g)["JAI-9"]
+        assert entry.kind == "g" and any("la guilde Les Kor'kron" in line for line in chat(g))
+        lua.execute(f"_UNITS = {{ nameplate1 = {KORKRON} }}")
+        g._FIRE("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        g._ADVANCE(5)
+        g._FIRE(
+            "CHAT_MSG_COMBAT_HONOR_GAIN",
+            "Garrosh meurt, victoire honorable Rang : Grunt (Points d'honneur estimés : 198)",
+        )
+        (pk,) = [e for e in g._NS.char.events.values() if e.k == "pk"]
+        assert (pk.name, pk.guild) == ("Garrosh Hurlenfer", "Les Kor'kron")
+        assert entry.kills == 1
+        assert sent(g, "H")[-1].split("\t")[11] == "Les Kor'kron"
