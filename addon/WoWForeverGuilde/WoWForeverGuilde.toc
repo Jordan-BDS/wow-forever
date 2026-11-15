@@ -45,4 +45,5 @@ UI.lua
 MapUI.lua
 RosterUI.lua
 WantedUI.lua
+BountiesUI.lua
 NameplateUI.lua

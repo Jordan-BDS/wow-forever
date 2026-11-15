@@ -260,7 +260,7 @@ local function newFrame(kind, name)
       "SetWidth", "SetJustifyH", "SetTextColor", "SetShadowOffset", "SetAlpha", "SetMultiLine", "SetAutoFocus", "SetFontObject",
       "SetScrollChild", "SetFocus", "HighlightText", "ClearFocus", "SetChecked", "StartMoving", "StopMovingOrSizing",
       "SetAllPoints", "SetTexture", "SetClampedToScreen", "ClearAllPoints", "SetHeight", "SetMaxLetters", "SetTextInsets",
-      "SetTexCoord", "SetHighlightTexture", "SetWordWrap", "SetFrameLevel", "RegisterForClicks" }) do
+      "SetTexCoord", "SetHighlightTexture", "SetWordWrap", "SetFrameLevel", "RegisterForClicks", "SetNumeric" }) do
     f[m] = noop
   end
   function f:SetAlpha(a) self.alpha = a end

@@ -397,3 +397,92 @@ class TestGuildBounty:
         assert (pk.name, pk.guild) == ("Garrosh Hurlenfer", "Les Kor'kron")
         assert entry.kills == 1
         assert sent(g, "H")[-1].split("\t")[11] == "Les Kor'kron"
+
+
+class TestTab:
+    """Onglet « Primes » de /mf : le formulaire pose une prime, la liste montre celles en cours."""
+
+    def open(self):
+        lua, g, mf = start()
+        mf("primes")
+        panel = g.WoWForeverGuildeBounties
+        assert panel.shown is True and g._NS.UI.Shown("bounties") is True
+        return lua, g, mf, panel
+
+    def click(self, button):
+        button.scripts.OnClick(button)
+
+    def test_the_form_posts_a_bounty_after_confirmation(self):
+        lua, g, mf, panel = self.open()
+        assert panel.empty.shown is True and panel.kills.text == "1"
+        # Rien de rempli : la raison est dite dans l'onglet, rien n'est demandé.
+        self.click(panel.post)
+        assert "Donne un nom" in panel.status.text and popup(g) is None
+        # « Ma cible » reprend le nom du joueur adverse ciblé.
+        self.click(panel.target)
+        assert "Cible un joueur adverse" in panel.status.text
+        lua.execute(f"_TARGET = {KORKRON}")
+        self.click(panel.target)
+        assert panel.name.text == "Garrosh Hurlenfer" and panel.status.text == ""
+        panel.gold.text = ""
+        self.click(panel.post)
+        assert "Une prime va de 1 à" in panel.status.text and popup(g) is None
+        panel.gold.text, panel.kills.text = "50", "3"
+        self.click(panel.post)
+        ask = popup(g)
+        assert "50 po par kill sur Garrosh Hurlenfer" in ask.message and "150 po au plus" in ask.message
+        assert "Confirme" in panel.status.text and (panel.name.text, panel.kills.text) == ("", "1")
+        g._NS.UI.Dialogs.WFG_BOUNTY.OnAccept(None, ask.data)
+        ask.Hide(ask)
+        g._ADVANCE(3)
+        (line,) = g._NS.BountiesUI.Lines().values()
+        assert "Garrosh Hurlenfer" in line.cells[1] and "50 po par kill" in line.cells[2]
+        assert "annuler" in line.cells[5] and panel.empty.shown is False
+        assert sent(g, "B")[-1].split("\t")[6:9] == ["Garrosh Hurlenfer", "50", "3"]
+
+    def test_the_guild_box_takes_the_guild_of_my_target(self):
+        lua, g, mf, panel = self.open()
+        lua.execute(f"_TARGET = {KORKRON}")
+        panel.guild.checked = True
+        self.click(panel.guild)
+        assert panel.nameLabel.text == "Guilde adverse"
+        self.click(panel.target)
+        assert panel.name.text == "Les Kor'kron"
+        panel.gold.text, panel.kills.text = "20", ""  # kills vide : un kill
+        self.click(panel.post)
+        ask = popup(g)
+        assert "20 po sur la guilde Les Kor'kron" in ask.message
+        g._NS.UI.Dialogs.WFG_BOUNTY.OnAccept(None, ask.data)
+        (entry,) = bounties(g).values()
+        assert (entry.name, entry.kind, entry.max) == ("Les Kor'kron", "g", 1)
+
+    def test_the_list_follows_the_guild_and_a_click_cancels_mine(self):
+        lua, g, mf, panel = self.open()
+        jaina_posts(lua, g)
+        g._ADVANCE(3)
+        (line,) = g._NS.BountiesUI.Lines().values()
+        assert "Jaina Portvaillant" in line.cells[3] and line.cells[5] == ""
+        # Celle d'une autre ne s'annule pas d'un clic.
+        row = next(
+            f for f in g._FRAMES.values() if f.entry and f.entry.id == line.entry.id and f.scripts.OnClick
+        )
+        self.click(row)
+        assert popup(g) is None
+        mf("prime Sylvanas 80")
+        ask = popup(g)
+        g._NS.UI.Dialogs.WFG_BOUNTY.OnAccept(None, ask.data)
+        ask.Hide(ask)
+        g._ADVANCE(3)
+        first, second = g._NS.BountiesUI.Lines().values()  # les plus fortes d'abord
+        assert "Sylvanas" in first.cells[1] and "annuler" in first.cells[5]
+        mine = next(
+            f for f in g._FRAMES.values() if f.entry and f.entry.id == first.entry.id and f.scripts.OnClick
+        )
+        self.click(mine)
+        ask = popup(g)
+        assert ask.which == "WFG_BOUNTY_CANCEL" and "Annuler ta prime sur Sylvanas" in ask.message
+        g._NS.UI.Dialogs.WFG_BOUNTY_CANCEL.OnAccept(None, ask.data)
+        g._ADVANCE(3)
+        (left,) = g._NS.BountiesUI.Lines().values()
+        assert "Garrosh Hurlenfer" in left.cells[1]
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []

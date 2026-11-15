@@ -520,8 +520,17 @@ class TestSession:
         assert panel.status.shown is True and export.shown is False
         panel.status.exportButton.scripts.OnClick(panel.status.exportButton)
         assert export.shown is True and panel.status.shown is False
-        # Sept onglets, un bouton chacun ; l'en-tête garde la sauvegarde à portée, quel que soit l'onglet.
-        labels = ("Historique", "Guilde en jeu", "Wanted", "Collecte", "Réglages", "Nouveautés", "Diagnostic")
+        # Huit onglets, un bouton chacun ; l'en-tête garde la sauvegarde à portée, quel que soit l'onglet.
+        labels = (
+            "Historique",
+            "Guilde en jeu",
+            "Wanted",
+            "Primes",
+            "Collecte",
+            "Réglages",
+            "Nouveautés",
+            "Diagnostic",
+        )
         assert all(tab(label) for label in labels)
         assert "sans sauvegarde" in window.session.text
         window.save.scripts.OnClick(window.save)

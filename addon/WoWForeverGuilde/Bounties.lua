@@ -184,9 +184,15 @@ function Bounties.Reward(entry)
   return text
 end
 
+--- L'onglet Primes de /mf suit ce qui change.
+local function notify()
+  if ns.BountiesUI then ns.BountiesUI.Refresh() end
+end
+
 local function refresh(entry)
   if ns.MapUI and ns.MapUI.UpdateBounty then ns.MapUI.UpdateBounty(entry) end
   if ns.Nameplates then ns.Nameplates.Refresh() end
+  notify()
 end
 
 -- --- messages ---------------------------------------------------------------------------------------------
@@ -261,13 +267,18 @@ function Bounties.Post(name, gold, max, kind)
   return entry
 end
 
+--- Est-ce moi qui ai posé cette prime ? En jeu avec ce personnage, ou sur le site sous mon nom.
+function Bounties.IsMine(entry)
+  local c = ns.char or {}
+  return (entry.guid ~= nil and entry.guid == c.guid) or (not entry.guid and entry.by == myName())
+end
+
 --- Ma prime en cours sur ce nom (de joueur, ou de guilde si `kind` vaut « g »), posée en jeu ou sur le site.
 local function mine(name, kind)
-  local c = ns.char or {}
   for _, entry in pairs(table_() or {}) do
     local same = (entry.kind == "g") == (kind == "g")
       and (kind == "g" and key(entry.name) == key(name) or kind ~= "g" and sameName(entry.name, name))
-    if Bounties.Open(entry) and same and (entry.guid == c.guid or (not entry.guid and entry.by == myName())) then
+    if Bounties.Open(entry) and same and Bounties.IsMine(entry) then
       return entry
     end
   end
@@ -281,6 +292,12 @@ function Bounties.Cancel(name, kind)
     ns.Print(L.BOUNTY_CANCEL_NONE, kind == "g" and string.format(L.BOUNTY_GUILD_LABEL, name) or name)
     return false
   end
+  return Bounties.CancelEntry(entry)
+end
+
+--- Annule cette prime, si elle est à moi et posée en jeu.
+function Bounties.CancelEntry(entry)
+  if not (Bounties.Open(entry) and Bounties.IsMine(entry)) then return false end
   if not entry.guid then -- posée sur le site : elle s'y annule
     ns.Print(L.BOUNTY_CANCEL_SITE, Bounties.Label(entry))
     return false
@@ -290,30 +307,34 @@ function Bounties.Cancel(name, kind)
   ns.Print(L.BOUNTY_CANCELLED, Bounties.Label(entry))
   if ns.MapUI and ns.MapUI.RemoveBounty then ns.MapUI.RemoveBounty(entry.id) end
   if ns.Nameplates then ns.Nameplates.Refresh() end
+  notify()
   return true
 end
 
---- Le nom du joueur adverse ciblé, ou celui de sa guilde (`guild`) ; nil (et la raison dite) si la cible ne
---- convient pas.
-local function targetName(guild)
+--- Le nom du joueur adverse ciblé, ou celui de sa guilde (`guild`) ; nil et la raison si la cible ne convient
+--- pas.
+function Bounties.TargetName(guild)
   local ok, exists = pcall(UnitExists or function() end, "target")
-  if not (ok and ns.plain(exists)) then
-    ns.Print(L.BOUNTY_NEED_TARGET)
-    return nil
-  end
+  if not (ok and ns.plain(exists)) then return nil, L.BOUNTY_NEED_TARGET end
   local okPlayer, player = pcall(UnitIsPlayer or function() end, "target")
   local okAttack, hostile = pcall(UnitCanAttack or function() end, "player", "target")
   if not (okPlayer and ns.plain(player) == true) or not (okAttack and ns.plain(hostile) == true) then
-    ns.Print(L.BOUNTY_NEED_ENEMY)
-    return nil
+    return nil, L.BOUNTY_NEED_ENEMY
   end
   if guild then
     local found = ns.UnitGuild("target")
-    if not found then ns.Print(L.BOUNTY_NO_GUILD) end
+    if not found then return nil, L.BOUNTY_NO_GUILD end
     return found
   end
   local name = ns.UnitDisplayName("target")
-  if not name then ns.Print(L.BOUNTY_NAME_HIDDEN) end
+  if not name then return nil, L.BOUNTY_NAME_HIDDEN end
+  return name
+end
+
+--- La même, la raison dite dans le chat.
+local function targetName(guild)
+  local name, why = Bounties.TargetName(guild)
+  if why then ns.Print(why) end
   return name
 end
 
@@ -334,6 +355,41 @@ local function list()
     end
   end
   ns.Print(L.BOUNTY_USAGE)
+end
+
+--- Demande confirmation puis pose une prime (la commande, et l'onglet Primes de /mf). Renvoie vrai si la
+--- question est posée ; sinon faux et la raison, dite aussi dans le chat.
+function Bounties.Ask(name, gold, max, kind)
+  local function refuse(text)
+    ns.Print(text)
+    return false, text
+  end
+  name, max = trim(name), max or 1
+  if not gold or gold < 1 or gold > ns.Data.BOUNTY_MAX_GOLD or max < 1 or max > ns.Data.BOUNTY_MAX_KILLS then
+    return refuse(string.format(L.BOUNTY_BAD_AMOUNT, ns.Data.BOUNTY_MAX_GOLD, ns.Data.BOUNTY_MAX_KILLS))
+  end
+  local guild = kind == "g"
+  if name == "" then
+    local why
+    name, why = Bounties.TargetName(guild)
+    if not name then return refuse(why) end
+  end
+  if #name < 2 or #name > 64 then return refuse(L.BOUNTY_USAGE) end
+  local label = guild and string.format(L.BOUNTY_GUILD_LABEL, name) or name
+  if mine(name, kind) then return refuse(string.format(L.BOUNTY_ALREADY, label)) end
+  if not (ns.UI and ns.UI.ShowDialog) then
+    Bounties.Post(name, gold, max, kind)
+    return true
+  end
+  ns.UI.Dialogs.WFG_BOUNTY = ns.UI.Dialogs.WFG_BOUNTY or {
+    button1 = L.BOUNTY_CONFIRM_YES,
+    button2 = L.BOUNTY_CONFIRM_NO,
+    OnAccept = function(_, data) Bounties.Post(data.name, data.gold, data.max, data.kind) end,
+  }
+  local text = string.format(max > 1 and L.BOUNTY_CONFIRM_MANY or L.BOUNTY_CONFIRM_ONE, gold, label, max, gold * max)
+  if guild then text = text .. "\n\n" .. L.BOUNTY_CONFIRM_GUILD end
+  ns.UI.ShowDialog("WFG_BOUNTY", text, { name = name, gold = gold, max = max, kind = kind })
+  return true
 end
 
 --- /mf prime : seul, la liste ; `<or> [kills]` sur la cible ; `<nom> <or> [kills]` ; `annuler [nom]` ;
@@ -357,35 +413,7 @@ function Bounties.Command(rest)
     if guild then return ns.Print(L.BOUNTY_USAGE) end
     return ns.Wanted.Rehearse(rest)
   end
-  gold, max, name = tonumber(gold), tonumber(max) or 1, trim(name)
-  if gold < 1 or gold > ns.Data.BOUNTY_MAX_GOLD or max < 1 or max > ns.Data.BOUNTY_MAX_KILLS then
-    ns.Print(L.BOUNTY_BAD_AMOUNT, ns.Data.BOUNTY_MAX_GOLD, ns.Data.BOUNTY_MAX_KILLS)
-    return
-  end
-  local kind = guild and "g" or nil
-  if name == "" then name = targetName(guild) end
-  if not name then return end
-  if #name < 2 or #name > 64 then
-    ns.Print(L.BOUNTY_USAGE)
-    return
-  end
-  local label = guild and string.format(L.BOUNTY_GUILD_LABEL, name) or name
-  if mine(name, kind) then
-    ns.Print(L.BOUNTY_ALREADY, label)
-    return
-  end
-  if not (ns.UI and ns.UI.ShowDialog) then
-    Bounties.Post(name, gold, max, kind)
-    return
-  end
-  ns.UI.Dialogs.WFG_BOUNTY = ns.UI.Dialogs.WFG_BOUNTY or {
-    button1 = L.BOUNTY_CONFIRM_YES,
-    button2 = L.BOUNTY_CONFIRM_NO,
-    OnAccept = function(_, data) Bounties.Post(data.name, data.gold, data.max, data.kind) end,
-  }
-  local text = string.format(max > 1 and L.BOUNTY_CONFIRM_MANY or L.BOUNTY_CONFIRM_ONE, gold, label, max, gold * max)
-  if guild then text = text .. "\n\n" .. L.BOUNTY_CONFIRM_GUILD end
-  ns.UI.ShowDialog("WFG_BOUNTY", text, { name = name, gold = gold, max = max, kind = kind })
+  Bounties.Ask(name, tonumber(gold), tonumber(max) or 1, guild and "g" or nil)
 end
 
 -- --- cible vue ----------------------------------------------------------------------------------------------
@@ -417,6 +445,7 @@ local function sighted(entry, seen)
   if seen.class and seen.class ~= "" then entry.class = seen.class end
   alert(entry, seen)
   if ns.MapUI and ns.MapUI.UpdateBounty then ns.MapUI.UpdateBounty(entry) end
+  notify()
   return true
 end
 
@@ -470,6 +499,7 @@ function Bounties.OnKill(name, t, hunterGuid, guild)
     end
   end
   if changed and ns.Nameplates then ns.Nameplates.Refresh() end
+  if changed then notify() end
 end
 
 -- --- échanges entre guildiens ---------------------------------------------------------------------------------
@@ -507,6 +537,7 @@ function Bounties.Merge(msg)
   if changed then
     if not Bounties.Open(entry) and ns.MapUI and ns.MapUI.RemoveBounty then ns.MapUI.RemoveBounty(entry.id) end
     if ns.Nameplates then ns.Nameplates.Refresh() end
+    notify()
   end
   return changed
 end

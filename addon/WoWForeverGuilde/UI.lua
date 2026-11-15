@@ -236,7 +236,8 @@ local function buildWindow()
     button.text = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     button.text:SetPoint("CENTER", 0, 1)
     button.text:SetText(def.label)
-    local width = math.floor((button.text.GetStringWidth and button.text:GetStringWidth() or #def.label * 7) + 0.5) + 24
+    -- Huit onglets dans 700 px : 18 px de marge par onglet, 2 px entre deux.
+    local width = math.floor((button.text.GetStringWidth and button.text:GetStringWidth() or #def.label * 7) + 0.5) + 18
     button:SetSize(width, 24)
     button:SetPoint("TOPLEFT", x, -42)
     button.line = button:CreateTexture(nil, "ARTWORK")
@@ -249,7 +250,7 @@ local function buildWindow()
     button:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 1, 1) end)
     button:SetScript("OnLeave", paintTabs)
     def.button = button
-    x = x + width + 4
+    x = x + width + 2
   end
   window.tabRule = window:CreateTexture(nil, "ARTWORK")
   window.tabRule:SetTexture(WHITE)
