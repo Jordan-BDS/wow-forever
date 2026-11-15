@@ -16,7 +16,8 @@ export interface NavSection {
   tabs?: NavTab[];
 }
 
-/** Six onglets : les pages génériques sont regroupées en sections avec des sous-onglets. */
+/** Huit onglets : les pages génériques sont regroupées en sections avec des sous-onglets ; Primes et Hôtel des
+ * ventes ont leur onglet à eux. */
 export const SECTIONS: NavSection[] = [
   { label: "Accueil", to: "/", match: ["/"] },
   { label: "Personnages", to: "/personnages", match: ["/personnages"] },
@@ -31,10 +32,8 @@ export const SECTIONS: NavSection[] = [
       "/sondages",
       "/classements",
       "/wanted",
-      "/primes",
       "/guilde",
       "/tests",
-      "/hv",
     ],
     tabs: [
       { to: "/roster", label: "Roster" },
@@ -43,12 +42,12 @@ export const SECTIONS: NavSection[] = [
       { to: "/sondages", label: "Sondages" },
       { to: "/classements", label: "Classements" },
       { to: "/wanted", label: "Wanted" },
-      { to: "/primes", label: "Primes" },
       { to: "/guilde", label: "Paramètres", gmOnly: true },
       { to: "/tests", label: "Tests en jeu", gmOnly: true },
-      { to: "/hv", label: "Hôtel des ventes" },
     ],
   },
+  { label: "Primes", to: "/primes", match: ["/primes"] },
+  { label: "Hôtel des ventes", to: "/hv", match: ["/hv"] },
   {
     label: "Métiers",
     to: "/crafts",
