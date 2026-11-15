@@ -3537,7 +3537,10 @@ class TestWantedKills:
         g = lua.globals()
         login(lua)
         lua.execute("_GUILD = true")
-        receive(lua, f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE		{g._CLOCK.now}	Durotar		")
+        receive(
+            lua,
+            f"H	1	Player-1-00000JAI	Jaina Portvaillant	MAGE		{g._CLOCK.now}	Durotar		",
+        )
         assert wanted_sent(g, "H") == []
         lua.execute(
             "_TARGET = { name = 'Ywilz Ashbringer', class = 'PALADIN', hostile = true, player = true, dead = true }; _HK = 2341"
@@ -3549,7 +3552,10 @@ class TestWantedKills:
         assert "kill « Ywilz Ashbringer » : popup complété" in g._NS.Wanted.KillLog()
         assert "Ywilz Ashbringer" in g.WoWForeverGuildeDeath.text.text
         # Le popup a déjà son nom : le kill suivant d'un coéquipier sur le même joueur ne fait pas de « H ».
-        receive(lua, f"H	1	Player-1-00000UTH	Uther	PALADIN	Ywilz Ashbringer	{g._CLOCK.now}	Durotar		")
+        receive(
+            lua,
+            f"H	1	Player-1-00000UTH	Uther	PALADIN	Ywilz Ashbringer	{g._CLOCK.now}	Durotar		",
+        )
         assert len(wanted_sent(g, "H")) == 1
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
