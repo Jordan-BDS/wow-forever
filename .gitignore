@@ -26,3 +26,6 @@ frontend/coverage/
 *.swp
 .gstack/
 backend/data/
+
+# Sauvegardes de la base de prod copiées en local
+/backup/
