@@ -272,6 +272,9 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.13", notes = {
+    "Compagnon : une base Auctionator ancienne (fichier écrit plus d'un jour après son dernier scan complet) ne part plus au site ; ses vieux prix se glissaient dans l'historique.",
+  } },
   { version = "0.7.12", notes = {
     "Compagnon : il dit au site ce qu'il a fait des prix d'Auctionator et de NaowhForever (envoyé, rien de nouveau, fichier illisible), pour que le GM voie pourquoi un scan n'arrive pas.",
   } },
