@@ -6,7 +6,8 @@ afficher une infobulle, donne le nom, la qualité, l'icône, les niveaux et les 
 
 Ce n'est pas une API publiée : tout échec est sans gravité, l'import se fait alors sans ces fiches et les
 objets restent affichés « Objet 282550 ». Les fiches lues sont gardées dans `Wowhead.Items.csv`, à côté des
-tables du client, et ne sont pas redemandées.
+tables du client, et ne sont pas redemandées ; les objets que Wowhead ne connaît pas non plus y ont une ligne
+sans nom, pour la même raison.
 """
 
 import csv
@@ -120,15 +121,16 @@ def download_items(
     sleep: Callable[[float], None] = time.sleep,
 ) -> int:
     """Lit sur Wowhead les fiches des objets demandés qui ne sont pas déjà dans `Wowhead.Items.csv` (toutes
-    avec `force`) et les y ajoute. Renvoie le nombre de fiches ajoutées. `WowheadError` après `MAX_FAILURES`
-    échecs d'affilée : ce qui a été lu avant est écrit."""
+    avec `force`) et les y ajoute. Un objet que Wowhead ne connaît pas y est noté aussi, sans nom : il n'est
+    plus redemandé, sauf avec `force`. Renvoie le nombre de fiches ajoutées. `WowheadError` après
+    `MAX_FAILURES` échecs d'affilée : ce qui a été lu avant est écrit."""
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     rows = read_rows(directory)
     wanted = sorted(set(item_ids) if force else set(item_ids) - set(rows))
     if not wanted:
         return 0
-    added = failures = 0
+    added = done = failures = 0
     try:
         with httpx.Client(timeout=TIMEOUT, follow_redirects=True, transport=transport) as client:
             for item_id in wanted:
@@ -143,11 +145,12 @@ def download_items(
                         ) from error
                     continue
                 failures = 0
-                if row is not None:
-                    rows[item_id] = row
-                    added += 1
-                    if added % SAVE_EVERY == 0:
-                        write_rows(directory, rows)
+                # Inconnu de Wowhead : une ligne sans nom, pour ne pas le redemander à chaque import.
+                rows[item_id] = row or {"ID": str(item_id)}
+                added += row is not None
+                done += 1
+                if done % SAVE_EVERY == 0:
+                    write_rows(directory, rows)
                 sleep(DELAY)
     finally:
         write_rows(directory, rows)

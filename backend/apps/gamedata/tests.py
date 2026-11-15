@@ -364,15 +364,17 @@ class TestWowheadItems:
         assert (rows[284041]["Quality"], rows[284041]["Icon"]) == ("2", "inv_misc_wrench_01")
         assert (rows[284041]["ItemLevel"], rows[284041]["RequiredLevel"]) == ("43", "38")
         assert rows[284041]["Stats"] == '{"3": 7, "4": 5}'
-        # Déjà lues : seul l'objet resté inconnu est redemandé ; --force-download redemande tout.
+        # L'objet inconnu de Wowhead est noté sans nom.
+        assert (rows[999001]["ID"], rows[999001]["Name_fr"]) == ("999001", "")
+        # Déjà lus, l'inconnu compris : plus rien n'est redemandé ; --force-download redemande tout.
         calls.clear()
         again = wowhead.download_items(
             tmp_path, wanted, transport=self.transport(calls), sleep=lambda _: None
         )
-        assert (again, calls) == (0, [(999001, "enUS")])
+        assert (again, calls) == (0, [])
         calls.clear()
-        wowhead.download_items(tmp_path, [284041], force=True, transport=self.transport(calls))
-        assert calls == [(284041, "enUS"), (284041, "frFR")]
+        wowhead.download_items(tmp_path, [284041, 999001], force=True, transport=self.transport(calls))
+        assert calls == [(284041, "enUS"), (284041, "frFR"), (999001, "enUS")]
 
     def test_a_service_that_keeps_failing_is_given_up_and_what_was_read_stays(self, tmp_path, monkeypatch):
         from apps.gamedata import wowhead
