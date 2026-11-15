@@ -271,6 +271,9 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.7", notes = {
+    "Clic droit sur le portrait d'un joueur adverse : « Ajouter une prime » ouvre /mf sur l'onglet Primes avec son nom rempli, il ne reste qu'à donner l'or. S'il a une guilde, « Prime sur la guilde … » vise toute sa guilde.",
+  } },
   { version = "0.7.6", notes = {
     "Onglet « Primes » dans /mf (ou /mf primes) : pose une prime sans commande. Nom du joueur adverse ou « Ma cible », or par kill, kills payés au plus ; coche « Prime de guilde » pour viser toute une guilde.",
     "Le même onglet liste les primes en cours ; un clic sur l'une des tiennes l'annule, après confirmation.",
