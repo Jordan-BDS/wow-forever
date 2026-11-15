@@ -304,3 +304,124 @@ class TestIndexApi:
         assert len(client.get("/api/recipes/", {"q": "Major Mana"}).data) == 1
         assert len(client.get("/api/enchantments/").data) == 2
         assert client.get("/api/gamedata/").data["import_run"]["build"] == "sample"
+
+
+class TestWowheadItems:
+    """Objets que le client connaît et qu'aucune table ne décrit : leur fiche vient de Wowhead."""
+
+    TOOLTIP = (
+        '<table><tr><td><b class="q2">{name}</b><span class="q"><br>Niveau d\'objet <!--ilvl-->43</span>'
+        "<span><!--stat4-->+5 Force</span><br><span><!--stat3-->+5 Agilité</span><br><span><!--stat3-->+2"
+        "</span></td></tr></table><table><tr><td>Niveau <!--rlvl-->38 requis</td></tr></table>"
+    )
+
+    def transport(self, calls):
+        import httpx
+
+        names = {
+            (282550, "enUS"): "Combat Tuning Wrench",
+            (282550, "frFR"): "[Combat Tuning Wrench]",  # pas encore traduit
+            (284041, "enUS"): "Ironback Signet",
+            (284041, "frFR"): "Chevalière de Dos-de-fer",
+        }
+
+        def handler(request):
+            item_id, locale = int(request.url.path.rsplit("/", 1)[1]), request.url.params["locale"]
+            calls.append((item_id, locale))
+            if item_id == 500500:
+                return httpx.Response(500)
+            if (item_id, locale) not in names:
+                return httpx.Response(404, json={"error": "ID is out of range"})
+            name = names[item_id, locale]
+            body = {"name": name, "quality": 2, "icon": "INV_Misc_Wrench_01"}
+            return httpx.Response(200, json={**body, "tooltip": self.TOOLTIP.format(name=name)})
+
+        return httpx.MockTransport(handler)
+
+    def directory(self, tmp_path):
+        directory = tmp_path / "wago"
+        shutil.copytree(SAMPLE, directory)
+        with (directory / "Item.csv").open("a", encoding="utf-8", newline="") as handle:
+            for item_id in (282550, 284041, 999001):
+                handle.write(f"{item_id},2,4,7,13,0,0,-1,0,7,0,0,0,0,0,0,0\n")
+        return directory
+
+    def test_sheets_are_read_once_and_kept(self, tmp_path):
+        from apps.gamedata import wowhead
+
+        calls: list = []
+        wanted = [282550, 284041, 999001]
+        added = wowhead.download_items(
+            tmp_path, wanted, transport=self.transport(calls), sleep=lambda _: None
+        )
+        assert added == 2  # 999001 : inconnu de Wowhead
+        rows = wowhead.read_rows(tmp_path)
+        assert (rows[282550]["Name_fr"], rows[282550]["Name_en"]) == (
+            "Combat Tuning Wrench",  # le nom anglais tant que le français n'existe pas
+            "Combat Tuning Wrench",
+        )
+        assert rows[284041]["Name_fr"] == "Chevalière de Dos-de-fer"
+        assert (rows[284041]["Quality"], rows[284041]["Icon"]) == ("2", "inv_misc_wrench_01")
+        assert (rows[284041]["ItemLevel"], rows[284041]["RequiredLevel"]) == ("43", "38")
+        assert rows[284041]["Stats"] == '{"3": 7, "4": 5}'
+        # Déjà lues : seul l'objet resté inconnu est redemandé ; --force-download redemande tout.
+        calls.clear()
+        again = wowhead.download_items(
+            tmp_path, wanted, transport=self.transport(calls), sleep=lambda _: None
+        )
+        assert (again, calls) == (0, [(999001, "enUS")])
+        calls.clear()
+        wowhead.download_items(tmp_path, [284041], force=True, transport=self.transport(calls))
+        assert calls == [(284041, "enUS"), (284041, "frFR")]
+
+    def test_a_service_that_keeps_failing_is_given_up_and_what_was_read_stays(self, tmp_path, monkeypatch):
+        from apps.gamedata import wowhead
+
+        monkeypatch.setattr(wowhead, "MAX_FAILURES", 2)
+        calls: list = []
+        # Une erreur isolée (500500) est passée ; deux d'affilée arrêtent tout, 999001 n'est jamais demandé.
+        monkeypatch.setattr(wowhead, "fetch", self.failing(wowhead.fetch, {500500, 500501, 500502}))
+        ids = [282550, 500500, 284041, 500501, 500502, 999001]
+        with pytest.raises(wowhead.WowheadError):
+            wowhead.download_items(tmp_path, ids, transport=self.transport(calls), sleep=lambda _: None)
+        assert list(wowhead.read_rows(tmp_path)) == [282550, 284041]
+        assert (999001, "enUS") not in calls
+
+    @staticmethod
+    def failing(fetch, broken):
+        import httpx
+
+        def wrapped(client, item_id, locale):
+            if item_id in broken:
+                raise httpx.ConnectError("panne")
+            return fetch(client, item_id, locale)
+
+        return wrapped
+
+    def test_import_gives_them_a_name_without_touching_known_sheets(self, db, tmp_path):
+        from apps.gamedata import importer, wowhead
+
+        seed()
+        directory = self.directory(tmp_path)
+        assert {282550, 284041, 999001} <= importer.sheetless_items(directory)
+        assert 19019 not in importer.sheetless_items(directory)  # a sa fiche dans la table de Forever
+        wanted = [282550, 284041, 999001, 19019]
+        wowhead.download_items(directory, wanted, transport=self.transport([]), sleep=lambda _: None)
+        rows = wowhead.read_rows(directory)
+        rows[19019] = {**rows[284041], "ID": "19019", "Name_fr": "Autre nom"}
+        rows[424242] = {**rows[284041], "ID": "424242", "Name_fr": "Hors client"}
+        wowhead.write_rows(directory, rows)
+
+        run = import_directory(directory, build="sample", product="wowf")
+        assert run.counts["items_wowhead"] == 2 and run.counts["items"] == Item.objects.count()
+        ring = Item.objects.get(pk=284041)
+        assert (ring.name, ring.name_en) == ("Chevalière de Dos-de-fer", "Ironback Signet")
+        assert (ring.quality, ring.item_level, ring.required_level) == (2, 43, 38)
+        # Classe, sous-classe et emplacement viennent de la table Item du client ; l'icône, de Wowhead.
+        assert (ring.class_id, ring.subclass_id, ring.inventory_type) == (2, 4, 13)
+        assert ring.icon == "inv_misc_wrench_01"
+        assert ring.stats == {"strength": 5, "agility": 7}
+        assert Item.objects.get(pk=282550).name == "Combat Tuning Wrench"
+        # La fiche de Forever prime, et ni l'objet inconnu de Wowhead ni celui hors du client n'entrent.
+        assert Item.objects.get(pk=19019).name != "Autre nom"
+        assert not Item.objects.filter(pk__in=[999001, 424242]).exists()

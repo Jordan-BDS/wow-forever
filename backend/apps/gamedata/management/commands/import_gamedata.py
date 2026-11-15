@@ -3,7 +3,8 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.gamedata import importer, wago
+from apps.gamedata import importer, wago, wowhead
+from apps.gamedata.models import Item
 
 
 class Command(BaseCommand):
@@ -39,6 +40,7 @@ class Command(BaseCommand):
                     wago.download_fallback_tables(directory, force=options["force_download"])
                 except Exception as error:  # noqa: BLE001
                     self.stderr.write(f"Fiches d'objets de secours non téléchargées : {error}")
+                self.download_wowhead(directory, force=options["force_download"])
 
         missing = importer.missing_tables(directory)
         if missing:
@@ -47,3 +49,17 @@ class Command(BaseCommand):
         run = importer.import_directory(directory, build=build, product=product)
         summary = ", ".join(f"{value} {key}" for key, value in run.counts.items())
         self.stdout.write(self.style.SUCCESS(f"Import terminé ({build}) : {summary}"))
+
+    def download_wowhead(self, directory: Path, force: bool) -> None:
+        """Les objets sans fiche dans les tables, demandés à Wowhead : ceux que l'index n'a pas encore (tous
+        avec --force-download, pour reprendre les noms traduits depuis). Un échec n'empêche pas l'import."""
+        try:
+            wanted = importer.sheetless_items(directory)
+            if not force:
+                wanted -= set(Item.objects.values_list("id", flat=True))
+            if wanted:
+                self.stdout.write(f"{len(wanted)} objet(s) sans fiche demandé(s) à Wowhead…")
+            added = wowhead.download_items(directory, wanted, force=force)
+            self.stdout.write(f"{added} fiche(s) lue(s) sur Wowhead")
+        except Exception as error:  # noqa: BLE001
+            self.stderr.write(f"Fiches Wowhead incomplètes : {error}")

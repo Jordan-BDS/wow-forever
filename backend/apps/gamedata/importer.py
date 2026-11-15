@@ -6,6 +6,7 @@ lignes marquées `is_forever` (ajouts manuels) ne sont jamais touchées.
 """
 
 import csv
+import json
 import logging
 from collections import defaultdict
 from pathlib import Path
@@ -73,6 +74,10 @@ TRAIT_TABLES = [
 # numérotation, en couvrent la plupart. Une fiche de Forever prime toujours ; celle de secours ne sert
 # qu'aux objets que le client connaît et pour lesquels il n'en a pas.
 FALLBACK_TABLES = ["Fallback.ItemSparse", "Fallback.ItemSparse.enUS"]
+
+# Dernier secours, facultatif : les objets que le client connaît et qu'aucune des deux tables ne décrit (le
+# serveur de Forever envoie leur fiche en jeu), lus sur Wowhead par `wowhead.download_items`.
+WOWHEAD_TABLE = "Wowhead.Items"
 
 EFFECT_CREATE_ITEM = 24
 EFFECT_ENCHANT_ITEM = 53
@@ -169,6 +174,33 @@ def has_fallback_tables(directory: Path) -> bool:
     return all((Path(directory) / f"{table}.csv").exists() for table in FALLBACK_TABLES)
 
 
+def wowhead_stats(raw: str | None) -> dict[str, int]:
+    """Statistiques d'une fiche Wowhead : `{type de stat: valeur}` en JSON, les types du client."""
+    try:
+        found = json.loads(raw) if raw else {}
+    except ValueError:
+        return {}
+    stats: dict[str, int] = {}
+    for stat_type, amount in found.items() if isinstance(found, dict) else []:
+        amount = to_int(str(amount))
+        if not str(stat_type).isdigit() or amount == 0:
+            continue
+        name = STAT_TYPES.get(int(stat_type), f"stat_{stat_type}")
+        stats[name] = stats.get(name, 0) + amount
+    return stats
+
+
+def sheetless_items(directory: Path) -> set[int]:
+    """Les objets que le client connaît (table `Item`) et dont ni la table de Forever ni celle de secours n'a
+    la fiche : ceux qu'il reste à demander à Wowhead."""
+    directory = Path(directory)
+    known = {r["ID"] for r in read(directory, "Item")}
+    described = {r["ID"] for r in read(directory, "ItemSparse") if r["Display_lang"]}
+    if has_fallback_tables(directory):
+        described |= {r["ID"] for r in read(directory, "Fallback.ItemSparse") if r["Display_lang"]}
+    return {to_int(item_id) for item_id in known - described}
+
+
 def import_items(data: ClientData) -> dict[str, int]:
     english = {r["ID"]: r["Display_lang"] for r in read(data.directory, "ItemSparse.enUS")}
     base = {r["ID"]: r for r in read(data.directory, "Item")}
@@ -202,7 +234,7 @@ def import_items(data: ClientData) -> dict[str, int]:
     items = []
     seen: set[str] = set()
 
-    def add(row: dict, name_en: str, stats: dict[str, int]) -> None:
+    def add(row: dict, name_en: str, stats: dict[str, int], icon: str = "") -> None:
         extra = base.get(row["ID"], {})
         set_id = to_int(row["ItemSet"])
         seen.add(row["ID"])
@@ -220,7 +252,9 @@ def import_items(data: ClientData) -> dict[str, int]:
                 allowable_class=to_int(row["AllowableClass"], -1),
                 is_unique=to_int(row["MaxCount"]) == 1,
                 item_set_id=set_id if set_id in known_sets else None,
-                icon=data.icons.get(extra.get("IconFileDataID", ""), "") or fallback_icon.get(row["ID"], ""),
+                icon=data.icons.get(extra.get("IconFileDataID", ""), "")
+                or fallback_icon.get(row["ID"], "")
+                or icon,
                 stats=stats,
                 description=row["Description_lang"][:255],
             )
@@ -242,6 +276,28 @@ def import_items(data: ClientData) -> dict[str, int]:
             if to_int(row["ID"]) in protected:
                 continue
             add(row, fallback_english.get(row["ID"], ""), fallback_stats(row))
+    fallback_count = len(items) - main_count
+    if (data.directory / f"{WOWHEAD_TABLE}.csv").exists():
+        for row in read(data.directory, WOWHEAD_TABLE):
+            # Seulement les objets du client restés sans fiche après les deux tables.
+            if row["ID"] in seen or row["ID"] not in base or not row["Name_fr"]:
+                continue
+            if to_int(row["ID"]) in protected:
+                continue
+            sheet = {
+                "ID": row["ID"],
+                "Display_lang": row["Name_fr"],
+                "Description_lang": "",
+                "OverallQualityID": row["Quality"],
+                "ItemLevel": row["ItemLevel"],
+                "RequiredLevel": row["RequiredLevel"],
+                "InventoryType": base[row["ID"]].get("InventoryType", ""),
+                "AllowableClass": "-1",
+                "MaxCount": "0",
+                "ItemSet": "0",
+            }
+            add(sheet, row["Name_en"], wowhead_stats(row.get("Stats")), row["Icon"])
+    wowhead_count = len(items) - main_count - fallback_count
     fields = [
         "name", "name_en", "quality", "item_level", "required_level", "inventory_type", "class_id",
         "subclass_id", "allowable_class", "is_unique", "item_set", "icon", "stats", "description",
@@ -250,8 +306,10 @@ def import_items(data: ClientData) -> dict[str, int]:
     for start in range(0, len(items), 2000):
         count += upsert(Item, items[start : start + 2000], fields)
     counts = {"items": count, "item_sets": set_count}
-    if len(items) > main_count:
-        counts["items_fallback"] = len(items) - main_count
+    if fallback_count:
+        counts["items_fallback"] = fallback_count
+    if wowhead_count:
+        counts["items_wowhead"] = wowhead_count
     return counts
 
 
