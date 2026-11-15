@@ -366,7 +366,9 @@ fn restart_watcher(app: &AppHandle, shared: Shared) {
             p.file_name()
                 .and_then(|n| n.to_str())
                 .map(|n| {
-                    n.starts_with(savedvars::ADDON_NAME) || n.starts_with(auctions::SCAN_ADDON)
+                    n.starts_with(savedvars::ADDON_NAME)
+                        || n.starts_with(auctions::SCAN_ADDON)
+                        || n.starts_with(auctions::AUCTIONATOR)
                 })
                 .unwrap_or(false)
         });

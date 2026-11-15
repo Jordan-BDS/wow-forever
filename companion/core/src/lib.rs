@@ -7,7 +7,7 @@
 //! - `sync` : la boucle « fichier changé → code → site », avec l'empreinte anti-doublon, et le sens inverse
 //!   « site → fichier » au lancement (complétion, jeu fermé) ;
 //! - `luatable` et `seed` : lire et réécrire le fichier `SavedVariables` pour y recopier l'état du site ;
-//! - `auctions` : envoyer les scans de l'hôtel des ventes lus dans le fichier de l'addon NaowhForever ;
+//! - `auctions` : envoyer les scans de l'hôtel des ventes lus dans les fichiers des addons NaowhForever et Auctionator ;
 //! - `config` : réglages et jeton sur le disque.
 
 pub mod addon;

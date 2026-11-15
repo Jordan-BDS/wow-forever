@@ -262,7 +262,7 @@ function StatusView({ state, onChange, onError }: { state: AppState; onChange: (
         <section className="card">
           <h2>Hôtel des ventes</h2>
           <p className="muted">
-            Chaque scan complet fait avec NaowhForever part au site à la déconnexion ou au /reload suivant.
+            Chaque scan complet fait avec NaowhForever ou Auctionator part au site à la déconnexion ou au /reload suivant.
           </p>
           <ul className="plain">{state.last_auctions.map((o, i) => <AuctionLine key={i} o={o} />)}</ul>
           <div className="row">

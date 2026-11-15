@@ -63,8 +63,8 @@ export function AuctionsPage() {
         <Card className="space-y-2 text-sm text-muted">
           <p>Aucun scan reçu pour l'instant.</p>
           <p>
-            En jeu, ouvre l'hôtel des ventes et lance « Scan Prices » (addon NaowhForever), puis fais /reload
-            ou déconnecte-toi : ton compagnon envoie le scan tout seul.
+            En jeu, ouvre l'hôtel des ventes et lance « Scan Prices » (addon NaowhForever) ou un scan complet
+            d'Auctionator, puis fais /reload ou déconnecte-toi : ton compagnon envoie le scan tout seul.
           </p>
         </Card>
       </>

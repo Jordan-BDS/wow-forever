@@ -1,6 +1,11 @@
 //! Prix de l'hôtel des ventes : l'addon NaowhForever garde le dernier scan complet dans son `SavedVariables`
 //! (`ahPrices`, par hôtel : `prices`, `listed`, `time`). Le compagnon de qui en a le droit sur le site (tout membre)
 //! envoie chaque nouveau scan ; chez les autres, rien n'est lu ni envoyé. Notre addon n'y est pour rien.
+//!
+//! Auctionator est lu de la même façon (`AUCTIONATOR_PRICE_DATABASE`, par royaume : une chaîne CBOR écrite par
+//! le client). Sa base ne date pas ses scans à la seconde, seulement au jour : le scan envoyé est le dernier jour
+//! où une bonne part de la base a été vue (un scan complet, pas une recherche), daté de l'écriture du fichier,
+//! un par jour au plus. Elle compte des quantités, pas des enchères : le nombre d'enchères n'est pas envoyé.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,6 +20,13 @@ use crate::error::CoreError;
 /// L'addon tiers dont on lit le scan (fichier `WTF/Account/<compte>/SavedVariables/NaowhForever.lua`).
 pub const SCAN_ADDON: &str = "NaowhForever";
 
+/// L'autre addon tiers lu (`SavedVariables/Auctionator.lua`).
+pub const AUCTIONATOR: &str = "Auctionator";
+/// Jour zéro des jours d'Auctionator : le 1er janvier 2020 (UTC ; l'addon compte en heure locale).
+const AUCTIONATOR_DAY_0: i64 = 1_577_836_800;
+/// Un jour compte pour un scan complet s'il a vu au moins ce nombre d'objets, et le tiers de la base.
+const AUCTIONATOR_MIN_ITEMS: usize = 200;
+
 /// Le scan d'un hôtel des ventes : par objet, le prix le plus bas à l'unité (cuivre) et le nombre d'enchères.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HouseScan {
@@ -27,6 +39,11 @@ pub struct HouseScan {
 
 /// Les fichiers du scan, un par compte WoW de l'installation.
 pub fn find_scan_files(game_dir: &Path) -> Vec<PathBuf> {
+    find_addon_files(game_dir, SCAN_ADDON)
+}
+
+/// Les fichiers `SavedVariables/<addon>.lua`, un par compte WoW de l'installation.
+pub fn find_addon_files(game_dir: &Path, addon: &str) -> Vec<PathBuf> {
     let mut found = Vec::new();
     let Ok(entries) = fs::read_dir(crate::wowdir::wtf_accounts_dir(game_dir)) else {
         return found;
@@ -35,7 +52,7 @@ pub fn find_scan_files(game_dir: &Path) -> Vec<PathBuf> {
         let path = entry
             .path()
             .join("SavedVariables")
-            .join(format!("{SCAN_ADDON}.lua"));
+            .join(format!("{addon}.lua"));
         if path.is_file() {
             found.push(path);
         }
@@ -141,6 +158,248 @@ pub fn extract_scans(lua: &str) -> Vec<HouseScan> {
     }
 }
 
+/// Le dernier scan complet qu'Auctionator garde d'un royaume.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuctionatorScan {
+    /// Le royaume, tel qu'Auctionator l'écrit.
+    pub house: String,
+    /// Le jour du scan, compté par Auctionator depuis le 1er janvier 2020.
+    pub day: i64,
+    /// (objet, prix, rien), trié par objet.
+    pub items: Vec<(u32, u64, Option<u32>)>,
+}
+
+/// Une valeur CBOR, réduite à ce que la base d'Auctionator contient.
+enum Cbor {
+    Int(u64),
+    Text(Vec<u8>),
+    Map(Vec<(Cbor, Cbor)>),
+    Other,
+}
+
+struct CborReader<'a> {
+    data: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> CborReader<'a> {
+    fn take(&mut self, n: usize) -> Option<&'a [u8]> {
+        let end = self.pos.checked_add(n)?;
+        let slice = self.data.get(self.pos..end)?;
+        self.pos = end;
+        Some(slice)
+    }
+
+    /// (type majeur, information, valeur). Les longueurs indéfinies, que le client n'écrit pas : rien.
+    fn head(&mut self) -> Option<(u8, u8, u64)> {
+        let first = *self.data.get(self.pos)?;
+        self.pos += 1;
+        let (major, info) = (first >> 5, first & 31);
+        let value = match info {
+            0..=23 => u64::from(info),
+            24..=27 => {
+                let bytes = self.take(1usize << (info - 24))?;
+                bytes.iter().fold(0u64, |acc, b| (acc << 8) | u64::from(*b))
+            }
+            _ => return None,
+        };
+        Some((major, info, value))
+    }
+
+    fn number(value: f64) -> Cbor {
+        if value.is_finite() && value >= 0.0 {
+            Cbor::Int(value.round() as u64)
+        } else {
+            Cbor::Other
+        }
+    }
+
+    fn value(&mut self, depth: usize) -> Option<Cbor> {
+        if depth > 16 {
+            return None;
+        }
+        let (major, info, value) = self.head()?;
+        Some(match major {
+            0 => Cbor::Int(value),
+            2 | 3 => Cbor::Text(self.take(usize::try_from(value).ok()?)?.to_vec()),
+            4 => {
+                // Une liste (la table vide `l`) : lue pour avancer, rien n'en est gardé.
+                for _ in 0..value {
+                    self.value(depth + 1)?;
+                }
+                Cbor::Other
+            }
+            5 => {
+                let mut pairs = Vec::new();
+                for _ in 0..value {
+                    let key = self.value(depth + 1)?;
+                    let item = self.value(depth + 1)?;
+                    pairs.push((key, item));
+                }
+                Cbor::Map(pairs)
+            }
+            6 => self.value(depth + 1)?,
+            7 if info == 26 => Self::number(f64::from(f32::from_bits(value as u32))),
+            7 if info == 27 => Self::number(f64::from_bits(value)),
+            _ => Cbor::Other,
+        })
+    }
+}
+
+/// Le contenu d'une chaîne Lua telle que le client l'écrit : `\\`, `\"`, `\n`, `\r` et `\ddd` (décimal) ; les
+/// autres octets sont écrits tels quels.
+fn lua_unescape(raw: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(raw.len());
+    let mut i = 0;
+    while i < raw.len() {
+        let byte = raw[i];
+        i += 1;
+        if byte != b'\\' || i >= raw.len() {
+            out.push(byte);
+            continue;
+        }
+        let escaped = raw[i];
+        if escaped.is_ascii_digit() {
+            let mut code: u32 = 0;
+            let mut digits = 0;
+            while digits < 3 && i < raw.len() && raw[i].is_ascii_digit() {
+                code = code * 10 + u32::from(raw[i] - b'0');
+                i += 1;
+                digits += 1;
+            }
+            out.push((code & 0xff) as u8);
+            continue;
+        }
+        i += 1;
+        out.push(match escaped {
+            b'n' => b'\n',
+            b'r' => b'\r',
+            b't' => b'\t',
+            b'a' => 7,
+            b'b' => 8,
+            b'f' => 12,
+            b'v' => 11,
+            other => other,
+        });
+    }
+    out
+}
+
+/// Une clé d'Auctionator lue comme un nombre : l'objet (« 2589 ») ou le jour (« 2507 »), écrits en texte.
+fn key_number(key: &Cbor) -> Option<u64> {
+    match key {
+        Cbor::Int(n) => Some(*n),
+        Cbor::Text(text) => std::str::from_utf8(text).ok()?.parse().ok(),
+        _ => None,
+    }
+}
+
+fn field<'c>(pairs: &'c [(Cbor, Cbor)], name: &[u8]) -> Option<&'c Cbor> {
+    pairs
+        .iter()
+        .find(|(key, _)| matches!(key, Cbor::Text(text) if text.as_slice() == name))
+        .map(|(_, value)| value)
+}
+
+/// Extrait de `Auctionator.lua` le dernier scan complet de chaque royaume. Par objet, la base garde le dernier
+/// prix vu (`m`) et les jours où il a été vu (`h`). Le scan : les objets vus pour la dernière fois le jour le
+/// plus récent qui en compte assez (`AUCTIONATOR_MIN_ITEMS` et le tiers de la base) ; des recherches à la main
+/// ne font pas un scan. Une base illisible ou d'un autre format ne donne rien.
+pub fn extract_auctionator(lua: &[u8]) -> Vec<AuctionatorScan> {
+    const SEPARATOR: &[u8] = b"\"] = \"";
+    let mut scans = Vec::new();
+    let mut inside = false;
+    for line in lua.split(|byte| *byte == b'\n') {
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        if !inside {
+            inside = line.starts_with(b"AUCTIONATOR_PRICE_DATABASE = {");
+            continue;
+        }
+        if line.starts_with(b"}") {
+            break;
+        }
+        // ["royaume"] = "…",
+        let Some(rest) = line.strip_prefix(b"[\"") else {
+            continue;
+        };
+        let Some(split) = rest
+            .windows(SEPARATOR.len())
+            .position(|window| window == SEPARATOR)
+        else {
+            continue;
+        };
+        let body = &rest[split + SEPARATOR.len()..];
+        let body = body.strip_suffix(b",").unwrap_or(body);
+        let Some(body) = body.strip_suffix(b"\"") else {
+            continue;
+        };
+        let data = lua_unescape(body);
+        let mut reader = CborReader {
+            data: &data,
+            pos: 0,
+        };
+        let Some(Cbor::Map(entries)) = reader.value(0) else {
+            continue;
+        };
+        // (objet, dernier jour vu, dernier prix)
+        let mut rows: Vec<(u32, u64, u64)> = Vec::new();
+        let mut per_day: std::collections::BTreeMap<u64, usize> = Default::default();
+        for (key, value) in &entries {
+            let Some(id) = key_number(key).and_then(|n| u32::try_from(n).ok()) else {
+                continue;
+            };
+            let Cbor::Map(fields) = value else {
+                continue;
+            };
+            let Some(Cbor::Int(price)) = field(fields, b"m") else {
+                continue;
+            };
+            let Some(Cbor::Map(days)) = field(fields, b"h") else {
+                continue;
+            };
+            let Some(last) = days.iter().filter_map(|(day, _)| key_number(day)).max() else {
+                continue;
+            };
+            if id == 0 || *price == 0 {
+                continue;
+            }
+            rows.push((id, last, *price));
+            *per_day.entry(last).or_insert(0) += 1;
+        }
+        let total = rows.len();
+        let Some(day) = per_day
+            .iter()
+            .rev()
+            .find(|(_, count)| **count >= AUCTIONATOR_MIN_ITEMS && **count * 3 >= total)
+            .map(|(day, _)| *day)
+        else {
+            continue;
+        };
+        let mut items: Vec<(u32, u64, Option<u32>)> = rows
+            .iter()
+            .filter(|row| row.1 == day)
+            .map(|row| (row.0, row.2, None))
+            .collect();
+        items.sort();
+        scans.push(AuctionatorScan {
+            house: String::from_utf8_lossy(&rest[..split]).into_owned(),
+            day: i64::try_from(day).unwrap_or(0),
+            items,
+        });
+    }
+    scans
+}
+
+/// L'heure de la dernière écriture d'un fichier, en secondes.
+fn modified_at(path: &Path) -> Option<i64> {
+    let modified = fs::metadata(path).ok()?.modified().ok()?;
+    let seconds = modified
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_secs();
+    i64::try_from(seconds).ok()
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AuctionOutcome {
@@ -163,9 +422,39 @@ pub enum AuctionOutcome {
     },
 }
 
-/// Un passage : s'il existe un fichier de scan et que le site autorise ce compte, envoie les scans plus récents
-/// que le dernier envoyé. Met à jour `config.last_auction_scans` (à sauvegarder par l'appelant). Ne touche à
-/// rien d'autre : un échec ici n'empêche jamais l'envoi des personnages.
+/// Envoie un scan et retient qu'il l'a été : `mark` sous `key` dans `config.last_auction_scans`. `label` : le
+/// nom montré au joueur.
+fn send(
+    client: &SiteClient,
+    config: &mut Config,
+    scan: &HouseScan,
+    key: String,
+    mark: i64,
+    label: String,
+) -> AuctionOutcome {
+    match client.upload_auctions(scan) {
+        Ok(()) => {
+            config.last_auction_scans.insert(key, mark);
+            AuctionOutcome::Sent {
+                house: label,
+                scanned_at: scan.scanned_at,
+                items: scan.items.len(),
+            }
+        }
+        Err(CoreError::Duplicate) => {
+            config.last_auction_scans.insert(key, mark);
+            AuctionOutcome::Duplicate { house: label }
+        }
+        Err(e) => AuctionOutcome::Failed {
+            error: format!("{label} : {e}"),
+        },
+    }
+}
+
+/// Un passage : s'il existe un fichier de scan (NaowhForever ou Auctionator) et que le site autorise ce compte,
+/// envoie les scans plus récents que le dernier envoyé. Met à jour `config.last_auction_scans` (à sauvegarder par
+/// l'appelant) : l'heure du scan par hôtel pour NaowhForever, le jour du scan sous « Auctionator:<royaume> » pour
+/// Auctionator. Ne touche à rien d'autre : un échec ici n'empêche jamais l'envoi des personnages.
 pub fn upload_once(
     game_dir: &Path,
     config: &mut Config,
@@ -175,7 +464,8 @@ pub fn upload_once(
         return Vec::new();
     }
     let files = find_scan_files(game_dir);
-    if files.is_empty() {
+    let auctionator_files = find_addon_files(game_dir, AUCTIONATOR);
+    if files.is_empty() && auctionator_files.is_empty() {
         return Vec::new();
     }
     match client.auction_rights() {
@@ -206,27 +496,40 @@ pub fn upload_once(
                 outcomes.push(AuctionOutcome::Unchanged { house });
                 continue;
             }
-            match client.upload_auctions(&scan) {
-                Ok(()) => {
-                    config
-                        .last_auction_scans
-                        .insert(house.clone(), scan.scanned_at);
-                    outcomes.push(AuctionOutcome::Sent {
-                        house,
-                        scanned_at: scan.scanned_at,
-                        items: scan.items.len(),
-                    });
-                }
-                Err(CoreError::Duplicate) => {
-                    config
-                        .last_auction_scans
-                        .insert(house.clone(), scan.scanned_at);
-                    outcomes.push(AuctionOutcome::Duplicate { house });
-                }
-                Err(e) => outcomes.push(AuctionOutcome::Failed {
-                    error: format!("{house} : {e}"),
-                }),
+            let mark = scan.scanned_at;
+            outcomes.push(send(client, config, &scan, house.clone(), mark, house));
+        }
+    }
+    for file in auctionator_files {
+        let bytes = match fs::read(&file) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                outcomes.push(AuctionOutcome::Failed {
+                    error: e.to_string(),
+                });
+                continue;
             }
+        };
+        let Some(modified) = modified_at(&file) else {
+            continue;
+        };
+        for found in extract_auctionator(&bytes) {
+            let label = format!("{} ({AUCTIONATOR})", found.house);
+            let key = format!("{AUCTIONATOR}:{}", found.house);
+            let known = config.last_auction_scans.get(&key).copied().unwrap_or(-1);
+            if found.day <= known {
+                outcomes.push(AuctionOutcome::Unchanged { house: label });
+                continue;
+            }
+            // Le fichier est écrit à la déconnexion qui suit le scan ; s'il l'a été bien plus tard, la date reste
+            // dans le jour du scan (à douze heures près : le fuseau du joueur n'est pas connu).
+            let day_end = AUCTIONATOR_DAY_0 + (found.day + 1) * 86_400 + 43_200;
+            let scan = HouseScan {
+                house: found.house,
+                scanned_at: modified.min(day_end),
+                items: found.items,
+            };
+            outcomes.push(send(client, config, &scan, key, found.day, label));
         }
     }
     outcomes
@@ -323,6 +626,126 @@ NaowhForeverDB = {
             then.status(200)
                 .json_body(serde_json::json!({ "upload": allowed }));
         })
+    }
+
+    fn cbor_text(text: &str) -> Vec<u8> {
+        let mut out = vec![0x40 | text.len() as u8];
+        out.extend(text.as_bytes());
+        out
+    }
+
+    fn cbor_uint(n: u16) -> Vec<u8> {
+        vec![0x19, (n >> 8) as u8, n as u8]
+    }
+
+    fn cbor_map(pairs: &[(Vec<u8>, Vec<u8>)]) -> Vec<u8> {
+        let mut out = vec![0xb9, (pairs.len() >> 8) as u8, pairs.len() as u8];
+        for (key, value) in pairs {
+            out.extend(key);
+            out.extend(value);
+        }
+        out
+    }
+
+    /// `Auctionator.lua` avec cette base pour le royaume « PvP », écrite comme le fait le client.
+    fn auctionator_file(database: &[u8]) -> Vec<u8> {
+        let mut out = b"AUCTIONATOR_CONFIG = {\n}\nAUCTIONATOR_PRICE_DATABASE = {\n[\"__dbversion\"] = 8,\n[\"PvP\"] = \"".to_vec();
+        for byte in database {
+            match byte {
+                b'\\' => out.extend(b"\\\\"),
+                b'"' => out.extend(b"\\\""),
+                b'\n' => out.extend(b"\\n"),
+                b'\r' => out.extend(b"\\r"),
+                0 => out.extend(b"\\000"),
+                other => out.push(*other),
+            }
+        }
+        out.extend(b"\",\n}\nAUCTIONATOR_POSTING_HISTORY = {\n}\n");
+        out
+    }
+
+    /// 250 objets : les 240 premiers vus le jour 2507 (le scan complet), les autres le jour 2501 seulement.
+    fn auctionator_database(scan_day: &str) -> Vec<u8> {
+        let mut entries = vec![(cbor_text("version"), vec![0x02])];
+        for id in 1..=250u16 {
+            let day = if id <= 240 { scan_day } else { "2501" };
+            entries.push((
+                cbor_text(&id.to_string()),
+                cbor_map(&[
+                    (cbor_text("a"), cbor_map(&[(cbor_text(day), cbor_uint(3))])),
+                    (cbor_text("l"), vec![0x80]),
+                    (cbor_text("m"), cbor_uint(id * 10)),
+                    (
+                        cbor_text("h"),
+                        cbor_map(&[
+                            (cbor_text("2500"), cbor_uint(1)),
+                            (cbor_text(day), cbor_uint(id * 10)),
+                        ]),
+                    ),
+                ]),
+            ));
+        }
+        cbor_map(&entries)
+    }
+
+    #[test]
+    fn reads_the_last_full_scan_of_auctionator() {
+        let scans = extract_auctionator(&auctionator_file(&auctionator_database("2507")));
+        assert_eq!(scans.len(), 1);
+        assert_eq!(scans[0].house, "PvP");
+        assert_eq!(scans[0].day, 2507);
+        assert_eq!(scans[0].items.len(), 240);
+        assert_eq!(scans[0].items[0], (1, 10, None));
+        assert_eq!(scans[0].items[239], (240, 2400, None));
+        // Quelques recherches à la main ne font pas un scan ; une base coupée ou d'un autre format non plus.
+        let mut few = vec![(cbor_text("version"), vec![0x02])];
+        few.push((
+            cbor_text("2589"),
+            cbor_map(&[
+                (cbor_text("m"), cbor_uint(100)),
+                (cbor_text("h"), cbor_map(&[(cbor_text("2507"), cbor_uint(100))])),
+            ]),
+        ));
+        assert!(extract_auctionator(&auctionator_file(&cbor_map(&few))).is_empty());
+        let whole = auctionator_database("2507");
+        assert!(extract_auctionator(&auctionator_file(&whole[..whole.len() - 4])).is_empty());
+        assert!(extract_auctionator(b"AUCTIONATOR_PRICE_DATABASE = {\n[\"PvP\"] = {\n},\n}\n").is_empty());
+    }
+
+    #[test]
+    fn sends_an_auctionator_scan_once_a_day_without_auction_counts() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("WTF/Account/WOW1/SavedVariables");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("Auctionator.lua"),
+            auctionator_file(&auctionator_database("2507")),
+        )
+        .unwrap();
+        let server = MockServer::start();
+        status(&server, true);
+        let upload = server.mock(|when, then| {
+            when.method(POST)
+                .path("/api/sync/auctions/")
+                .json_body_partial(r#"{ "house": "PvP" }"#);
+            then.status(201).json_body(serde_json::json!({ "id": 1 }));
+        });
+        let client = SiteClient::new(&server.base_url(), Some("tok".into()));
+        let mut config = Config::default();
+        config.token = Some("tok".into());
+        let outcomes = upload_once(tmp.path(), &mut config, &client);
+        assert!(matches!(
+            &outcomes[0],
+            AuctionOutcome::Sent { house, items: 240, .. } if house == "PvP (Auctionator)"
+        ));
+        assert_eq!(config.last_auction_scans["Auctionator:PvP"], 2507);
+        assert_eq!(
+            upload_once(tmp.path(), &mut config, &client),
+            vec![AuctionOutcome::Unchanged {
+                house: "PvP (Auctionator)".into()
+            }]
+        );
+        assert_eq!(upload.hits(), 1);
     }
 
     #[test]
