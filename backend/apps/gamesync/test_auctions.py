@@ -46,12 +46,12 @@ class TestUpload:
     def test_every_member_sends_and_reads_but_not_a_visitor(self, api_client, as_user, member, officer, gm):
         for ago, user in enumerate((member, officer, gm)):
             as_user(user)
-            assert post_scan(api_client, [[2589, 100, 3]], timedelta(minutes=ago)).status_code == 201
+            assert post_scan(api_client, [[2589, 100, 3]], timedelta(hours=ago)).status_code == 201
             assert api_client.get("/api/sync/auctions/").status_code == 200
             assert api_client.get("/api/sync/auctions/items/2589/").status_code == 200
         assert set(AuctionScan.objects.values_list("user", flat=True)) == {member.pk, officer.pk, gm.pk}
         api_client.force_authenticate(None)
-        assert post_scan(api_client, [[2589, 100, 3]], timedelta(hours=1)).status_code in (401, 403)
+        assert post_scan(api_client, [[2589, 100, 3]], timedelta(hours=5)).status_code in (401, 403)
         assert api_client.get("/api/sync/auctions/").status_code in (401, 403)
         assert AuctionScan.objects.count() == 3
 
@@ -85,16 +85,97 @@ class TestUpload:
         assert api_client.get("/api/sync/auctions/").status_code == 403
         assert api_client.get("/api/sync/auctions/items/2589/").status_code == 403
 
-    def test_old_scans_are_thinned_to_one_per_day(self, gm):
+    def test_old_scans_are_thinned_to_one_per_day_then_deleted(self, gm):
         old = [timedelta(days=40, hours=h) for h in (3, 2, 0)]
-        for ago in (*old, timedelta(hours=2), timedelta(0)):
+        recent = [timedelta(days=13), timedelta(days=13, hours=-1), timedelta(hours=2), timedelta(0)]
+        for ago in (timedelta(days=200), *old, *recent):
             auctions.store_scan(gm, HOUSE, stamp(ago), [[2589, 100, 3]])
         kept = [NOW - scan.scanned_at for scan in AuctionScan.objects.order_by("scanned_at")]
-        # Il y a 40 jours : le dernier scan de chaque jour reste. Les récents sont tous gardés.
+        # Il y a 200 jours : supprimé (plus de six mois). Il y a 40 jours : le dernier scan de chaque jour
+        # reste. Depuis moins de 14 jours : tous gardés.
         last_of_day = {timezone.localtime(NOW - ago).date(): ago for ago in old}
-        assert kept == [*sorted(last_of_day.values(), reverse=True), timedelta(hours=2), timedelta(0)]
-        assert len(kept) < 5
+        assert kept == [*sorted(last_of_day.values(), reverse=True), *sorted(recent, reverse=True)]
+        assert len(kept) < 7
         assert AuctionPrice.objects.count() == len(kept)
+
+    def test_periodic_cleaning_reaches_houses_nobody_scans_anymore(self, gm):
+        dead = AuctionScan.objects.create(
+            house="Abandonné", scanned_at=NOW - timedelta(days=200), user=gm, items=1
+        )
+        AuctionPrice.objects.create(scan=dead, item_id=2589, price=1, listed=1)
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(0)), [[2589, 100, 3]])  # ne nettoie que son hôtel
+        assert AuctionScan.objects.count() == 2
+        assert auctions.prune_due() == 1
+        assert [scan.house for scan in AuctionScan.objects.all()] == [HOUSE]
+        assert AuctionPrice.objects.count() == 1
+        # Une fois par heure au plus : le balayage tourne toutes les minutes.
+        AuctionScan.objects.create(house="Abandonné", scanned_at=NOW - timedelta(days=200), user=gm, items=0)
+        assert auctions.prune_due() == 0
+        assert AuctionScan.objects.count() == 2
+
+    def test_two_scans_of_a_house_are_at_least_half_an_hour_apart(self, api_client, as_user, gm, member):
+        as_user(gm)
+        assert post_scan(api_client, [[2589, 100, 3]], timedelta(hours=2)).status_code == 201
+        as_user(member)
+        # Trop près, avant comme après (un scan plus ancien peut arriver plus tard) : refusé comme un scan
+        # déjà reçu, que le compagnon retient sans le renvoyer. Le premier reçu reste.
+        for ago in (timedelta(hours=2, minutes=29), timedelta(hours=1, minutes=31)):
+            response = post_scan(api_client, [[2589, 1, 1]], ago)
+            assert response.status_code == 409
+            assert "30 minutes" in response.json()["detail"]
+        assert post_scan(api_client, [[2589, 1, 1]], timedelta(hours=2)).json() == {
+            "detail": "Ce scan a déjà été reçu."
+        }
+        assert AuctionScan.objects.get().user == gm
+        # À 30 minutes pile, et dans un autre hôtel au même moment : acceptés.
+        assert post_scan(api_client, [[2589, 100, 3]], timedelta(hours=2, minutes=30)).status_code == 201
+        assert post_scan(api_client, [[2589, 100, 3]], timedelta(hours=1, minutes=30)).status_code == 201
+        assert post_scan(api_client, [[2589, 100, 3]], timedelta(hours=2), "Forever-Horde").status_code == 201
+        assert AuctionScan.objects.count() == 4
+
+    def test_every_house_named_pvp_is_one_house(self, api_client, as_user, gm, member, items):
+        as_user(gm)
+        first = post_scan(api_client, [[2589, 80, 6]], timedelta(hours=2), "CAMWOW EU5 Realm 8 PvP-Alliance")
+        assert (first.status_code, first.json()["house"]) == (201, "PvP")
+        as_user(member)
+        # Autre royaume, autre faction, autre casse : le même hôtel, donc la même règle d'écart.
+        assert (
+            post_scan(
+                api_client, [[2589, 1, 1]], timedelta(hours=1, minutes=50), "Realm 3 pvp-Horde"
+            ).status_code
+            == 409
+        )
+        assert post_scan(api_client, [[2589, 100, 3]], timedelta(0), " EU2  PVP ").status_code == 201
+        assert post_scan(api_client, [[2589, 5, 1]], timedelta(0), "Realm 1 PvE-Alliance").status_code == 201
+        assert set(AuctionScan.objects.values_list("house", flat=True)) == {"PvP", "Realm 1 PvE-Alliance"}
+        # La lecture suit : un ancien nom demandé par la page ou un lien mène à l'hôtel PvP et à sa courbe.
+        data = api_client.get("/api/sync/auctions/", {"house": "CAMWOW EU5 Realm 8 PvP-Alliance"}).json()
+        assert (data["house"], data["scan"]["items"], data["baseline"]["items"]) == ("PvP", 1, 1)
+        assert sorted((h["house"], h["scans"]) for h in data["houses"]) == [
+            ("PvP", 2),
+            ("Realm 1 PvE-Alliance", 1),
+        ]
+        history = api_client.get("/api/sync/auctions/items/2589/", {"house": "Realm 9 PvP-Horde"}).json()
+        assert (history["house"], [p["price"] for p in history["points"]]) == ("PvP", [80, 100])
+
+    def test_migration_merges_the_pvp_houses_already_stored(self, gm):
+        from importlib import import_module
+
+        from django.apps import apps
+
+        def scan(house, ago, items):
+            return AuctionScan.objects.create(house=house, scanned_at=NOW - ago, user=gm, items=items)
+
+        scan("CAMWOW EU5 Realm 8 PvP-Alliance", timedelta(hours=3), 1)
+        scan("Realm 3 pvp-Horde", timedelta(hours=1), 2)
+        scan("Realm 4 PVP-Horde", timedelta(hours=3), 3)  # même instant qu'un autre : le premier reste
+        scan("Realm 1 PvE-Alliance", timedelta(hours=3), 4)
+        import_module("apps.gamesync.migrations.0010_auction_pvp_house").merge_pvp_houses(apps, None)
+        assert sorted(AuctionScan.objects.values_list("house", "items")) == [
+            ("PvP", 1),
+            ("PvP", 2),
+            ("Realm 1 PvE-Alliance", 4),
+        ]
 
     @pytest.mark.parametrize(
         "body",
@@ -163,7 +244,7 @@ class TestRead:
         Item.objects.create(
             id=1716, name="Robe du Magus", name_en="Robe of the Magi", quality=3, icon="inv_chest_cloth_38"
         )
-        auctions.store_scan(gm, HOUSE, stamp(timedelta(minutes=-1)), [[1716, 35000, 4], [2589, 100, 3]])
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(minutes=-45)), [[1716, 35000, 4], [2589, 100, 3]])
         as_user(gm)
 
         def found(q):

@@ -100,7 +100,7 @@ seul. Cahier des charges, étape 11.
   à prix » à côté des Roxors ; le compagnon recopie le tableau de la guilde dans l'addon au lancement, jeu fermé ; le
   GM retire un nom dans l'administration.
 - **Hôtel des ventes** (tous les membres) : le compagnon de chaque membre envoie chaque scan complet fait en jeu avec l'addon NaowhForever
-  (`POST /api/sync/auctions/`) ; la page `/hv` liste le dernier scan, la variation de chaque prix depuis le scan
+  (`POST /api/sync/auctions/`) ; tout hôtel dont le nom contient « pvp » est le même hôtel « PvP » (même jeu de règles), deux scans d'un hôtel sont espacés d'au moins 30 minutes (le premier reçu reste), tous gardés 14 jours, puis un par jour jusqu'à six mois, puis supprimés ; la page `/hv` liste le dernier scan, la variation de chaque prix depuis le scan
   précédent, 24 h ou 7 jours, et la courbe de prix par objet (prix et nombre d'enchères, lecture au survol, 7 jours
   / 30 jours / tout). Onglet « Recettes favorites » : chacun suit ses recettes (étoile) et voit le coût de leurs
   composants à l'HV, le prix de vente du produit et le bénéfice ; les composants absents de l'HV (marchands) ne

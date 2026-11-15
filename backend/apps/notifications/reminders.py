@@ -26,6 +26,14 @@ def scan_due_reminders(now=None) -> int:
         import logging
 
         logging.getLogger(__name__).exception("Attribution des titres de la semaine impossible")
+    try:
+        from apps.gamesync.auctions import prune_due
+
+        prune_due()  # vieux scans de l'hôtel des ventes : pas des rappels, ne comptent pas dans le total
+    except Exception:  # noqa: BLE001 — le nettoyage ne doit jamais bloquer les rappels
+        import logging
+
+        logging.getLogger(__name__).exception("Nettoyage des scans de l'hôtel des ventes impossible")
     lead = timedelta(minutes=GuildSettings.load().reminder_minutes)
 
     due_events = (

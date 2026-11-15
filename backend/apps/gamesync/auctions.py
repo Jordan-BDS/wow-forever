@@ -1,7 +1,12 @@
 """
 Prix de l'hôtel des ventes : le compagnon de chaque membre envoie chaque scan complet lu dans le fichier de
-l'addon de scan, le site les garde tous et en tire l'historique de chaque objet. Envoi et lecture ouverts à
-tous les membres connectés.
+l'addon de scan, le site en tire l'historique de chaque objet. Envoi et lecture ouverts à tous les membres
+connectés.
+
+Un hôtel par jeu de règles : tout nom d'hôtel qui contient « pvp » désigne le même hôtel (`canonical_house`),
+quels que soient le royaume et la faction que l'addon de scan y écrit. Deux scans d'un même hôtel sont espacés
+d'au moins `MIN_GAP` : le premier reçu reste, l'autre est refusé comme un doublon. Les scans sont tous gardés
+`KEEP_ALL`, puis un par jour jusqu'à `KEEP_DAILY`, puis supprimés (`prune`).
 """
 
 import unicodedata
@@ -24,7 +29,11 @@ MAX_PRICE = 10**12
 MAX_LISTED = 10**7
 PAGE_SIZE = 100
 HISTORY_POINTS = 500
-KEEP_ALL = timedelta(days=30)  # tous les scans sont gardés ce temps-là, puis un par jour
+MIN_GAP = timedelta(minutes=30)  # écart minimal entre deux scans d'un même hôtel
+KEEP_ALL = timedelta(days=14)  # tous les scans sont gardés ce temps-là, puis un par jour
+KEEP_DAILY = timedelta(days=183)  # au-delà (six mois), les scans sont supprimés
+PVP_HOUSE = "PvP"  # l'hôtel de tous les royaumes PvP : même jeu de règles, même hôtel
+PRUNE_EVERY = 3600  # s : le balayage périodique ne nettoie pas plus souvent
 ROWS_TTL = (
     300  # s : la comparaison de deux scans (immuables) est gardée en cache, seuls les noms peuvent bouger
 )
@@ -43,6 +52,18 @@ class AuctionError(ValueError):
 
 class DuplicateScan(AuctionError):
     pass
+
+
+class TooCloseScan(DuplicateScan):
+    """Un autre scan du même hôtel existe à moins de `MIN_GAP` : pour le compagnon, c'est un scan déjà reçu
+    (il le retient et ne le renvoie pas)."""
+
+
+def canonical_house(house: Any) -> str:
+    """Le nom sous lequel le site range un hôtel. Tout nom qui contient « pvp », quelle que soit la casse, est
+    le même hôtel : `PVP_HOUSE`. Les autres gardent leur nom, espaces resserrés. Vide si illisible."""
+    house = " ".join(house.split()) if isinstance(house, str) else ""
+    return PVP_HOUSE if "pvp" in house.lower() else house
 
 
 def can_upload(user) -> bool:
@@ -78,8 +99,9 @@ def _rows(raw: Any) -> dict[int, tuple[int, int | None]]:
 def store_scan(
     user, house: Any, scanned_at: Any, items: Any, *, device: CompanionDevice | None = None
 ) -> AuctionScan:
-    """Enregistre un scan. `DuplicateScan` si cet hôtel a déjà un scan à cet instant."""
-    house = " ".join(house.split()) if isinstance(house, str) else ""
+    """Enregistre un scan. `DuplicateScan` si cet hôtel a déjà un scan à cet instant, `TooCloseScan` s'il en a
+    un à moins de `MIN_GAP` (avant ou après : les scans n'arrivent pas forcément dans l'ordre)."""
+    house = canonical_house(house)
     if not house or len(house) > 96:
         raise AuctionError("Hôtel des ventes manquant ou trop long.")
     stamp = _int(scanned_at)
@@ -92,6 +114,12 @@ def store_scan(
     if when > timezone.now() + timedelta(days=1):
         raise AuctionError("Le scan est daté dans le futur.")
     rows = _rows(items)
+    near = AuctionScan.objects.filter(
+        house=house, scanned_at__gt=when - MIN_GAP, scanned_at__lt=when + MIN_GAP
+    ).exclude(scanned_at=when)
+    if near.exists():
+        minutes = int(MIN_GAP.total_seconds() // 60)
+        raise TooCloseScan(f"Un scan de cet hôtel fait à moins de {minutes} minutes a déjà été reçu.")
     try:
         with transaction.atomic():
             scan = AuctionScan.objects.create(
@@ -110,13 +138,17 @@ def store_scan(
     return scan
 
 
-def prune(house: str) -> int:
-    """Au-delà de KEEP_ALL, un hôtel ne garde qu'un scan par jour (le dernier du jour) : la courbe reste, la
-    table ne grossit plus de chaque scan. Renvoie le nombre de scans supprimés."""
-    kept_days, doomed = set(), []
-    old = AuctionScan.objects.filter(house=house, scanned_at__lt=timezone.now() - KEEP_ALL)
-    for pk, scanned_at in old.order_by("-scanned_at").values_list("pk", "scanned_at"):
-        day = timezone.localtime(scanned_at).date()
+def prune(house: str | None = None) -> int:
+    """Nettoie un hôtel, ou tous (`None`). Au-delà de KEEP_DAILY, les scans sont supprimés ; entre KEEP_ALL et
+    KEEP_DAILY, il n'en reste qu'un par jour (le dernier du jour) : la courbe reste, la table ne grossit plus.
+    Renvoie le nombre de scans supprimés."""
+    now = timezone.now()
+    scans = AuctionScan.objects.all() if house is None else AuctionScan.objects.filter(house=house)
+    doomed = list(scans.filter(scanned_at__lt=now - KEEP_DAILY).values_list("pk", flat=True))
+    kept_days = set()
+    old = scans.filter(scanned_at__lt=now - KEEP_ALL, scanned_at__gte=now - KEEP_DAILY)
+    for pk, name, scanned_at in old.order_by("-scanned_at").values_list("pk", "house", "scanned_at"):
+        day = (name, timezone.localtime(scanned_at).date())
         if day in kept_days:
             doomed.append(pk)
         else:
@@ -124,6 +156,14 @@ def prune(house: str) -> int:
     if doomed:
         AuctionScan.objects.filter(pk__in=doomed).delete()
     return len(doomed)
+
+
+def prune_due() -> int:
+    """Pour le balayage périodique : nettoie tous les hôtels, une fois par `PRUNE_EVERY` au plus. Sans lui, un
+    hôtel que plus personne ne scanne ne serait jamais nettoyé (`store_scan` ne nettoie que le sien)."""
+    if not cache.add("gamesync:auctions:prune", 1, PRUNE_EVERY):
+        return 0
+    return prune()
 
 
 def scan_summary(scan: AuctionScan) -> dict:
@@ -236,6 +276,7 @@ def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[d
 def overview(house: str = "", q: str = "", sort: str = "name", since: str = "prev", page: int = 1) -> dict:
     """Le dernier scan d'un hôtel, comparé à un scan de référence : une page d'objets filtrés et triés."""
     known = houses()
+    house = canonical_house(house)
     sort = sort if sort in SORTS else "name"
     since = since if since in BASELINES else "prev"
     empty = {
@@ -293,6 +334,7 @@ def overview(house: str = "", q: str = "", sort: str = "name", since: str = "pre
 def item_history(item_id: int, house: str = "") -> dict:
     """Le prix et le nombre d'enchères d'un objet à chaque scan d'un hôtel, du plus ancien au plus récent."""
     known = houses()
+    house = canonical_house(house)
     if known and not any(h["house"] == house for h in known):
         house = known[0]["house"]
     points = list(
@@ -319,7 +361,7 @@ def item_history(item_id: int, house: str = "") -> dict:
 def _latest_scan(house: str) -> AuctionScan | None:
     """Le dernier scan de l'hôtel demandé, ou du plus récemment scanné s'il est inconnu."""
     scans = AuctionScan.objects.order_by("-scanned_at")
-    return scans.filter(house=house).first() or scans.first()
+    return scans.filter(house=canonical_house(house)).first() or scans.first()
 
 
 def set_favorite(user, recipe_id: int, favorite: bool) -> None:

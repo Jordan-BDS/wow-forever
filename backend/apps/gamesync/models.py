@@ -189,7 +189,7 @@ class AuctionScan(models.Model):
     house = models.CharField(
         "Hôtel des ventes",
         max_length=96,
-        help_text="Royaume et faction tels que l'addon de scan les écrit, ex. « Forever-Alliance ».",
+        help_text="« PvP » pour tout hôtel dont le nom contient « pvp », sinon le nom écrit par l'addon.",
     )
     scanned_at = models.DateTimeField("Scanné le")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="auction_scans")
