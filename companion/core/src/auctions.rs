@@ -16,7 +16,6 @@ use serde::Serialize;
 
 use crate::api::SiteClient;
 use crate::config::Config;
-use crate::error::CoreError;
 
 /// L'addon tiers dont on lit le scan (fichier `WTF/Account/<compte>/SavedVariables/NaowhForever.lua`).
 pub const SCAN_ADDON: &str = "NaowhForever";
@@ -27,6 +26,9 @@ pub const AUCTIONATOR: &str = "Auctionator";
 const AUCTIONATOR_DAY_0: i64 = 1_577_836_800;
 /// Un jour compte pour un scan complet s'il a vu au moins ce nombre d'objets, et le tiers de la base.
 const AUCTIONATOR_MIN_ITEMS: usize = 200;
+/// Un scan d'Auctionator part si le fichier a été écrit le jour du scan ou le lendemain. Écrit plus tard, la
+/// base est ancienne (0.7.13 : des prix vieux de cinq jours arrivaient dans l'historique du site).
+const AUCTIONATOR_FRESH_DAYS: i64 = 2;
 
 /// Le scan d'un hôtel des ventes : par objet, le prix le plus bas à l'unité (cuivre) et le nombre d'enchères.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -525,7 +527,7 @@ pub enum AuctionOutcome {
 }
 
 /// Envoie un scan et retient qu'il l'a été : `mark` sous `key` dans `config.last_auction_scans`. `label` : le
-/// nom montré au joueur.
+/// nom montré au joueur. Second retour : la raison donnée par le site quand il n'en veut pas.
 fn send(
     client: &SiteClient,
     config: &mut Config,
@@ -533,23 +535,27 @@ fn send(
     key: String,
     mark: i64,
     label: String,
-) -> AuctionOutcome {
+) -> (AuctionOutcome, Option<String>) {
     match client.upload_auctions(scan) {
-        Ok(()) => {
+        Ok(None) => {
             config.last_auction_scans.insert(key, mark);
-            AuctionOutcome::Sent {
+            let outcome = AuctionOutcome::Sent {
                 house: label,
                 scanned_at: scan.scanned_at,
                 items: scan.items.len(),
-            }
+            };
+            (outcome, None)
         }
-        Err(CoreError::Duplicate) => {
+        Ok(Some(reason)) => {
             config.last_auction_scans.insert(key, mark);
-            AuctionOutcome::Duplicate { house: label }
+            (AuctionOutcome::Duplicate { house: label }, Some(reason))
         }
-        Err(e) => AuctionOutcome::Failed {
-            error: format!("{label} : {e}"),
-        },
+        Err(e) => {
+            let outcome = AuctionOutcome::Failed {
+                error: format!("{label} : {e}"),
+            };
+            (outcome, None)
+        }
     }
 }
 
@@ -561,7 +567,7 @@ pub struct ScanReport {
     pub source: String,
     /// L'hôtel ou le royaume, tel que l'addon l'écrit ; vide quand le constat porte sur le fichier.
     pub house: String,
-    /// sent, duplicate, unchanged, failed, unreadable, no_scan, no_file, not_allowed.
+    /// sent, duplicate, unchanged, failed, unreadable, no_scan, stale, no_file, not_allowed.
     pub kind: String,
     pub detail: String,
     /// Le jour du scan, compté par Auctionator.
@@ -696,15 +702,19 @@ pub fn upload_with_reports(
         for scan in scans {
             let house = scan.house.clone();
             let known = config.last_auction_scans.get(&house).copied().unwrap_or(0);
-            let outcome = if scan.scanned_at <= known {
-                AuctionOutcome::Unchanged {
+            let (outcome, refusal) = if scan.scanned_at <= known {
+                let outcome = AuctionOutcome::Unchanged {
                     house: house.clone(),
-                }
+                };
+                (outcome, None)
             } else {
                 let mark = scan.scanned_at;
                 send(client, config, &scan, house.clone(), mark, house.clone())
             };
             let mut report = ScanReport::of(SCAN_ADDON, &house, &outcome, "");
+            if let Some(reason) = refusal.filter(|reason| !reason.is_empty()) {
+                report.detail = reason;
+            }
             report.file_at = file_at;
             report.items = Some(scan.items.len());
             report.scanned_at = Some(scan.scanned_at);
@@ -771,24 +781,41 @@ pub fn upload_with_reports(
             let day_end = AUCTIONATOR_DAY_0 + (found.day + 1) * 86_400 + 43_200;
             let scanned_at = modified.min(day_end);
             let (day, count) = (found.day, found.items.len());
-            let outcome = if day < known || (day == known && same_prices) {
-                AuctionOutcome::Unchanged { house: label }
+            // Une base ancienne ne part pas : ses prix dateraient de plusieurs jours.
+            if modified > AUCTIONATOR_DAY_0 + (day + AUCTIONATOR_FRESH_DAYS) * 86_400 {
+                let mut report = ScanReport::new(
+                    AUCTIONATOR,
+                    &realm.house,
+                    "stale",
+                    format!("base trop ancienne : le fichier a été écrit plus d'un jour après son dernier scan complet ({note})"),
+                );
+                report.day = Some(day);
+                report.items = Some(count);
+                report.file_at = Some(modified);
+                reports.push(report);
+                continue;
+            }
+            let (outcome, refusal) = if day < known || (day == known && same_prices) {
+                (AuctionOutcome::Unchanged { house: label }, None)
             } else {
                 let scan = HouseScan {
                     house: found.house,
                     scanned_at,
                     items: found.items,
                 };
-                let outcome = send(client, config, &scan, key, day, label);
+                let (outcome, refusal) = send(client, config, &scan, key, day, label);
                 if matches!(
                     outcome,
                     AuctionOutcome::Sent { .. } | AuctionOutcome::Duplicate { .. }
                 ) {
                     config.last_auction_scans.insert(print_key, print);
                 }
-                outcome
+                (outcome, refusal)
             };
             let mut report = ScanReport::of(AUCTIONATOR, &realm.house, &outcome, &note);
+            if let Some(reason) = refusal.filter(|reason| !reason.is_empty()) {
+                report.detail = reason;
+            }
             if !matches!(outcome, AuctionOutcome::Sent { .. }) {
                 report.detail = format!("{} ({note})", report.detail);
             }
@@ -932,6 +959,15 @@ NaowhForeverDB = {
         out
     }
 
+    /// Aujourd'hui, en jours d'Auctionator : le fichier d'un test est écrit maintenant, son scan doit être frais.
+    fn today() -> i64 {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        (now - AUCTIONATOR_DAY_0) / 86_400
+    }
+
     /// 250 objets : les 240 premiers vus le jour 2507 (le scan complet), les autres le jour 2501 seulement.
     fn auctionator_database(scan_day: &str) -> Vec<u8> {
         auctionator_database_priced(scan_day, 10)
@@ -990,9 +1026,10 @@ NaowhForeverDB = {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().join("WTF/Account/WOW1/SavedVariables");
         std::fs::create_dir_all(&dir).unwrap();
+        let day = today();
         std::fs::write(
             dir.join("Auctionator.lua"),
-            auctionator_file(&auctionator_database("2507")),
+            auctionator_file(&auctionator_database(&day.to_string())),
         )
         .unwrap();
         let server = MockServer::start();
@@ -1011,7 +1048,7 @@ NaowhForeverDB = {
             &outcomes[0],
             AuctionOutcome::Sent { house, items: 240, .. } if house == "PvP (Auctionator)"
         ));
-        assert_eq!(config.last_auction_scans["Auctionator:PvP"], 2507);
+        assert_eq!(config.last_auction_scans["Auctionator:PvP"], day);
         assert_eq!(
             upload_once(tmp.path(), &mut config, &client),
             vec![AuctionOutcome::Unchanged {
@@ -1022,7 +1059,7 @@ NaowhForeverDB = {
         // Un second scan le même jour, d'autres prix : il part ; puis plus rien tant que rien ne change.
         std::fs::write(
             dir.join("Auctionator.lua"),
-            auctionator_file(&auctionator_database_priced("2507", 11)),
+            auctionator_file(&auctionator_database_priced(&day.to_string(), 11)),
         )
         .unwrap();
         let outcomes = upload_once(tmp.path(), &mut config, &client);
@@ -1030,7 +1067,7 @@ NaowhForeverDB = {
             &outcomes[0],
             AuctionOutcome::Sent { house, items: 240, .. } if house == "PvP (Auctionator)"
         ));
-        assert_eq!(config.last_auction_scans["Auctionator:PvP"], 2507);
+        assert_eq!(config.last_auction_scans["Auctionator:PvP"], day);
         assert_eq!(upload.hits(), 2);
         assert!(matches!(
             &upload_once(tmp.path(), &mut config, &client)[0],
@@ -1044,13 +1081,72 @@ NaowhForeverDB = {
             (reports[0].source.as_str(), reports[0].house.as_str(), reports[0].kind.as_str()),
             ("Auctionator", "PvP", "unchanged")
         );
-        assert_eq!((reports[0].day, reports[0].items), (Some(2507), Some(240)));
+        assert_eq!((reports[0].day, reports[0].items), (Some(day), Some(240)));
         assert!(reports[0].detail.contains("240 objets") && reports[0].detail.contains("base version 8"));
         // Un jour envoyé par une version d'avant, sans empreinte : il repart une fois.
         config.last_auction_scans.remove("Auctionator:PvP:prix");
         upload_once(tmp.path(), &mut config, &client);
         assert_eq!(upload.hits(), 3);
         assert!(config.last_auction_scans.contains_key("Auctionator:PvP:prix"));
+    }
+
+    #[test]
+    fn an_old_auctionator_base_is_not_sent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("WTF/Account/WOW1/SavedVariables");
+        std::fs::create_dir_all(&dir).unwrap();
+        // Dernier scan complet il y a cinq jours, fichier écrit maintenant.
+        let old = today() - 5;
+        std::fs::write(
+            dir.join("Auctionator.lua"),
+            auctionator_file(&auctionator_database(&old.to_string())),
+        )
+        .unwrap();
+        let server = MockServer::start();
+        status(&server, true);
+        let upload = server.mock(|when, then| {
+            when.method(POST).path("/api/sync/auctions/");
+            then.status(201).json_body(serde_json::json!({ "id": 1 }));
+        });
+        let client = SiteClient::new(&server.base_url(), Some("tok".into()));
+        let mut config = Config::default();
+        config.token = Some("tok".into());
+        let (outcomes, reports) = upload_with_reports(tmp.path(), &mut config, &client);
+        assert!(outcomes.is_empty());
+        assert_eq!(upload.hits(), 0);
+        assert_eq!(reports[0].kind, "stale");
+        assert_eq!((reports[0].day, reports[0].items), (Some(old), Some(240)));
+        assert!(config.last_auction_scans.is_empty());
+        // Le scan de la veille part encore.
+        std::fs::write(
+            dir.join("Auctionator.lua"),
+            auctionator_file(&auctionator_database(&(today() - 1).to_string())),
+        )
+        .unwrap();
+        let (outcomes, _) = upload_with_reports(tmp.path(), &mut config, &client);
+        assert!(matches!(&outcomes[0], AuctionOutcome::Sent { .. }));
+    }
+
+    #[test]
+    fn the_site_says_why_it_refuses_a_scan() {
+        let tmp = tempfile::tempdir().unwrap();
+        game_with_scan(tmp.path(), SAMPLE);
+        let server = MockServer::start();
+        status(&server, true);
+        server.mock(|when, then| {
+            when.method(POST).path("/api/sync/auctions/");
+            then.status(409)
+                .json_body(serde_json::json!({ "detail": "Scan partiel : 3 objets." }));
+        });
+        let client = SiteClient::new(&server.base_url(), Some("tok".into()));
+        let mut config = Config::default();
+        config.token = Some("tok".into());
+        let (outcomes, reports) = upload_with_reports(tmp.path(), &mut config, &client);
+        assert!(matches!(&outcomes[0], AuctionOutcome::Duplicate { .. }));
+        assert_eq!(reports[0].kind, "duplicate");
+        assert_eq!(reports[0].detail, "Scan partiel : 3 objets.");
+        // Retenu : il ne repart pas.
+        assert_eq!(config.last_auction_scans["Forever-Alliance"], 1794342484);
     }
 
     #[test]

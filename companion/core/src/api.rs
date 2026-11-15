@@ -335,8 +335,9 @@ impl SiteClient {
         }
     }
 
-    /// Envoie un scan complet de l'hôtel des ventes. `Err(Duplicate)` si le site l'a déjà.
-    pub fn upload_auctions(&self, scan: &crate::auctions::HouseScan) -> Result<()> {
+    /// Envoie un scan complet de l'hôtel des ventes. `Ok(None)` : enregistré ; `Ok(Some(raison))` : le site n'en
+    /// veut pas et le dit (déjà reçu, trop proche d'un autre, partiel), inutile de le renvoyer.
+    pub fn upload_auctions(&self, scan: &crate::auctions::HouseScan) -> Result<Option<String>> {
         let response = self
             .authed(self.http.post(self.url("auctions/")))
             .json(&serde_json::json!({
@@ -346,8 +347,14 @@ impl SiteClient {
             }))
             .send()?;
         match response.status().as_u16() {
-            200 | 201 => Ok(()),
-            409 => Err(CoreError::Duplicate),
+            200 | 201 => Ok(None),
+            409 => Ok(Some(
+                response
+                    .json::<ErrorBody>()
+                    .ok()
+                    .and_then(|body| body.detail)
+                    .unwrap_or_default(),
+            )),
             _ => Err(Self::error_from(response)),
         }
     }
