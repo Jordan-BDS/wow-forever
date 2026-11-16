@@ -20,6 +20,11 @@ const DAY = 86_400_000;
 const MARGIN = { top: 10, right: 16, bottom: 24, left: 92 };
 const PRICE_COLOR = "var(--color-gold)";
 const LISTED_COLOR = "#8fb0ea";
+const BUY_COLOR = "var(--color-success)";
+const SELL_COLOR = "var(--color-danger)";
+
+/** Les seuils du joueur sur l'objet, en cuivre : tracés en travers de la courbe des prix. */
+type Thresholds = { buy: number | null; sell: number | null };
 const MAX_DOTS = 40; // au-delà, les points se touchent : la ligne seule
 
 const dayFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" });
@@ -48,15 +53,24 @@ function useWidth() {
 }
 
 /** Historique d'un objet dans un hôtel des ventes : chargé à l'ouverture, puis tracé. */
-export function ItemPriceHistory({ itemId, house }: { itemId: number; house: string }) {
+export function ItemPriceHistory({
+  itemId,
+  house,
+  thresholds,
+}: {
+  itemId: number;
+  house: string;
+  thresholds?: Thresholds;
+}) {
   const history = useAuctionHistory(itemId, house);
   if (history.isError) return <p className="text-xs text-danger">Historique indisponible.</p>;
   if (!history.data) return <Spinner />;
-  return <PriceHistory points={history.data.points} />;
+  return <PriceHistory points={history.data.points} thresholds={thresholds} />;
 }
 
-/** Courbe du prix le plus bas et du nombre d'enchères d'un objet, scan après scan. */
-export function PriceHistory({ points }: { points: Point[] }) {
+/** Courbe du prix le plus bas et du nombre d'enchères d'un objet, scan après scan. Les seuils du joueur, s'il
+ * en a, la traversent : prix d'achat en vert, prix de vente en rouge. */
+export function PriceHistory({ points, thresholds }: { points: Point[]; thresholds?: Thresholds }) {
   // La période affichée : null = tout l'historique. Les raccourcis et la réglette du bas la changent tous les deux.
   const [period, setPeriod] = useState<Period | null>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -123,6 +137,13 @@ export function PriceHistory({ points }: { points: Point[] }) {
   const average = Math.round(prices.reduce((sum, price) => sum + price, 0) / prices.length);
   const change = Math.round(((last.price - first.price) * 1000) / first.price) / 10;
   const listed = visible.filter((p) => p.listed != null);
+  const marks = [
+    { v: thresholds?.buy ?? null, color: BUY_COLOR, label: "achat" },
+    { v: thresholds?.sell ?? null, color: SELL_COLOR, label: "vente" },
+  ].flatMap((m) => (m.v == null ? [] : [{ ...m, v: m.v, label: `${m.label} : ${formatMoney(m.v)}` }]));
+  // L'échelle s'étend jusqu'aux seuils : une ligne hors du cadre ne dirait rien.
+  const low = Math.min(min, ...marks.map((m) => m.v));
+  const high = Math.max(max, ...marks.map((m) => m.v));
 
   const plotWidth = Math.max(60, width - MARGIN.left - MARGIN.right);
   const span = Math.max(1, last.t - first.t);
@@ -189,8 +210,9 @@ export function PriceHistory({ points }: { points: Point[] }) {
           height={220}
           color={PRICE_COLOR}
           series={visible.map((p) => ({ t: p.t, v: p.price }))}
-          ticks={niceTicks(min, max, 4)}
+          ticks={niceTicks(low, high, 4)}
           format={formatMoney}
+          marks={marks}
           xTicks={xTicks.map((t) => ({ t, label: tickFormat.format(t) }))}
           label={`Prix de ${formatMoney(first.price)} à ${formatMoney(last.price)} sur ${visible.length} scans`}
         />
@@ -433,6 +455,7 @@ function Plot({
   hoverT,
   xTicks,
   label,
+  marks,
 }: {
   width: number;
   height: number;
@@ -444,6 +467,8 @@ function Plot({
   hoverT: number | null;
   xTicks?: { t: number; label: string }[];
   label: string;
+  /** Lignes horizontales en pointillés, nommées au bord droit. */
+  marks?: { v: number; color: string; label: string }[];
 }) {
   const top = MARGIN.top;
   const bottom = height - (xTicks ? MARGIN.bottom : 8);
@@ -501,6 +526,31 @@ function Plot({
         strokeLinejoin="round"
         strokeLinecap="round"
       />
+      {marks?.map((mark) => (
+        <g key={mark.label}>
+          <line
+            x1={MARGIN.left}
+            x2={width - MARGIN.right}
+            y1={y(mark.v)}
+            y2={y(mark.v)}
+            stroke={mark.color}
+            strokeWidth="1.5"
+            strokeDasharray="6 4"
+          />
+          <text
+            x={width - MARGIN.right - 4}
+            y={y(mark.v) - 5 < top + 8 ? y(mark.v) + 13 : y(mark.v) - 5}
+            textAnchor="end"
+            fontSize="11"
+            fill={mark.color}
+            stroke="var(--color-bg)"
+            strokeWidth="3"
+            paintOrder="stroke"
+          >
+            {mark.label}
+          </text>
+        </g>
+      ))}
       {series.length <= MAX_DOTS &&
         series.map((p) => (
           <circle

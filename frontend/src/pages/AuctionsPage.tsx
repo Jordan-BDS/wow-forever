@@ -397,7 +397,11 @@ function AuctionItem({
       {alerts && <AlertEditor row={row} onDone={() => setAlerts(false)} />}
       {open && (
         <div className="px-3 pb-4">
-          <ItemPriceHistory itemId={row.item_id} house={house} />
+          <ItemPriceHistory
+            itemId={row.item_id}
+            house={house}
+            thresholds={{ buy: row.buy_price, sell: row.sell_price }}
+          />
         </div>
       )}
     </li>
