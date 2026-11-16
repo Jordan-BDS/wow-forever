@@ -507,7 +507,8 @@ def overview(
 
 
 def item_history(item_id: int, house: str = "") -> dict:
-    """Le prix et le nombre d'enchères d'un objet à chaque scan d'un hôtel, du plus ancien au plus récent."""
+    """Le prix et le nombre d'enchères d'un objet à chaque scan d'un hôtel, du plus ancien au plus récent,
+    avec le nom affiché du membre qui a envoyé le scan."""
     known = houses()
     house = canonical_house(house)
     if known and not any(h["house"] == house for h in known):
@@ -515,11 +516,11 @@ def item_history(item_id: int, house: str = "") -> dict:
     points = list(
         AuctionPrice.objects.filter(item_id=item_id, scan__house=house)
         .order_by("-scan__scanned_at")
-        .values_list("scan__scanned_at", "price", "listed")[:HISTORY_POINTS]
+        .values_list("scan__scanned_at", "price", "listed", "scan__user__display_name")[:HISTORY_POINTS]
     )
     points.reverse()
     item = Item.objects.filter(id=item_id).values("name", "quality", "icon").first()
-    prices = [price for _, price, _ in points]
+    prices = [price for _, price, _, _ in points]
     return {
         "item_id": item_id,
         "house": house,
@@ -529,7 +530,9 @@ def item_history(item_id: int, house: str = "") -> dict:
         "min": min(prices) if prices else None,
         "max": max(prices) if prices else None,
         "average": round(sum(prices) / len(prices)) if prices else None,
-        "points": [{"at": at, "price": price, "listed": listed} for at, price, listed in points],
+        "points": [
+            {"at": at, "price": price, "listed": listed, "by": by} for at, price, listed, by in points
+        ],
     }
 
 

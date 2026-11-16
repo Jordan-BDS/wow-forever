@@ -409,6 +409,7 @@ class TestRead:
         data = api_client.get("/api/sync/auctions/items/2589/", {"house": HOUSE}).json()
         assert [(p["price"], p["listed"]) for p in data["points"]] == [(50, 10), (80, 6), (100, 3)]
         assert (data["name"], data["min"], data["max"], data["average"]) == ("Étoffe de lin", 50, 100, 77)
+        assert {p["by"] for p in data["points"]} == {gm.display_name}
         assert api_client.get("/api/sync/auctions/items/424242/").json()["points"] == []
 
     def test_empty_site_answers_an_empty_page(self, api_client, as_user, gm):

@@ -64,7 +64,8 @@ export type AuctionHistory = {
   min: number | null;
   max: number | null;
   average: number | null;
-  points: { at: string; price: number; listed: number | null }[];
+  /** `by` : le membre dont le compagnon a envoyé le scan. */
+  points: { at: string; price: number; listed: number | null; by: string }[];
 };
 
 export type AuctionFilters = {

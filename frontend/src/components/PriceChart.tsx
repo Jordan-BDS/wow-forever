@@ -216,7 +216,7 @@ export function PriceHistory({ points }: { points: Point[] }) {
             }
           >
             <div>{formatDateTime(hovered.at)}</div>
-            <div className="mt-1 flex items-center gap-2">
+            <div className="mt-1flex items-center gap-2">
               <span className="h-0.5 w-3 rounded-full" style={{ background: PRICE_COLOR }} />
               <span className="font-mono text-sm font-semibold text-text">{formatMoney(hovered.price)}</span>
             </div>
@@ -227,6 +227,7 @@ export function PriceHistory({ points }: { points: Point[] }) {
                 {hovered.listed > 1 ? "s" : ""}
               </div>
             )}
+            {hovered.by && <div className="mt-1">envoyé par {hovered.by}</div>}
           </div>
         )}
       </div>
