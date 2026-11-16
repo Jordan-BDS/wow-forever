@@ -2,8 +2,9 @@
 -- recharger l'interface. Le jeu n'écrit les prix sur le disque qu'au /reload ou à la déconnexion, et c'est le
 -- fichier écrit que le compagnon envoie au site de la guilde. Notre addon ne scanne rien lui-même.
 --
--- Auctionator publie la fin d'un scan complet sur son bus d'événements (`Auctionator.FullScan.Events.ScanComplete`,
--- lu dans sa version 309). On ne passe pas par son API publique (`RegisterForDBUpdate`) : elle se déclenche aussi
+-- Auctionator publie la fin d'un scan complet sur son bus d'événements (`Auctionator.FullScan.Events.ScanComplete`
+-- et, sur un client à hôtel des ventes moderne, `Auctionator.IncrementalScan.Events.ScanComplete` : le scan page
+-- par page de son bouton ; lus dans sa version 309). On ne passe pas par son API publique (`RegisterForDBUpdate`) : elle se déclenche aussi
 -- à chaque recherche à la main. Si le bus ou l'événement manque (autre version), rien ne se passe.
 --
 -- NaowhForever n'annonce rien qu'on connaisse : on lit sa table de prix en mémoire tant que l'hôtel des ventes
@@ -64,13 +65,20 @@ local function hookAuctionator()
   if hooked then return end
   local auctionator = _G.Auctionator
   if type(auctionator) ~= "table" then return end
-  local bus, scan = auctionator.EventBus, auctionator.FullScan
-  local event = type(scan) == "table" and type(scan.Events) == "table" and scan.Events.ScanComplete or nil
-  if not (event and type(bus) == "table" and type(bus.Register) == "function") then return end
+  local bus = auctionator.EventBus
+  -- Deux sortes de scan complet selon le client : par copie de tout l'hôtel (`FullScan`), ou page par page
+  -- (`IncrementalScan`, le bouton de scan des clients à hôtel des ventes moderne, absent des autres).
+  local events = {}
+  for _, name in ipairs({ "FullScan", "IncrementalScan" }) do
+    local scan = auctionator[name]
+    local event = type(scan) == "table" and type(scan.Events) == "table" and scan.Events.ScanComplete or nil
+    if event then events[#events + 1] = event end
+  end
+  if not (#events > 0 and type(bus) == "table" and type(bus.Register) == "function") then return end
   hooked = true
   bus:Register(
     { ReceiveEvent = function() ns.Safe("auctionscan.auctionator", M.Suggest, "Auctionator") end },
-    { event }
+    events
   )
 end
 

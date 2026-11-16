@@ -946,7 +946,11 @@ class TestSession:
         g = lua.globals()
         # Auctionator : son bus d'événements tel que sa version 309 l'expose ; NaowhForever : sa table de prix.
         lua.execute("""
-          Auctionator = { FullScan = { Events = { ScanComplete = "get_all_scan_complete" } }, EventBus = { listeners = {} } }
+          Auctionator = {
+            FullScan = { Events = { ScanComplete = "get_all_scan_complete" } },
+            IncrementalScan = { Events = { ScanComplete = "full_incremental_scan_complete" } },
+            EventBus = { listeners = {} },
+          }
           function Auctionator.EventBus:Register(listener, events)
             for _, event in ipairs(events) do self.listeners[event] = listener end
             return self
@@ -977,6 +981,10 @@ class TestSession:
         assert popup(g) is None  # une fois par scan
         # Auctionator finit un scan complet.
         scan_ends()
+        assert popup(g).which == "WFG_SCAN_RELOAD" and "Auctionator" in popup(g).message
+        dismiss(g)
+        # Son scan page par page (le bouton de scan d'un client à hôtel des ventes moderne) aussi.
+        g.Auctionator.EventBus.Fire(g.Auctionator.EventBus, "full_incremental_scan_complete")
         assert popup(g).which == "WFG_SCAN_RELOAD" and "Auctionator" in popup(g).message
         dismiss(g)
         # En combat, la question attend la fin du combat.

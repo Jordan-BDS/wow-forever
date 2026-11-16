@@ -55,3 +55,17 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - run: npm run build
+
+  companion:
+    # Le cœur du compagnon seul : la fenêtre Tauri n'est construite que par le workflow de release. Sous
+    # Windows, le système de la plupart des joueurs.
+    name: Compagnon (cargo test)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: companion -> target
+      - run: cargo test -p companion-core --locked
+        working-directory: companion
