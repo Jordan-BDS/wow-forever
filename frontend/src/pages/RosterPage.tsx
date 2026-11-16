@@ -4,7 +4,7 @@ import type { Character, GameRole } from "@/api/client";
 import { useCharacters, useGameData } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { CharacterName, ClassDot, ClassName, GameRoleTag, LevelBadge } from "@/components/game";
-import { Button, Card, PageTitle, Select, Spinner } from "@/components/ui";
+import { Button, Card, PageTitle, Select, PageSkeleton } from "@/components/ui";
 import { GAME_ROLES, ROLE_LABEL, findClass, specName } from "@/lib/game";
 import { isOfficerOrAbove } from "@/lib/roles";
 import { COMPOSITION_MODES, type CompositionMode, groupByOwner, summarize } from "@/lib/roster";
@@ -39,7 +39,7 @@ export function RosterPage() {
       return next;
     });
 
-  if (characters.isPending || gamedata.isPending) return <Spinner />;
+  if (characters.isPending || gamedata.isPending) return <PageSkeleton />;
 
   return (
     <>

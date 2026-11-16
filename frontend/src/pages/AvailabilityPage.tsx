@@ -1,13 +1,13 @@
 import { Link } from "react-router";
 import { useGuildAvailability, useMembers } from "@/api/hooks";
 import { AvailabilityGrid } from "@/components/AvailabilityGrid";
-import { Button, Card, PageTitle, Spinner } from "@/components/ui";
+import { Button, Card, PageTitle, PageSkeleton } from "@/components/ui";
 import { namesByCell } from "@/lib/availability";
 
 export function AvailabilityPage() {
   const availability = useGuildAvailability();
   const members = useMembers();
-  if (availability.isPending || members.isPending) return <Spinner />;
+  if (availability.isPending || members.isPending) return <PageSkeleton />;
 
   const slots = availability.data ?? [];
   const contributors = new Set(slots.map((s) => s.user)).size;

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useCharacters, useGameData } from "@/api/hooks";
 import { ClassDot, ClassName } from "@/components/game";
-import { Card, PageTitle, Select, Spinner } from "@/components/ui";
+import { Card, PageTitle, Select, PageSkeleton } from "@/components/ui";
 import { findClass } from "@/lib/game";
 
 export function ProfessionsPage() {
@@ -23,7 +23,7 @@ export function ProfessionsPage() {
     );
   }, [characters.data, filter]);
 
-  if (characters.isPending || gamedata.isPending) return <Spinner />;
+  if (characters.isPending || gamedata.isPending) return <PageSkeleton />;
   const professions = gamedata.data?.professions ?? [];
 
   return (

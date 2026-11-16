@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useGuild } from "@/api/guild";
+import { usePrefetchPage } from "@/api/prefetch";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { useLogout } from "@/auth/useMe";
 import { SECTIONS, isSectionActive } from "@/lib/navigation";
@@ -15,6 +16,7 @@ export function Layout() {
   const logout = useLogout();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const prefetch = usePrefetchPage();
   const title = guild.data?.name || "WoW Forever";
   useEffect(() => {
     document.title = guild.data?.name ? `${guild.data.name} — WoW Forever` : "WoW Forever — Guilde";
@@ -58,6 +60,8 @@ export function Layout() {
                 <NavLink
                   key={section.to}
                   to={section.to}
+                  onPointerEnter={() => prefetch(section.to)}
+                  onFocus={() => prefetch(section.to)}
                   className={clsx(
                     "whitespace-nowrap px-3 py-2 transition-colors",
                     active

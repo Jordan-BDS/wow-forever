@@ -18,7 +18,7 @@ import { useState } from "react";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ClassName, GameRoleTag, LevelBadge } from "@/components/game";
 import { RolesToConfirmBadge, SyncBadge } from "@/components/SyncBadge";
-import { Button, Card, PageTitle, Spinner } from "@/components/ui";
+import { Button, Card, PageTitle, PageSkeleton, Spinner } from "@/components/ui";
 import { findClass, findRace, specName } from "@/lib/game";
 import { isOfficerOrAbove } from "@/lib/roles";
 
@@ -52,7 +52,7 @@ export function CharacterPage() {
     },
   });
 
-  if (characters.isPending || gamedata.isPending) return <Spinner />;
+  if (characters.isPending || gamedata.isPending) return <PageSkeleton />;
   const character = characters.data?.find((c) => c.id === id);
   if (!character) return <Navigate to="/roster" replace />;
 

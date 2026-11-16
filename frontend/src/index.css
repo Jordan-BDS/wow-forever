@@ -148,3 +148,35 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Squelette de page : invisible 150 ms (une réponse rapide ne clignote pas), puis une pulsation lente. */
+.skeleton {
+  opacity: 0;
+  animation:
+    skeleton-in 0.2s ease-out 0.15s forwards,
+    skeleton-pulse 1.6s ease-in-out 0.35s infinite;
+}
+
+@keyframes skeleton-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    opacity: 1;
+    animation: none;
+  }
+}

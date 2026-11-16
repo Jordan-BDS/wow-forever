@@ -1,5 +1,5 @@
 // Primes posées à la main sur des joueurs ou des guildes adverses : liste, pose, annulation, paiements déclarés, registre des dettes.
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 
 export type BountyUser = { id: number; display_name: string };
@@ -75,16 +75,18 @@ export type NewBounty = {
 
 const KEY = ["sync", "bounties"] as const;
 
+export const bountiesQuery = queryOptions({
+  queryKey: KEY,
+  staleTime: 30_000,
+  queryFn: async () => {
+    const { data, error } = await api.GET("/api/sync/bounties/");
+    if (error || !data) throw error ?? new Error();
+    return data as unknown as BountyReport;
+  },
+});
+
 export function useBounties() {
-  return useQuery({
-    queryKey: KEY,
-    staleTime: 30_000,
-    queryFn: async () => {
-      const { data, error } = await api.GET("/api/sync/bounties/");
-      if (error || !data) throw error ?? new Error();
-      return data as unknown as BountyReport;
-    },
-  });
+  return useQuery(bountiesQuery);
 }
 
 /** Chaque action renvoie la page entière à jour : elle remplace celle en cache. */

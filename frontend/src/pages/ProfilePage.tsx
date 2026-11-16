@@ -6,7 +6,7 @@ import { useCurrentUser } from "@/auth/useCurrentUser";
 import { ME_KEY } from "@/auth/useMe";
 import { AvailabilityGrid } from "@/components/AvailabilityGrid";
 import { PendingCharactersCard, SyncJourney } from "@/components/GameSync";
-import { Button, Card, Field, Input, PageTitle, Spinner } from "@/components/ui";
+import { Button, Card, Field, Input, PageTitle, PageSkeleton } from "@/components/ui";
 import { cellsToSlots, slotsToCells } from "@/lib/availability";
 
 type DmKind = "placement" | "reminder" | "craft" | "auction";
@@ -25,7 +25,7 @@ const DM_KINDS: { key: DmKind; label: string; help: string }[] = [
 export function ProfilePage() {
   const me = useCurrentUser();
   const availability = useMyAvailability();
-  if (availability.isPending) return <Spinner />;
+  if (availability.isPending) return <PageSkeleton />;
   return (
     <>
       <PageTitle>Mon profil</PageTitle>

@@ -3,7 +3,7 @@ import { useCharacters, useGameData, useGuildAvailability, useMembers } from "@/
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { AvailabilityGrid } from "@/components/AvailabilityGrid";
 import { CharacterName, ClassDot, GameRoleTag, LevelBadge } from "@/components/game";
-import { Button, Card, PageTitle, RoleBadge, Spinner } from "@/components/ui";
+import { Button, Card, PageTitle, RoleBadge, PageSkeleton } from "@/components/ui";
 import { namesByCell } from "@/lib/availability";
 import { findClass } from "@/lib/game";
 
@@ -15,7 +15,7 @@ export function MemberPage() {
   const gamedata = useGameData();
   const availability = useGuildAvailability();
 
-  if (members.isPending || characters.isPending || gamedata.isPending) return <Spinner />;
+  if (members.isPending || characters.isPending || gamedata.isPending) return <PageSkeleton />;
   const member = members.data?.find((m) => m.id === id);
   if (!member) return <Navigate to="/membres" replace />;
 

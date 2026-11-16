@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { NavLink, Outlet, useLocation } from "react-router";
+import { usePrefetchPage } from "@/api/prefetch";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { SECTIONS, isSectionActive, visibleTabs } from "@/lib/navigation";
 
@@ -7,6 +8,7 @@ import { SECTIONS, isSectionActive, visibleTabs } from "@/lib/navigation";
 export function SectionLayout() {
   const me = useCurrentUser();
   const { pathname } = useLocation();
+  const prefetch = usePrefetchPage();
   const section = SECTIONS.find((s) => s.tabs && isSectionActive(s, pathname));
   const tabs = section ? visibleTabs(section, me.site_role) : [];
 
@@ -21,6 +23,8 @@ export function SectionLayout() {
             <NavLink
               key={tab.to}
               to={tab.to}
+              onPointerEnter={() => prefetch(tab.to)}
+              onFocus={() => prefetch(tab.to)}
               className={({ isActive }) =>
                 clsx(
                   "whitespace-nowrap px-3 py-2 transition-colors",

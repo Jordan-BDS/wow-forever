@@ -4,7 +4,7 @@ import { Navigate } from "react-router";
 import { api, errorMessage, fieldErrors, type Faction, type GuildSettings } from "@/api/client";
 import { GUILD_KEY, useGuild } from "@/api/guild";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { Button, Card, Field, Input, PageTitle, Select, Spinner, Textarea } from "@/components/ui";
+import { Button, Card, Field, Input, PageTitle, Select, PageSkeleton, Textarea } from "@/components/ui";
 import { FACTION_LABELS } from "@/lib/roles";
 
 /** Paramètres de la guilde : réservés au GM. */
@@ -12,7 +12,7 @@ export function GuildPage() {
   const me = useCurrentUser();
   const guild = useGuild();
   if (me.site_role !== "gm") return <Navigate to="/roster" replace />;
-  if (!guild.data) return <Spinner />;
+  if (!guild.data) return <PageSkeleton />;
   return (
     <>
       <PageTitle>Paramètres de la guilde</PageTitle>

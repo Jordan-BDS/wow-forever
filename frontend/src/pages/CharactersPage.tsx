@@ -4,7 +4,7 @@ import { useCharacters, useGameData } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { CharacterName, GameRoleTag, LevelBadge } from "@/components/game";
 import { RolesToConfirmBadge, SyncBadge } from "@/components/SyncBadge";
-import { PageTitle, Spinner } from "@/components/ui";
+import { PageTitle, PageSkeleton } from "@/components/ui";
 import { findClass, findRace, specName } from "@/lib/game";
 
 /** Mes personnages en cartes, avec une carte « + » pour en créer un. */
@@ -13,7 +13,7 @@ export function CharactersPage() {
   const characters = useCharacters();
   const gamedata = useGameData();
 
-  if (characters.isPending || gamedata.isPending) return <Spinner />;
+  if (characters.isPending || gamedata.isPending) return <PageSkeleton />;
   const mine = (characters.data ?? [])
     .filter((c) => c.owner.id === me.id)
     .sort((a, b) => Number(b.is_main) - Number(a.is_main) || (b.level ?? 0) - (a.level ?? 0));

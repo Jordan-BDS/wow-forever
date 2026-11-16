@@ -128,6 +128,21 @@ export function PageSpinner() {
   );
 }
 
+/** L'ombre d'une page le temps que ses données arrivent : un titre et trois cartes vides, à la place de la
+ * roue seule. Elle n'apparaît qu'après un court délai : une réponse rapide ne fait rien clignoter. */
+export function PageSkeleton() {
+  return (
+    <div role="status" aria-label="Chargement" className="skeleton">
+      <div className="mb-6 h-9 w-64 max-w-full rounded-sm bg-surface-2/80" />
+      <div className="space-y-4">
+        <div className="h-24 rounded-md border border-border/60 bg-surface/70" />
+        <div className="h-56 rounded-md border border-border/60 bg-surface/70" />
+        <div className="h-32 rounded-md border border-border/60 bg-surface/70" />
+      </div>
+    </div>
+  );
+}
+
 /** Titre de page en capitales romaines gravées, souligné d'un court filet d'or. */
 export function PageTitle({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) {
   return (

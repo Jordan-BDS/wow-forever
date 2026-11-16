@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router";
 import { api, fieldErrors, type Poll } from "@/api/client";
 import { KEYS, useInvalidate, usePolls } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { Button, Card, Field, Input, PageTitle, Select, Spinner } from "@/components/ui";
+import { Button, Card, Field, Input, PageTitle, Select, PageSkeleton } from "@/components/ui";
 import { POLL_STATUS_LABEL, formatDateTime, formatRemaining, toLocalInput } from "@/lib/game";
 import { isOfficerOrAbove } from "@/lib/roles";
 
@@ -12,7 +12,7 @@ export function PollsPage() {
   const me = useCurrentUser();
   const polls = usePolls();
   const [creating, setCreating] = useState(false);
-  if (polls.isPending) return <Spinner />;
+  if (polls.isPending) return <PageSkeleton />;
 
   const list = polls.data ?? [];
   const open = list.filter((p) => p.status === "proposals" || p.status === "votes");

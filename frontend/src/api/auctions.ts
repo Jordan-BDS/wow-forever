@@ -1,6 +1,6 @@
 // Prix de l'hôtel des ventes (tous les membres) : dernier scan comparé à un scan de référence, historique par objet,
 // objets favoris.
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 
 /** « sold » et « posted » : enchères parties ou arrivées depuis le scan de référence (estimation). */
@@ -84,12 +84,21 @@ export type AuctionFilters = {
   favorites: boolean;
 };
 
-export function useAuctions(filters: AuctionFilters, enabled: boolean) {
-  return useQuery({
+/** Les filtres de la page à son ouverture. */
+export const DEFAULT_AUCTION_FILTERS: AuctionFilters = {
+  house: "",
+  q: "",
+  sort: "name",
+  since: "prev",
+  page: 1,
+  category: "",
+  favorites: false,
+};
+
+export function auctionsQuery(filters: AuctionFilters) {
+  return queryOptions({
     queryKey: ["sync", "auctions", filters] as const,
-    enabled,
     staleTime: 60_000,
-    placeholderData: (previous) => previous,
     queryFn: async () => {
       const { data, error } = await api.GET("/api/sync/auctions/", {
         params: {
@@ -106,6 +115,10 @@ export function useAuctions(filters: AuctionFilters, enabled: boolean) {
       return data as unknown as AuctionOverview;
     },
   });
+}
+
+export function useAuctions(filters: AuctionFilters, enabled: boolean) {
+  return useQuery({ ...auctionsQuery(filters), enabled, placeholderData: (previous) => previous });
 }
 
 /** Ce qu'un compagnon a fait d'un fichier de scan (Auctionator, NaowhForever) : le constat le plus récent d'abord. */

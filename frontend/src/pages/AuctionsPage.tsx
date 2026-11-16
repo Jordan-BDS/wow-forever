@@ -14,7 +14,7 @@ import {
 } from "@/api/auctions";
 import { errorMessage } from "@/api/client";
 import { ItemPriceHistory } from "@/components/PriceChart";
-import { Button, Card, Input, PageTitle, Pill, Select, Spinner } from "@/components/ui";
+import { Button, Card, Input, PageTitle, Pill, Select, PageSkeleton } from "@/components/ui";
 import { WowheadLink } from "@/components/wowhead";
 import { formatDateTime } from "@/lib/game";
 import { useDebounced } from "@/lib/useDebounced";
@@ -54,7 +54,7 @@ export function AuctionsPage() {
   useWowheadTooltips([auctions.data]);
 
   if (auctions.isError) return <p className="text-sm text-danger">Impossible de charger les prix.</p>;
-  if (!auctions.data) return <Spinner />;
+  if (!auctions.data) return <PageSkeleton />;
   const data = auctions.data;
 
   if (!data.scan) {

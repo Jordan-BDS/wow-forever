@@ -1,5 +1,5 @@
 // Fiche vivante et classements : les réponses sont des objets libres côté OpenAPI, typés ici à la main.
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { api } from "./client";
 
 export type Tile = { total: number; week: number };
@@ -227,8 +227,8 @@ export function useCharacterProgress(characterId: number) {
   });
 }
 
-export function useRankings(period: RankingPeriod, by: RankingBy) {
-  return useQuery({
+export function rankingsQuery(period: RankingPeriod, by: RankingBy) {
+  return queryOptions({
     queryKey: ["sync", "rankings", period, by] as const,
     staleTime: 60_000,
     queryFn: async () => {
@@ -239,8 +239,13 @@ export function useRankings(period: RankingPeriod, by: RankingBy) {
   });
 }
 
-export function useWantedReport(period: RankingPeriod) {
-  return useQuery({
+/** Changer de période garde l'ancien classement à l'écran le temps que le nouveau arrive. */
+export function useRankings(period: RankingPeriod, by: RankingBy) {
+  return useQuery({ ...rankingsQuery(period, by), placeholderData: (previous) => previous });
+}
+
+export function wantedQuery(period: RankingPeriod) {
+  return queryOptions({
     queryKey: ["sync", "wanted", period] as const,
     staleTime: 60_000,
     queryFn: async () => {
@@ -249,6 +254,11 @@ export function useWantedReport(period: RankingPeriod) {
       return data as unknown as WantedReport;
     },
   });
+}
+
+/** Changer de période garde l'ancien tableau à l'écran le temps que le nouveau arrive. */
+export function useWantedReport(period: RankingPeriod) {
+  return useQuery({ ...wantedQuery(period), placeholderData: (previous) => previous });
 }
 
 /** « ▲ 2 », « ▼ 1 », « = », « nouveau ». */

@@ -6,14 +6,14 @@ import { api, errorMessage, type Poll, type Proposal } from "@/api/client";
 import { GUILD_KEY } from "@/api/guild";
 import { KEYS, useInvalidate, usePoll } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { Button, Card, Field, Input, PageTitle, Spinner } from "@/components/ui";
+import { Button, Card, Field, Input, PageTitle, PageSkeleton } from "@/components/ui";
 import { POLL_STATUS_LABEL, formatDateTime, formatRemaining } from "@/lib/game";
 import { isOfficerOrAbove } from "@/lib/roles";
 
 export function PollPage() {
   const id = Number(useParams().id);
   const poll = usePoll(id);
-  if (poll.isPending) return <Spinner />;
+  if (poll.isPending) return <PageSkeleton />;
   if (poll.isError || !poll.data) return <Navigate to="/sondages" replace />;
   return <PollDetail poll={poll.data} />;
 }

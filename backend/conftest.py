@@ -1,7 +1,14 @@
 import pytest
+from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from apps.accounts.models import SiteRole, User
+
+
+@pytest.fixture(autouse=True)
+def _empty_cache():
+    # Le cache est en mémoire du processus : sans cela, une réponse gardée passerait d'un test au suivant.
+    cache.clear()
 
 
 @pytest.fixture

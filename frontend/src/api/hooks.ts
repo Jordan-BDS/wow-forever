@@ -38,16 +38,33 @@ export function useGameData() {
   return useQuery(gameDataQuery);
 }
 
+// Les requêtes sans paramètre sont des objets partagés : le hook de la page et le préchargement au survol du
+// menu (`usePrefetchPage`) lisent ainsi la même entrée du cache.
+export const charactersQuery = queryOptions({
+  queryKey: KEYS.characters,
+  queryFn: () => unwrap(api.GET("/api/characters/")),
+});
+
 export function useCharacters() {
-  return useQuery({ queryKey: KEYS.characters, queryFn: () => unwrap(api.GET("/api/characters/")) });
+  return useQuery(charactersQuery);
 }
+
+export const membersQuery = queryOptions({
+  queryKey: KEYS.members,
+  queryFn: () => unwrap(api.GET("/api/members/")),
+});
 
 export function useMembers() {
-  return useQuery({ queryKey: KEYS.members, queryFn: () => unwrap(api.GET("/api/members/")) });
+  return useQuery(membersQuery);
 }
 
+export const pollsQuery = queryOptions({
+  queryKey: KEYS.polls,
+  queryFn: () => unwrap(api.GET("/api/polls/")),
+});
+
 export function usePolls() {
-  return useQuery({ queryKey: KEYS.polls, queryFn: () => unwrap(api.GET("/api/polls/")) });
+  return useQuery(pollsQuery);
 }
 
 export function usePoll(id: number) {
@@ -58,11 +75,15 @@ export function usePoll(id: number) {
 }
 
 /** Événements à venir (depuis hier) ou dans une fenêtre donnée. */
-export function useEvents(window?: { from: string; to: string }) {
-  return useQuery({
+export function eventsQuery(window?: { from: string; to: string }) {
+  return queryOptions({
     queryKey: window ? KEYS.eventsWindow(window.from, window.to) : KEYS.events,
     queryFn: () => unwrap(api.GET("/api/events/", { params: { query: window } })),
   });
+}
+
+export function useEvents(window?: { from: string; to: string }) {
+  return useQuery(eventsQuery(window));
 }
 
 export function useEvent(id: number) {
@@ -104,11 +125,13 @@ export function useClassTalents(slug: string) {
   });
 }
 
+export const guildAvailabilityQuery = queryOptions({
+  queryKey: KEYS.guildAvailability,
+  queryFn: () => unwrap(api.GET("/api/availability/")),
+});
+
 export function useGuildAvailability() {
-  return useQuery({
-    queryKey: KEYS.guildAvailability,
-    queryFn: () => unwrap(api.GET("/api/availability/")),
-  });
+  return useQuery(guildAvailabilityQuery);
 }
 
 export function useMyAvailability() {

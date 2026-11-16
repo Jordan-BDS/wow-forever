@@ -15,7 +15,7 @@ import {
 import { api, errorMessage } from "@/api/client";
 import { unwrap } from "@/api/hooks";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { Button, Card, Field, Input, PageTitle, Spinner } from "@/components/ui";
+import { Button, Card, Field, Input, PageTitle, PageSkeleton } from "@/components/ui";
 import { formatDateTime } from "@/lib/game";
 import { useDebounced } from "@/lib/useDebounced";
 import { QUALITY_COLOR } from "@/lib/wowhead";
@@ -31,7 +31,7 @@ export function BountiesPage() {
   const report = useBounties();
   const me = useCurrentUser();
 
-  if (report.isPending) return <Spinner />;
+  if (report.isPending) return <PageSkeleton />;
   if (report.isError || !report.data)
     return <p className="text-sm text-danger">Impossible de charger les primes.</p>;
   const { bounties, ledger } = report.data;

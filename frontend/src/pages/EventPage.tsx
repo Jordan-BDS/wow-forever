@@ -15,7 +15,7 @@ import { KEYS, useCharacters, useEvent, useGameData, useInvalidate } from "@/api
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { KindBadge, StatusBadge } from "@/components/EventBits";
 import { ClassDot, ClassName, GameRoleTag } from "@/components/game";
-import { Button, Card, Field, Input, PageTitle, Select, Spinner } from "@/components/ui";
+import { Button, Card, Field, Input, PageTitle, Select, PageSkeleton } from "@/components/ui";
 import {
   PLACEMENTS,
   PLACEMENT_LABEL,
@@ -30,7 +30,7 @@ import { isOfficerOrAbove } from "@/lib/roles";
 export function EventPage() {
   const id = Number(useParams().id);
   const event = useEvent(id);
-  if (event.isPending) return <Spinner />;
+  if (event.isPending) return <PageSkeleton />;
   if (!event.data) return <Navigate to="/agenda" replace />;
   return <EventDetail event={event.data} />;
 }

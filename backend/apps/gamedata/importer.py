@@ -11,9 +11,11 @@ import logging
 from collections import defaultdict
 from pathlib import Path
 
+from django.core.cache import cache
 from django.db import transaction
 
 from .models import (
+    GAMEDATA_CACHE,
     Enchantment,
     ImportRun,
     Item,
@@ -701,4 +703,6 @@ def import_directory(directory: Path, build: str = "", product: str = "") -> Imp
 
     counts["talent_builds_pruned"] = prune_builds()
     logger.info("Import %s %s : %s", product, build, counts)
-    return ImportRun.objects.create(build=build, product=product, counts=counts)
+    run = ImportRun.objects.create(build=build, product=product, counts=counts)
+    cache.delete(GAMEDATA_CACHE)  # ce processus-ci ; les autres attendent `GAMEDATA_TTL`
+    return run

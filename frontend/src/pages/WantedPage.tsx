@@ -5,7 +5,7 @@ import { useGameData } from "@/api/hooks";
 import { useWantedReport, type RankingPeriod, type WantedEnemyDetail, type WantedReport } from "@/api/sync";
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { CharacterName, ClassName } from "@/components/game";
-import { Button, Card, PageTitle, Pill, Spinner } from "@/components/ui";
+import { Button, Card, PageTitle, Pill, PageSkeleton } from "@/components/ui";
 import { findClass, formatDateTime } from "@/lib/game";
 
 /** Primes affichées par paquets : les dix premières tout de suite, dix de plus à chaque passage en bas de liste. */
@@ -34,7 +34,7 @@ export function WantedPage() {
   const report = useWantedReport(period);
   const me = useCurrentUser();
 
-  if (report.isPending) return <Spinner />;
+  if (report.isPending) return <PageSkeleton />;
   if (report.isError || !report.data)
     return <p className="text-sm text-danger">Impossible de charger le tableau Wanted.</p>;
   const data = report.data;

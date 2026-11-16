@@ -14,7 +14,7 @@ import {
 import { useCurrentUser } from "@/auth/useCurrentUser";
 import { CharacterName, ClassName } from "@/components/game";
 import { TitleCards } from "@/components/TitleBadges";
-import { Card, PageTitle, Pill, Spinner } from "@/components/ui";
+import { Card, PageTitle, Pill, PageSkeleton } from "@/components/ui";
 import { findClass, formatDateTime, weekSpan } from "@/lib/game";
 
 const PERIODS: { key: RankingPeriod; label: string }[] = [
@@ -49,7 +49,7 @@ export function RankingsPage() {
   const rankings = useRankings(period, by);
   const me = useCurrentUser();
 
-  if (rankings.isPending) return <Spinner />;
+  if (rankings.isPending) return <PageSkeleton />;
   if (rankings.isError || !rankings.data)
     return <p className="text-sm text-danger">Impossible de charger les classements.</p>;
   const data = rankings.data;

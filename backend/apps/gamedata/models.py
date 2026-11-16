@@ -4,6 +4,10 @@ from django.db import models
 
 from apps.guild.models import Faction
 
+# La réponse de /api/gamedata/, gardée par processus : vidée par un import fait dans le même processus.
+GAMEDATA_CACHE = "gamedata:payload"
+GAMEDATA_TTL = 300  # s
+
 
 class Role(models.TextChoices):
     TANK = "tank", "Tank"
