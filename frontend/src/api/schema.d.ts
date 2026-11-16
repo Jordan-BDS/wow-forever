@@ -4920,6 +4920,8 @@ export interface operations {
                 favorites?: boolean;
                 /** @description hôtel (défaut : le dernier scanné) */
                 house?: string;
+                /** @description asc ou desc, pour les tris name, price et listed */
+                order?: string;
                 page?: number;
                 /** @description nom ou ID d'objet */
                 q?: string;

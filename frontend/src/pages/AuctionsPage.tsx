@@ -8,6 +8,7 @@ import {
   useSetFavoriteItem,
   useSetItemAlerts,
   type AuctionCategory,
+  type AuctionOrder,
   type AuctionRow,
   type AuctionSince,
   type AuctionSort,
@@ -26,10 +27,8 @@ const SINCE: { value: AuctionSince; label: string }[] = [
   { value: "week", label: "7 jours" },
 ];
 
+/** Les tris sans colonne à cliquer ; le nom, le nombre d'enchères et le prix se trient par l'en-tête de la liste. */
 const SORTS: { value: AuctionSort; label: string }[] = [
-  { value: "name", label: "Nom" },
-  { value: "price", label: "Prix" },
-  { value: "listed", label: "Enchères" },
   { value: "up", label: "Plus fortes hausses" },
   { value: "down", label: "Plus fortes baisses" },
   { value: "sold", label: "Enchères parties" },
@@ -43,13 +42,17 @@ export function AuctionsPage() {
   const [house, setHouse] = useState("");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<AuctionSort>("name");
+  const [order, setOrder] = useState<AuctionOrder>("asc");
   const [since, setSince] = useState<AuctionSince>("prev");
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<number | null>(null);
   const [onFavorites, setOnFavorites] = useState(false);
   const q = useDebounced(query.trim());
-  const auctions = useAuctions({ house, q, sort, since, page, category, favorites: onFavorites }, true);
+  const auctions = useAuctions(
+    { house, q, sort, order, since, page, category, favorites: onFavorites },
+    true,
+  );
   const setFavorite = useSetFavoriteItem();
   useWowheadTooltips([auctions.data]);
 
@@ -91,6 +94,16 @@ export function AuctionsPage() {
         </Select>
       </label>
     </div>
+  );
+
+  /** Clic sur un en-tête : la colonne déjà triée change de sens, une autre part de A à Z ou du moins cher. */
+  const sortBy = (column: AuctionSort) =>
+    change(() => {
+      setOrder(sort === column && order === "asc" ? "desc" : "asc");
+      setSort(column);
+    });
+  const header = (column: AuctionSort, label: string) => (
+    <SortHeader label={label} order={sort === column ? order : null} onClick={() => sortBy(column)} />
   );
 
   const path = categoryPath(data.categories, category);
@@ -150,9 +163,19 @@ export function AuctionsPage() {
               ))}
             </div>
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-muted">Trier par</span>
+              <span className="text-muted">Classer par</span>
               {SORTS.map((s) => (
-                <Pill key={s.value} active={sort === s.value} onClick={() => change(() => setSort(s.value))}>
+                <Pill
+                  key={s.value}
+                  active={sort === s.value}
+                  // Recliquer le classement retenu revient au tri par nom.
+                  onClick={() =>
+                    change(() => {
+                      setSort(sort === s.value ? "name" : s.value);
+                      setOrder("asc");
+                    })
+                  }
+                >
                   {s.label}
                 </Pill>
               ))}
@@ -189,6 +212,19 @@ export function AuctionsPage() {
               </p>
             ) : (
               <ul className="divide-y divide-border/60">
+                <li className="flex items-center gap-3 px-3 py-2 text-xs">
+                  <div className="flex min-w-0 flex-1 items-center gap-4">
+                    {header("name", "Objet")}
+                    {header("listed", "Enchères")}
+                  </div>
+                  {header("price", "Prix")}
+                  {/* La place des boutons d'une ligne, pour que « Prix » tombe au-dessus des prix. */}
+                  <div aria-hidden="true" className="invisible flex items-center gap-3">
+                    <span className="border px-2">Historique</span>
+                    <span className="border px-2">Alertes</span>
+                    <span className="text-xl leading-none">☆</span>
+                  </div>
+                </li>
                 {data.results.map((row) => (
                   <AuctionItem
                     key={row.item_id}
@@ -224,6 +260,37 @@ export function AuctionsPage() {
         </div>
       </div>
     </>
+  );
+}
+
+/** Un en-tête de colonne cliquable, comme dans un tableau : la flèche dit le sens du tri en cours. */
+function SortHeader({
+  label,
+  order,
+  onClick,
+}: {
+  label: string;
+  /** Null si la liste n'est pas triée par cette colonne. */
+  order: AuctionOrder | null;
+  onClick: () => void;
+}) {
+  const next = order === "asc" ? "décroissant" : "croissant";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`${label} : trier en ordre ${next}`}
+      aria-pressed={order != null}
+      className={clsx(
+        "flex items-center gap-1 font-semibold uppercase tracking-wide transition-colors",
+        order ? "text-gold-light" : "text-muted hover:text-text",
+      )}
+    >
+      {label}
+      <span aria-hidden="true" className={order ? undefined : "opacity-40"}>
+        {order === "asc" ? "▲" : order === "desc" ? "▼" : "↕"}
+      </span>
+    </button>
   );
 }
 

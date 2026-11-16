@@ -331,6 +331,9 @@ class AuctionScansView(APIView):
             OpenApiParameter(
                 "sort", OpenApiTypes.STR, description="name (défaut), price, listed, up, down, sold, posted"
             ),
+            OpenApiParameter(
+                "order", OpenApiTypes.STR, description="asc ou desc, pour les tris name, price et listed"
+            ),
             OpenApiParameter("since", OpenApiTypes.STR, description="prev (défaut), day, week"),
             OpenApiParameter(
                 "category", OpenApiTypes.STR, description="type d'objet : une clé de `categories`"
@@ -352,6 +355,7 @@ class AuctionScansView(APIView):
                 category=params.get("category", ""),
                 user=request.user,
                 favorites=params.get("favorites", "").lower() in ("1", "true"),
+                order=params.get("order", ""),
             )
         )
 

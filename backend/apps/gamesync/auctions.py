@@ -64,6 +64,9 @@ BASELINES = {"prev": None, "day": timedelta(days=1), "week": timedelta(days=7)}
 # « sold » et « posted » : les plus gros mouvements, estimés d'après le nombre d'enchères d'un scan à l'autre.
 SORTS = ("name", "price", "listed", "up", "down", "sold", "posted")
 MOVEMENT_SORTS = ("sold", "posted")
+# Tris qui ont un sens, « asc » ou « desc ». Sans sens demandé : le nom de A à Z, le reste du plus grand
+# au plus petit.
+ORDERED_SORTS = ("name", "price", "listed")
 
 
 class AuctionError(ValueError):
@@ -518,8 +521,10 @@ def overview(
     category: str = "",
     user=None,
     favorites: bool = False,
+    order: str = "",
 ) -> dict:
     """Le dernier scan d'un hôtel, comparé à un scan de référence : une page d'objets filtrés et triés.
+    `order` : « asc » ou « desc » pour les tris par nom, prix ou nombre d'enchères, ignoré pour les autres.
     `category` : clé d'un type d'objet (`auction_categories`), ignorée si elle n'en nomme aucun. Un objet
     absent de l'index du site n'est d'aucun type. `user` : chaque objet dit s'il le suit (`favorite`) et
     avec quels seuils (`buy_price`, `sell_price`) ; `favorites` : seuls ses objets suivis, ceux qui n'ont
@@ -539,8 +544,12 @@ def overview(
     house = canonical_house(house)
     sort = sort if sort in SORTS else "name"
     since = since if since in BASELINES else "prev"
+    if sort not in ORDERED_SORTS or order not in ("asc", "desc"):
+        order = "asc" if sort == "name" else "desc"
+    down = order == "desc"
     empty = {
         "houses": known, "house": "", "scan": None, "baseline": None, "since": since, "sort": sort,
+        "order": order,
         "total": 0, "page": 1, "pages": 1, "results": [], **shared,
     }  # fmt: skip
     if not known:
@@ -565,10 +574,13 @@ def overview(
     needle = _fold(" ".join(q.split()))
     if needle:
         rows = [r for r in rows if needle in r["search"] or needle == str(r["item_id"])]
-    if sort == "price":
-        rows = sorted(rows, key=lambda r: (-r["price"], r["name"]))
+    if sort == "name":
+        # L'ordre du cache est de A à Z ; une copie, pour ne pas le retourner.
+        rows = rows[::-1] if down else rows
+    elif sort == "price":
+        rows = sorted(rows, key=lambda r: (-r["price"] if down else r["price"], r["name"]))
     elif sort == "listed":
-        rows = sorted(rows, key=lambda r: (-(r["listed"] or 0), r["name"]))
+        rows = sorted(rows, key=lambda r: (-(r["listed"] or 0) if down else (r["listed"] or 0), r["name"]))
     elif sort in ("up", "down"):
         # Les objets sans prix de référence n'ont pas de variation : ils sortent de ces deux tris.
         rows = [r for r in rows if r["change"] is not None]
@@ -578,7 +590,6 @@ def overview(
         sign = -1 if sort == "sold" else 1
         rows = [r for r in rows if r["listed_change"] is not None and r["listed_change"] * sign > 0]
         rows.sort(key=lambda r: (-r["moved"], -abs(r["listed_change"]), r["name"]))
-    # sinon : par nom, l'ordre du cache
 
     pages = max(1, -(-len(rows) // PAGE_SIZE))
     page = min(max(1, page), pages)
@@ -589,6 +600,7 @@ def overview(
         "baseline": scan_summary(baseline) if baseline else None,
         "since": since,
         "sort": sort,
+        "order": order,
         "total": len(rows),
         "page": page,
         "pages": pages,

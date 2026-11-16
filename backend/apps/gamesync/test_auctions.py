@@ -301,6 +301,24 @@ class TestRead:
         assert horde["baseline"] is None
         assert [(r["price"], r["change"]) for r in horde["results"]] == [(999, None)]
 
+    def test_name_price_and_listed_sort_both_ways(self, api_client, as_user, gm, scans):
+        as_user(gm)
+
+        def ids(**params):
+            data = api_client.get("/api/sync/auctions/", params).json()
+            return data["order"], [r["item_id"] for r in data["results"]]
+
+        # Dernier scan : lin 100 (3 enchères), laine 250 (9), objet 99999 à 7 (1).
+        assert ids() == ("asc", [99999, 2592, 2589])
+        assert ids(sort="name", order="desc") == ("desc", [2589, 2592, 99999])
+        assert ids(sort="price") == ("desc", [2592, 2589, 99999])
+        assert ids(sort="price", order="asc") == ("asc", [99999, 2589, 2592])
+        assert ids(sort="listed", order="asc") == ("asc", [99999, 2589, 2592])
+        assert ids(sort="listed", order="n'importe quoi") == ("desc", [2592, 2589, 99999])
+        # Un tri sans sens garde le sien, et retourner la liste par nom ne retourne pas le cache.
+        assert ids(sort="down", order="asc") == ("desc", [2592, 2589])
+        assert ids() == ("asc", [99999, 2592, 2589])
+
     def test_search_reads_both_names_whatever_the_accents(self, api_client, as_user, gm, scans):
         # Le scan nomme l'objet par son ID : seul l'index du site lui donne un nom, français et anglais.
         Item.objects.create(

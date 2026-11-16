@@ -5,6 +5,8 @@ import { api } from "./client";
 
 /** « sold » et « posted » : enchères parties ou arrivées depuis le scan de référence (estimation). */
 export type AuctionSort = "name" | "price" | "listed" | "up" | "down" | "sold" | "posted";
+/** Sens des tris par nom, prix ou nombre d'enchères ; les autres tris ont le leur. */
+export type AuctionOrder = "asc" | "desc";
 /** Référence de la variation : le scan précédent, ou le dernier scan vieux d'au moins un jour / une semaine. */
 export type AuctionSince = "prev" | "day" | "week";
 
@@ -48,6 +50,7 @@ export type AuctionOverview = {
   baseline: AuctionScan | null;
   since: AuctionSince;
   sort: AuctionSort;
+  order: AuctionOrder;
   total: number;
   page: number;
   pages: number;
@@ -76,6 +79,7 @@ export type AuctionFilters = {
   house: string;
   q: string;
   sort: AuctionSort;
+  order: AuctionOrder;
   since: AuctionSince;
   page: number;
   /** Clé d'un type d'objet, vide pour tous. */
@@ -89,6 +93,7 @@ export const DEFAULT_AUCTION_FILTERS: AuctionFilters = {
   house: "",
   q: "",
   sort: "name",
+  order: "asc",
   since: "prev",
   page: 1,
   category: "",
