@@ -3,7 +3,7 @@ import { useGameData } from "@/api/hooks";
 import { formatValue, useRankings } from "@/api/sync";
 import { CharacterName, ClassName } from "@/components/game";
 import { TitleCards } from "@/components/TitleBadges";
-import { Card } from "@/components/ui";
+import { Card, Skeleton } from "@/components/ui";
 import { findClass, weekSpan } from "@/lib/game";
 
 /** Les catégories qui donnent un Roxor, avec le nom du titre en jeu. */
@@ -21,20 +21,32 @@ const RACES: { key: string; title: string }[] = [
 
 /** Accueil, tout en haut : les Roxors de la semaine passée (définitifs). Rien tant qu'aucun n'est attribué. */
 export function WeekTitles() {
-  const data = useRankings("week", "player").data;
-  if (!data || data.titles.length === 0) return null;
+  const { data, isPending } = useRankings("week", "player");
+  if (!isPending && (!data || data.titles.length === 0)) return null;
   return (
-    <section className="mb-8">
+    <section className="mb-8" aria-busy={isPending}>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex flex-wrap items-baseline gap-3">
           <h2 className="font-display text-lg">Roxors de la semaine passée</h2>
-          <span className="text-xs text-muted">{weekSpan(data.titles[0].week_start)}</span>
+          {data && <span className="text-xs text-muted">{weekSpan(data.titles[0].week_start)}</span>}
         </div>
         <Link to="/classements" className="text-sm">
           Tous les classements
         </Link>
       </div>
-      <TitleCards titles={data.titles} mob={data.mob_of_week.previous} wanted={data.most_wanted} />
+      {data ? (
+        <TitleCards titles={data.titles} mob={data.mob_of_week.previous} wanted={data.most_wanted} />
+      ) : (
+        <div
+          role="status"
+          aria-label="Chargement des Roxors"
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} card className="h-[118px]" />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -44,6 +56,28 @@ export function WeekWidget() {
   const rankings = useRankings("week", "player");
   const gamedata = useGameData();
   const data = rankings.data;
+  if (rankings.isPending) {
+    return (
+      <Card className="md:col-span-2" aria-busy="true">
+        <h2 className="font-display text-lg">Futurs Roxors</h2>
+        <div
+          role="status"
+          aria-label="Chargement des classements de la semaine"
+          className="mt-4 grid gap-x-10 gap-y-6 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3" />
+              <Skeleton className="h-3" />
+              <Skeleton className="h-3" />
+            </div>
+          ))}
+        </div>
+      </Card>
+    );
+  }
   if (!data || data.characters === 0) return null;
   const races = RACES.map((r) => ({ ...r, category: data.categories.find((c) => c.key === r.key) })).filter(
     (r) => r.category && r.category.entries.length > 0,

@@ -4,7 +4,7 @@ import { Navigate } from "react-router";
 import { api, errorMessage, fieldErrors, type Faction, type GuildSettings } from "@/api/client";
 import { GUILD_KEY, useGuild } from "@/api/guild";
 import { useCurrentUser } from "@/auth/useCurrentUser";
-import { Button, Card, Field, Input, PageTitle, Select, PageSkeleton, Textarea } from "@/components/ui";
+import { Button, Card, Field, Input, PageTitle, Select, PageSkeleton } from "@/components/ui";
 import { FACTION_LABELS } from "@/lib/roles";
 
 /** Paramètres de la guilde : réservés au GM. */
@@ -170,18 +170,8 @@ function GuildForm({ initial }: { initial: GuildSettings }) {
           </p>
           {Err("accepted_interface_versions")}
         </Field>
-        <Field label="Valeurs de la guilde (affichées en citation sur l'accueil)">
-          <Textarea
-            rows={12}
-            maxLength={1000}
-            value={form.values}
-            placeholder={
-              "Entraide avant tout, zéro prise de tête.\n\nLes retours à la ligne sont conservés, une ligne vide sépare les strophes."
-            }
-            onChange={(e) => update({ values: e.target.value })}
-          />
-          {Err("values")}
-        </Field>
+        {/* Les valeurs de la guilde ne sont plus affichées ni modifiables pour le moment : le formulaire renvoie
+            le texte déjà enregistré tel quel, le serveur le garde. */}
       </Card>
 
       <Card className="space-y-4">

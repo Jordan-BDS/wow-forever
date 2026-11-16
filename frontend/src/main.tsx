@@ -10,6 +10,7 @@ import "@fontsource/alegreya-sans/700.css";
 import "./index.css";
 import { guildQuery } from "./api/guild";
 import { gameDataQuery } from "./api/hooks";
+import { prefetchPage } from "./api/prefetch";
 import { meQuery } from "./auth/useMe";
 import { preloadPages, router } from "./router";
 
@@ -24,6 +25,8 @@ const queryClient = new QueryClient({
 void queryClient.prefetchQuery(meQuery);
 void queryClient.prefetchQuery(guildQuery);
 void queryClient.prefetchQuery(gameDataQuery);
+// De même pour les données de la page ouverte (accueil, agenda, classements…), quand elles sont connues d'avance.
+prefetchPage(queryClient, window.location.pathname);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

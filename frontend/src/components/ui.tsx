@@ -143,6 +143,21 @@ export function PageSkeleton() {
   );
 }
 
+/** L'ombre d'un bloc dont le titre est déjà à l'écran (accueil) : une carte vide avec `card`, sinon une barre
+ * de texte. La taille vient de `className`. Même délai et même pulsation que `PageSkeleton`. */
+export function Skeleton({ card = false, className }: { card?: boolean; className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={clsx(
+        "skeleton",
+        card ? "rounded-md border border-border/60 bg-surface/70" : "rounded-sm bg-surface-2/80",
+        className,
+      )}
+    />
+  );
+}
+
 /** Titre de page en capitales romaines gravées, souligné d'un court filet d'or. */
 export function PageTitle({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) {
   return (

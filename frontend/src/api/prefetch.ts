@@ -30,6 +30,11 @@ const PAGE_QUERIES: Record<string, (client: QueryClient) => void> = {
   "/metiers": (client) => void client.prefetchQuery(charactersQuery),
 };
 
+/** Lance les requêtes de la page `to`, si elle en a de connues d'avance. */
+export function prefetchPage(client: QueryClient, to: string) {
+  PAGE_QUERIES[to]?.(client);
+}
+
 /** À brancher sur le survol et le focus d'un lien du menu. Des données encore fraîches ne sont pas redemandées. */
 export function usePrefetchPage() {
   const client = useQueryClient();
