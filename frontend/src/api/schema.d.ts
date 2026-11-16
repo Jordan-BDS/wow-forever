@@ -991,6 +991,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/auctions/favorites/{item_id}/alerts/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Membres : poser ses deux seuils sur un objet (`buy_price`, `sell_price`, en cuivre, null pour aucun).
+         *     L'objet est suivi s'il ne l'était pas.
+         */
+        put: operations["sync_auctions_favorites_alerts_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sync/auctions/items/{item_id}/": {
         parameters: {
             query?: never;
@@ -1662,9 +1682,10 @@ export interface components {
          * @description * `placement` - placement
          *     * `reminder` - reminder
          *     * `craft` - craft
+         *     * `auction` - auction
          * @enum {string}
          */
-        DmMutedKindsEnum: "placement" | "reminder" | "craft";
+        DmMutedKindsEnum: "placement" | "reminder" | "craft" | "auction";
         DuplicateRequest: {
             /** Format: date-time */
             starts_at: string;
@@ -5012,6 +5033,45 @@ export interface operations {
         responses: {
             /** @description No response body */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sync_auctions_favorites_alerts_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+                "application/x-www-form-urlencoded": {
+                    [key: string]: unknown;
+                };
+                "multipart/form-data": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Prix invalide ou trop d'objets suivis */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

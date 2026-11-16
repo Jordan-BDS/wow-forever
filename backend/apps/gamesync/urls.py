@@ -32,6 +32,11 @@ urlpatterns = [
         views.AuctionFavoriteItemView.as_view(),
         name="sync-auction-favorite-item",
     ),
+    path(
+        "auctions/favorites/<int:item_id>/alerts/",
+        views.AuctionItemAlertsView.as_view(),
+        name="sync-auction-item-alerts",
+    ),
     path("auctions/recipes/", views.AuctionRecipesView.as_view(), name="sync-auction-recipes"),
     path(
         "auctions/recipes/<int:recipe_id>/",

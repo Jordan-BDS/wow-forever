@@ -24,6 +24,7 @@ class NotificationKind(models.TextChoices):
     WEEKLY_RECAP = "weekly_recap", "Récapitulatif hebdomadaire des classements"
     CRAFT_REQUEST = "craft_request", "Demande de craft"
     CRAFT_UPDATE = "craft_update", "Suivi de demande de craft"
+    AUCTION_ALERT = "auction_alert", "Alerte de prix de l'hôtel des ventes"
 
 
 # Catégories de MP que chaque joueur peut couper depuis son profil.
@@ -31,6 +32,7 @@ DM_PREFERENCE_KINDS = {
     "placement": "Placement dans un événement",
     "reminder": "Rappels personnels avant un événement",
     "craft": "Demandes de craft",
+    "auction": "Alertes de prix de l'hôtel des ventes",
 }
 
 DM_PREFERENCE_FOR_KIND = {
@@ -38,6 +40,7 @@ DM_PREFERENCE_FOR_KIND = {
     NotificationKind.EVENT_REMINDER: "reminder",
     NotificationKind.CRAFT_REQUEST: "craft",
     NotificationKind.CRAFT_UPDATE: "craft",
+    NotificationKind.AUCTION_ALERT: "auction",
 }
 
 

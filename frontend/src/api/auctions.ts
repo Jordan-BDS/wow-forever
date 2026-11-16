@@ -32,6 +32,10 @@ export type AuctionRow = {
   moved: number | null;
   /** Vrai si le joueur suit cet objet. */
   favorite: boolean;
+  /** Seuils du joueur, en cuivre : alerte quand le prix passe à `buy_price` ou en dessous, à `sell_price` ou
+   * au-dessus. Null sans seuil, ou si l'objet n'est pas suivi. */
+  buy_price: number | null;
+  sell_price: number | null;
 };
 
 /** Un type d'objet, rangé comme dans l'hôtel des ventes du jeu : catégorie, sous-catégorie, emplacement. */
@@ -173,6 +177,21 @@ export function useSetFavoriteItem() {
       const { error } = favorite
         ? await api.PUT("/api/sync/auctions/favorites/{item_id}/", { params })
         : await api.DELETE("/api/sync/auctions/favorites/{item_id}/", { params });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sync", "auctions"] }),
+  });
+}
+
+/** Pose les deux seuils d'un objet (cuivre, null pour aucun) : l'objet est suivi s'il ne l'était pas. */
+export function useSetItemAlerts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (alerts: { itemId: number; buy_price: number | null; sell_price: number | null }) => {
+      const { error } = await api.PUT("/api/sync/auctions/favorites/{item_id}/alerts/", {
+        params: { path: { item_id: alerts.itemId } },
+        body: { buy_price: alerts.buy_price, sell_price: alerts.sell_price },
+      });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sync", "auctions"] }),

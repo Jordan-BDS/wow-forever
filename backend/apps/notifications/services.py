@@ -458,6 +458,35 @@ def craft_updated(craft) -> Notification | None:
     return notify_user(craft.requester, NotificationKind.CRAFT_UPDATE, f"{text}\n{craft_url(craft)}")
 
 
+def format_money(copper: int) -> str:
+    """123456 cuivres → « 12 po 34 pa 56 pc » (les parties nulles sont omises)."""
+    parts = ((copper // 10000, "po"), (copper // 100 % 100, "pa"), (copper % 100, "pc"))
+    return " ".join(f"{value} {unit}" for value, unit in parts if value) or "0 pc"
+
+
+AUCTION_ALERT_LINES = 15
+
+
+def auction_alerts(user: User, house: str, scanned_at: datetime, hits: list[dict]) -> Notification | None:
+    """Un seul MP par scan : les objets suivis dont le prix vient de franchir un seuil du joueur. `hits` :
+    `name`, `price`, `threshold` (cuivre) et `side` (« buy » : à son prix d'achat ou en dessous, « sell » : à
+    son prix de vente ou au-dessus)."""
+    if not hits:
+        return None
+    lines = [f"💰 Hôtel des ventes {house}, scan de {discord_time(scanned_at, 't')} :"]
+    for hit in hits[:AUCTION_ALERT_LINES]:
+        if hit["side"] == "buy":
+            what = f"à ton prix d'achat ou en dessous ({format_money(hit['threshold'])})"
+        else:
+            what = f"à ton prix de vente ou au-dessus ({format_money(hit['threshold'])})"
+        mark = "🟢" if hit["side"] == "buy" else "🟡"
+        lines.append(f"{mark} **{hit['name']}** à {format_money(hit['price'])} : {what}")
+    if len(hits) > AUCTION_ALERT_LINES:
+        lines.append(f"… et {len(hits) - AUCTION_ALERT_LINES} autre(s) sur le site.")
+    lines.append(site_url("/hv"))
+    return notify_user(user, NotificationKind.AUCTION_ALERT, "\n".join(lines))
+
+
 def craft_released(craft, crafter) -> Notification | None:
     """Le crafteur a rendu la demande : le demandeur sait qu'elle est de nouveau ouverte."""
     label = f"**{craft.quantity} × {craft.recipe.name}**"

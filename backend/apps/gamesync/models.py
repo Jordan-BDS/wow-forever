@@ -283,13 +283,23 @@ class FavoriteRecipe(models.Model):
 
 class FavoriteItem(models.Model):
     """Objet suivi par un joueur sur la page de l'hôtel des ventes. L'objet est nommé par son ID seul : un
-    objet en vente peut manquer à l'index du site."""
+    objet en vente peut manquer à l'index du site. Le joueur peut y poser deux seuils : il est prévenu quand
+    le prix le plus bas passe à son prix d'achat ou en dessous, à son prix de vente ou au-dessus."""
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favorite_items"
     )
     item_id = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
+    buy_price = models.PositiveBigIntegerField(
+        "Prix d'achat", null=True, blank=True, help_text="En cuivre : alerte à ce prix ou en dessous."
+    )
+    sell_price = models.PositiveBigIntegerField(
+        "Prix de vente", null=True, blank=True, help_text="En cuivre : alerte à ce prix ou au-dessus."
+    )
+    # Le seuil était franchi au dernier scan regardé : l'alerte ne repart qu'après un retour de l'autre côté.
+    buy_hit = models.BooleanField(default=False)
+    sell_hit = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "objet favori"

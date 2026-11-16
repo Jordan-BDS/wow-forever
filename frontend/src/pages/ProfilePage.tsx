@@ -9,12 +9,17 @@ import { PendingCharactersCard, SyncJourney } from "@/components/GameSync";
 import { Button, Card, Field, Input, PageTitle, Spinner } from "@/components/ui";
 import { cellsToSlots, slotsToCells } from "@/lib/availability";
 
-type DmKind = "placement" | "reminder" | "craft";
+type DmKind = "placement" | "reminder" | "craft" | "auction";
 
 const DM_KINDS: { key: DmKind; label: string; help: string }[] = [
   { key: "placement", label: "Placement dans un événement", help: "Confirmé ou sur le banc." },
   { key: "reminder", label: "Rappel personnel avant un événement", help: "Quand tu es confirmé." },
   { key: "craft", label: "Demandes de craft", help: "Quand une demande te vise ou avance." },
+  {
+    key: "auction",
+    label: "Alertes de prix de l'hôtel des ventes",
+    help: "Quand un objet suivi passe ton prix d'achat ou de vente.",
+  },
 ];
 
 export function ProfilePage() {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import clsx from "clsx";
 import {
   categoryPath,
@@ -6,13 +6,15 @@ import {
   formatMoney,
   useAuctions,
   useSetFavoriteItem,
+  useSetItemAlerts,
   type AuctionCategory,
   type AuctionRow,
   type AuctionSince,
   type AuctionSort,
 } from "@/api/auctions";
+import { errorMessage } from "@/api/client";
 import { ItemPriceHistory } from "@/components/PriceChart";
-import { Card, Input, PageTitle, Pill, Select, Spinner } from "@/components/ui";
+import { Button, Card, Input, PageTitle, Pill, Select, Spinner } from "@/components/ui";
 import { WowheadLink } from "@/components/wowhead";
 import { formatDateTime } from "@/lib/game";
 import { useDebounced } from "@/lib/useDebounced";
@@ -293,6 +295,9 @@ function AuctionItem({
   busy: boolean;
   onFavorite: () => void;
 }) {
+  const [alerts, setAlerts] = useState(false);
+  const below = !row.gone && row.buy_price != null && row.price <= row.buy_price;
+  const above = !row.gone && row.sell_price != null && row.price >= row.sell_price;
   return (
     <li className="text-sm">
       <div className="flex items-center gap-3 px-3 py-2">
@@ -319,6 +324,20 @@ function AuctionItem({
                   ? `${row.previous_listed} → ${row.listed} enchère${row.listed > 1 ? "s" : ""}`
                   : `${row.listed} enchère${row.listed > 1 ? "s" : ""}`}
           </div>
+          {(row.buy_price != null || row.sell_price != null) && (
+            <div className="flex flex-wrap gap-x-3 text-xs text-muted">
+              {row.buy_price != null && (
+                <span className={below ? "font-semibold text-success" : undefined}>
+                  {below ? "à ton prix d'achat ou en dessous" : "achat"} : {formatMoney(row.buy_price)}
+                </span>
+              )}
+              {row.sell_price != null && (
+                <span className={above ? "font-semibold text-gold" : undefined}>
+                  {above ? "à ton prix de vente ou au-dessus" : "vente"} : {formatMoney(row.sell_price)}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         {movement && row.listed_change != null && (
           <div className="text-right">
@@ -355,6 +374,14 @@ function AuctionItem({
         </button>
         <button
           type="button"
+          onClick={() => setAlerts(!alerts)}
+          aria-expanded={alerts}
+          className="rounded-sm border border-border px-2 py-1 text-xs text-muted hover:border-gold hover:text-gold"
+        >
+          {alerts ? "Fermer" : "Alertes"}
+        </button>
+        <button
+          type="button"
           onClick={onFavorite}
           disabled={busy}
           aria-pressed={row.favorite}
@@ -367,11 +394,95 @@ function AuctionItem({
           {row.favorite ? "★" : "☆"}
         </button>
       </div>
+      {alerts && <AlertEditor row={row} onDone={() => setAlerts(false)} />}
       {open && (
         <div className="px-3 pb-4">
           <ItemPriceHistory itemId={row.item_id} house={house} />
         </div>
       )}
     </li>
+  );
+}
+
+type Coins = { po: string; pa: string; pc: string };
+
+const toCoins = (copper: number | null): Coins =>
+  copper == null
+    ? { po: "", pa: "", pc: "" }
+    : {
+        po: String(Math.floor(copper / 10000) || ""),
+        pa: String(Math.floor(copper / 100) % 100 || ""),
+        pc: String(copper % 100 || ""),
+      };
+
+/** Null si les trois cases sont vides ou nulles : pas de seuil. */
+const toCopper = (coins: Coins): number | null =>
+  (Number(coins.po) || 0) * 10000 + (Number(coins.pa) || 0) * 100 + (Number(coins.pc) || 0) || null;
+
+/** Les deux seuils d'un objet : le bot Discord écrit en MP quand le prix le plus bas en franchit un. */
+function AlertEditor({ row, onDone }: { row: AuctionRow; onDone: () => void }) {
+  const [buy, setBuy] = useState(toCoins(row.buy_price));
+  const [sell, setSell] = useState(toCoins(row.sell_price));
+  const save = useSetItemAlerts();
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    save.mutate(
+      { itemId: row.item_id, buy_price: toCopper(buy), sell_price: toCopper(sell) },
+      { onSuccess: onDone },
+    );
+  };
+  return (
+    <form onSubmit={submit} className="space-y-2 px-3 pb-4 text-xs text-muted">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+        <CoinsInput label="Prix d'achat : m'écrire à ce prix ou en dessous" value={buy} onChange={setBuy} />
+        <CoinsInput label="Prix de vente : m'écrire à ce prix ou au-dessus" value={sell} onChange={setSell} />
+        <Button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-xs">
+          Enregistrer
+        </Button>
+      </div>
+      <p>
+        Prix le plus bas à l'unité. Le bot Discord t'écrit en MP quand un scan franchit un seuil, une fois par
+        franchissement ; cases vides : pas d'alerte.{!row.favorite && " Enregistrer suit l'objet."}
+      </p>
+      {save.isError && <p className="text-danger">{errorMessage(save.error)}</p>}
+    </form>
+  );
+}
+
+function CoinsInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: Coins;
+  onChange: (value: Coins) => void;
+}) {
+  const units = [
+    ["po", "po", 99999],
+    ["pa", "pa", 99],
+    ["pc", "pc", 99],
+  ] as const;
+  return (
+    <fieldset>
+      <legend className="mb-1">{label}</legend>
+      <div className="flex items-center gap-1.5">
+        {units.map(([key, unit, max]) => (
+          <label key={key} className="flex items-center gap-1">
+            <Input
+              type="number"
+              min={0}
+              max={max}
+              step={1}
+              inputMode="numeric"
+              value={value[key]}
+              onChange={(e) => onChange({ ...value, [key]: e.target.value })}
+              className={key === "po" ? "w-20 px-2 py-1 text-right" : "w-14 px-2 py-1 text-right"}
+            />
+            {unit}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }

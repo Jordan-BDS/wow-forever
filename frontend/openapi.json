@@ -3789,6 +3789,60 @@
                 }
             }
         },
+        "/api/sync/auctions/favorites/{item_id}/alerts/": {
+            "put": {
+                "operationId": "sync_auctions_favorites_alerts_update",
+                "description": "Membres : poser ses deux seuils sur un objet (`buy_price`, `sell_price`, en cuivre, null pour aucun).\nL'objet est suivi s'il ne l'était pas.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "item_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "sync"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "400": {
+                        "description": "Prix invalide ou trop d'objets suivis"
+                    }
+                }
+            }
+        },
         "/api/sync/auctions/items/{item_id}/": {
             "get": {
                 "operationId": "sync_auctions_items_retrieve",
@@ -5588,10 +5642,11 @@
                 "enum": [
                     "placement",
                     "reminder",
-                    "craft"
+                    "craft",
+                    "auction"
                 ],
                 "type": "string",
-                "description": "* `placement` - placement\n* `reminder` - reminder\n* `craft` - craft"
+                "description": "* `placement` - placement\n* `reminder` - reminder\n* `craft` - craft\n* `auction` - auction"
             },
             "DuplicateRequest": {
                 "type": "object",

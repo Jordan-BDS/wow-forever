@@ -9,6 +9,7 @@ d'au moins `MIN_GAP` : le premier reçu reste, l'autre est refusé comme un doub
 `KEEP_ALL`, puis un par jour jusqu'à `KEEP_DAILY`, puis supprimés (`prune`).
 """
 
+import logging
 import time
 import unicodedata
 from datetime import UTC, datetime, timedelta
@@ -53,6 +54,9 @@ ROWS_KEPT = (
     4  # comparaisons gardées par processus : le dernier scan contre ses trois références, et une de plus
 )
 ID_BATCH = 5000  # objets par requête sur l'index (SQLite borne le nombre de paramètres)
+ALERT_FRESH = timedelta(hours=6)  # un scan plus vieux ne déclenche pas d'alerte de prix
+
+logger = logging.getLogger(__name__)
 
 # Référence de la variation : le scan précédent, ou le dernier scan vieux d'au moins un jour / une semaine.
 BASELINES = {"prev": None, "day": timedelta(days=1), "week": timedelta(days=7)}
@@ -161,7 +165,60 @@ def store_scan(
     except IntegrityError as exc:
         raise DuplicateScan("Ce scan a déjà été reçu.") from exc
     prune(house)
+    try:
+        check_alerts(scan, rows)
+    except Exception:  # noqa: BLE001 — le scan est enregistré : une alerte ratée ne le fait pas renvoyer
+        logger.exception("Alertes de prix du scan %s non envoyées", scan.pk)
     return scan
+
+
+def check_alerts(scan: AuctionScan, rows: dict[int, tuple[int, int | None]]) -> int:
+    """Prévient chaque joueur dont un objet suivi vient de franchir un seuil : un MP par joueur, pour les
+    seuils franchis à ce scan et pas au précédent regardé (`buy_hit`, `sell_hit`). Un objet sans enchère n'a
+    pas de prix : ses seuils se réarment. Seul un scan récent (`ALERT_FRESH`) et le plus récent de son hôtel
+    compte : un vieux scan arrivé en retard ne dit rien du prix du moment. Renvoie le nombre de MP mis en
+    file."""
+    from apps.notifications import services as notify
+
+    if scan.scanned_at < timezone.now() - ALERT_FRESH:
+        return 0
+    if AuctionScan.objects.filter(house=scan.house, scanned_at__gt=scan.scanned_at).exists():
+        return 0
+    watched = list(
+        FavoriteItem.objects.filter(Q(buy_price__isnull=False) | Q(sell_price__isnull=False))
+        .select_related("user")
+        .order_by("user_id", "item_id")
+    )
+    hits: dict[int, list[dict]] = {}
+    changed = []
+    for favorite in watched:
+        price = rows[favorite.item_id][0] if favorite.item_id in rows else None
+        buy = price is not None and favorite.buy_price is not None and price <= favorite.buy_price
+        sell = price is not None and favorite.sell_price is not None and price >= favorite.sell_price
+        for side, now, before, threshold in (
+            ("buy", buy, favorite.buy_hit, favorite.buy_price),
+            ("sell", sell, favorite.sell_hit, favorite.sell_price),
+        ):
+            if now and not before:
+                hits.setdefault(favorite.user_id, []).append(
+                    {"item_id": favorite.item_id, "price": price, "threshold": threshold, "side": side}
+                )
+        if (buy, sell) != (favorite.buy_hit, favorite.sell_hit):
+            favorite.buy_hit, favorite.sell_hit = buy, sell
+            changed.append(favorite)
+    FavoriteItem.objects.bulk_update(changed, ["buy_hit", "sell_hit"], batch_size=500)
+    if not hits:
+        return 0
+    names = _items({hit["item_id"] for found in hits.values() for hit in found})
+    users = {favorite.user_id: favorite.user for favorite in watched}
+    sent = 0
+    for user_id, found in hits.items():
+        for hit in found:
+            item = names.get(hit["item_id"])
+            hit["name"] = item["name"] if item else f"Objet {hit['item_id']}"
+        if notify.auction_alerts(users[user_id], scan.house, scan.scanned_at, found):
+            sent += 1
+    return sent
 
 
 def prune(house: str | None = None) -> int:
@@ -417,6 +474,32 @@ def set_favorite_item(user, item_id: int, favorite: bool) -> None:
     FavoriteItem.objects.get_or_create(user=user, item_id=item_id)
 
 
+def _threshold(value: Any) -> int | None:
+    if value is None:
+        return None
+    price = _int(value)
+    if price is None or not 0 < price <= MAX_PRICE:
+        raise AuctionError("Prix invalide : un nombre de cuivres, plus grand que zéro.")
+    return price
+
+
+def set_item_alerts(user, item_id: int, buy_price: Any, sell_price: Any) -> None:
+    """Pose les deux seuils d'un objet, en cuivre (`None` : pas de seuil) ; l'objet est suivi s'il ne l'était
+    pas. Un seuil qui change se réarme : le prochain scan qui le franchit prévient, même si le prix y était
+    déjà. `AuctionError` si un prix est illisible, si le prix d'achat n'est pas sous le prix de vente, ou si
+    le joueur suit déjà `MAX_FAVORITE_ITEMS` objets."""
+    buy, sell = _threshold(buy_price), _threshold(sell_price)
+    if buy is not None and sell is not None and buy >= sell:
+        raise AuctionError("Le prix d'achat doit être plus bas que le prix de vente.")
+    set_favorite_item(user, item_id, True)
+    favorite = FavoriteItem.objects.get(user=user, item_id=item_id)
+    if favorite.buy_price != buy:
+        favorite.buy_price, favorite.buy_hit = buy, False
+    if favorite.sell_price != sell:
+        favorite.sell_price, favorite.sell_hit = sell, False
+    favorite.save(update_fields=["buy_price", "sell_price", "buy_hit", "sell_hit"])
+
+
 def overview(
     house: str = "",
     q: str = "",
@@ -429,12 +512,17 @@ def overview(
 ) -> dict:
     """Le dernier scan d'un hôtel, comparé à un scan de référence : une page d'objets filtrés et triés.
     `category` : clé d'un type d'objet (`auction_categories`), ignorée si elle n'en nomme aucun. Un objet
-    absent de l'index du site n'est d'aucun type. `user` : chaque objet dit s'il le suit (`favorite`) ;
-    `favorites` : seuls ses objets suivis, ceux qui n'ont plus d'enchère compris (leur dernier prix connu au
-    scan de référence, `gone`)."""
-    followed: set[int] = set()
+    absent de l'index du site n'est d'aucun type. `user` : chaque objet dit s'il le suit (`favorite`) et
+    avec quels seuils (`buy_price`, `sell_price`) ; `favorites` : seuls ses objets suivis, ceux qui n'ont
+    plus d'enchère compris (leur dernier prix connu au scan de référence, `gone`)."""
+    followed: dict[int, tuple[int | None, int | None]] = {}
     if user is not None and getattr(user, "is_authenticated", False):
-        followed = set(FavoriteItem.objects.filter(user=user).values_list("item_id", flat=True))
+        followed = {
+            item_id: (buy, sell)
+            for item_id, buy, sell in FavoriteItem.objects.filter(user=user).values_list(
+                "item_id", "buy_price", "sell_price"
+            )
+        }
     known = houses()
     in_category = auction_categories.test_for(category)
     category = category if in_category else ""
@@ -499,6 +587,8 @@ def overview(
             {
                 **{k: v for k, v in r.items() if k not in ("search", "kind")},
                 "favorite": r["item_id"] in followed,
+                "buy_price": followed.get(r["item_id"], (None, None))[0],
+                "sell_price": followed.get(r["item_id"], (None, None))[1],
             }
             for r in rows[(page - 1) * PAGE_SIZE : page * PAGE_SIZE]
         ],

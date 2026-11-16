@@ -404,6 +404,69 @@ class TestRead:
         assert api_client.put("/api/sync/auctions/favorites/2592/").status_code == 204  # déjà suivi
         assert api_client.put("/api/sync/auctions/favorites/2589/").status_code == 400
 
+    def test_price_alerts_reach_the_player_once_per_crossing(self, api_client, as_user, gm, member, items):
+        from apps.notifications.models import Notification
+
+        def alerts(user):
+            found = Notification.objects.filter(kind="auction_alert", recipient=user).order_by("pk")
+            return [n.text for n in found]
+
+        url = "/api/sync/auctions/favorites/2589/alerts/"
+        api_client.force_authenticate(None)
+        assert api_client.put(url, {"buy_price": 50}, format="json").status_code in (401, 403)
+        as_user(member)
+        for bad in ({"buy_price": 0}, {"buy_price": "x"}, {"buy_price": 300, "sell_price": 300}):
+            assert api_client.put(url, bad, format="json").status_code == 400
+        # Poser un seuil suit l'objet ; la liste rend les seuils.
+        assert api_client.put(url, {"buy_price": 50, "sell_price": 300}, format="json").status_code == 204
+        as_user(gm)
+        assert post_scan(api_client, [[2589, 100, 3], [2592, 400, 2]], timedelta(hours=4)).status_code == 201
+        assert alerts(member) == []
+        row = lambda: {  # noqa: E731
+            r["item_id"]: (r["favorite"], r["buy_price"], r["sell_price"])
+            for r in api_client.get("/api/sync/auctions/").json()["results"]
+        }
+        assert row() == {2589: (False, None, None), 2592: (False, None, None)}
+        as_user(member)
+        assert row() == {2589: (True, 50, 300), 2592: (False, None, None)}
+        # Le prix passe au prix d'achat : un MP, pas un second tant qu'il y reste.
+        as_user(gm)
+        post_scan(api_client, [[2589, 50, 3]], timedelta(hours=3))
+        post_scan(api_client, [[2589, 40, 3]], timedelta(hours=2))
+        (text,) = alerts(member)
+        assert "**Étoffe de lin** à 50 pc" in text and "prix d'achat" in text and "/hv" in text
+        assert alerts(gm) == []
+        # Il remonte au-dessus du prix de vente, puis l'objet disparaît et revient sous le prix d'achat.
+        post_scan(api_client, [[2589, 300, 1]], timedelta(hours=1))
+        assert len(alerts(member)) == 2 and "prix de vente" in alerts(member)[1]
+        post_scan(api_client, [[2592, 400, 2]], timedelta(minutes=31))
+        post_scan(api_client, [[2589, 45, 1]], timedelta(0))
+        assert len(alerts(member)) == 3
+        # Un scan plus ancien que le dernier, arrivé après, ne prévient pas ; un seuil changé se réarme.
+        as_user(member)
+        assert api_client.put(url, {"buy_price": 60}, format="json").status_code == 204
+        assert FavoriteItem.objects.get(user=member, item_id=2589).sell_price is None
+        as_user(gm)
+        post_scan(api_client, [[2589, 10, 1]], timedelta(hours=5))
+        assert len(alerts(member)) == 3
+        # Qui a coupé ces MP n'en reçoit pas ; ne plus suivre l'objet retire ses seuils.
+        member.dm_muted_kinds = ["auction"]
+        member.save()
+        assert (
+            auctions.check_alerts(AuctionScan.objects.order_by("-scanned_at").first(), {2589: (45, 1)}) == 0
+        )
+        assert len(alerts(member)) == 3
+        auctions.set_favorite_item(member, 2589, False)
+        auctions.set_favorite_item(member, 2589, True)
+        assert FavoriteItem.objects.get(user=member, item_id=2589).buy_price is None
+
+    def test_an_old_scan_sends_no_price_alert(self, gm, member, items):
+        auctions.set_item_alerts(member, 2589, 50, None)
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(hours=7)), [[2589, 40, 3]])
+        assert not member.notifications.exists()
+        auctions.store_scan(gm, HOUSE, stamp(timedelta(hours=1)), [[2589, 40, 3]])
+        assert member.notifications.count() == 1
+
     def test_item_history_is_per_house_oldest_first(self, api_client, as_user, gm, scans):
         as_user(gm)
         data = api_client.get("/api/sync/auctions/items/2589/", {"house": HOUSE}).json()

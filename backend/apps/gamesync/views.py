@@ -435,6 +435,25 @@ class AuctionFavoriteItemView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class AuctionItemAlertsView(APIView):
+    """Membres : poser ses deux seuils sur un objet (`buy_price`, `sell_price`, en cuivre, null pour aucun).
+    L'objet est suivi s'il ne l'était pas."""
+
+    permission_classes = [CanUseAuctions]
+
+    @extend_schema(
+        request=OpenApiTypes.OBJECT,
+        responses={204: None, 400: OpenApiResponse(description="Prix invalide ou trop d'objets suivis")},
+    )
+    def put(self, request: Request, item_id: int) -> Response:
+        data = request.data if isinstance(request.data, dict) else {}
+        try:
+            auctions.set_item_alerts(request.user, item_id, data.get("buy_price"), data.get("sell_price"))
+        except auctions.AuctionError as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class AuctionRecipesView(APIView):
     """Membres : ses recettes favorites, ou celles que trouve `q`, avec le coût des composants et le prix du
     produit au dernier scan."""
