@@ -37,7 +37,7 @@
   }
 
   /*
-    Fond : Hurlevent au couchant (public/bg.jpg) sous un voile bleu nuit, plus dense vers le bas
+    Fond : Hurlevent au couchant (assets/bg.webp) sous un voile bleu nuit, plus dense vers le bas
     où s'étalent les listes. Pseudo-élément fixe plutôt que background-attachment: fixed,
     que iOS ignore. Le ciel reste visible derrière la bannière, qui est translucide.
   */
@@ -54,7 +54,7 @@
         rgba(11, 20, 36, 0.84) 40%,
         rgba(11, 20, 36, 0.93) 100%
       ),
-      url("/bg.jpg") center 30% / cover no-repeat var(--color-bg);
+      url("./assets/bg.webp") center 30% / cover no-repeat var(--color-bg);
   }
 
   @media (prefers-reduced-data: reduce) {

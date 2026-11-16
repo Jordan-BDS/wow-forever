@@ -21,4 +21,6 @@ EXPOSE 8000
 ENTRYPOINT ["./docker-entrypoint.sh"]
 # --max-requests : un worker ne rend jamais la mémoire d'une grosse requête ; il est remplacé toutes les 500
 # requêtes environ (le serveur n'a que 2 Go), pas les deux en même temps (jitter).
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--max-requests", "500", "--max-requests-jitter", "100", "--access-logfile", "-"]
+# Deux workers de quatre threads : huit requêtes à la fois au lieu de deux. Une page en lance quatre ou cinq,
+# et l'envoi d'un scan de l'hôtel des ventes n'occupe plus la moitié du serveur.
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--worker-class", "gthread", "--threads", "4", "--max-requests", "500", "--max-requests-jitter", "100", "--access-logfile", "-"]

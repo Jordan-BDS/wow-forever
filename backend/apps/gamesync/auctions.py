@@ -10,6 +10,7 @@ d'au moins `MIN_GAP` : le premier reçu reste, l'autre est refusé comme un doub
 """
 
 import logging
+import threading
 import time
 import unicodedata
 from datetime import UTC, datetime, timedelta
@@ -396,6 +397,9 @@ def _movement(price: int, listed: int | None, previous: tuple[int, int | None] |
 # et 5 ms par requête, sur un serveur de 2 Go). Les lignes sont donc partagées entre les requêtes : à lire
 # seulement.
 _COMPARED: dict[tuple[int, int], tuple[float, list[dict], list[dict]]] = {}
+# Un worker sert plusieurs requêtes à la fois (threads) : une seule compare, les autres attendent son résultat
+# au lieu de relire les deux mêmes scans chacune de son côté.
+_COMPARING = threading.Lock()
 
 
 def forget_comparisons() -> None:
@@ -408,6 +412,11 @@ def _compared(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[d
     absents du dernier (plus aucune enchère), montrés par les seuls tris de mouvements. Gardé `ROWS_TTL` :
     filtrer, trier ou changer de page ne relit pas les deux scans. Les listes rendues sont partagées :
     l'appelant ne les modifie pas, ni leurs lignes."""
+    with _COMPARING:
+        return _compared_locked(latest, baseline)
+
+
+def _compared_locked(latest: AuctionScan, baseline: AuctionScan | None) -> tuple[list[dict], list[dict]]:
     key = (latest.pk, baseline.pk if baseline else 0)
     kept = _COMPARED.get(key)
     if kept is not None and kept[0] > time.monotonic():

@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 
 export const KEYS = {
@@ -27,12 +27,15 @@ async function unwrap<T>(promise: Promise<{ data?: T; error?: unknown; response:
   return data;
 }
 
+/** La requête des données de jeu : partagée par `useGameData` et le préchargement du démarrage. */
+export const gameDataQuery = queryOptions({
+  queryKey: KEYS.gamedata,
+  queryFn: () => unwrap(api.GET("/api/gamedata/")),
+  staleTime: Infinity,
+});
+
 export function useGameData() {
-  return useQuery({
-    queryKey: KEYS.gamedata,
-    queryFn: () => unwrap(api.GET("/api/gamedata/")),
-    staleTime: Infinity,
-  });
+  return useQuery(gameDataQuery);
 }
 
 export function useCharacters() {

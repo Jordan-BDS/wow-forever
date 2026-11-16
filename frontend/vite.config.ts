@@ -14,6 +14,14 @@ export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Les bibliothèques dans un fichier à part : il reste en cache quand seul le code du site change.
+        codeSplitting: { groups: [{ name: "vendor", test: /node_modules[\\/](?!@fontsource)/ }] },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

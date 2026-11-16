@@ -119,6 +119,15 @@ export function Spinner() {
   );
 }
 
+/** La roue seule au milieu de l'écran : avant de savoir qui est connecté, ou le temps de charger une page. */
+export function PageSpinner() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <Spinner />
+    </div>
+  );
+}
+
 /** Titre de page en capitales romaines gravées, souligné d'un court filet d'or. */
 export function PageTitle({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) {
   return (

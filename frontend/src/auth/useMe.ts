@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Member } from "@/api/client";
 
 export const ME_KEY = ["me"] as const;
@@ -11,8 +11,10 @@ async function fetchMe(): Promise<Member | null> {
 }
 
 /** L'utilisateur connecté, `null` si personne n'est connecté. */
+export const meQuery = queryOptions({ queryKey: ME_KEY, queryFn: fetchMe, staleTime: 5 * 60_000 });
+
 export function useMe() {
-  return useQuery({ queryKey: ME_KEY, queryFn: fetchMe, staleTime: 5 * 60_000 });
+  return useQuery(meQuery);
 }
 
 export function useLogout() {
