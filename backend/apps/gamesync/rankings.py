@@ -453,6 +453,8 @@ def guild_progression(snapshots: dict[int, CharacterSnapshot] | None = None) -> 
             names.setdefault(encounter, str(event.get("name") or encounter))
             key = (encounter, int(t // 300))
             group = kills.setdefault(key, {"t": t, "guild": 0, "members": set()})
+            # L'heure du kill : la plus ancienne vue par un membre du groupe, quel que soit l'ordre lu.
+            group["t"] = min(group["t"], t)
             group["guild"] = max(group["guild"], int(number(event.get("guild"))))
             group["members"].add(snapshot.character.owner_id)
 
