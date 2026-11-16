@@ -275,6 +275,9 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.14", notes = {
+    "Hôtel des ventes : à la fin d'un scan complet (Auctionator ou NaowhForever), l'addon propose de recharger l'interface. Le jeu n'écrit les prix qu'au /reload ou à la déconnexion, et c'est là que le compagnon les envoie au site. Réglage dans /mf réglages.",
+  } },
   { version = "0.7.13", notes = {
     "Compagnon : une base Auctionator ancienne (fichier écrit plus d'un jour après son dernier scan complet) ne part plus au site ; ses vieux prix se glissaient dans l'historique.",
   } },
