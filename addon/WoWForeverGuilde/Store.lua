@@ -38,6 +38,7 @@ function Store.Init()
   if s.showDeaths == nil then s.showDeaths = true end
   if s.soundDeaths == nil then s.soundDeaths = true end
   if s.reloadReminder == nil then s.reloadReminder = true end
+  if s.scanReload == nil then s.scanReload = true end
   if s.sharePosition == nil then s.sharePosition = true end
   if s.minimapDots == nil then s.minimapDots = true end
   if s.minimapButton == nil then s.minimapButton = true end

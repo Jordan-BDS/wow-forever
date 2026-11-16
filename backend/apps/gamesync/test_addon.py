@@ -566,7 +566,7 @@ class TestSession:
                 "sharePosition", "minimapDots", "minimapButton", "gankAlerts",
                 "showDeaths", "soundDeaths", "announceDeaths", "wantedAlerts",
                 "bountyPlates", "bountyAlerts", "showStreaks", "soundStreaks",
-                "send", "sharePlaytime", "reloadReminder",
+                "send", "sharePlaytime", "reloadReminder", "scanReload",
             ]
         )  # fmt: skip
 
@@ -940,6 +940,68 @@ class TestSession:
         dismiss(g)
         g._ADVANCE(3600)
         assert popup(g) is None  # une seule fois par session
+
+    def test_reload_is_offered_when_a_full_auction_house_scan_ends(self):
+        lua = boot()
+        g = lua.globals()
+        # Auctionator : son bus d'événements tel que sa version 309 l'expose ; NaowhForever : sa table de prix.
+        lua.execute("""
+          Auctionator = { FullScan = { Events = { ScanComplete = "get_all_scan_complete" } }, EventBus = { listeners = {} } }
+          function Auctionator.EventBus:Register(listener, events)
+            for _, event in ipairs(events) do self.listeners[event] = listener end
+            return self
+          end
+          function Auctionator.EventBus:Fire(event, ...)
+            if self.listeners[event] then self.listeners[event]:ReceiveEvent(event, ...) end
+          end
+          NaowhForeverDB = {
+            profiles = { Default = { ahPrices = true } },
+            account = { ahPrices = { ["Forever-Alliance"] = { time = 1000, prices = {} } } },
+          }
+        """)
+        login(lua)
+        house = g.NaowhForeverDB.account.ahPrices["Forever-Alliance"]
+        scan_ends = lambda: g.Auctionator.EventBus.Fire(g.Auctionator.EventBus, "get_all_scan_complete")  # noqa: E731
+
+        # Hôtel des ventes ouvert, rien de neuf : pas de question. Le scan déjà dans la table ne compte pas.
+        g._FIRE("AUCTION_HOUSE_SHOW")
+        g._ADVANCE(6)
+        assert popup(g) is None
+        # NaowhForever finit un scan : l'heure de sa table avance.
+        house.time = 2000
+        g._ADVANCE(2)
+        assert popup(g).which == "WFG_SCAN_RELOAD" and "NaowhForever" in popup(g).message
+        assert "site" in popup(g).message
+        dismiss(g)
+        g._ADVANCE(10)
+        assert popup(g) is None  # une fois par scan
+        # Auctionator finit un scan complet.
+        scan_ends()
+        assert popup(g).which == "WFG_SCAN_RELOAD" and "Auctionator" in popup(g).message
+        dismiss(g)
+        # En combat, la question attend la fin du combat.
+        g._COMBAT = True
+        scan_ends()
+        assert popup(g) is None
+        g._COMBAT = None
+        g._FIRE("PLAYER_REGEN_ENABLED")
+        assert popup(g).which == "WFG_SCAN_RELOAD"
+        dismiss(g)
+        # Hôtel des ventes fermé : la table n'est plus lue ; à la réouverture, ce scan est déjà connu.
+        g._FIRE("AUCTION_HOUSE_CLOSED")
+        house.time = 3000
+        g._ADVANCE(6)
+        g._FIRE("AUCTION_HOUSE_SHOW")
+        g._ADVANCE(6)
+        assert popup(g) is None
+        # « Ne plus demander » coupe le réglage.
+        g._NS.UI.Dialogs.WFG_SCAN_RELOAD.OnAlt()
+        assert g.WoWForeverGuildeDB.settings.scanReload is False
+        scan_ends()
+        house.time = 4000
+        g._ADVANCE(2)
+        assert popup(g) is None
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_dialogs_are_the_addon_own_window_never_the_game_static_popups(self):
         # Vu en jeu : ADDON_ACTION_BLOCKED sur CancelLogout(). Un addon qui affiche un StaticPopup du jeu le

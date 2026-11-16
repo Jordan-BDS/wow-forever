@@ -684,6 +684,7 @@ local SETTINGS = {
       function() return ns.char ~= nil and not ns.Store.IsExcluded(ns.char.guid) end },
     { "sharePlaytime", L.SHARE_PLAYTIME },
     { "reloadReminder", L.RELOAD_REMINDER },
+    { "scanReload", L.SCAN_RELOAD_SETTING },
   } },
 }
 
