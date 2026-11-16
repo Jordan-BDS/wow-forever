@@ -1,3 +1,5 @@
+import threading
+
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
@@ -29,6 +31,8 @@ from .serializers import (
     ReleaseSerializer,
     ResolveRequestSerializer,
 )
+
+_RANKING = threading.Lock()  # un seul calcul de classements à la fois par processus
 
 
 class PairingThrottle(AnonRateThrottle):
@@ -513,6 +517,11 @@ class RankingsView(APIView):
         key = f"gamesync:rankings:{period}:{by}"
         data = cache.get(key)
         if data is None:
-            data = rankings.compute_rankings(period, by)
-            cache.set(key, data, 60)
+            # Un worker sert plusieurs requêtes à la fois (threads) : une seule calcule, les autres attendent
+            # son résultat au lieu de refaire le même calcul chacune de son côté.
+            with _RANKING:
+                data = cache.get(key)
+                if data is None:
+                    data = rankings.compute_rankings(period, by)
+                    cache.set(key, data, 60)
         return Response(data)

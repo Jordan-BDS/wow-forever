@@ -66,27 +66,49 @@ def _latest_per_install(snapshots) -> list[CharacterSnapshot]:
     return kept
 
 
+DATA_BATCH = 200  # instantanés dont le contenu est lu par requête
+
+
+def _load_latest_data(groups: list[list[CharacterSnapshot]]) -> None:
+    """Lit le contenu (`data`) du dernier instantané de chaque installation, pour chaque liste d'instantanés
+    d'un personnage chargée sans lui (`defer`). Un personnage garde un instantané par jour et par
+    installation, de plusieurs dizaines de Ko chacun, alors que la fusion ne lit que le dernier de chaque
+    installation ; une base plus ancienne, quand une marque du compagnon en désigne une, est lue à la demande
+    (une requête par instantané, à l'accès au champ)."""
+    wanted = {s.pk: s for group in groups for s in _latest_per_install(group)}
+    pks = list(wanted)
+    for start in range(0, len(pks), DATA_BATCH):
+        rows = CharacterSnapshot.objects.filter(pk__in=pks[start : start + DATA_BATCH])
+        for pk, data in rows.values_list("pk", "data"):
+            wanted[pk].data = data
+
+
 def latest_snapshot(character: Character) -> MergedSnapshot | None:
     snapshots = list(
         CharacterSnapshot.objects.filter(character=character, status__in=APPLIED)
         .select_related("batch")
+        .defer("data")
         .order_by("-exported_at")
     )
+    _load_latest_data([snapshots])
     return merge_installs(character, snapshots) if snapshots else None
 
 
 def latest_snapshots() -> dict[int, MergedSnapshot]:
-    """Dernier instantané de chaque personnage, installations fusionnées (une requête)."""
+    """Dernier instantané de chaque personnage, installations fusionnées : une requête pour la liste des
+    instantanés, sans leur contenu, puis le contenu de ceux qui servent (`_load_latest_data`)."""
     per_character: dict[int, list[CharacterSnapshot]] = {}
     queryset = (
         CharacterSnapshot.objects.filter(
             status__in=APPLIED, character__isnull=False, character__owner__is_active=True
         )
         .select_related("batch", "character__owner", "character__player_class")
+        .defer("data")
         .order_by("-exported_at")
     )
     for snapshot in queryset:
         per_character.setdefault(snapshot.character_id, []).append(snapshot)
+    _load_latest_data(list(per_character.values()))
     return {
         character_id: merge_installs(snapshots[0].character, snapshots)
         for character_id, snapshots in per_character.items()

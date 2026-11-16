@@ -83,6 +83,21 @@ class TestInstalls:
     """Deux installations de l'addon (second PC, réinstallation) : chacune compte depuis zéro, le site additionne
     au lieu d'oublier l'ancienne."""
 
+    def test_only_the_latest_snapshot_of_each_install_is_read(self, member, django_assert_num_queries):
+        # Un instantané par jour est gardé : la veille reste en base, mais son contenu n'est pas relu.
+        before = thrall()
+        before["exported_at"] = EXPORTED - 86400
+        before["counters"]["deaths"] = 11
+        import_for(member, before)
+        import_for(member, thrall())
+        thrall_char = Character.objects.get(name="Thrall")
+        assert thrall_char.snapshots.filter(status__in=progress.APPLIED).count() == 2
+        with django_assert_num_queries(2):  # la liste sans contenu, puis le contenu du dernier
+            merged = progress.latest_snapshots()[thrall_char.pk]
+            assert merged.data["counters"]["deaths"] == 14
+        with django_assert_num_queries(2):
+            assert progress.latest_snapshot(thrall_char).data["counters"]["deaths"] == 14
+
     def test_counters_journal_and_state_are_merged_across_installs(self, member):
         import_for(member, thrall(), install="pc-fixe")
         fresh = character(
