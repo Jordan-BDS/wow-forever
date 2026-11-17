@@ -468,10 +468,18 @@ pub fn read_auctionator(lua: &[u8]) -> AuctionatorFile {
             .map(|(day, _)| *day)
         else {
             let note = match per_day.iter().max_by_key(|(_, count)| **count) {
-                Some((best, count)) => format!(
-                    "pas de scan complet : {total} objets lisibles sur {} entrées, le jour le plus fourni ({best}) en compte {count} ; il en faut {AUCTIONATOR_MIN_ITEMS} et le tiers de la base",
-                    entries.len()
-                ),
+                Some((best, count)) => {
+                    let mut note = format!(
+                        "pas de scan complet : {total} objets lisibles sur {} entrées, le jour le plus fourni ({best}) en compte {count} ; il en faut {AUCTIONATOR_MIN_ITEMS} et le tiers de la base",
+                        entries.len()
+                    );
+                    // Le jour le plus récent, s'il n'est pas le plus fourni : un scan du jour resté trop court
+                    // se voit ici.
+                    if let Some((latest, seen)) = per_day.iter().next_back().filter(|(day, _)| *day != best) {
+                        note.push_str(&format!(" ; le jour le plus récent ({latest}) en compte {seen}"));
+                    }
+                    note
+                }
                 None => format!("aucun objet lisible sur {} entrées de la base", entries.len()),
             };
             file.realms.push(unread(house, "no_scan", note));
@@ -483,10 +491,19 @@ pub fn read_auctionator(lua: &[u8]) -> AuctionatorFile {
             .map(|row| (row.0, row.2, None))
             .collect();
         items.sort();
-        let note = format!(
+        let mut note = format!(
             "{} objets vus le dernier jour de scan, sur {total} dans la base",
             items.len()
         );
+        // Ce qui a été revu depuis ce jour, sans faire un scan complet : des recherches à la main, ou un scan
+        // resté trop court (interrompu). Sans cela, une « base trop ancienne » ne disait pas si le joueur
+        // avait tenté un scan depuis.
+        let since: usize = per_day.range(day + 1..).map(|(_, count)| *count).sum();
+        if let Some((latest, seen)) = per_day.range(day + 1..).next_back() {
+            note.push_str(&format!(
+                " ; depuis, {since} objets revus, le jour le plus récent ({latest}) en compte {seen}"
+            ));
+        }
         file.realms.push(AuctionatorRealm {
             house: house.clone(),
             scan: Some(AuctionatorScan {
@@ -1074,6 +1091,17 @@ NaowhForeverDB = {
         assert_eq!(scans[0].items.len(), 240);
         assert_eq!(scans[0].items[0], (1, 10, None));
         assert_eq!(scans[0].items[239], (240, 2400, None));
+        // Le constat dit ce qui a été revu depuis le jour du scan, quand il y a quelque chose.
+        let note = |database: &[u8]| read_auctionator(&auctionator_file(database)).realms[0].note.clone();
+        assert_eq!(
+            note(&auctionator_database("2507")),
+            "240 objets vus le dernier jour de scan, sur 250 dans la base"
+        );
+        // Jour 2499 : ces 240 objets ont été vus pour la dernière fois le 2500 (le scan), les 10 autres le 2501.
+        assert_eq!(
+            note(&auctionator_database("2499")),
+            "240 objets vus le dernier jour de scan, sur 250 dans la base ; depuis, 10 objets revus, le jour le plus récent (2501) en compte 10"
+        );
         // Quelques recherches à la main ne font pas un scan ; une base coupée ou d'un autre format non plus.
         let mut few = vec![(cbor_text("version"), vec![0x02])];
         few.push((
