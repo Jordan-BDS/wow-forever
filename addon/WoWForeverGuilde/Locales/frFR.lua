@@ -281,6 +281,10 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.16", notes = {
+    "Montée de niveau : quand un membre prend un niveau, les autres voient un popup bleu, noté aussi dans l'historique. Deux cases dans /mf réglages : afficher celles des autres, annoncer les miennes.",
+    "/mf niveau pour essayer le popup chez soi. Fichier neuf dans l'addon : relance le jeu après la mise à jour, un /reload ne suffit pas.",
+  } },
   { version = "0.7.15", notes = {
     "Hôtel des ventes : la proposition de recharger s'affiche aussi après le scan du bouton d'Auctionator (elle ne suivait que son autre sorte de scan).",
     "Compagnon : un scan d'Auctionator est daté de l'heure où il a été lancé, plus de l'heure du /reload. Il part une seule fois : des recherches à la main ne le renvoient plus.",
