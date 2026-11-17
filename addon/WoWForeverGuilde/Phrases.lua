@@ -68,6 +68,20 @@ ns.BOUNTY_PHRASES = {
   "Le mandat d'arrêt contre {ennemi} a été exécuté par {chasseur}. Affaire classée.",
 }
 
+-- Montées de niveau : un membre ({personnage}) passe au niveau {niveau} (un nombre).
+ns.LEVEL_PHRASES = {
+  "Ding ! {personnage} passe niveau {niveau}.",
+  "{personnage} vient de prendre le niveau {niveau}. GG.",
+  "Niveau {niveau} pour {personnage}. Les sangliers n'ont qu'à bien se tenir.",
+  "{personnage} grimpe au niveau {niveau}. Ça farme dur.",
+  "Un niveau de plus pour {personnage} : le {niveau}. On applaudit.",
+  "{personnage} est niveau {niveau}. Et sans mourir, cette fois. Enfin, on espère.",
+  "Niveau {niveau} validé pour {personnage}. Le cimetière attendra.",
+  "{personnage} débloque le niveau {niveau}. Les talents ne vont pas se placer tout seuls.",
+  "Breaking news : {personnage} est niveau {niveau}. La guilde est fière, paraît-il.",
+  "{personnage} passe niveau {niveau}. Quelqu'un a un sac de plus à lui prêter ?",
+}
+
 ns.Phrases = {}
 local Phrases = ns.Phrases
 

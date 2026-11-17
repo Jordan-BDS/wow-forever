@@ -522,6 +522,7 @@ SlashCmdList.WOWFOREVERGUILDE = function(raw)
     ns.Print(ns.L.TRACE_ON, ns.Data.TRACE_SECONDS)
   elseif msg:match("^lfg") then ns.Positions.SetLFG(raw:gsub("^%s*[Ll][Ff][Gg]", ""))
   elseif msg:match("^serie") or msg:match("^série") then ns.Safe("wanted.streak", ns.Wanted.RehearseStreak, raw)
+  elseif (msg:match("^niveau") or msg:match("^level")) and ns.Levels then ns.Safe("levels.rehearse", ns.Levels.Rehearse, raw)
   elseif msg:match("^prime") then
     -- Bounties.lua est un fichier neuf : tant que le jeu n'a pas redémarré, /mf prime garde son ancien usage.
     local rest = (raw:gsub("^%s*[Pp][Rr][Ii][Mm][Ee]", ""))

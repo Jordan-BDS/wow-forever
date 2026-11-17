@@ -37,6 +37,7 @@ Collectors\Kills.lua
 Collectors\Gathering.lua
 Collectors\Quests.lua
 Collectors\Deaths.lua
+Collectors\Levels.lua
 Positions.lua
 Wanted.lua
 Bounties.lua

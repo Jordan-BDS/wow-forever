@@ -354,6 +354,7 @@ local HISTORY_KIND = {
   death = { L.HISTORY_DEATH, 1, 0.35, 0.24 },
   kill = { L.HISTORY_KILL, 0.45, 0.9, 0.45 },
   bounty = { L.HISTORY_BOUNTY, 1, 0.82, 0 },
+  level = { L.HISTORY_LEVEL, 0.4, 0.78, 1 },
 }
 local historyKeys = {} -- clé de popup → son entrée, pour la session : un popup corrigé sur place corrige l'entrée
 local historyPanel
@@ -674,6 +675,8 @@ local SETTINGS = {
     { "bountyAlerts", L.BOUNTY_ALERTS, function(on)
       if ns.Bounties then ns.Bounties.SetAlerts(on) else ns.db.settings.bountyAlerts = on and true or false end
     end },
+    { "showLevels", L.SHOW_LEVELS },
+    { "announceLevels", L.ANNOUNCE_LEVELS },
     { "showStreaks", L.SHOW_STREAKS },
     { "soundStreaks", L.SOUND_STREAKS },
   } },
@@ -1231,6 +1234,21 @@ function UI.ShowDeath(info, phrase, wanted, quiet)
   UI.Remember("death", key, phrase, footer)
   if quiet then return end
   UI.ShowToast(header, phrase, footer, { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths, key, label)
+end
+
+--- Montée de niveau d'un membre. Bleu, sans son. La phrase (Levels.Phrase) arrive prête ; le pied donne la classe
+--- et le lieu. `quiet` : noté dans l'historique sans popup (réglage décoché, ou ma propre montée) ; `rehearsal` :
+--- /mf niveau, le popup seul, rien dans l'historique.
+function UI.ShowLevel(info, phrase, quiet, rehearsal)
+  local parts = {}
+  local class = ns.ClassLabel(info.class)
+  if class ~= "" then parts[#parts + 1] = class end
+  if info.zone and info.zone ~= "" then parts[#parts + 1] = info.zone end
+  local footer, key = table.concat(parts, " · "), "niveau:" .. tostring(info.guid) .. ":" .. tostring(info.level)
+  if not rehearsal then UI.Remember("level", key, phrase, footer) end
+  if quiet then return end
+  local label = string.format(L.LEVEL_LOG, ns.DeathName(info), info.level)
+  UI.ShowToast(L.LEVEL_HEADER, phrase, footer, { 0.4, 0.78, 1 }, false, key, label)
 end
 
 --- Appel à l'aide d'un membre dans ma zone : qui et par qui dans le texte, où dans le pied.

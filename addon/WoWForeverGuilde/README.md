@@ -18,7 +18,11 @@ transporte le code jusqu'au site.
   compétence est ramenée à sa ligne mère (Alchimie 171 plutôt qu'« Alchimie Classic ») via
   `C_TradeSkillUI.GetProfessionInfoBySkillLineID`, la compétence vient de la ligne d'extension quand la mère dit 0.
 - `Collectors/` : un module par catégorie (identité, équipement, talents, métiers, réputations, accès, verrous, PvP,
-  PvE, créatures tuées, récolte et artisanat, quêtes, annonces de mort par message addon sur le canal de guilde). Les créatures tuées (`Collectors/Kills.lua`)
+  PvE, créatures tuées, récolte et artisanat, quêtes, annonces de mort et montées de niveau par message addon sur le canal de guilde). `Collectors/Levels.lua` : à
+  `PLAYER_LEVEL_UP`, message « N » (guid, prénom, nom, classe, niveau de l'événement, zone, heure) ; chez les
+  autres, popup bleu « Montée de niveau » sans son (case « Afficher les montées de niveau des autres »), noté dans
+  l'historique même décoché ; ma propre montée n'a pas de popup chez moi, seulement sa ligne d'historique ;
+  « Annoncer mes montées de niveau » coupe l'envoi ; `/mf niveau [n]` joue le popup chez soi sans rien envoyer. Les créatures tuées (`Collectors/Kills.lua`)
   viennent du message d'expérience « X meurt, vous gagnez N points » (Forever interdit le journal de combat aux
   addons) ; compteur cumulé `kills` et nombre par créature (`counters.mobs`, clé = nom) dans le journal quotidien
   (d'où les classements hebdo par créature), premier / dernier kill dans `char.mobs`, hors journal, 500 espèces au

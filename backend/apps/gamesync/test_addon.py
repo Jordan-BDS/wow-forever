@@ -93,7 +93,7 @@ class TestLoading:
         ns = lua.globals()._NS
         names = sorted(ns.collectors[i].name for i in range(1, len(ns.collectors) + 1))
         assert names == sorted(
-            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "positions", "wanted", "bounties", "mapui", "nameplates"]
+            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "levels", "positions", "wanted", "bounties", "mapui", "nameplates"]
         )  # fmt: skip
         assert lua.globals().SlashCmdList.WOWFOREVERGUILDE is not None
         # Icône de la guilde (portrait de Samwise, « Temp ») sur les fenêtres et dans la liste des addons.
@@ -552,6 +552,64 @@ class TestSession:
         assert list(settings.windowPoint.values()) == ["TOPLEFT", "TOPLEFT", 40, -60]
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_level_up_is_announced_by_guild_addon_message_and_shown_as_toast_to_the_others(self):
+        lua = boot()
+        g = lua.globals()
+        lua.execute("_PLAYER.level = 23")
+        login(lua)
+        # Sans guilde : rien ne part.
+        g._FIRE("PLAYER_LEVEL_UP", 24)
+        assert addon_sent(g) == []
+        lua.execute("_GUILD = true")
+        # Le niveau annoncé est celui de l'événement (le client répond encore 24 à UnitLevel).
+        g._FIRE("PLAYER_LEVEL_UP", 25)
+        (sent,) = addon_sent(g)
+        assert (sent.prefix, sent.kind) == ("WFG", "GUILD")
+        assert sent.text.startswith(
+            "N\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tSHAMAN\t25\tForêt d'Elwynn\t"
+        )
+        # Mon propre écho : pas de popup chez moi (le jeu l'annonce déjà), une ligne d'historique.
+        g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "GUILD", "Thrall-Forever")
+        assert g.WoWForeverGuildeDeath is None
+        (mine,) = g._NS.UI.HistoryLines().values()
+        assert (
+            mine.kind == "level" and "|cff0070ddThrall Fils-de-Durotan|r" in mine.text and "25" in mine.text
+        )
+        assert mine.sub.endswith("Montée de niveau · Chaman · Forêt d'Elwynn")
+        # Un autre membre : popup bleu, sans son, nom à la couleur de sa classe, la même phrase chez tous.
+        line = "N\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t42\tStrangleronce\t1700000000"
+        receive(lua, line)
+        toast = g.WoWForeverGuildeDeath
+        assert toast.shown is True and "Montée de niveau" in toast.header.text
+        assert "Jaina Portvaillant|r" in toast.text.text and "42" in toast.text.text
+        assert toast.footer.text == "Mage · Strangleronce"
+        assert list(g._SOUNDS.values()) == []
+        assert toast.text.text == g._NS.Levels.Phrase(g._NS.Levels.Parse(line))
+        assert len(list(g._NS.UI.HistoryLines().values())) == 2
+        # Chuchoté par n'importe qui, ou illisible : ignoré.
+        toast.shown = False
+        g._FIRE("CHAT_MSG_ADDON", "WFG", line.replace("\t42\t", "\t43\t"), "WHISPER", "Inconnu-Forever")
+        receive(
+            lua, "N\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\tbeaucoup\tStrangleronce\t1700000000"
+        )
+        assert toast.shown is False and len(list(g._NS.UI.HistoryLines().values())) == 2
+        # Popup décoché : la montée est quand même notée dans l'historique.
+        lua.execute("WoWForeverGuildeDB.settings.showLevels = false")
+        g._ADVANCE(60)
+        receive(lua, line.replace("\t42\t", "\t43\t"))
+        assert toast.shown is False and len(list(g._NS.UI.HistoryLines().values())) == 3
+        # /mf niveau : le popup chez soi, rien d'envoyé ni de noté.
+        g.SlashCmdList.WOWFOREVERGUILDE("niveau 30")
+        assert (
+            toast.shown is True and "Thrall Fils-de-Durotan|r" in toast.text.text and "30" in toast.text.text
+        )
+        assert len(wanted_sent(g, "N")) == 1 and len(list(g._NS.UI.HistoryLines().values())) == 3
+        # Annonce coupée → rien n'est envoyé.
+        lua.execute("WoWForeverGuildeDB.settings.announceLevels = false")
+        g._FIRE("PLAYER_LEVEL_UP", 26)
+        assert len(wanted_sent(g, "N")) == 1
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_settings_tab_groups_every_checkbox(self):
         lua = boot()
         g = lua.globals()
@@ -565,7 +623,7 @@ class TestSession:
             [
                 "sharePosition", "minimapDots", "minimapButton", "gankAlerts",
                 "showDeaths", "soundDeaths", "announceDeaths", "wantedAlerts",
-                "bountyPlates", "bountyAlerts", "showStreaks", "soundStreaks",
+                "bountyPlates", "bountyAlerts", "showLevels", "announceLevels", "showStreaks", "soundStreaks",
                 "send", "sharePlaytime", "reloadReminder", "scanReload",
             ]
         )  # fmt: skip
