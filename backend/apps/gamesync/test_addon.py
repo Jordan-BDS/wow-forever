@@ -583,7 +583,7 @@ class TestSession:
         assert toast.shown is True and "Montée de niveau" in toast.header.text
         assert "Jaina Portvaillant|r" in toast.text.text and "42" in toast.text.text
         assert toast.footer.text == "Mage · Strangleronce"
-        assert list(g._SOUNDS.values()) == []
+        assert list(g._SOUNDS.values()) == [888] and list(g._SOUND_FILES.values()) == []
         assert toast.text.text == g._NS.Levels.Phrase(g._NS.Levels.Parse(line))
         assert len(list(g._NS.UI.HistoryLines().values())) == 2
         # Chuchoté par n'importe qui, ou illisible : ignoré.
@@ -604,10 +604,29 @@ class TestSession:
             toast.shown is True and "Thrall Fils-de-Durotan|r" in toast.text.text and "30" in toast.text.text
         )
         assert len(wanted_sent(g, "N")) == 1 and len(list(g._NS.UI.HistoryLines().values())) == 3
+        assert list(g._SOUNDS.values()) == [888, 888]
+        # Niveau 60 : la voix du dossier Sounds à la place du son de niveau ; fichier absent, le son de niveau.
+        lua.execute("WoWForeverGuildeDB.settings.showLevels = true")
+        receive(lua, line.replace("\t42\t", "\t60\t"))
+        assert list(g._SOUND_FILES.values())[-1].endswith("Sounds\\niveau-60.mp3")
+        newest = list(g._NS.UI.HistoryLines().values())[0]  # le popup attend son tour derrière /mf niveau
+        assert newest.text.endswith("Jaina Portvaillant|r te rickroll en passant level 60, GG !")
+        assert list(g._SOUNDS.values()) == [888, 888]
+        lua.execute("_SOUND_FILES_PRESENT = false")
+        receive(lua, line.replace("\t42\t", "\t60\t").replace("JAI", "UTH"))
+        assert list(g._SOUNDS.values()) == [888, 888, 888]
+        # Mon propre niveau 60 : la voix chez moi aussi ; son décoché, plus rien.
+        files = len(list(g._SOUND_FILES.values()))
+        g._FIRE("PLAYER_LEVEL_UP", 60)
+        assert len(list(g._SOUND_FILES.values())) == files + 1
+        lua.execute("WoWForeverGuildeDB.settings.soundLevels = false")
+        g._FIRE("PLAYER_LEVEL_UP", 60)
+        receive(lua, line.replace("\t42\t", "\t44\t"))
+        assert len(list(g._SOUND_FILES.values())) == files + 1 and len(list(g._SOUNDS.values())) == 3
         # Annonce coupée → rien n'est envoyé.
         lua.execute("WoWForeverGuildeDB.settings.announceLevels = false")
         g._FIRE("PLAYER_LEVEL_UP", 26)
-        assert len(wanted_sent(g, "N")) == 1
+        assert len(wanted_sent(g, "N")) == 3
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_settings_tab_groups_every_checkbox(self):
@@ -623,7 +642,7 @@ class TestSession:
             [
                 "sharePosition", "minimapDots", "minimapButton", "gankAlerts",
                 "showDeaths", "soundDeaths", "announceDeaths", "wantedAlerts",
-                "bountyPlates", "bountyAlerts", "showLevels", "announceLevels", "showStreaks", "soundStreaks",
+                "bountyPlates", "bountyAlerts", "showLevels", "soundLevels", "announceLevels", "showStreaks", "soundStreaks",
                 "send", "sharePlaytime", "reloadReminder", "scanReload",
             ]
         )  # fmt: skip
@@ -3407,14 +3426,22 @@ class TestWantedKills:
             )
 
         # Une prime : sa voix, sans le bip ; à partir de 3 points, la voix des grosses primes.
-        assert bounty("Garrosh", 1) == (["wicked-sick.mp3"], 0)
-        assert bounty("Nazgrel", 2) == (["wicked-sick.mp3"] * 2, 0)
+        # Une petite prime (1 ou 2 points) : l'une de ses deux voix, tirée d'après la phrase, donc la même chez
+        # tous les guildiens ; sur plusieurs primes, les deux sortent.
+        small = {"wicked-sick.mp3", "godlike.mp3"}
+        files, beeps = bounty("Garrosh", 1)
+        assert len(files) == 1 and files[0] in small and beeps == 0
+        files, beeps = bounty("Nazgrel", 2)
+        assert len(files) == 2 and files[1] in small and beeps == 0
+        for enemy in ["Sylvanas", "Thrall", "Voljin", "Cairne", "Baine", "Rokhan", "Eitrigg", "Grom"]:
+            files, beeps = bounty(enemy, 1)
+        assert set(files) == small and beeps == 0
         assert bounty("Rexxar", 3)[0][-1] == "holy-shit.mp3"
         assert "Prime encaissée" in g.WoWForeverGuildeDeath.header.text
         # Fichier absent : le bip habituel revient ; voix décochées : le bip, sans rien demander au jeu.
         lua.execute("_SOUND_FILES_PRESENT = false")
         files, beeps = bounty("Saurfang", 1)
-        assert (len(files), beeps) == (4, 1)
+        assert beeps == 1
         g.WoWForeverGuildeDB.settings.soundStreaks = False
         assert bounty("Zaela", 5) == (files, 2)
         # Ni voix ni son des morts : silence.

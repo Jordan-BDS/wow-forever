@@ -27,6 +27,7 @@ ns.L = setmetatable({
   SOUND_DEATHS = "Jouer un son à chaque mort affichée",
   ANNOUNCE_DEATHS = "Annoncer mes morts",
   SHOW_LEVELS = "Afficher les montées de niveau des autres",
+  SOUND_LEVELS = "Jouer un son à chaque montée de niveau affichée (et la voix du niveau 60)",
   ANNOUNCE_LEVELS = "Annoncer mes montées de niveau",
   SHARE_POSITION = "Partager ma position sur la carte (et voir les autres)",
   POSITION_ON = "Position partagée : les membres qui partagent la leur apparaissent sur la carte du monde.",

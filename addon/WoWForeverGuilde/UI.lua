@@ -676,6 +676,7 @@ local SETTINGS = {
       if ns.Bounties then ns.Bounties.SetAlerts(on) else ns.db.settings.bountyAlerts = on and true or false end
     end },
     { "showLevels", L.SHOW_LEVELS },
+    { "soundLevels", L.SOUND_LEVELS },
     { "announceLevels", L.ANNOUNCE_LEVELS },
     { "showStreaks", L.SHOW_STREAKS },
     { "soundStreaks", L.SOUND_STREAKS },
@@ -1236,7 +1237,14 @@ function UI.ShowDeath(info, phrase, wanted, quiet)
   UI.ShowToast(header, phrase, footer, { 1, 0.35, 0.24 }, ns.db.settings.soundDeaths, key, label)
 end
 
---- Montée de niveau d'un membre. Bleu, sans son. La phrase (Levels.Phrase) arrive prête ; le pied donne la classe
+--- Son d'une montée de niveau : au niveau maximum la voix `levelMax` du dossier Sounds, sinon, ou si
+--- le fichier manque, le son de niveau du jeu.
+function UI.PlayLevelSound(level)
+  if (level or 0) >= ns.Data.MAX_LEVEL and UI.PlayVoice("levelMax") then return end
+  if PlaySound then pcall(PlaySound, ns.Data.LEVEL_SOUND, "Master") end
+end
+
+--- Montée de niveau d'un membre. Bleu, avec le son de niveau (case « Jouer un son… »). La phrase (Levels.Phrase) arrive prête ; le pied donne la classe
 --- et le lieu. `quiet` : noté dans l'historique sans popup (réglage décoché, ou ma propre montée) ; `rehearsal` :
 --- /mf niveau, le popup seul, rien dans l'historique.
 function UI.ShowLevel(info, phrase, quiet, rehearsal)
@@ -1247,6 +1255,7 @@ function UI.ShowLevel(info, phrase, quiet, rehearsal)
   local footer, key = table.concat(parts, " · "), "niveau:" .. tostring(info.guid) .. ":" .. tostring(info.level)
   if not rehearsal then UI.Remember("level", key, phrase, footer) end
   if quiet then return end
+  if ns.db.settings.soundLevels then UI.PlayLevelSound(info.level) end
   local label = string.format(L.LEVEL_LOG, ns.DeathName(info), info.level)
   UI.ShowToast(L.LEVEL_HEADER, phrase, footer, { 0.4, 0.78, 1 }, false, key, label)
 end
@@ -1282,7 +1291,11 @@ function UI.ShowBounty(entry, phrase, by, prime, place)
   -- fichier absent), le bip habituel. La série du même kill vient de parler : la prime reste muette.
   local s, beep = ns.db.settings, ns.db.settings.soundDeaths
   if s.soundStreaks then
-    if UI.VoiceJustPlayed() or UI.PlayVoice((prime or 0) >= ns.Data.BOUNTY_BIG and "bountyBig" or "bounty") then
+    -- Petite prime : l'une de ses deux voix, tirée d'après la phrase (la même chez tous les guildiens, donc la
+    -- même voix) ; si son fichier manque, l'autre.
+    local voice = "bountyBig"
+    if (prime or 0) < ns.Data.BOUNTY_BIG then voice = ns.Phrases.Pick({ "bounty", "bountyAlt" }, "bounty", phrase) end
+    if UI.VoiceJustPlayed() or UI.PlayVoice(voice) or (voice == "bountyAlt" and UI.PlayVoice("bounty")) then
       beep = false
     end
   end

@@ -82,6 +82,9 @@ ns.LEVEL_PHRASES = {
   "{personnage} passe niveau {niveau}. Quelqu'un a un sac de plus à lui prêter ?",
 }
 
+-- Niveau maximum : une seule phrase, qui va avec la voix `levelMax`.
+ns.LEVEL_MAX_PHRASE = "{personnage} te rickroll en passant level {niveau}, GG !"
+
 ns.Phrases = {}
 local Phrases = ns.Phrases
 

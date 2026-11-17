@@ -12,8 +12,13 @@ Série de kills : chaque kill à moins de 18 s du précédent fait monter d'un p
 
 Prime encaissée (à la place du bip) :
 
-  wicked-sick.mp3     prime de 1 ou 2 points
+  wicked-sick.mp3     prime de 1 ou 2 points, l'un des deux (le même chez tous les guildiens)
+  godlike.mp3
   holy-shit.mp3       prime de 3 points et plus
+
+Niveau maximum (60) atteint par un membre, chez lui comme chez les autres :
+
+  niveau-60.mp3        10 secondes. Sans lui, le son de niveau du jeu.
 
 Quand un même kill prolonge une série et encaisse une prime, seule la voix de la série est jouée.
 Un fichier ajouté ou remplacé n'est lu qu'après avoir quitté et relancé le jeu (/reload ne suffit pas).

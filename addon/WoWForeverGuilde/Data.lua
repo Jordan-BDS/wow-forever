@@ -122,8 +122,11 @@ ns.Data.SOUNDS_DIR = "Interface\\AddOns\\WoWForeverGuilde\\Sounds\\"
 ns.Data.VOICES = {
   double = "double-kill.mp3", triple = "triple-kill.mp3", spree = "killing-spree.mp3", dominating = "dominating.mp3",
   rampage = "rampage.mp3", unstoppable = "unstoppable.mp3", monster = "monster-kill.mp3",
-  bounty = "wicked-sick.mp3", bountyBig = "holy-shit.mp3",
+  bounty = "wicked-sick.mp3", bountyAlt = "godlike.mp3", bountyBig = "holy-shit.mp3",
+  levelMax = "niveau-60.mp3", -- niveau maximum atteint (extrait de 10 s) ; fichier absent : le son de niveau
 }
+ns.Data.MAX_LEVEL = 60 -- le niveau maximum : sa montée a sa propre voix
+ns.Data.LEVEL_SOUND = 888 -- son du jeu joué avec le popup d'une montée de niveau (kit « LevelUp » du client)
 ns.Data.VOICE_OVERLAP = 2 -- s : la voix d'une série vient de partir, la prime du même kill reste muette
 ns.Data.TOAST_MIN_SECONDS = 4-- s : un texte flottant reste au moins ce temps avant de céder la place au suivant
 ns.Data.TOAST_QUEUE = 5 -- textes flottants en attente au plus (les plus anciens sautent)

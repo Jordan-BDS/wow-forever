@@ -1,6 +1,7 @@
 -- Montées de niveau, en jeu seulement : message addon (préfixe WFG, type « N ») sur le canal de guilde à
 -- PLAYER_LEVEL_UP, lu par les autres addons, popup flottant chez ceux qui l'affichent (« Afficher les montées de
--- niveau des autres »), sans son. Noté dans l'historique de /mf, popup coché ou non. Ma propre montée n'a pas de
+-- niveau des autres »), avec le son de niveau du jeu, ou au niveau maximum la voix `levelMax` de Sounds, que
+-- celui qui monte entend aussi (case « Jouer un son à chaque montée de niveau affichée »). Noté dans l'historique de /mf, popup coché ou non. Ma propre montée n'a pas de
 -- popup chez moi (le jeu l'annonce déjà) : son écho la note seulement dans mon historique.
 -- Ligne « N » : guid, prénom, nom, classe (jeton), niveau, zone, heure. Les versions d'avant l'ignorent.
 -- Le niveau est celui de l'événement : sur Forever, UnitLevel("player") peut rester sur l'ancien (cf. Identity.lua).
@@ -32,6 +33,7 @@ Levels.Parse = parse
 --- quel niveau, portés par le message. Tous les guildiens tirent la même phrase.
 function Levels.Phrase(info)
   local roles = { personnage = ns.Phrases.Role(ns.DeathName(info), info.class), niveau = tostring(info.level) }
+  if (info.level or 0) >= ns.Data.MAX_LEVEL then return ns.Phrases.Fill(ns.LEVEL_MAX_PHRASE, roles) end
   local seed = "N:" .. tostring(info.guid) .. ":" .. tostring(info.level)
   return ns.Phrases.Fill(ns.Phrases.Pick(ns.LEVEL_PHRASES, "{personnage} passe niveau {niveau}.", seed), roles)
 end
@@ -86,6 +88,10 @@ ns.RegisterCollector({
     if event == "PLAYER_LEVEL_UP" then
       local level = tonumber(ns.plain((...)))
       if level and level >= 2 then announce(char, math.floor(level)) end
+      -- Mon propre niveau maximum : la voix chez moi aussi, guilde ou non (le jeu joue déjà son son aux autres niveaux).
+      if level and level >= ns.Data.MAX_LEVEL and ns.db.settings.soundLevels and ns.UI and ns.UI.PlayVoice then
+        ns.UI.PlayVoice("levelMax")
+      end
       return
     end
     local prefix, text, channel = ...

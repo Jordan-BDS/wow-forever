@@ -39,6 +39,7 @@ function Store.Init()
   if s.soundDeaths == nil then s.soundDeaths = true end
   if s.showLevels == nil then s.showLevels = true end
   if s.announceLevels == nil then s.announceLevels = true end
+  if s.soundLevels == nil then s.soundLevels = true end
   if s.reloadReminder == nil then s.reloadReminder = true end
   if s.scanReload == nil then s.scanReload = true end
   if s.sharePosition == nil then s.sharePosition = true end

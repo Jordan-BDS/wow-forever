@@ -20,7 +20,9 @@ transporte le code jusqu'au site.
 - `Collectors/` : un module par catégorie (identité, équipement, talents, métiers, réputations, accès, verrous, PvP,
   PvE, créatures tuées, récolte et artisanat, quêtes, annonces de mort et montées de niveau par message addon sur le canal de guilde). `Collectors/Levels.lua` : à
   `PLAYER_LEVEL_UP`, message « N » (guid, prénom, nom, classe, niveau de l'événement, zone, heure) ; chez les
-  autres, popup bleu « Montée de niveau » sans son (case « Afficher les montées de niveau des autres »), noté dans
+  autres, popup bleu « Montée de niveau » avec le son de niveau du jeu (`ns.Data.LEVEL_SOUND`), ou au niveau 60 la voix
+  `niveau-60.mp3` du dossier `Sounds` (extrait de 10 s ; sans elle le son de niveau), que celui qui monte
+  entend aussi ; case « Jouer un son à chaque montée de niveau affichée » (case « Afficher les montées de niveau des autres »), noté dans
   l'historique même décoché ; ma propre montée n'a pas de popup chez moi, seulement sa ligne d'historique ;
   « Annoncer mes montées de niveau » coupe l'envoi ; `/mf niveau [n]` joue le popup chez soi sans rien envoyer. Les créatures tuées (`Collectors/Kills.lua`)
   viennent du message d'expérience « X meurt, vous gagnez N points » (Forever interdit le journal de combat aux
@@ -126,7 +128,8 @@ transporte le code jusqu'au site.
   même si son popup est déjà passé par un coéquipier. Chez tous : un texte en haut de l'écran pendant 5 s, hors de
   la file des popups, et la voix du palier (fichiers mp3 du dossier `Sounds`, table `ns.Data.VOICES` ; une voix
   coupe la précédente). Un fichier ajouté n'est lu qu'après relance du jeu ; le compagnon ne retire rien du dossier
-  `Sounds` lors d'une mise à jour ; sans fichier, le texte seul. Prime encaissée : `wicked-sick.mp3`, ou
+  `Sounds` lors d'une mise à jour ; sans fichier, le texte seul. Prime encaissée : `wicked-sick.mp3` ou
+  `godlike.mp3` (l'un des deux, tiré d'après la phrase du popup, donc le même chez tous), ou
   `holy-shit.mp3` à partir de 3 points, à la place du bip (le bip revient si le fichier manque) ; quand le même kill
   prolonge une série, seule la voix de la série est jouée. Kill à plusieurs : la même victime au même palier
   dans les 15 s ajoute le chasseur au texte sans rejouer la voix. Réglages « Afficher les séries de kills » et
