@@ -282,6 +282,10 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.18", notes = {
+    "Montée de niveau : retouches du popup.",
+    "Nouveau fichier : relance le jeu après la mise à jour, un /reload ne suffit pas.",
+  } },
   { version = "0.7.17", notes = {
     "Montée de niveau : le popup a maintenant un son. Nouvelle case dans /mf réglages pour le couper.",
     "Prime encaissée : une voix de plus pour les primes de 1 ou 2 points, tirée entre deux, la même chez toute la guilde.",
