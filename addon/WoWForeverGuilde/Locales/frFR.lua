@@ -23,6 +23,7 @@ ns.L = setmetatable({
   COUNTING_SINCE = "Compteurs depuis le %s",
   SEND_CHARACTER = "Envoyer ce personnage",
   SHARE_PLAYTIME = "Partager le temps de jeu",
+  SHARE_TRADES = "Envoyer mes achats et ventes de l'hôtel des ventes (visibles par moi seul sur le site)",
   SHOW_DEATHS = "Afficher les morts des autres",
   SOUND_DEATHS = "Jouer un son à chaque mort affichée",
   ANNOUNCE_DEATHS = "Annoncer mes morts",
@@ -282,6 +283,12 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.19", notes = {
+    "Hôtel des ventes : l'addon note tes achats et tes ventes (les ventes à l'ouverture de la boîte aux lettres).",
+    "Sur le site, page /hv : ils apparaissent sur la courbe de prix de l'objet, avec le bénéfice de tes reventes. Toi seul les vois.",
+    "Nouvelle case dans /mf réglages pour ne pas les envoyer. /mf ventes montre ce qui est noté.",
+    "Nouveau fichier : relance le jeu après la mise à jour, un /reload ne suffit pas.",
+  } },
   { version = "0.7.18", notes = {
     "Montée de niveau : retouches du popup.",
     "Nouveau fichier : relance le jeu après la mise à jour, un /reload ne suffit pas.",

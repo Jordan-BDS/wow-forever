@@ -34,6 +34,7 @@ function Store.Init()
   db.settings = db.settings or {}
   local s = db.settings
   if s.sharePlaytime == nil then s.sharePlaytime = false end
+  if s.shareTrades == nil then s.shareTrades = true end
   if s.announceDeaths == nil then s.announceDeaths = true end
   if s.showDeaths == nil then s.showDeaths = true end
   if s.soundDeaths == nil then s.soundDeaths = true end

@@ -33,7 +33,8 @@ transporte le code jusqu'au site.
   achats notés à la confirmation du jeu (fonctions d'achat de `C_AuctionHouse` accrochées), ventes et enchères
   emportées lues dans les factures du courrier, reconnues d'une lecture à l'autre ; `/mf ventes` montre ce que le
   client offre, les dernières transactions et la réponse brute du jeu pour les factures de la boîte ouverte
-  (lecture du courrier pas essayée en jeu). Le site range `trades` à l'import (`backend/apps/gamesync/trades.py`)
+  (lecture du courrier pas essayée en jeu). Case « Envoyer mes achats et ventes » (`shareTrades`, cochée par
+  défaut) : décochée, les notes continuent mais ne partent plus. Le site range `trades` à l'import (`backend/apps/gamesync/trades.py`)
   et montre à chacun les siennes sur la courbe de prix de l'objet, page /hv.
 - `Collectors/Gathering.lua` : récolte (sort puis butin dans la fenêtre : 10 s, 30 s pour la pêche) et fabrications.
   Seul son propre butin compte : reconnu au GUID joint au message, sinon au nom comparé tel quel (prénom, nom,

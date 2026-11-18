@@ -16,7 +16,7 @@
 --
 -- Une entrée : n (numéro, par installation), t, k (« buy » ou « sell »), src (« bid », « commodity », « mail »),
 -- item, name, qty, price (à l'unité), total, fee (commission), deposit, char, realm, faction. Montants en cuivre.
--- Lecture du courrier pas essayée en jeu à l'écriture (0.7.18) : /mf ventes montre ce que le jeu répond.
+-- Lecture du courrier pas essayée en jeu à l'écriture (0.7.19) : /mf ventes montre ce que le jeu répond.
 local ADDON, ns = ...
 
 local Trades = {}
@@ -323,8 +323,10 @@ local function fillNames(list)
   end
 end
 
---- Les transactions notées, pour le site ; nil s'il n'y en a pas.
+--- Les transactions notées, pour le site ; nil s'il n'y en a pas ou si le joueur a décoché leur envoi
+--- (`shareTrades`). Décochée, la case n'arrête pas la prise de notes : recochée, tout ce qui est gardé part.
 function Trades.Export()
+  if ns.db and ns.db.settings and ns.db.settings.shareTrades == false then return nil end
   local s = ns.db and ns.db.trades
   if type(s) ~= "table" or type(s.list) ~= "table" or #s.list == 0 then return nil end
   fillNames(s.list)

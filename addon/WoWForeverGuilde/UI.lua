@@ -687,6 +687,7 @@ local SETTINGS = {
       function(on) if ns.char then ns.db.settings.excluded[ns.char.guid] = (not on) and true or nil end end,
       function() return ns.char ~= nil and not ns.Store.IsExcluded(ns.char.guid) end },
     { "sharePlaytime", L.SHARE_PLAYTIME },
+    { "shareTrades", L.SHARE_TRADES },
     { "reloadReminder", L.RELOAD_REMINDER },
     { "scanReload", L.SCAN_RELOAD_SETTING },
   } },
@@ -694,26 +695,34 @@ local SETTINGS = {
 
 local settingChecks = {}
 
+--- Les cases sont plus hautes que la fenêtre : elles vivent dans une zone qui défile (molette ou barre).
 local function buildSettings(panel)
   panel.checks = {}
-  local y = -44
+  panel.scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+  panel.scroll:SetPoint("TOPLEFT", 16, -44)
+  panel.scroll:SetPoint("BOTTOMRIGHT", -36, 16)
+  panel.content = CreateFrame("Frame", nil, panel.scroll)
+  panel.scroll:SetScrollChild(panel.content)
+  local content = panel.content
+  local y = 0
   for _, group in ipairs(SETTINGS) do
-    local header = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    header:SetPoint("TOPLEFT", 16, y)
+    local header = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header:SetPoint("TOPLEFT", 0, y)
     header:SetText(group[1])
     y = y - 22
     for _, item in ipairs(group[2]) do
       local key, label, set, get = item[1], item[2], item[3], item[4]
-      local check = makeCheck(panel, label,
+      local check = makeCheck(content, label,
         get or function() return ns.db.settings[key] and true or false end,
         set or function(on) ns.db.settings[key] = on end)
-      check:SetPoint("TOPLEFT", 20, y)
+      check:SetPoint("TOPLEFT", 4, y)
       panel.checks[key] = check
       settingChecks[#settingChecks + 1] = check
       y = y - 24
     end
     y = y - 14
   end
+  content:SetSize(WINDOW_WIDTH - 60, -y)
 end
 
 --- Les cases reprennent l'état des réglages à chaque ouverture (ils changent aussi ailleurs : /mf, dialogues).

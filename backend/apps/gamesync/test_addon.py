@@ -674,7 +674,7 @@ class TestSession:
                 "sharePosition", "minimapDots", "minimapButton", "gankAlerts",
                 "showDeaths", "soundDeaths", "announceDeaths", "wantedAlerts",
                 "bountyPlates", "bountyAlerts", "showLevels", "soundLevels", "announceLevels", "showStreaks", "soundStreaks",
-                "send", "sharePlaytime", "reloadReminder", "scanReload",
+                "send", "sharePlaytime", "shareTrades", "reloadReminder", "scanReload",
             ]
         )  # fmt: skip
 
@@ -4332,6 +4332,10 @@ class TestTrades:
             (2, "buy", 2589, 1000),
         ]
         assert not [e for e in payload["errors"]]
+        # Case « Envoyer mes achats et ventes » décochée : les notes restent, l'export ne les porte plus.
+        g.WoWForeverGuildeDB.settings.shareTrades = False
+        assert "trades" not in decode_export(logout_code(lua))
+        assert len(self.trades(g)) == 2
 
     def test_sales_are_read_once_from_the_auction_house_mail(self):
         lua = boot()
