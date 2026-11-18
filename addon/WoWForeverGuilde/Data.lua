@@ -127,6 +127,19 @@ ns.Data.VOICES = {
 }
 ns.Data.MAX_LEVEL = 60 -- le niveau maximum : sa montée a sa propre voix
 ns.Data.LEVEL_SOUND = 888 -- son du jeu joué avec le popup d'une montée de niveau (kit « LevelUp » du client)
+-- Animation du niveau maximum, au centre de l'écran, à demi transparente, le temps de la voix. Le jeu ne lit pas
+-- de GIF : Rickroll.tga est une planche d'images (1024×1024, 24 bits non compressé), une image sur deux de
+-- Sounds\rickroll.gif (27 sur 54), réduites à 170 px, rangées par lignes de 6. Fichier absent : rien.
+ns.Data.LEVEL_MAX_ANIM = {
+  texture = "Interface\\AddOns\\WoWForeverGuilde\\Rickroll",
+  sheet = 1024, cell = 170, cols = 6, frames = 27,
+  fps = 12.5, -- le GIF est à 25 images/s, on en garde une sur deux
+  size = 320, -- côté à l'écran
+  alpha = 0.55,
+  seconds = 10, -- la durée de niveau-60.mp3
+  fadeIn = 2, fadeOut = 1.5, -- s : les fondus de niveau-60.mp3 (plein volume vers 2 s, baisse à partir de 8,5 s)
+}
+ns.Data.LEVEL_MAX_FONT_SCALE = 1.6 -- la phrase du popup de niveau maximum, en plus gros (20 → 32 pt)
 ns.Data.VOICE_OVERLAP = 2 -- s : la voix d'une série vient de partir, la prime du même kill reste muette
 ns.Data.TOAST_MIN_SECONDS = 4-- s : un texte flottant reste au moins ce temps avant de céder la place au suivant
 ns.Data.TOAST_QUEUE = 5 -- textes flottants en attente au plus (les plus anciens sautent)

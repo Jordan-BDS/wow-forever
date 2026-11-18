@@ -263,7 +263,7 @@ local function newFrame(kind, name)
   function f:Show() self.shown = true if self.scripts.OnShow then self.scripts.OnShow(self) end end
   function f:Hide() self.shown = false end
   function f:IsShown() return self.shown end
-  function f:CreateFontString() local s = newFrame("FontString") s.SetText = function(self, t) self.text = t end s.GetText = function(self) return self.text end return s end
+  function f:CreateFontString() local s = newFrame("FontString") s.SetText = function(self, t) self.text = t end s.GetText = function(self) return self.text end s.font = { "Fonts\\FRIZQT__.TTF", 20, "" } s.GetFont = function(self) return self.font[1], self.font[2], self.font[3] end s.SetFont = function(self, file, size, flags) self.font = { file, size, flags } end return s end
   function f:CreateTexture() local s = newFrame("Texture") s.SetVertexColor = function(self, r, g, b) self.color = { r, g, b } end s.SetTexture = function(self, t) self.texture = t end return s end
   function f:IsMouseOver() return self.mouseOver == true end
   -- Réservé hors combat par le jeu : en combat l'appel est refusé (compté dans _BLOCKED), sans erreur Lua.

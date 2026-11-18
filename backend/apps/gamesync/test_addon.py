@@ -629,6 +629,37 @@ class TestSession:
         assert len(wanted_sent(g, "N")) == 3
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
+    def test_level_60_plays_an_animation_and_a_bigger_phrase(self):
+        lua = boot()
+        g = lua.globals()
+        login(lua)
+        lua.execute("_GUILD = true")
+        line = "N\t1\tPlayer-1-00000JAI\tJaina\tPortvaillant\tMAGE\t59\tStrangleronce\t1700000000"
+        receive(lua, line)
+        toast = g.WoWForeverGuildeDeath
+        assert toast.shown is True and toast.text.font[2] == 20 and g.WoWForeverGuildeLevelMax is None
+        # Niveau 60 : la phrase en plus gros, l'animation au centre, en fondu, qui se cache après 10 s.
+        g._ADVANCE(60)
+        receive(lua, line.replace("\t59\t", "\t60\t"))
+        anim = g.WoWForeverGuildeLevelMax
+        assert toast.text.font[2] == pytest.approx(32)
+        assert anim.shown is True and anim.alpha == 0 and anim.tex.texture.endswith("\\Rickroll")
+        anim.scripts.OnUpdate(anim, 1)
+        assert anim.alpha == pytest.approx(0.275)
+        anim.scripts.OnUpdate(anim, 4)
+        assert anim.alpha == pytest.approx(0.55)
+        anim.scripts.OnUpdate(anim, 4.25)
+        assert anim.shown is True and anim.alpha == pytest.approx(0.275)
+        anim.scripts.OnUpdate(anim, 1)
+        assert anim.shown is False
+        # Le popup suivant retrouve sa taille ; mon propre niveau 60 rejoue l'animation chez moi.
+        g._ADVANCE(60)
+        receive(lua, line.replace("\t59\t", "\t44\t"))
+        assert toast.text.font[2] == 20 and anim.shown is False
+        g._FIRE("PLAYER_LEVEL_UP", 60)
+        assert anim.shown is True
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
+
     def test_settings_tab_groups_every_checkbox(self):
         lua = boot()
         g = lua.globals()

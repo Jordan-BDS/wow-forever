@@ -89,8 +89,10 @@ ns.RegisterCollector({
       local level = tonumber(ns.plain((...)))
       if level and level >= 2 then announce(char, math.floor(level)) end
       -- Mon propre niveau maximum : la voix chez moi aussi, guilde ou non (le jeu joue déjà son son aux autres niveaux).
-      if level and level >= ns.Data.MAX_LEVEL and ns.db.settings.soundLevels and ns.UI and ns.UI.PlayVoice then
-        ns.UI.PlayVoice("levelMax")
+      -- L'animation du niveau maximum aussi, son coché ou non.
+      if level and level >= ns.Data.MAX_LEVEL and ns.UI then
+        if ns.db.settings.soundLevels and ns.UI.PlayVoice then ns.UI.PlayVoice("levelMax") end
+        if ns.UI.ShowLevelMaxAnim then ns.UI.ShowLevelMaxAnim() end
       end
       return
     end

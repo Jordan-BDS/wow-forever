@@ -1117,6 +1117,7 @@ local function buildToast()
   toast.text:SetJustifyH("CENTER")
   toast.text:SetTextColor(1, 0.35, 0.24)
   toast.text:SetShadowOffset(2, -2)
+  toast.fontFile, toast.fontSize, toast.fontFlags = toast.text:GetFont()
   toast.footer = toast:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   toast.footer:SetPoint("TOP", toast.text, "BOTTOM", 0, -8)
   toast.footer:SetTextColor(0.9, 0.85, 0.72)
@@ -1147,8 +1148,12 @@ function UI.ToastSource()
   return table.concat(parts, " ; ") .. string.format(" · en attente : %d", #waiting)
 end
 
-local function display(headerText, text, footer, color, sound, key)
+local function display(headerText, text, footer, color, sound, key, scale)
   shownAt, shownKey = ns.now(), key
+  -- `scale` : phrase plus grosse (niveau maximum) ; la taille d'origine revient au popup suivant.
+  if toast.fontFile and toast.fontSize then
+    pcall(toast.text.SetFont, toast.text, toast.fontFile, toast.fontSize * (scale or 1), toast.fontFlags)
+  end
   toast.header:SetText(headerText)
   toast.text:SetText(text)
   toast.text:SetTextColor(color[1], color[2], color[3])
@@ -1173,7 +1178,7 @@ local function showNext()
   local item = table.remove(waiting, 1)
   if not item then return end
   logToast("sorti de la file", item[7])
-  display(item[1], item[2], item[3], item[4], item[5], item[6])
+  display(item[1], item[2], item[3], item[4], item[5], item[6], item[8])
   if #waiting > 0 then nextTimer = C_Timer.NewTimer(ns.Data.TOAST_MIN_SECONDS, showNext) end
 end
 
@@ -1186,23 +1191,23 @@ function UI.ToastPending(key)
   return false
 end
 
-function UI.ShowToast(headerText, text, footer, color, sound, key, label)
+function UI.ShowToast(headerText, text, footer, color, sound, key, label, scale)
   if not toast then buildToast() end
   label = label or footer
   local busy = toast:IsShown() and shownAt and ns.now() - shownAt < ns.Data.TOAST_MIN_SECONDS
   if (not busy and #waiting == 0) or (key and toast:IsShown() and key == shownKey) then
     logToast((busy or #waiting > 0) and "corrigé sur place" or "affiché", label)
-    display(headerText, text, footer, color, sound, key)
+    display(headerText, text, footer, color, sound, key, scale)
     return
   end
   for i, item in ipairs(waiting) do
     if key and item[6] == key then -- encore en attente : corrigé à sa place dans la file
-      waiting[i] = { headerText, text, footer, color, sound, key, label }
+      waiting[i] = { headerText, text, footer, color, sound, key, label, scale }
       logToast("corrigé dans la file", label)
       return
     end
   end
-  waiting[#waiting + 1] = { headerText, text, footer, color, sound, key, label }
+  waiting[#waiting + 1] = { headerText, text, footer, color, sound, key, label, scale }
   logToast("mis en attente", label)
   while #waiting > ns.Data.TOAST_QUEUE do logToast("éjecté de la file", table.remove(waiting, 1)[7]) end
   if not nextTimer then
@@ -1244,6 +1249,58 @@ function UI.PlayLevelSound(level)
   if PlaySound then pcall(PlaySound, ns.Data.LEVEL_SOUND, "Master") end
 end
 
+-- Animation du niveau maximum (ns.Data.LEVEL_MAX_ANIM) : une planche d'images dont on fait défiler les cases par
+-- SetTexCoord, en boucle, au centre de l'écran, sans prendre la souris.
+local maxAnim
+
+local function setAnimFrame(index)
+  local a = ns.Data.LEVEL_MAX_ANIM
+  local col, row = index % a.cols, math.floor(index / a.cols)
+  -- Un demi-texel en retrait : le filtrage ne bave pas sur la case voisine.
+  local left, top = (col * a.cell + 0.5) / a.sheet, (row * a.cell + 0.5) / a.sheet
+  local right, bottom = ((col + 1) * a.cell - 0.5) / a.sheet, ((row + 1) * a.cell - 0.5) / a.sheet
+  maxAnim.tex:SetTexCoord(left, right, top, bottom)
+end
+
+local function buildMaxAnim()
+  local a = ns.Data.LEVEL_MAX_ANIM
+  maxAnim = CreateFrame("Frame", "WoWForeverGuildeLevelMax", UIParent)
+  maxAnim:SetSize(a.size, a.size)
+  maxAnim:SetPoint("CENTER", 0, 0)
+  maxAnim:SetFrameStrata("MEDIUM")
+  maxAnim:EnableMouse(false)
+  maxAnim.tex = maxAnim:CreateTexture(nil, "ARTWORK")
+  maxAnim.tex:SetAllPoints()
+  maxAnim:Hide()
+  maxAnim:SetScript("OnUpdate", function(self, elapsed)
+    self.elapsed = self.elapsed + elapsed
+    local frame = math.floor(self.elapsed * a.fps) % a.frames
+    if frame ~= self.frame then
+      self.frame = frame
+      setAnimFrame(frame)
+    end
+    -- Fondus d'entrée et de sortie calés sur ceux de la voix, puis on se cache.
+    local left = a.seconds - self.elapsed
+    if left <= 0 then self:Hide() return end
+    self:SetAlpha(a.alpha * math.min(1, self.elapsed / a.fadeIn, left / a.fadeOut))
+  end)
+end
+
+--- Joue l'animation du niveau maximum (repart du début si elle tourne déjà). Texture absente : rien.
+function UI.ShowLevelMaxAnim()
+  if not maxAnim then buildMaxAnim() end
+  local ok, loaded = pcall(maxAnim.tex.SetTexture, maxAnim.tex, ns.Data.LEVEL_MAX_ANIM.texture)
+  if not ok or loaded == false then
+    maxAnim:Hide()
+    ns.Trace("animation du niveau maximum : texture pas chargée (fichier absent, ou jeu pas relancé depuis son ajout)")
+    return
+  end
+  maxAnim.elapsed, maxAnim.frame = 0, 0
+  setAnimFrame(0)
+  maxAnim:SetAlpha(0)
+  maxAnim:Show()
+end
+
 --- Montée de niveau d'un membre. Bleu, avec le son de niveau (case « Jouer un son… »). La phrase (Levels.Phrase) arrive prête ; le pied donne la classe
 --- et le lieu. `quiet` : noté dans l'historique sans popup (réglage décoché, ou ma propre montée) ; `rehearsal` :
 --- /mf niveau, le popup seul, rien dans l'historique.
@@ -1256,8 +1313,10 @@ function UI.ShowLevel(info, phrase, quiet, rehearsal)
   if not rehearsal then UI.Remember("level", key, phrase, footer) end
   if quiet then return end
   if ns.db.settings.soundLevels then UI.PlayLevelSound(info.level) end
+  if (info.level or 0) >= ns.Data.MAX_LEVEL then UI.ShowLevelMaxAnim() end
   local label = string.format(L.LEVEL_LOG, ns.DeathName(info), info.level)
-  UI.ShowToast(L.LEVEL_HEADER, phrase, footer, { 0.4, 0.78, 1 }, false, key, label)
+  local scale = (info.level or 0) >= ns.Data.MAX_LEVEL and ns.Data.LEVEL_MAX_FONT_SCALE or nil
+  UI.ShowToast(L.LEVEL_HEADER, phrase, footer, { 0.4, 0.78, 1 }, false, key, label, scale)
 end
 
 --- Appel à l'aide d'un membre dans ma zone : qui et par qui dans le texte, où dans le pied.
