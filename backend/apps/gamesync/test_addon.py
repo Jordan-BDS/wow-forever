@@ -93,7 +93,7 @@ class TestLoading:
         ns = lua.globals()._NS
         names = sorted(ns.collectors[i].name for i in range(1, len(ns.collectors) + 1))
         assert names == sorted(
-            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "levels", "positions", "wanted", "bounties", "mapui", "nameplates"]
+            ["identity", "gear", "talents", "professions", "reputation", "attunements", "lockouts", "pvp", "pve", "kills", "gathering", "quests", "deaths", "levels", "trades", "positions", "wanted", "bounties", "mapui", "nameplates"]
         )  # fmt: skip
         assert lua.globals().SlashCmdList.WOWFOREVERGUILDE is not None
         # Icône de la guilde (portrait de Samwise, « Temp ») sur les fenêtres et dans la liste des addons.
@@ -4262,6 +4262,136 @@ class TestPureModules:
         entry = g._ENTRY
         assert [entry.events[i].i for i in range(1, 4)] == [3, 4, 5]
         assert entry.journal["2020-01-01"] is None and entry.journal[g.date("%Y-%m-%d")].x == 1
+
+
+AUCTION_HOUSE = """
+  _AUCTIONS = {
+    [7] = { itemLink = "|cffffffff|Hitem:2589:0:0|h[Étoffe de lin]|h|r", quantity = 1, buyoutAmount = 500 },
+    [8] = { itemLink = "|cffffffff|Hitem:2589:0:0|h[Étoffe de lin]|h|r", quantity = 1, buyoutAmount = 500 },
+  }
+  C_AuctionHouse = {
+    PlaceBid = function() end,
+    GetAuctionInfoByID = function(id) return _AUCTIONS[id] end,
+    StartCommoditiesPurchase = function() end,
+    ConfirmCommoditiesPurchase = function() end,
+    PostItem = function() end,
+    PostCommodity = function() end,
+  }
+  C_Item.GetItemID = function(location) return location.item end
+  C_Item.GetItemName = function(location) return location.name end
+  -- Courriers : { type, objet, joueur, enchère, achat immédiat, dépôt, commission, days = jours restants, link, count }.
+  _MAILS = {}
+  function GetInboxNumItems() return #_MAILS end
+  function GetInboxInvoiceInfo(i) local m = _MAILS[i] if m then return unpack(m, 1, 7) end end
+  function GetInboxHeaderInfo(i) return "icon", "paper", "Hôtel des ventes", "Vente réussie", 0, 0, _MAILS[i].days, 0 end
+  function GetInboxItemLink(i) return _MAILS[i].link end
+  function GetInboxItem(i) return "objet", 0, "icon", _MAILS[i].count end
+"""
+
+
+class TestTrades:
+    def trades(self, g) -> list:
+        return list(g.WoWForeverGuildeDB.trades.list.values())
+
+    def test_purchases_are_noted_when_the_game_confirms_them(self):
+        lua = boot()
+        lua.execute(AUCTION_HOUSE)
+        login(lua)
+        g = lua.globals()
+        # Achat immédiat d'un objet : noté à la confirmation du jeu, avec ce que le jeu dit de l'enchère.
+        g.C_AuctionHouse.PlaceBid(7, 500)
+        g._FIRE("AUCTION_HOUSE_PURCHASE_COMPLETED", 7)
+        # Une enchère sous le prix d'achat immédiat n'est pas un achat ; une confirmation sans PlaceBid non plus.
+        g.C_AuctionHouse.PlaceBid(8, 100)
+        g._FIRE("AUCTION_HOUSE_PURCHASE_COMPLETED", 8)
+        g._FIRE("AUCTION_HOUSE_PURCHASE_COMPLETED", 9)
+        (buy,) = self.trades(g)
+        assert (buy.k, buy.src, buy.item, buy.name, buy.qty, buy.price, buy.total) == (
+            "buy", "bid", 2589, "Étoffe de lin", 1, 500, 500,
+        )  # fmt: skip
+        assert (buy.n, buy.char, buy.realm, buy.faction) == (1, g._PLAYER.guid, "Forever", g._PLAYER.faction)
+        # Marchandise : le prix est celui que le jeu annonce pour la quantité, noté quand l'achat réussit.
+        g.C_AuctionHouse.StartCommoditiesPurchase(2589, 20)
+        g._FIRE("COMMODITY_PRICE_UPDATED", 50, 1000)
+        g.C_AuctionHouse.ConfirmCommoditiesPurchase(2589, 20)
+        g._FIRE("COMMODITY_PURCHASE_SUCCEEDED")
+        # Un prix demandé puis abandonné, un achat refusé : rien.
+        g.C_AuctionHouse.StartCommoditiesPurchase(2589, 5)
+        g._FIRE("COMMODITY_PRICE_UPDATED", 50, 250)
+        g._FIRE("COMMODITY_PURCHASE_SUCCEEDED")
+        g.C_AuctionHouse.StartCommoditiesPurchase(2589, 5)
+        g._FIRE("COMMODITY_PRICE_UPDATED", 50, 250)
+        g.C_AuctionHouse.ConfirmCommoditiesPurchase(2589, 5)
+        g._FIRE("COMMODITY_PURCHASE_FAILED")
+        g._FIRE("COMMODITY_PURCHASE_SUCCEEDED")
+        _, bulk = self.trades(g)
+        assert (bulk.k, bulk.src, bulk.item, bulk.qty, bulk.price, bulk.total) == ("buy", "commodity", 2589, 20, 50, 1000)
+        payload = decode_export(logout_code(lua))
+        assert [(t["n"], t["k"], t["item"], t["total"]) for t in payload["trades"]] == [
+            (1, "buy", 2589, 500),
+            (2, "buy", 2589, 1000),
+        ]
+        assert not [e for e in payload["errors"]]
+
+    def test_sales_are_read_once_from_the_auction_house_mail(self):
+        lua = boot()
+        lua.execute(AUCTION_HOUSE)
+        login(lua)
+        g = lua.globals()
+        # La mise en vente donne l'identifiant de l'objet et son prix à l'unité : la facture n'a que le nom.
+        lua.execute("C_AuctionHouse.PostCommodity({ item = 2589, name = 'Étoffe de lin' }, 2, 10, 60)")
+        lua.execute("""
+          _MAILS = {
+            { "seller", "Étoffe de lin", "Garrosh", 300, 300, 10, 15, days = 29.5 },
+            { "seller", "Étoffe de lin", "Garrosh", 300, 300, 10, 15, days = 29.5 },
+            { "seller_temp_invoice", "Étoffe de lin", "Garrosh", 120, 120, 4, 6, days = 29.9 },
+            { "buyer", "Barre de fer", "Jaina", 800, 800, 0, 0, days = 29.9, link = "|Hitem:3575:0|h[Barre de fer]|h", count = 4 },
+            { "buyer", "Barre de fer", "Jaina", 700, 900, 0, 0, days = 29.9, link = "|Hitem:3575:0|h[Barre de fer]|h", count = 4 },
+          }
+        """)
+        g._FIRE("MAIL_SHOW")
+        g._FIRE("MAIL_INBOX_UPDATE")
+        g._ADVANCE(1)
+        # Deux ventes pareilles arrivées ensemble sont deux ventes ; la vente en attente et l'achat immédiat
+        # (noté à l'achat) ne comptent pas ; l'enchère emportée, si.
+        first, second, won = self.trades(g)
+        for sale in (first, second):
+            assert (sale.k, sale.src, sale.item, sale.name, sale.qty, sale.price) == (
+                "sell", "mail", 2589, "Étoffe de lin", 5, 60,
+            )  # fmt: skip
+            assert (sale.total, sale.fee, sale.deposit) == (300, 15, 10)
+            assert sale.t == g._CLOCK.now - 43200  # arrivé il y a une demi-journée (30 jours de vie)
+        assert (won.k, won.src, won.item, won.qty, won.price, won.total) == ("buy", "mail", 3575, 4, 175, 700)
+        # La boîte relue plus tard : rien de plus.
+        g._ADVANCE(600)
+        lua.execute("for _, m in ipairs(_MAILS) do m.days = m.days - 600 / 86400 end")
+        g._FIRE("MAIL_INBOX_UPDATE")
+        g._ADVANCE(1)
+        assert len(self.trades(g)) == 3
+        # /mf ventes : ce que le client offre, ce qui est noté, la réponse brute du jeu ; noté pour le site.
+        g.SlashCmdList.WOWFOREVERGUILDE("ventes")
+        chat = "\n".join(g._CHAT.values())
+        assert "GetInboxInvoiceInfo" in chat and "1 achats et 2 ventes notés" in chat
+        assert "Étoffe de lin" in chat and "seller | Étoffe de lin | Garrosh | 300" in chat
+        errors = list(g.WoWForeverGuildeDB.errors.values())
+        assert [e.where for e in errors] == ["ventes"]
+
+    def test_a_purchase_the_game_does_not_describe_is_named_by_its_mail(self):
+        lua = boot()
+        lua.execute(AUCTION_HOUSE)
+        login(lua)
+        g = lua.globals()
+        g.C_AuctionHouse.PlaceBid(42, 800)  # enchère inconnue de GetAuctionInfoByID
+        g._FIRE("AUCTION_HOUSE_PURCHASE_COMPLETED", 42)
+        (buy,) = self.trades(g)
+        assert (buy.item, buy.qty, buy.total) == (None, None, 800)
+        lua.execute("""
+          _MAILS = { { "buyer", "Barre de fer", "Jaina", 800, 800, 0, 0, days = 30, link = "|Hitem:3575:0|h[Barre de fer]|h", count = 4 } }
+        """)
+        g._FIRE("MAIL_INBOX_UPDATE")
+        g._ADVANCE(1)
+        (buy,) = self.trades(g)
+        assert (buy.src, buy.item, buy.name, buy.qty, buy.price) == ("bid", 3575, "Barre de fer", 4, 200)
 
 
 def test_export_format_in_lua_matches_python_decoder():

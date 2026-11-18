@@ -73,6 +73,42 @@ export type AuctionHistory = {
   average: number | null;
   /** `by` : le membre dont le compagnon a envoyé le scan. */
   points: { at: string; price: number; listed: number | null; by: string }[];
+  /** Mes achats et ventes de l'objet, notés par l'addon, du plus ancien au plus récent : moi seul les vois. */
+  trades: AuctionTrade[];
+  /** Mes reventes : chaque vente rapprochée de mes achats les plus anciens encore en stock. */
+  round_trips: AuctionRoundTrip[];
+  /** Null si je n'ai aucune transaction sur l'objet. */
+  trade_summary: { trips: number; profit: number; stock: number; stock_cost: number } | null;
+};
+
+/** Montants en cuivre. `quantity` et `price` (à l'unité) manquent quand la facture ne disait pas la quantité. */
+export type AuctionTrade = {
+  id: number;
+  at: string;
+  kind: "buy" | "sell";
+  source: string;
+  quantity: number | null;
+  price: number | null;
+  total: number;
+  fee: number;
+};
+
+/** `quantity` : les unités rapprochées, sur `sold` vendues. `revenue` : le prix moins la commission (`fee`). */
+export type AuctionRoundTrip = {
+  sale: number;
+  bought_at: string;
+  sold_at: string;
+  quantity: number;
+  sold: number;
+  buy_price: number;
+  sell_price: number;
+  cost: number;
+  fee: number;
+  revenue: number;
+  profit: number;
+  /** En % du coût. */
+  margin: number | null;
+  seconds: number;
 };
 
 export type AuctionFilters = {

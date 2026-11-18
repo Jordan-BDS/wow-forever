@@ -419,7 +419,7 @@ class AuctionItemView(APIView):
         responses={200: OpenApiTypes.OBJECT},
     )
     def get(self, request: Request, item_id: int) -> Response:
-        return Response(auctions.item_history(item_id, request.query_params.get("house", "")))
+        return Response(auctions.item_history(item_id, request.query_params.get("house", ""), request.user))
 
 
 class AuctionFavoriteItemView(APIView):

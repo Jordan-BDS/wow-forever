@@ -617,9 +617,11 @@ def overview(
     }
 
 
-def item_history(item_id: int, house: str = "") -> dict:
+def item_history(item_id: int, house: str = "", user=None) -> dict:
     """Le prix et le nombre d'enchères d'un objet à chaque scan d'un hôtel, du plus ancien au plus récent,
-    avec le nom affiché du membre qui a envoyé le scan."""
+    avec le nom affiché du membre qui a envoyé le scan. Avec `user` : ses propres achats et ventes de l'objet
+    et le bilan de ses reventes (`trades.for_item`), que lui seul voit."""
+    from . import trades  # import local : trades.py lit ce module
     known = houses()
     house = canonical_house(house)
     if known and not any(h["house"] == house for h in known):
@@ -644,6 +646,7 @@ def item_history(item_id: int, house: str = "") -> dict:
         "points": [
             {"at": at, "price": price, "listed": listed, "by": by} for at, price, listed, by in points
         ],
+        **trades.for_item(user, item_id, house),
     }
 
 

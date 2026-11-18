@@ -236,9 +236,10 @@ _PLAYER_INFO = { ["Player-1-00000EVIL"] = { "Guerrier", "WARRIOR" } }
 function GetPlayerInfoByGUID(guid) local p = _PLAYER_INFO[guid] if p then return p[1], p[2] end end
 function UnitIsPlayer(unit) local u = unitData(unit) return u ~= nil and u.player == true end
 function StartDuel() end
-function hooksecurefunc(name, fn)
-  local orig = _G[name]
-  _G[name] = function(...) local r = { orig(...) } fn(...) return unpack(r) end
+function hooksecurefunc(owner, name, fn)
+  if type(owner) ~= "table" then owner, name, fn = _G, owner, name end -- (nom, fonction) : une fonction globale
+  local orig = owner[name]
+  owner[name] = function(...) local r = { orig(...) } fn(...) return unpack(r) end
 end
 ChatFrame1 = {}
 

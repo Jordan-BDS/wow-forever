@@ -515,6 +515,8 @@ SlashCmdList.WOWFOREVERGUILDE = function(raw)
   elseif msg == "sos" then ns.Positions.SOS()
   elseif msg == "erreurs" or msg == "errors" then ns.PrintErrors()
   elseif msg == "api" then ns.Safe("diagnostic", ns.Diagnostic)
+  -- Trades.lua est un fichier neuf : tant que le jeu n'a pas redémarré, /mf ventes ouvre la fenêtre.
+  elseif (msg == "ventes" or msg == "achats") and ns.Trades then ns.Safe("trades.report", ns.Trades.Report)
   elseif msg == "diag" and ns.UI then ns.UI.Toggle("diag")
   elseif (msg == "nouveautes" or msg == "nouveautés" or msg == "news") and ns.UI then ns.UI.Toggle("news")
   elseif msg == "trace" then

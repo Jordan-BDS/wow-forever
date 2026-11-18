@@ -192,3 +192,13 @@ ns.Data.DEATH_RECAP_DELAY = 1 -- s après la mort avant de lire le récapitulati
 ns.Data.DEATH_DEDUPE = 60 -- s : deux annonces de mort du même personnage à moins de ce délai n'en font qu'une (la mort PvP l'emporte)
 ns.Data.TOAST_SECONDS = 10 -- durée d'affichage des textes flottants (avis de décès, appel à l'aide)
 ns.Data.MAX_MOBS = 500 -- créatures distinctes gardées par personnage (clé = nom affiché)
+-- Achats et ventes à l'hôtel des ventes (Collectors/Trades.lua).
+ns.Data.TRADES_MAX = 1000 -- transactions gardées, niveau compte (les plus anciennes sortent)
+ns.Data.TRADES_DAYS = 90 -- jours gardés ; plus long que la vie d'un courrier, pour reconnaître une facture déjà notée
+ns.Data.TRADE_BID_WINDOW = 30 -- s entre PlaceBid et la confirmation du jeu : au-delà, ce n'est plus cet achat
+ns.Data.TRADE_MAIL_DELAY = 0.5 -- s de regroupement des mises à jour de la boîte aux lettres
+ns.Data.TRADE_MAIL_SLACK = 120 -- s : deux lectures du même courrier donnent son heure d'arrivée à cela près
+ns.Data.TRADE_FILL_WINDOW = 3 * 3600 -- s après un achat noté sans objet : le courrier qui le nomme arrive dans ce délai
+ns.Data.AH_MAIL_DAYS = 30 -- jours de vie d'un courrier de l'hôtel des ventes à son arrivée (à confirmer sur Forever)
+ns.Data.TRADE_REPORT_LINES = 8 -- dernières transactions montrées par /mf ventes
+ns.Data.TRADE_REPORT_MAILS = 5 -- factures brutes montrées par /mf ventes

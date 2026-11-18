@@ -1,5 +1,13 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { formatChange, formatMoney, niceTicks, useAuctionHistory, type AuctionHistory } from "@/api/auctions";
+import {
+  formatChange,
+  formatMoney,
+  niceTicks,
+  useAuctionHistory,
+  type AuctionHistory,
+  type AuctionRoundTrip,
+  type AuctionTrade,
+} from "@/api/auctions";
 import { Pill, Spinner } from "@/components/ui";
 import { formatDateTime } from "@/lib/game";
 
@@ -65,12 +73,159 @@ export function ItemPriceHistory({
   const history = useAuctionHistory(itemId, house);
   if (history.isError) return <p className="text-xs text-danger">Historique indisponible.</p>;
   if (!history.data) return <Spinner />;
-  return <PriceHistory points={history.data.points} thresholds={thresholds} />;
+  const { points, trades = [], round_trips: trips = [], trade_summary: summary } = history.data;
+  return (
+    <div className="space-y-4">
+      <PriceHistory points={points} thresholds={thresholds} trades={trades} trips={trips} />
+      {summary && <TradeRecap trades={trades} trips={trips} summary={summary} />}
+    </div>
+  );
+}
+
+/** « 40 min », « 5 h », « 3 j 4 h ». */
+function formatDuration(seconds: number): string {
+  const minutes = Math.max(0, Math.round(seconds / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  return hours % 24 ? `${Math.floor(hours / 24)} j ${hours % 24} h` : `${hours / 24} j`;
+}
+
+const signed = (copper: number) =>
+  `${copper > 0 ? "+" : copper < 0 ? "−" : ""}${formatMoney(Math.abs(copper))}`;
+const gainClass = (copper: number) =>
+  copper > 0 ? "text-success" : copper < 0 ? "text-danger" : "text-text";
+
+function tradeLabel(trade: AuctionTrade): string {
+  const what = trade.kind === "buy" ? "Achat" : "Vente";
+  const amount =
+    trade.quantity != null && trade.price != null
+      ? `${trade.quantity} × ${formatMoney(trade.price)}, total ${formatMoney(trade.total)}`
+      : `total ${formatMoney(trade.total)}, quantité inconnue`;
+  return `${what} du ${formatDateTime(trade.at)} : ${amount}`;
+}
+
+/**
+ * Mes achats et ventes de l'objet sous sa courbe : le bilan des reventes (chaque vente rapprochée de mes achats
+ * les plus anciens encore en stock, commission déduite), puis la liste complète.
+ */
+export function TradeRecap({
+  trades,
+  trips,
+  summary,
+}: {
+  trades: AuctionTrade[];
+  trips: AuctionRoundTrip[];
+  summary: NonNullable<AuctionHistory["trade_summary"]>;
+}) {
+  const buys = trades.filter((t) => t.kind === "buy").length;
+  const cell = "px-2 py-1";
+  return (
+    <section className="space-y-2 text-xs text-muted" aria-label="Mes achats et ventes">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="text-sm font-semibold text-text">Mes achats et ventes</h4>
+        <span>notés par l'addon, visibles par toi seul</span>
+      </div>
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Stat label="Achats" value={String(buys)} />
+        <Stat label="Ventes" value={String(trades.length - buys)} />
+        <Stat label="Bénéfice des reventes" value={summary.trips ? signed(summary.profit) : "aucune"}>
+          {summary.trips > 0 && `${summary.trips} revente${summary.trips > 1 ? "s" : ""}, commission déduite`}
+        </Stat>
+        <Stat label="Acheté, pas revendu" value={String(summary.stock)}>
+          {summary.stock > 0 && `payé ${formatMoney(summary.stock_cost)}`}
+        </Stat>
+      </dl>
+      {trips.length > 0 && (
+        <div className="max-h-64 overflow-auto rounded-sm border border-border/60">
+          <table className="w-full text-left whitespace-nowrap">
+            <caption className="sr-only">Mes reventes, la plus récente d'abord</caption>
+            <thead className="sticky top-0 bg-surface text-muted">
+              <tr>
+                <th className={`${cell} font-normal`}>Acheté</th>
+                <th className={`${cell} font-normal`}>Revendu</th>
+                <th className={`${cell} text-right font-normal`}>Quantité</th>
+                <th className={`${cell} text-right font-normal`}>Achat, pièce</th>
+                <th className={`${cell} text-right font-normal`}>Vente, pièce</th>
+                <th className={`${cell} text-right font-normal`}>Bénéfice</th>
+                <th className={`${cell} text-right font-normal`}>Durée</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {[...trips].reverse().map((trip) => (
+                <tr key={trip.sale}>
+                  <td className={cell}>{formatDateTime(trip.bought_at)}</td>
+                  <td className={cell}>{formatDateTime(trip.sold_at)}</td>
+                  <td className={`${cell} text-right text-text`}>
+                    {trip.quantity}
+                    {trip.quantity < trip.sold && ` sur ${trip.sold}`}
+                  </td>
+                  <td className={`${cell} text-right font-mono text-text`}>{formatMoney(trip.buy_price)}</td>
+                  <td className={`${cell} text-right font-mono text-text`}>{formatMoney(trip.sell_price)}</td>
+                  <td className={`${cell} text-right font-mono ${gainClass(trip.profit)}`}>
+                    {signed(trip.profit)}
+                    {trip.margin != null && ` (${formatChange(trip.margin)})`}
+                  </td>
+                  <td className={`${cell} text-right`}>{formatDuration(trip.seconds)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <details>
+        <summary className="cursor-pointer hover:text-text">Voir toutes mes transactions</summary>
+        <div className="mt-2 max-h-56 overflow-auto rounded-sm border border-border/60">
+          <table className="w-full text-left whitespace-nowrap">
+            <thead className="sticky top-0 bg-surface text-muted">
+              <tr>
+                <th className={`${cell} font-normal`}>Le</th>
+                <th className={`${cell} font-normal`}>Sens</th>
+                <th className={`${cell} text-right font-normal`}>Quantité</th>
+                <th className={`${cell} text-right font-normal`}>Pièce</th>
+                <th className={`${cell} text-right font-normal`}>Total</th>
+                <th className={`${cell} text-right font-normal`}>Commission</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {[...trades].reverse().map((trade) => (
+                <tr key={trade.id}>
+                  <td className={cell}>{formatDateTime(trade.at)}</td>
+                  <td className={cell} style={{ color: trade.kind === "buy" ? BUY_COLOR : SELL_COLOR }}>
+                    {trade.kind === "buy" ? "▲ achat" : "▼ vente"}
+                  </td>
+                  <td className={`${cell} text-right text-text`}>{trade.quantity ?? "?"}</td>
+                  <td className={`${cell} text-right font-mono text-text`}>
+                    {trade.price != null ? formatMoney(trade.price) : "?"}
+                  </td>
+                  <td className={`${cell} text-right font-mono text-text`}>{formatMoney(trade.total)}</td>
+                  <td className={`${cell} text-right font-mono`}>
+                    {trade.kind === "sell" ? formatMoney(trade.fee) : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+  );
 }
 
 /** Courbe du prix le plus bas et du nombre d'enchères d'un objet, scan après scan. Les seuils du joueur, s'il
- * en a, la traversent : prix d'achat en vert, prix de vente en rouge. */
-export function PriceHistory({ points, thresholds }: { points: Point[]; thresholds?: Thresholds }) {
+ * en a, la traversent : prix d'achat en vert, prix de vente en rouge. Ses achats (▲ vert) et ses ventes (▼ rouge)
+ * y sont posés à leur prix à l'unité, un trait reliant chaque revente à son achat. */
+export function PriceHistory({
+  points,
+  thresholds,
+  trades = [],
+  trips = [],
+}: {
+  points: Point[];
+  thresholds?: Thresholds;
+  trades?: AuctionTrade[];
+  trips?: AuctionRoundTrip[];
+}) {
   // La période affichée : null = tout l'historique. Les raccourcis et la réglette du bas la changent tous les deux.
   const [period, setPeriod] = useState<Period | null>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -141,9 +296,26 @@ export function PriceHistory({ points, thresholds }: { points: Point[]; threshol
     { v: thresholds?.buy ?? null, color: BUY_COLOR, label: "achat" },
     { v: thresholds?.sell ?? null, color: SELL_COLOR, label: "vente" },
   ].flatMap((m) => (m.v == null ? [] : [{ ...m, v: m.v, label: `${m.label} : ${formatMoney(m.v)}` }]));
-  // L'échelle s'étend jusqu'aux seuils : une ligne hors du cadre ne dirait rien.
-  const low = Math.min(min, ...marks.map((m) => m.v));
-  const high = Math.max(max, ...marks.map((m) => m.v));
+  // Mes transactions de la période, celles dont le prix à l'unité est connu : hors de la période des scans,
+  // elles restent dans le récapitulatif sous la courbe.
+  const inside = (t: number) => t >= first.t && t <= last.t;
+  const dots = trades.flatMap((trade) => {
+    const t = new Date(trade.at).getTime();
+    return trade.price != null && inside(t)
+      ? [{ id: trade.id, t, v: trade.price, kind: trade.kind, label: tradeLabel(trade) }]
+      : [];
+  });
+  const links = trips.flatMap((trip) => {
+    const from = new Date(trip.bought_at).getTime();
+    const to = new Date(trip.sold_at).getTime();
+    return inside(from) && inside(to)
+      ? [{ id: trip.sale, t1: from, v1: trip.buy_price, t2: to, v2: trip.sell_price, gain: trip.profit >= 0 }]
+      : [];
+  });
+  // L'échelle s'étend jusqu'aux seuils et aux transactions : un repère hors du cadre ne dirait rien.
+  const extra = [...marks.map((m) => m.v), ...dots.map((d) => d.v), ...links.map((l) => l.v1)];
+  const low = Math.min(min, ...extra);
+  const high = Math.max(max, ...extra);
 
   const plotWidth = Math.max(60, width - MARGIN.left - MARGIN.right);
   const span = Math.max(1, last.t - first.t);
@@ -204,7 +376,18 @@ export function PriceHistory({ points, thresholds }: { points: Point[]; threshol
           step(e.key === "ArrowLeft" ? -1 : 1);
         }}
       >
-        <PlotTitle color={PRICE_COLOR}>Prix le plus bas, à l'unité</PlotTitle>
+        <PlotTitle color={PRICE_COLOR}>
+          Prix le plus bas, à l'unité
+          {dots.length > 0 && (
+            <span className="ml-2">
+              <span style={{ color: BUY_COLOR }}>▲</span> mes achats{" "}
+              <span className="ml-1" style={{ color: SELL_COLOR }}>
+                ▼
+              </span>{" "}
+              mes ventes
+            </span>
+          )}
+        </PlotTitle>
         <Plot
           {...shared}
           height={220}
@@ -213,6 +396,8 @@ export function PriceHistory({ points, thresholds }: { points: Point[]; threshol
           ticks={niceTicks(low, high, 4)}
           format={formatMoney}
           marks={marks}
+          trades={dots}
+          links={links}
           xTicks={xTicks.map((t) => ({ t, label: tickFormat.format(t) }))}
           label={`Prix de ${formatMoney(first.price)} à ${formatMoney(last.price)} sur ${visible.length} scans`}
         />
@@ -456,6 +641,8 @@ function Plot({
   xTicks,
   label,
   marks,
+  trades,
+  links,
 }: {
   width: number;
   height: number;
@@ -469,6 +656,10 @@ function Plot({
   label: string;
   /** Lignes horizontales en pointillés, nommées au bord droit. */
   marks?: { v: number; color: string; label: string }[];
+  /** Achats (triangle vert, pointe en haut) et ventes (triangle rouge, pointe en bas), décrits au survol. */
+  trades?: { id: number; t: number; v: number; kind: "buy" | "sell"; label: string }[];
+  /** Un trait par revente, de l'achat à la vente : vert si elle rapporte, rouge sinon. */
+  links?: { id: number; t1: number; v1: number; t2: number; v2: number; gain: boolean }[];
 }) {
   const top = MARGIN.top;
   const bottom = height - (xTicks ? MARGIN.bottom : 8);
@@ -563,6 +754,36 @@ function Plot({
             strokeWidth="1.5"
           />
         ))}
+      {links?.map((link) => (
+        <line
+          key={link.id}
+          x1={x(link.t1)}
+          y1={y(link.v1)}
+          x2={x(link.t2)}
+          y2={y(link.v2)}
+          stroke={link.gain ? BUY_COLOR : SELL_COLOR}
+          strokeWidth="1.5"
+          strokeDasharray="2 3"
+          opacity="0.8"
+        />
+      ))}
+      {trades?.map((trade) => {
+        const cx = x(trade.t);
+        const cy = y(trade.v);
+        const tip = trade.kind === "buy" ? -6 : 6; // la pointe : en haut pour un achat, en bas pour une vente
+        return (
+          <path
+            key={trade.id}
+            d={`M${cx},${cy + tip} L${cx + 6},${cy - tip * 0.75} L${cx - 6},${cy - tip * 0.75} Z`}
+            fill={trade.kind === "buy" ? BUY_COLOR : SELL_COLOR}
+            stroke="var(--color-bg)"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          >
+            <title>{trade.label}</title>
+          </path>
+        );
+      })}
       {hoverT != null && (
         <line
           x1={x(hoverT)}

@@ -28,7 +28,13 @@ transporte le code jusqu'au site.
   viennent du message d'expérience « X meurt, vous gagnez N points » (Forever interdit le journal de combat aux
   addons) ; compteur cumulé `kills` et nombre par créature (`counters.mobs`, clé = nom) dans le journal quotidien
   (d'où les classements hebdo par créature), premier / dernier kill dans `char.mobs`, hors journal, 500 espèces au
-  plus ; rien au niveau maximum.
+  plus ; rien au niveau maximum. `Collectors/Trades.lua` : mes achats et mes ventes à l'hôtel des ventes, niveau
+  compte (`db.trades`, 1000 au plus, 90 jours), envoyés dans l'export (`trades`) pour la courbe de prix de `/hv` ;
+  achats notés à la confirmation du jeu (fonctions d'achat de `C_AuctionHouse` accrochées), ventes et enchères
+  emportées lues dans les factures du courrier, reconnues d'une lecture à l'autre ; `/mf ventes` montre ce que le
+  client offre, les dernières transactions et la réponse brute du jeu pour les factures de la boîte ouverte
+  (lecture du courrier pas essayée en jeu). Le site range `trades` à l'import (`backend/apps/gamesync/trades.py`)
+  et montre à chacun les siennes sur la courbe de prix de l'objet, page /hv.
 - `Collectors/Gathering.lua` : récolte (sort puis butin dans la fenêtre : 10 s, 30 s pour la pêche) et fabrications.
   Seul son propre butin compte : reconnu au GUID joint au message, sinon au nom comparé tel quel (prénom, nom,
   royaume, tiret ou espace). `/mf api` et l'onglet Diagnostic disent le dernier sort lu et ce qu'est devenu le dernier

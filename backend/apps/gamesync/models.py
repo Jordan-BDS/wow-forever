@@ -310,6 +310,54 @@ class FavoriteItem(models.Model):
         return f"{self.user} suit l'objet {self.item_id}"
 
 
+class AuctionTrade(models.Model):
+    """Un achat ou une vente d'un joueur à l'hôtel des ventes, noté par l'addon (`Collectors/Trades.lua`) et
+    reçu avec l'export. Privé : chacun ne voit que les siens, sur la courbe de prix de l'objet. Gardé sans
+    limite de durée. L'addon numérote ses entrées par installation (`seq`) : la même entrée renvoyée,
+    complétée entre-temps (nom, objet d'un achat lu dans le courrier), met la ligne à jour."""
+
+    BUY, SELL = "buy", "sell"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="auction_trades"
+    )
+    install_id = models.CharField("Installation de l'addon", max_length=64)
+    seq = models.PositiveIntegerField("Numéro dans l'installation")
+    at = models.DateTimeField("Le")
+    kind = models.CharField("Sens", max_length=4, choices=[(BUY, "Achat"), (SELL, "Vente")])
+    source = models.CharField(
+        "Noté par", max_length=12, blank=True, help_text="bid, commodity ou mail : voir l'addon."
+    )
+    item_id = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Vide : une vente dont le nom ne désigne aucun objet de l'index."
+    )
+    name = models.CharField("Nom dans le jeu", max_length=120, blank=True)
+    quantity = models.PositiveIntegerField(
+        "Quantité", null=True, blank=True, help_text="Vide : la facture d'une vente ne la donnait pas."
+    )
+    price = models.PositiveBigIntegerField("Prix à l'unité", null=True, blank=True, help_text="En cuivre.")
+    total = models.PositiveBigIntegerField("Total", help_text="En cuivre, commission non déduite.")
+    fee = models.PositiveBigIntegerField("Commission", default=0)
+    deposit = models.PositiveBigIntegerField("Dépôt", default=0)
+    character_guid = models.CharField(max_length=64, blank=True)
+    realm = models.CharField(max_length=96, blank=True)
+    house = models.CharField("Hôtel des ventes", max_length=96, blank=True)
+    faction = models.CharField(max_length=16, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "transaction à l'hôtel des ventes"
+        verbose_name_plural = "transactions à l'hôtel des ventes"
+        ordering = ["at", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "install_id", "seq"], name="unique_auction_trade")
+        ]
+        indexes = [models.Index(fields=["user", "item_id", "at"], name="auction_trade_lookup")]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} {self.name or self.item_id} : {self.total}"
+
+
 class WantedExclusion(models.Model):
     """Nom retiré du tableau Wanted par le GM (PNJ homonyme pris pour un joueur, erreur de lecture)."""
 

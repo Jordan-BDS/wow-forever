@@ -406,9 +406,10 @@ def import_code(user, code: str, *, source: str, device: CompanionDevice | None 
     batch.save(update_fields=["summary"])
     character_services.ensure_owner_has_main(user)
     if not refusal:
-        from . import bounties  # import local : bounties.py lit ce module par wanted.py
+        from . import bounties, trades  # import local : bounties.py lit ce module par wanted.py
 
         bounties.import_posted(payload.get("bounties"))
+        trades.import_trades(user, payload.get("install"), payload.get("trades"))
     return batch
 
 

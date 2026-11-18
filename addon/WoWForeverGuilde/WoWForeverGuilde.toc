@@ -38,6 +38,7 @@ Collectors\Gathering.lua
 Collectors\Quests.lua
 Collectors\Deaths.lua
 Collectors\Levels.lua
+Collectors\Trades.lua
 Positions.lua
 Wanted.lua
 Bounties.lua
