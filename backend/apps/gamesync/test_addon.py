@@ -557,9 +557,17 @@ class TestSession:
         g = lua.globals()
         lua.execute("_PLAYER.level = 23")
         login(lua)
-        # Sans guilde : rien ne part.
+        # Sans guilde : rien ne part, mais mon popup s'affiche chez moi, sans son (le jeu joue déjà le sien)
+        # et sans ligne d'historique (c'est l'écho qui la note).
         g._FIRE("PLAYER_LEVEL_UP", 24)
         assert addon_sent(g) == []
+        toast = g.WoWForeverGuildeDeath
+        assert toast.shown is True and "Montée de niveau" in toast.header.text
+        assert "Thrall Fils-de-Durotan|r" in toast.text.text and "24" in toast.text.text
+        assert toast.footer.text == "Chaman · Forêt d'Elwynn"
+        assert list(g._SOUNDS.values()) == [] and list(g._SOUND_FILES.values()) == []
+        assert list(g._NS.UI.HistoryLines().values()) == []
+        g._ADVANCE(60)
         lua.execute("_GUILD = true")
         # Le niveau annoncé est celui de l'événement (le client répond encore 24 à UnitLevel).
         g._FIRE("PLAYER_LEVEL_UP", 25)
@@ -568,9 +576,13 @@ class TestSession:
         assert sent.text.startswith(
             "N\t1\tPlayer-1-000ABC01\tThrall\tFils-de-Durotan\tSHAMAN\t25\tForêt d'Elwynn\t"
         )
-        # Mon propre écho : pas de popup chez moi (le jeu l'annonce déjà), une ligne d'historique.
+        # Mon popup est déjà là, avec la phrase que les autres verront ; mon propre écho n'en ajoute pas, il
+        # note une ligne d'historique.
+        assert toast.shown is True and toast.text.text == g._NS.Levels.Phrase(g._NS.Levels.Parse(sent.text))
+        g._ADVANCE(60)
+        toast.shown = False
         g._FIRE("CHAT_MSG_ADDON", "WFG", sent.text, "GUILD", "Thrall-Forever")
-        assert g.WoWForeverGuildeDeath is None
+        assert toast.shown is False and list(g._SOUNDS.values()) == []
         (mine,) = g._NS.UI.HistoryLines().values()
         assert (
             mine.kind == "level" and "|cff0070ddThrall Fils-de-Durotan|r" in mine.text and "25" in mine.text

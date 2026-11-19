@@ -1323,7 +1323,9 @@ function UI.ShowLevel(info, phrase, quiet, rehearsal, mine)
   if not rehearsal then UI.Remember("level", key, phrase, footer) end
   if quiet then return end
   local max = (info.level or 0) >= ns.Data.MAX_LEVEL
-  if ns.db.settings.soundLevels and (max or not mine) then UI.PlayLevelSound(info.level) end
+  if ns.db.settings.soundLevels then
+    if not mine then UI.PlayLevelSound(info.level) elseif max then UI.PlayVoice("levelMax") end
+  end
   if max then UI.ShowLevelMaxAnim() end
   local label = string.format(L.LEVEL_LOG, ns.DeathName(info), info.level)
   local scale = (info.level or 0) >= ns.Data.MAX_LEVEL and ns.Data.LEVEL_MAX_FONT_SCALE or nil
