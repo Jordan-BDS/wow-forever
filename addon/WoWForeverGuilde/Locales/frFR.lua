@@ -283,6 +283,9 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.20", notes = {
+    "Montée de niveau : tu vois maintenant le popup de tes propres niveaux, comme les autres le voient.",
+  } },
   { version = "0.7.19", notes = {
     "Hôtel des ventes : l'addon note tes achats et tes ventes (les ventes à l'ouverture de la boîte aux lettres).",
     "Sur le site, page /hv : ils apparaissent sur la courbe de prix de l'objet, avec le bénéfice de tes reventes. Toi seul les vois.",

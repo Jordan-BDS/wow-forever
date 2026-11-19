@@ -1311,9 +1311,10 @@ function UI.ShowLevelMaxAnim()
 end
 
 --- Montée de niveau d'un membre. Bleu, avec le son de niveau (case « Jouer un son… »). La phrase (Levels.Phrase) arrive prête ; le pied donne la classe
---- et le lieu. `quiet` : noté dans l'historique sans popup (réglage décoché, ou ma propre montée) ; `rehearsal` :
---- /mf niveau, le popup seul, rien dans l'historique.
-function UI.ShowLevel(info, phrase, quiet, rehearsal)
+--- et le lieu. `quiet` : noté dans l'historique sans popup (réglage décoché, ou l'écho de ma propre montée) ;
+--- `rehearsal` : le popup seul, rien dans l'historique (/mf niveau, ou ma propre montée, que son écho note) ;
+--- `mine` : ma propre montée, sans le son de niveau du jeu, qu'il joue déjà (la voix du niveau maximum reste).
+function UI.ShowLevel(info, phrase, quiet, rehearsal, mine)
   local parts = {}
   local class = ns.ClassLabel(info.class)
   if class ~= "" then parts[#parts + 1] = class end
@@ -1321,8 +1322,9 @@ function UI.ShowLevel(info, phrase, quiet, rehearsal)
   local footer, key = table.concat(parts, " · "), "niveau:" .. tostring(info.guid) .. ":" .. tostring(info.level)
   if not rehearsal then UI.Remember("level", key, phrase, footer) end
   if quiet then return end
-  if ns.db.settings.soundLevels then UI.PlayLevelSound(info.level) end
-  if (info.level or 0) >= ns.Data.MAX_LEVEL then UI.ShowLevelMaxAnim() end
+  local max = (info.level or 0) >= ns.Data.MAX_LEVEL
+  if ns.db.settings.soundLevels and (max or not mine) then UI.PlayLevelSound(info.level) end
+  if max then UI.ShowLevelMaxAnim() end
   local label = string.format(L.LEVEL_LOG, ns.DeathName(info), info.level)
   local scale = (info.level or 0) >= ns.Data.MAX_LEVEL and ns.Data.LEVEL_MAX_FONT_SCALE or nil
   UI.ShowToast(L.LEVEL_HEADER, phrase, footer, { 0.4, 0.78, 1 }, false, key, label, scale)

@@ -1,8 +1,9 @@
 -- Montées de niveau, en jeu seulement : message addon (préfixe WFG, type « N ») sur le canal de guilde à
 -- PLAYER_LEVEL_UP, lu par les autres addons, popup flottant chez ceux qui l'affichent (« Afficher les montées de
 -- niveau des autres »), avec le son de niveau du jeu, ou au niveau maximum la voix `levelMax` de Sounds, que
--- celui qui monte entend aussi (case « Jouer un son à chaque montée de niveau affichée »). Noté dans l'historique de /mf, popup coché ou non. Ma propre montée n'a pas de
--- popup chez moi (le jeu l'annonce déjà) : son écho la note seulement dans mon historique.
+-- celui qui monte entend aussi (case « Jouer un son à chaque montée de niveau affichée »). Noté dans l'historique de /mf, popup coché ou non. Ma propre montée a son
+-- popup chez moi dès PLAYER_LEVEL_UP, sans le son de niveau (le jeu le joue déjà) ; son écho la note seulement
+-- dans mon historique.
 -- Ligne « N » : guid, prénom, nom, classe (jeton), niveau, zone, heure. Les versions d'avant l'ignorent.
 -- Le niveau est celui de l'événement : sur Forever, UnitLevel("player") peut rester sur l'ancien (cf. Identity.lua).
 -- /mf niveau [n] joue le popup chez soi sans rien envoyer ni noter.
@@ -88,11 +89,12 @@ ns.RegisterCollector({
     if event == "PLAYER_LEVEL_UP" then
       local level = tonumber(ns.plain((...)))
       if level and level >= 2 then announce(char, math.floor(level)) end
-      -- Mon propre niveau maximum : la voix chez moi aussi, guilde ou non (le jeu joue déjà son son aux autres niveaux).
-      -- L'animation du niveau maximum aussi, son coché ou non.
-      if level and level >= ns.Data.MAX_LEVEL and ns.UI then
-        if ns.db.settings.soundLevels and ns.UI.PlayVoice then ns.UI.PlayVoice("levelMax") end
-        if ns.UI.ShowLevelMaxAnim then ns.UI.ShowLevelMaxAnim() end
+      -- Ma propre montée : le popup chez moi aussi, guilde ou non, annonce cochée ou non, sans attendre l'écho
+      -- (qui la note dans l'historique). Au niveau maximum, la voix et l'animation avec ; aux autres niveaux,
+      -- pas de son de l'addon : le jeu joue déjà le sien.
+      if level and level >= 2 and char and ns.UI and ns.UI.ShowLevel then
+        local info = myInfo(char, math.floor(level))
+        ns.UI.ShowLevel(info, Levels.Phrase(info), false, true, true)
       end
       return
     end

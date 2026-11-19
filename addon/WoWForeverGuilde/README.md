@@ -23,7 +23,7 @@ transporte le code jusqu'au site.
   autres, popup bleu « Montée de niveau » avec le son de niveau du jeu (`ns.Data.LEVEL_SOUND`), ou au niveau 60 la voix
   `niveau-60.mp3` du dossier `Sounds` (extrait de 10 s ; sans elle le son de niveau), que celui qui monte
   entend aussi ; case « Jouer un son à chaque montée de niveau affichée » (case « Afficher les montées de niveau des autres »), noté dans
-  l'historique même décoché ; ma propre montée n'a pas de popup chez moi, seulement sa ligne d'historique ;
+  l'historique même décoché ; ma propre montée a son popup chez moi aussi (guilde ou non, annonce cochée ou non, sans le son de niveau que le jeu joue déjà), sa ligne d'historique venant de l'écho ;
   « Annoncer mes montées de niveau » coupe l'envoi ; `/mf niveau [n]` joue le popup chez soi sans rien envoyer. Les créatures tuées (`Collectors/Kills.lua`)
   viennent du message d'expérience « X meurt, vous gagnez N points » (Forever interdit le journal de combat aux
   addons) ; compteur cumulé `kills` et nombre par créature (`counters.mobs`, clé = nom) dans le journal quotidien
