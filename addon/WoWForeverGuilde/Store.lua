@@ -31,6 +31,8 @@ function Store.Init()
   db.installId = db.installId or newInstallId()
   db.characters = db.characters or {}
   db.errors = db.errors or {}
+  db.reports = db.reports or {}
+  Store.SplitReports(db)
   db.settings = db.settings or {}
   local s = db.settings
   if s.sharePlaytime == nil then s.sharePlaytime = false end
@@ -128,6 +130,45 @@ function Store.LogError(where, err)
   if not db then return end
   table.insert(db.errors, { t = now(), where = where, error = tostring(err), addon = ns.VERSION })
   while #db.errors > ns.Data.MAX_ERRORS do table.remove(db.errors, 1) end
+end
+
+-- Relevés (0.7.21) : le diagnostic `/mf api`, le journal des kills de la session, le relevé `/mf ventes`. Ce ne
+-- sont pas des erreurs : rangés à part, ils ne chassent plus les vraies erreurs de leur liste (un journal des
+-- kills par déconnexion la remplissait) et ne comptent plus dans « N erreur(s) ». Ils partent au site avec elles,
+-- sous la même forme (cf. Export.BuildPayload).
+Store.REPORT_KINDS = { diagnostic = true, vh = true, ventes = true }
+
+--- Ne garde que les REPORTS_KEPT derniers relevés de chaque sorte.
+local function trimReports(reports)
+  local kept = {}
+  for i = #reports, 1, -1 do
+    local kind = reports[i].where
+    kept[kind] = (kept[kind] or 0) + 1
+    if kept[kind] > ns.Data.REPORTS_KEPT then table.remove(reports, i) end
+  end
+end
+
+function Store.LogReport(kind, text)
+  local db = ns.db
+  if not db then return end
+  table.insert(db.reports, { t = now(), where = kind, error = tostring(text), addon = ns.VERSION })
+  trimReports(db.reports)
+end
+
+--- Les relevés rangés avec les erreurs par une version d'avant la 0.7.21 passent dans leur liste.
+function Store.SplitReports(db)
+  local errors = {}
+  for _, e in ipairs(db.errors) do
+    if type(e) == "table" and Store.REPORT_KINDS[e.where] then
+      table.insert(db.reports, e)
+    else
+      errors[#errors + 1] = e
+    end
+  end
+  if #errors == #db.errors then return end
+  db.errors = errors
+  table.sort(db.reports, function(a, b) return (a.t or 0) < (b.t or 0) end)
+  trimReports(db.reports)
 end
 
 function Store.IsExcluded(guid)

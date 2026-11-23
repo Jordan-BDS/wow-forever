@@ -400,11 +400,11 @@ function Trades.ReportLines()
   return lines
 end
 
---- /mf ventes : dans le chat, et noté avec les erreurs pour partir au site (page « Tests en jeu »).
+--- /mf ventes : dans le chat, et noté parmi les relevés pour partir au site (page « Tests en jeu »).
 function Trades.Report()
   local lines = Trades.ReportLines()
   for _, line in ipairs(lines) do ns.Print("%s", line) end
-  ns.Store.LogError("ventes", table.concat(lines, " | "))
+  ns.Store.LogReport("ventes",table.concat(lines, " | "))
 end
 
 ns.RegisterCollector({

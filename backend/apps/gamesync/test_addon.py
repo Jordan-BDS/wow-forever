@@ -795,11 +795,16 @@ class TestSession:
         assert len(list(g._CHAT.values())) == chat_before and list(g.WoWForeverGuildeDB.errors.values()) == []
         panel.send.scripts.OnClick(panel.send)
         assert any("Diagnostic noté" in m for m in list(g._CHAT.values()))
-        (noted,) = [dict(e) for e in g.WoWForeverGuildeDB.errors.values()]
+        # Le diagnostic est un relevé, pas une erreur : il ne compte pas dans « N erreur(s) ».
+        (noted,) = [dict(e) for e in g.WoWForeverGuildeDB.reports.values()]
         assert noted["where"] == "diagnostic" and "lecture · talents" in noted["error"]
-        # « Relire » reprend l'état du moment : l'erreur notée y figure ; la zone est en lecture seule.
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
         panel.refresh.scripts.OnClick(panel.refresh)
-        assert "1 erreur(s) enregistrée(s)" in panel.box.text and "diagnostic" in panel.box.text
+        assert "Aucune erreur" in panel.box.text
+        # « Relire » reprend l'état du moment : une erreur notée y figure ; la zone est en lecture seule.
+        g._NS.Store.LogError("essai", "boum")
+        panel.refresh.scripts.OnClick(panel.refresh)
+        assert "1 erreur(s) enregistrée(s)" in panel.box.text and "essai · boum" in panel.box.text
         report = panel.box.text
         panel.box.text = "effacé par mégarde"
         panel.box.scripts.OnTextChanged(panel.box, True)
@@ -1639,7 +1644,44 @@ class TestDurability:
         assert any(
             m.startswith("|cffffd100[MF]|r récolte · dernier sort 12345") for m in list(g._CHAT.values())
         )
-        assert list(g.WoWForeverGuildeDB.errors.values())[-1].where == "diagnostic"
+        assert list(g.WoWForeverGuildeDB.reports.values())[-1].where == "diagnostic"
+
+    def test_reports_are_kept_apart_from_the_errors_and_still_exported(self):
+        # Un fichier d'avant la 0.7.21 : 50 lignes, des journaux des kills et un diagnostic mêlés à deux erreurs.
+        lua = boot()
+        g = lua.globals()
+        lua.execute("""
+          WoWForeverGuildeDB = { errors = {} }
+          local e = WoWForeverGuildeDB.errors
+          e[1] = { t = 1, where = 'pve.onEvent', error = 'boum 1' }
+          e[2] = { t = 2, where = 'diagnostic', error = 'relevé' }
+          for i = 3, 49 do e[i] = { t = i, where = 'vh', error = 'journal ' .. i } end
+          e[50] = { t = 50, where = 'plaques', error = 'boum 2' }
+        """)
+        login(lua)
+        db = g.WoWForeverGuildeDB
+        assert [e.where for e in db.errors.values()] == ["pve.onEvent", "plaques"]
+        # Trois relevés au plus de chaque sorte, les plus récents.
+        assert [(r.where, r.error) for r in db.reports.values()] == [
+            ("diagnostic", "relevé"),
+            ("vh", "journal 47"),
+            ("vh", "journal 48"),
+            ("vh", "journal 49"),
+        ]
+        chat = list(g._CHAT.values())
+        g.SlashCmdList.WOWFOREVERGUILDE("erreurs")
+        printed = list(g._CHAT.values())[len(chat) :]
+        assert any("2 erreur(s) enregistrée(s)" in m for m in printed) and not any("journal" in m for m in printed)
+        # Un nouveau relevé chasse le plus ancien de sa sorte, pas une erreur.
+        g._NS.Store.LogReport("vh", "journal 51")
+        assert [r.error for r in db.reports.values() if r.where == "vh"] == ["journal 48", "journal 49", "journal 51"]
+        assert len(list(db.errors.values())) == 2
+        # Le site reçoit tout dans `errors`, les relevés en fin de liste ; liste pleine, les relevés passent quand même.
+        for i in range(60):
+            g._NS.Store.LogError("essai", f"erreur {i}")
+        exported = decode_export(logout_code(lua))["errors"]
+        assert len(exported) == 50 and [e["where"] for e in exported[-4:]] == ["diagnostic", "vh", "vh", "vh"]
+        assert exported[0]["error"] == "erreur 14" and exported[45]["error"] == "erreur 59"
 
     def test_companion_seed_mark_is_kept_and_exported(self):
         # Le compagnon a complété le fichier depuis le site et y a posé sa marque : l'addon la ressort telle quelle.
@@ -3542,11 +3584,14 @@ class TestWantedKills:
             "combat message « Vous avez vaincu un adversaire. » → aucun nom",
             "reçu H de Jaina Portvaillant : Nazgrel → popup",
         ]
-        # Rien dans les erreurs tant qu'on joue ; à la déconnexion, le journal part avec elles (où = « vh »).
+        # Rien de noté tant qu'on joue ; à la déconnexion, le journal est rangé parmi les relevés (où = « vh »),
+        # pas parmi les erreurs, et part au site avec elles.
         assert list(g.WoWForeverGuildeDB.errors.values()) == []
-        g._FIRE("PLAYER_LOGOUT")
-        (entry,) = list(g.WoWForeverGuildeDB.errors.values())
-        assert entry.where == "vh" and "kill « Sylvanas » : popup, H accepté" in entry.error
+        assert list(g.WoWForeverGuildeDB.reports.values()) == []
+        (exported,) = decode_export(logout_code(lua))["errors"]
+        assert exported["where"] == "vh" and "kill « Sylvanas » : popup, H accepté" in exported["error"]
+        (entry,) = list(g.WoWForeverGuildeDB.reports.values())
+        assert entry.where == "vh" and list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_a_kill_the_game_does_not_name_is_announced_and_named_afterwards(self):
         lua = boot()
@@ -4389,8 +4434,8 @@ class TestTrades:
         chat = "\n".join(g._CHAT.values())
         assert "GetInboxInvoiceInfo" in chat and "1 achats et 2 ventes notés" in chat
         assert "Étoffe de lin" in chat and "seller | Étoffe de lin | Garrosh | 300" in chat
-        errors = list(g.WoWForeverGuildeDB.errors.values())
-        assert [e.where for e in errors] == ["ventes"]
+        assert [r.where for r in g.WoWForeverGuildeDB.reports.values()] == ["ventes"]
+        assert list(g.WoWForeverGuildeDB.errors.values()) == []
 
     def test_a_purchase_the_game_does_not_describe_is_named_by_its_mail(self):
         lua = boot()

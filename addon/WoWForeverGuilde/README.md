@@ -146,7 +146,7 @@ transporte le code jusqu'au site.
   rien 45 s après le kill ; `/mf api` dit ce qu'a donné le dernier envoi et combien on en a reçu. Journal des
   kills (0.6.9) : chaque piste (message, compteur, cadavre, en combat ou non), ce qu'elle a donné (popup, « H »
   accepté ou refusé, « sans nom ») et chaque « K » ou « H » reçu, 14 lignes par session, affiché par `/mf api`
-  avec les derniers popups (affiché, mis en attente, sorti de la file) et noté avec les erreurs à la déconnexion
+  avec les derniers popups (affiché, mis en attente, sorti de la file) et noté parmi les relevés (à part des erreurs, envoyés au site avec elles) à la déconnexion
   (où = « vh ») pour le GM. Le popup « Prime
   encaissée » s'affiche chez le chasseur et chez les guildiens qui reçoivent le « K », alertes Wanted cochées ou non
   (0.6.4 ; la case ne gouverne que la ligne de chat, la prime dans l'avis de décès et les têtes de mort). Chaque kill de

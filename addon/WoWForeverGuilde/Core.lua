@@ -265,10 +265,10 @@ function ns.DiagnosticLines()
   return lines, client
 end
 
---- Note le diagnostic avec les erreurs : il part au site au prochain envoi (page « Tests en jeu »).
+--- Note le diagnostic parmi les relevés (à part des erreurs, cf. Store.LogReport) : il part au site au prochain envoi (page « Tests en jeu »).
 function ns.SaveDiagnostic()
   local lines, client = ns.DiagnosticLines()
-  ns.Store.LogError("diagnostic", table.concat(lines, " | ") .. (client ~= "" and (" · " .. client) or ""))
+  ns.Store.LogReport("diagnostic",table.concat(lines, " | ") .. (client ~= "" and (" · " .. client) or ""))
   ns.Print(ns.L.DIAG_SAVED)
 end
 

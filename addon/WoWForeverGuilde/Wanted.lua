@@ -282,7 +282,7 @@ function Wanted.HonorPatterns()
 end
 
 -- Journal des kills de la session (0.6.9) : chaque piste (message de victoire honorable, compteur, cadavre) et ce
--- qu'elle a donné, chaque « K » ou « H » reçu. Noté avec les erreurs à la déconnexion et au /reload (où = « vh ») :
+-- qu'elle a donné, chaque « K » ou « H » reçu. Noté parmi les relevés à la déconnexion et au /reload (où = « vh ») :
 -- le GM lit sur le site pourquoi un kill n'a pas eu son popup, sans rien demander au joueur.
 local killLog = {}
 local function logKill(fmt, ...)
@@ -1252,7 +1252,7 @@ ns.RegisterCollector({
     end
   end,
   onLogout = function()
-    if #killLog > 0 then ns.Store.LogError("vh", Wanted.KillLog()) end
+    if #killLog > 0 then ns.Store.LogReport("vh", Wanted.KillLog()) end
   end,
   status = function()
     local n, kills = 0, 0

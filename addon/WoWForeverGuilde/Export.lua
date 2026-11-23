@@ -77,6 +77,17 @@ local function clientInfo()
   return client
 end
 
+--- Les erreurs puis les relevés (diagnostic, journal des kills, ventes), dans le seul champ `errors` que le site
+--- connaît : il reconnaît les relevés à leur `where`. Il n'en lit que les MAX_ERRORS dernières lignes : les
+--- relevés, placés en fin de liste, y tiennent toujours, et ce sont les erreurs les plus anciennes qui cèdent.
+local function errorsAndReports(db)
+  local out = ns.Json.array()
+  local errors, reports = db.errors or {}, db.reports or {}
+  for i = math.max(1, #errors - (ns.Data.MAX_ERRORS - #reports) + 1), #errors do out[#out + 1] = errors[i] end
+  for _, report in ipairs(reports) do out[#out + 1] = report end
+  return out
+end
+
 function Export.BuildPayload(db, ts)
   local characters = ns.Json.array()
   local guids = {}
@@ -96,7 +107,7 @@ function Export.BuildPayload(db, ts)
     characters = characters,
     bounties = ns.Bounties and ns.Bounties.Export() or nil, -- primes posées en jeu, les miennes et celles reçues
     trades = ns.Trades and ns.Trades.Export() or nil, -- mes achats et ventes à l'hôtel des ventes
-    errors = arrayOf(db.errors),
+    errors = errorsAndReports(db),
   }
 end
 
