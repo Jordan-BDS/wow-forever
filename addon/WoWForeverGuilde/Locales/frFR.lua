@@ -283,6 +283,11 @@ ns.L = setmetatable({
 -- son lancement, un fichier ajouté ne serait pas chargé après une mise à jour suivie d'un simple /reload.
 -- Un test refuse une version du code sans notes : en écrire à chaque version.
 ns.CHANGELOG = {
+  { version = "0.7.21", notes = {
+    "Hôtel des ventes : le compagnon n'envoie plus les prix d'Auctionator que s'ils viennent d'un scan complet. De vieux prix repartaient comme neufs et déclenchaient de fausses alertes de prix.",
+    "Si tes prix ne partent plus : lance un scan complet depuis Auctionator.",
+    "/mf erreurs ne compte plus que les vraies erreurs.",
+  } },
   { version = "0.7.20", notes = {
     "Montée de niveau : tu vois maintenant le popup de tes propres niveaux, comme les autres le voient.",
   } },
