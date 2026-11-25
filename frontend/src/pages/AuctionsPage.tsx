@@ -218,8 +218,9 @@ export function AuctionsPage() {
                     {header("listed", "Enchères")}
                   </div>
                   {header("price", "Prix")}
-                  {/* La place des boutons d'une ligne, pour que « Prix » tombe au-dessus des prix. */}
-                  <div aria-hidden="true" className="invisible flex items-center gap-3">
+                  {/* La place des boutons d'une ligne, pour que « Prix » tombe au-dessus des prix ; écran étroit :
+                      les boutons passent sous le nom, « Prix » va au bord. */}
+                  <div aria-hidden="true" className="invisible hidden items-center gap-3 md:flex">
                     <span className="border px-2">Historique</span>
                     <span className="border px-2">Alertes</span>
                     <span className="text-xl leading-none">☆</span>
@@ -365,24 +366,35 @@ function AuctionItem({
   const [alerts, setAlerts] = useState(false);
   const below = !row.gone && row.buy_price != null && row.price <= row.buy_price;
   const above = !row.gone && row.sell_price != null && row.price >= row.sell_price;
+  const action =
+    "rounded-sm border border-border px-2 py-1 text-xs text-muted hover:border-gold hover:text-gold";
   return (
     <li className="text-sm">
-      <div className="flex items-center gap-3 px-3 py-2">
+      {/* Écran étroit, deux étages : l'icône, le nom et l'étoile, puis les boutons et le prix. À partir de md, tout
+          sur une ligne : icône, nom, prix, boutons, étoile. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-2.5 md:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto]">
         {row.icon_url ? (
-          <img src={row.icon_url} alt="" className="size-9 rounded border border-border" loading="lazy" />
+          <img
+            src={row.icon_url}
+            alt=""
+            className="size-9 self-start rounded border border-border md:self-center"
+            loading="lazy"
+          />
         ) : (
-          <div className="size-9 rounded border border-border bg-bg" />
+          <div className="size-9 self-start rounded border border-border bg-bg md:self-center" />
         )}
-        <div className="min-w-0 flex-1">
-          <WowheadLink
-            kind="item"
-            id={row.item_id}
-            quality={row.quality}
-            className="font-medium hover:underline"
-          >
-            {row.name}
-          </WowheadLink>
-          <div className="text-xs text-muted">
+        <div className="min-w-0">
+          <div className="line-clamp-2 text-base leading-snug" title={row.name}>
+            <WowheadLink
+              kind="item"
+              id={row.item_id}
+              quality={row.quality}
+              className="font-medium hover:underline"
+            >
+              {row.name}
+            </WowheadLink>
+          </div>
+          <div className="text-muted">
             {row.gone
               ? `plus en vente · ${row.previous_listed} enchère${(row.previous_listed ?? 0) > 1 ? "s" : ""} avant`
               : row.listed == null
@@ -392,7 +404,7 @@ function AuctionItem({
                   : `${row.listed} enchère${row.listed > 1 ? "s" : ""}`}
           </div>
           {(row.buy_price != null || row.sell_price != null) && (
-            <div className="flex flex-wrap gap-x-3 text-xs text-muted">
+            <div className="flex flex-wrap gap-x-3 text-muted">
               {row.buy_price != null && (
                 <span className={below ? "font-semibold text-success" : undefined}>
                   {below ? "à ton prix d'achat ou en dessous" : "achat"} : {formatMoney(row.buy_price)}
@@ -406,47 +418,6 @@ function AuctionItem({
             </div>
           )}
         </div>
-        {movement && row.listed_change != null && (
-          <div className="text-right">
-            <div className={clsx("font-mono", row.listed_change < 0 ? "text-danger" : "text-success")}>
-              {row.listed_change > 0 ? "+" : "−"}
-              {Math.abs(row.listed_change)}
-            </div>
-            <div className="text-xs text-muted">≈ {formatMoney(row.moved ?? 0)}</div>
-          </div>
-        )}
-        <div className="text-right">
-          <div className="font-mono">{formatMoney(row.price)}</div>
-          <div
-            className={clsx(
-              "text-xs",
-              row.change == null || row.change === 0
-                ? "text-muted"
-                : row.change > 0
-                  ? "text-success"
-                  : "text-danger",
-            )}
-            title={row.previous_price != null ? `avant : ${formatMoney(row.previous_price)}` : undefined}
-          >
-            {row.gone ? "dernier prix" : row.change == null ? "nouveau" : formatChange(row.change)}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          className="rounded-sm border border-border px-2 py-1 text-xs text-muted hover:border-gold hover:text-gold"
-        >
-          {open ? "Fermer" : "Historique"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setAlerts(!alerts)}
-          aria-expanded={alerts}
-          className="rounded-sm border border-border px-2 py-1 text-xs text-muted hover:border-gold hover:text-gold"
-        >
-          {alerts ? "Fermer" : "Alertes"}
-        </button>
         <button
           type="button"
           onClick={onFavorite}
@@ -454,12 +425,54 @@ function AuctionItem({
           aria-pressed={row.favorite}
           title={row.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
           className={clsx(
-            "text-xl leading-none transition-colors disabled:opacity-50",
+            "self-start text-xl leading-none transition-colors disabled:opacity-50 md:col-start-5 md:row-start-1 md:self-center",
             row.favorite ? "text-gold hover:text-gold-light" : "text-muted hover:text-gold",
           )}
         >
           {row.favorite ? "★" : "☆"}
         </button>
+        <div className="col-span-full flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:contents">
+          <div className="flex shrink-0 items-center gap-3 md:col-start-4 md:row-start-1">
+            <button type="button" onClick={onToggle} aria-expanded={open} className={action}>
+              {open ? "Fermer" : "Historique"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAlerts(!alerts)}
+              aria-expanded={alerts}
+              className={action}
+            >
+              {alerts ? "Fermer" : "Alertes"}
+            </button>
+          </div>
+          {/* Le mouvement à gauche du prix si la place y est (xl), sinon dessous, sur une ligne. */}
+          <div className="ml-auto flex shrink-0 flex-col items-end md:col-start-3 md:row-start-1 xl:flex-row xl:items-center xl:gap-4">
+            {movement && row.listed_change != null && (
+              <div className="order-2 flex items-baseline gap-1.5 whitespace-nowrap text-right xl:order-none xl:block">
+                <div className={clsx("tabular-nums", row.listed_change < 0 ? "text-danger" : "text-success")}>
+                  {row.listed_change > 0 ? "+" : "−"}
+                  {Math.abs(row.listed_change)}
+                </div>
+                <div className="text-xs text-muted">≈ {formatMoney(row.moved ?? 0)}</div>
+              </div>
+            )}
+            <div className="text-right">
+              <Money copper={row.price} />
+              <div
+                className={clsx(
+                  row.change == null || row.change === 0
+                    ? "text-muted"
+                    : row.change > 0
+                      ? "text-success"
+                      : "text-danger",
+                )}
+                title={row.previous_price != null ? `avant : ${formatMoney(row.previous_price)}` : undefined}
+              >
+                {row.gone ? "dernier prix" : row.change == null ? "nouveau" : formatChange(row.change)}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       {alerts && <AlertEditor row={row} onDone={() => setAlerts(false)} />}
       {open && (
@@ -472,6 +485,36 @@ function AuctionItem({
         </div>
       )}
     </li>
+  );
+}
+
+/** Un prix en trois cases de largeur fixe, pour que les po, pa et pc tombent les uns sous les autres d'une ligne à
+ * l'autre ; une partie nulle garde sa case, vide. Jamais coupé en deux lignes. */
+function Money({ copper }: { copper: number }) {
+  const total = Math.max(0, Math.round(copper));
+  const parts = [
+    [Math.floor(total / 10000), "po"],
+    [Math.floor(total / 100) % 100, "pa"],
+    [total % 100, "pc"],
+  ] as const;
+  return (
+    <div className="text-base lining-nums tabular-nums whitespace-nowrap">
+      <span className="sr-only">{formatMoney(total)}</span>
+      {parts.map(([value, unit]) => (
+        <span
+          key={unit}
+          aria-hidden="true"
+          className={clsx(
+            "inline-block text-right",
+            unit !== "po" && "w-[2.4em]",
+            value === 0 && !(unit === "pc" && total === 0) && "invisible",
+          )}
+        >
+          {value}
+          <span className="ml-0.5 text-xs text-muted">{unit}</span>
+        </span>
+      ))}
+    </div>
   );
 }
 
