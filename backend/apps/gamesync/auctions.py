@@ -87,6 +87,13 @@ class TooCloseScan(DuplicateScan):
     (il le retient et ne le renvoie pas)."""
 
 
+class UntimedScan(DuplicateScan):
+    """Un scan sans nombre d'enchères (la base d'Auctionator) qu'un compagnon envoie sans dire que sa date est
+    l'heure du scan : un compagnon d'avant la 0.7.21, qui le datait de l'écriture du fichier quand Auctionator
+    n'avait pas noté d'heure, et renvoyait les mêmes prix sous une nouvelle date. Pour ce compagnon, comme un
+    scan déjà reçu."""
+
+
 def canonical_house(house: Any) -> str:
     """Le nom sous lequel le site range un hôtel. Tout nom qui contient « pvp », quelle que soit la casse, est
     le même hôtel : `PVP_HOUSE`. Les autres gardent leur nom, espaces resserrés. Vide si illisible."""
@@ -125,11 +132,18 @@ def _rows(raw: Any) -> dict[int, tuple[int, int | None]]:
 
 
 def store_scan(
-    user, house: Any, scanned_at: Any, items: Any, *, device: CompanionDevice | None = None
+    user,
+    house: Any,
+    scanned_at: Any,
+    items: Any,
+    *,
+    device: CompanionDevice | None = None,
+    timed: bool = False,
 ) -> AuctionScan:
     """Enregistre un scan. `DuplicateScan` si cet hôtel a déjà un scan à cet instant, `TooCloseScan` s'il en a
     un à moins de `MIN_GAP` (avant ou après : les scans n'arrivent pas forcément dans l'ordre), `PartialScan`
-    s'il compte bien moins d'objets que le dernier scan de l'hôtel."""
+    s'il compte bien moins d'objets que le dernier scan de l'hôtel, `UntimedScan` si un compagnon envoie un
+    scan sans aucun nombre d'enchères sans garantir (`timed`) que sa date est l'heure du scan."""
     house = canonical_house(house)
     if not house or len(house) > 96:
         raise AuctionError("Hôtel des ventes manquant ou trop long.")
@@ -143,6 +157,11 @@ def store_scan(
     if when > timezone.now() + timedelta(days=1):
         raise AuctionError("Le scan est daté dans le futur.")
     rows = _rows(items)
+    if device is not None and not timed and all(listed is None for _, listed in rows.values()):
+        raise UntimedScan(
+            "Scan sans heure de scan : ce compagnon n'est pas à jour, la 0.7.21 n'envoie un scan "
+            "d'Auctionator que daté de son lancement."
+        )
     last = AuctionScan.objects.filter(house=house).order_by("-scanned_at").first()
     if last and last.items >= PARTIAL_FLOOR and len(rows) < PARTIAL_SHARE * last.items:
         raise PartialScan(
@@ -622,6 +641,7 @@ def item_history(item_id: int, house: str = "", user=None) -> dict:
     avec le nom affiché du membre qui a envoyé le scan. Avec `user` : ses propres achats et ventes de l'objet
     et le bilan de ses reventes (`trades.for_item`), que lui seul voit."""
     from . import trades  # import local : trades.py lit ce module
+
     known = houses()
     house = canonical_house(house)
     if known and not any(h["house"] == house for h in known):

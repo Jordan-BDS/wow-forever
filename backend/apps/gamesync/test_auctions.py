@@ -77,6 +77,27 @@ class TestUpload:
         assert post_scan(api_client, [[2589, 100, 3]]).status_code == 201
         assert AuctionScan.objects.get().user == member
 
+    def test_a_companion_scan_without_auction_counts_must_be_dated_by_its_scan(self, api_client, gm):
+        """Prod, 25 novembre : une base Auctionator sans heure de scan, datée de l'écriture du fichier, reçue
+        cinq fois en 26 heures avec les mêmes prix ; la dernière a déclenché une alerte de prix à tort."""
+        api_client.credentials(HTTP_AUTHORIZATION=f"Companion {companion_token(gm)}")
+        body = {
+            "house": HOUSE,
+            "scanned_at": stamp(timedelta(hours=2)),
+            "items": [[2589, 100], [2592, 9, None]],
+        }
+        response = api_client.post("/api/sync/auctions/", body, format="json")
+        assert response.status_code == 409  # un compagnon d'avant la 0.7.21 le retient et ne le renvoie pas
+        assert response.json()["detail"].startswith("Scan sans heure de scan")
+        assert not AuctionScan.objects.exists()
+        # Le compagnon à jour garantit sa date ; un scan qui compte les enchères (NaowhForever) a toujours la
+        # sienne, quel que soit le compagnon.
+        assert (
+            api_client.post("/api/sync/auctions/", {**body, "timed": True}, format="json").status_code == 201
+        )
+        assert post_scan(api_client, [[2589, 100, 3], [2592, 9]]).status_code == 201
+        assert AuctionScan.objects.count() == 2
+
     def test_a_scan_far_smaller_than_the_last_one_is_not_a_full_scan(self, api_client, as_user, gm, member):
         """Prod, 15 novembre : une base Auctionator de 433 objets rangée parmi des scans de 6 500."""
         full = [[item_id, 100, 3] for item_id in range(1, 1201)]

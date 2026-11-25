@@ -336,7 +336,9 @@ impl SiteClient {
     }
 
     /// Envoie un scan complet de l'hôtel des ventes. `Ok(None)` : enregistré ; `Ok(Some(raison))` : le site n'en
-    /// veut pas et le dit (déjà reçu, trop proche d'un autre, partiel), inutile de le renvoyer.
+    /// veut pas et le dit (déjà reçu, trop proche d'un autre, partiel), inutile de le renvoyer. `timed` : la date
+    /// est l'heure du scan notée par l'addon de scan, jamais celle de l'écriture du fichier (le site refuse sans
+    /// cela un scan sans nombre d'enchères, celui d'Auctionator).
     pub fn upload_auctions(&self, scan: &crate::auctions::HouseScan) -> Result<Option<String>> {
         let response = self
             .authed(self.http.post(self.url("auctions/")))
@@ -344,6 +346,7 @@ impl SiteClient {
                 "house": scan.house,
                 "scanned_at": scan.scanned_at,
                 "items": scan.items,
+                "timed": true,
             }))
             .send()?;
         match response.status().as_u16() {

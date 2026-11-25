@@ -372,7 +372,12 @@ class AuctionScansView(APIView):
         device = request.auth if isinstance(request.auth, CompanionDevice) else None
         try:
             scan = auctions.store_scan(
-                request.user, data.get("house"), data.get("scanned_at"), data.get("items"), device=device
+                request.user,
+                data.get("house"),
+                data.get("scanned_at"),
+                data.get("items"),
+                device=device,
+                timed=data.get("timed") is True,
             )
         except auctions.DuplicateScan as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)

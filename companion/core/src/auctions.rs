@@ -6,9 +6,9 @@
 //! le client). Sa base ne date pas ses scans à la seconde, seulement au jour : le scan envoyé est le dernier jour
 //! où une bonne part de la base a été vue (un scan complet, pas une recherche). Il est daté de l'heure à laquelle
 //! Auctionator dit avoir lancé son dernier scan complet (`AUCTIONATOR_SAVEDVARS`, même fichier), si elle tombe
-//! dans ce jour ; sinon de l'écriture du fichier, comme avant la 0.7.15. Avec l'heure du scan, il part une fois
-//! par scan ; sans elle, dès que les prix de ce jour ont changé (un second scan le même jour ; avant la 0.7.11,
-//! un seul par jour). La base compte des quantités, pas des enchères : le nombre d'enchères n'est pas envoyé.
+//! dans ce jour, et il part une fois par scan. Sans cette heure, rien ne part (0.7.21 ; avant, il était daté de
+//! l'écriture du fichier et repartait dès que les prix de ce jour changeaient). La base compte des quantités,
+//! pas des enchères : le nombre d'enchères n'est pas envoyé.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -690,9 +690,8 @@ impl ScanReport {
 /// l'appelant) : l'heure du scan par hôtel pour NaowhForever ; pour Auctionator, le jour du scan sous
 /// « Auctionator:<royaume> », l'empreinte de ses prix sous « Auctionator:<royaume>:prix » et, quand Auctionator
 /// l'a notée, l'heure du scan sous « Auctionator:<royaume>:heure ». Avec cette heure, un scan part une fois,
-/// même si des recherches à la main changent ensuite quelques prix ; sans elle, les mêmes prix le même jour ne
-/// repartent pas, d'autres prix si. Ne touche à rien d'autre : un échec ici n'empêche jamais l'envoi des
-/// personnages.
+/// même si des recherches à la main changent ensuite quelques prix ; sans elle, rien ne part. Ne touche à rien
+/// d'autre : un échec ici n'empêche jamais l'envoi des personnages.
 pub fn upload_once(
     game_dir: &Path,
     config: &mut Config,
@@ -839,16 +838,11 @@ pub fn upload_with_reports(
             // Le même jour : un nouveau scan si les prix ont changé. Sans empreinte retenue (jour envoyé par une
             // version d'avant), il repart une fois : le site reconnaît le sien s'il l'a déjà.
             let same_prices = config.last_auction_scans.get(&print_key).copied() == Some(print);
-            // L'heure notée par Auctionator, si elle peut être celle de ce scan. Sinon l'écriture du fichier, à la
-            // déconnexion qui suit le scan ; s'il a été écrit bien plus tard, la date reste dans le jour du scan.
+            // L'heure notée par Auctionator, si elle peut être celle de ce scan.
             let exact = auctionator_scan_time(noted, found.day, modified);
-            let day_end = AUCTIONATOR_DAY_0 + (found.day + 1) * 86_400 + AUCTIONATOR_DAY_SLACK;
-            let scanned_at = exact.unwrap_or(modified.min(day_end));
-            note.push_str(if exact.is_some() {
-                " · daté du lancement du scan noté par Auctionator"
-            } else {
-                " · daté de l'écriture du fichier, faute d'heure de scan"
-            });
+            if exact.is_some() {
+                note.push_str(" · daté du lancement du scan noté par Auctionator");
+            }
             let sent_time = config.last_auction_scans.get(&time_key).copied();
             let (day, count) = (found.day, found.items.len());
             // Une base ancienne ne part pas : ses prix dateraient de plusieurs jours.
@@ -865,16 +859,32 @@ pub fn upload_with_reports(
                 reports.push(report);
                 continue;
             }
-            // Avec l'heure du scan : déjà parti si c'est celle du dernier envoi, ou si ce jour et ces prix sont
-            // partis avant qu'on la lise (version d'avant) ; on la retient alors sans rien renvoyer.
-            let already = match exact {
-                Some(at) if sent_time == Some(at) => true,
-                Some(at) if sent_time.is_none() && day == known && same_prices => {
-                    config.last_auction_scans.insert(time_key.clone(), at);
-                    true
-                }
-                Some(_) => false,
-                None => day == known && same_prices,
+            // Sans heure de scan, rien ne part (0.7.21) : ces prix ne viennent pas d'un scan complet lancé ce
+            // jour-là, ou on ne sait pas quand. Datés de l'écriture du fichier, ils repartaient à chaque
+            // déconnexion suivie de quelques recherches, sous une nouvelle date (prod, 25 novembre : des prix de
+            // la veille reçus cinq fois, pris pour le dernier scan de l'hôtel).
+            let Some(scanned_at) = exact else {
+                let mut report = ScanReport::new(
+                    AUCTIONATOR,
+                    &realm.house,
+                    "no_scan",
+                    format!("pas d'heure de scan complet notée par Auctionator pour ce jour : rien n'est envoyé, il faut lancer un scan complet depuis Auctionator ({note})"),
+                );
+                report.day = Some(day);
+                report.items = Some(count);
+                report.file_at = Some(modified);
+                reports.push(report);
+                continue;
+            };
+            // Déjà parti si c'est l'heure du dernier envoi, ou si ce jour et ces prix sont partis avant qu'on la
+            // lise (version d'avant) ; on la retient alors sans rien renvoyer.
+            let already = if sent_time == Some(scanned_at) {
+                true
+            } else if sent_time.is_none() && day == known && same_prices {
+                config.last_auction_scans.insert(time_key.clone(), scanned_at);
+                true
+            } else {
+                false
             };
             let (outcome, refusal) = if day < known || already {
                 (AuctionOutcome::Unchanged { house: label }, None)
@@ -890,10 +900,7 @@ pub fn upload_with_reports(
                     AuctionOutcome::Sent { .. } | AuctionOutcome::Duplicate { .. }
                 ) {
                     config.last_auction_scans.insert(print_key, print);
-                    match exact {
-                        Some(at) => config.last_auction_scans.insert(time_key, at),
-                        None => config.last_auction_scans.remove(&time_key),
-                    };
+                    config.last_auction_scans.insert(time_key, scanned_at);
                 }
                 (outcome, refusal)
             };
@@ -1118,7 +1125,7 @@ NaowhForeverDB = {
     }
 
     #[test]
-    fn sends_an_auctionator_scan_when_its_prices_change_without_auction_counts() {
+    fn an_auctionator_scan_without_its_time_is_not_sent() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().join("WTF/Account/WOW1/SavedVariables");
         std::fs::create_dir_all(&dir).unwrap();
@@ -1131,59 +1138,34 @@ NaowhForeverDB = {
         let server = MockServer::start();
         status(&server, true);
         let upload = server.mock(|when, then| {
-            when.method(POST)
-                .path("/api/sync/auctions/")
-                .json_body_partial(r#"{ "house": "PvP" }"#);
+            when.method(POST).path("/api/sync/auctions/");
             then.status(201).json_body(serde_json::json!({ "id": 1 }));
         });
         let client = SiteClient::new(&server.base_url(), Some("tok".into()));
         let mut config = Config::default();
         config.token = Some("tok".into());
-        let outcomes = upload_once(tmp.path(), &mut config, &client);
-        assert!(matches!(
-            &outcomes[0],
-            AuctionOutcome::Sent { house, items: 240, .. } if house == "PvP (Auctionator)"
-        ));
-        assert_eq!(config.last_auction_scans["Auctionator:PvP"], day);
+        // Prod, 25 novembre : sans heure de scan, la base partait datée de l'écriture du fichier, puis repartait
+        // sous une nouvelle date dès que quelques recherches changeaient ses prix.
+        let (outcomes, reports) = upload_with_reports(tmp.path(), &mut config, &client);
+        assert!(outcomes.is_empty());
+        assert_eq!(upload.hits(), 0);
+        assert!(config.last_auction_scans.is_empty());
+        assert_eq!(reports.len(), 1);
         assert_eq!(
-            upload_once(tmp.path(), &mut config, &client),
-            vec![AuctionOutcome::Unchanged {
-                house: "PvP (Auctionator)".into()
-            }]
+            (reports[0].source.as_str(), reports[0].house.as_str(), reports[0].kind.as_str()),
+            ("Auctionator", "PvP", "no_scan")
         );
-        assert_eq!(upload.hits(), 1);
-        // Un second scan le même jour, d'autres prix : il part ; puis plus rien tant que rien ne change.
+        assert_eq!((reports[0].day, reports[0].items), (Some(day), Some(240)));
+        assert!(reports[0].detail.contains("pas d'heure de scan"));
+        assert!(reports[0].detail.contains("240 objets") && reports[0].detail.contains("base version 8"));
+        // D'autres prix, toujours sans heure : rien non plus.
         std::fs::write(
             dir.join("Auctionator.lua"),
             auctionator_file(&auctionator_database_priced(&day.to_string(), 11)),
         )
         .unwrap();
-        let outcomes = upload_once(tmp.path(), &mut config, &client);
-        assert!(matches!(
-            &outcomes[0],
-            AuctionOutcome::Sent { house, items: 240, .. } if house == "PvP (Auctionator)"
-        ));
-        assert_eq!(config.last_auction_scans["Auctionator:PvP"], day);
-        assert_eq!(upload.hits(), 2);
-        assert!(matches!(
-            &upload_once(tmp.path(), &mut config, &client)[0],
-            AuctionOutcome::Unchanged { .. }
-        ));
-        assert_eq!(upload.hits(), 2);
-        // Le constat pour le site : rien de nouveau, avec ce qu'on a lu.
-        let (_, reports) = upload_with_reports(tmp.path(), &mut config, &client);
-        assert_eq!(reports.len(), 1);
-        assert_eq!(
-            (reports[0].source.as_str(), reports[0].house.as_str(), reports[0].kind.as_str()),
-            ("Auctionator", "PvP", "unchanged")
-        );
-        assert_eq!((reports[0].day, reports[0].items), (Some(day), Some(240)));
-        assert!(reports[0].detail.contains("240 objets") && reports[0].detail.contains("base version 8"));
-        // Un jour envoyé par une version d'avant, sans empreinte : il repart une fois.
-        config.last_auction_scans.remove("Auctionator:PvP:prix");
-        upload_once(tmp.path(), &mut config, &client);
-        assert_eq!(upload.hits(), 3);
-        assert!(config.last_auction_scans.contains_key("Auctionator:PvP:prix"));
+        assert!(upload_once(tmp.path(), &mut config, &client).is_empty());
+        assert_eq!(upload.hits(), 0);
     }
 
     /// `auctionator_file`, avec l'état d'Auctionator écrit avant la base de prix, comme le fait le client.
@@ -1275,16 +1257,15 @@ NaowhForeverDB = {
         ));
         assert_eq!(upload.hits(), 2);
         assert_eq!(config.last_auction_scans["Auctionator:PvP:heure"], again);
-        // Une heure d'un autre jour ne date pas ces prix : l'écriture du fichier, comme avant.
+        // Une heure d'un autre jour ne date pas ces prix : rien ne part, le dernier envoi reste retenu.
         let other = auctionator_database_priced(&day.to_string(), 12);
         std::fs::write(&path, auctionator_file_scanned(&other, &state(now - 4 * 86_400))).unwrap();
         let (outcomes, reports) = upload_with_reports(tmp.path(), &mut config, &client);
-        assert!(matches!(
-            &outcomes[0],
-            AuctionOutcome::Sent { scanned_at, .. } if (*scanned_at - now).abs() < 120
-        ));
-        assert!(reports[0].detail.contains("écriture du fichier"));
-        assert!(!config.last_auction_scans.contains_key("Auctionator:PvP:heure"));
+        assert!(outcomes.is_empty());
+        assert_eq!(reports[0].kind, "no_scan");
+        assert!(reports[0].detail.contains("pas d'heure de scan"));
+        assert_eq!(upload.hits(), 2);
+        assert_eq!(config.last_auction_scans["Auctionator:PvP:heure"], again);
     }
 
     #[test]
@@ -1303,12 +1284,13 @@ NaowhForeverDB = {
         let client = SiteClient::new(&server.base_url(), Some("tok".into()));
         let mut config = Config::default();
         config.token = Some("tok".into());
-        // Envoyé par une version d'avant : sans heure de scan dans le fichier, rien de retenu sous « :heure ».
+        // Envoyé par une version d'avant la 0.7.15 : le jour et l'empreinte des prix retenus, pas l'heure.
         let database = auctionator_database(&day.to_string());
-        std::fs::write(&path, auctionator_file(&database)).unwrap();
-        upload_once(tmp.path(), &mut config, &client);
-        assert_eq!(upload.hits(), 1);
-        assert!(!config.last_auction_scans.contains_key("Auctionator:PvP:heure"));
+        let sent = extract_auctionator(&auctionator_file(&database));
+        config.last_auction_scans.insert("Auctionator:PvP".into(), day);
+        config
+            .last_auction_scans
+            .insert("Auctionator:PvP:prix".into(), fingerprint(&sent[0].items));
         // La version qui lit l'heure : mêmes prix, même jour, le scan ne repart pas mais son heure est retenue.
         let started = AUCTIONATOR_DAY_0 + day * 86_400 + 60;
         let state = format!("[\"TimeOfLastBrowseScan\"] = {started},\n");
@@ -1317,7 +1299,7 @@ NaowhForeverDB = {
             &upload_once(tmp.path(), &mut config, &client)[0],
             AuctionOutcome::Unchanged { .. }
         ));
-        assert_eq!(upload.hits(), 1);
+        assert_eq!(upload.hits(), 0);
         assert_eq!(config.last_auction_scans["Auctionator:PvP:heure"], started);
     }
 
@@ -1349,9 +1331,15 @@ NaowhForeverDB = {
         assert_eq!((reports[0].day, reports[0].items), (Some(old), Some(240)));
         assert!(config.last_auction_scans.is_empty());
         // Le scan de la veille part encore.
+        let eve = today() - 1;
+        let state = format!(
+            "[\"TimeOfLastBrowseScan\"] = {},
+",
+            AUCTIONATOR_DAY_0 + eve * 86_400 + 3_600
+        );
         std::fs::write(
             dir.join("Auctionator.lua"),
-            auctionator_file(&auctionator_database(&(today() - 1).to_string())),
+            auctionator_file_scanned(&auctionator_database(&eve.to_string()), &state),
         )
         .unwrap();
         let (outcomes, _) = upload_with_reports(tmp.path(), &mut config, &client);
@@ -1464,7 +1452,8 @@ NaowhForeverDB = {
                 .header("Authorization", "Companion tok")
                 .json_body(serde_json::json!({
                     "house": "Forever-Alliance", "scanned_at": 1794342484,
-                    "items": [[2589, 100, 71], [7363, 600, null], [15347, 2000, 8]]
+                    "items": [[2589, 100, 71], [7363, 600, null], [15347, 2000, 8]],
+                    "timed": true
                 }));
             then.status(201).json_body(serde_json::json!({ "id": 1 }));
         });
